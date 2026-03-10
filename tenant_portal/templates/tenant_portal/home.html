@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ tenant.name }} | Tenant Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="min-h-screen bg-[#faf9f8] text-[#323130]">
+  <header class="h-14 bg-white border-b flex items-center justify-between px-5" style="border-color:#edebe9;">
+    <div class="flex items-center gap-3 min-w-0">
+      <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-8 w-auto object-contain" />
+      <div class="min-w-0">
+        <p class="text-sm font-semibold truncate">{{ tenant.name }}</p>
+        <p class="text-xs text-[#605e5c] truncate">Tenant Console</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-[#605e5c] hidden sm:inline">{{ tenant_user.email }}</span>
+      <a class="text-sm font-medium text-[#0078D4] hover:underline" href="{% url 'tenant_portal:logout' %}">Sign out</a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-5 py-8">
+    <div class="flex items-start justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Welcome back</h1>
+        <p class="text-sm mt-1 text-[#605e5c]">You only see modules you are authorized to access.</p>
+      </div>
+    </div>
+
+    {% if modules %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {% for m in modules %}
+          {% if m.key == 'finance' %}
+            {% url 'tenant_portal:finance_home' as module_url %}
+          {% elif m.key == 'grants' %}
+            {% url 'tenant_portal:grants_home' as module_url %}
+          {% elif m.key == 'integrations' %}
+            {% url 'tenant_portal:integrations_home' as module_url %}
+          {% else %}
+            {% url 'tenant_portal:home' as module_url %}
+          {% endif %}
+          <a href="{{ module_url }}" class="block bg-white border rounded-lg p-5 hover:shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background:#eff6fc;">
+              <i data-feather="{{ m.icon }}" class="w-5 h-5" style="color:#0078D4;"></i>
+            </div>
+            <p class="font-semibold">{{ m.name }}</p>
+            <p class="text-xs mt-1 text-[#605e5c]">Permission: <span class="font-mono">{{ m.perm }}</span></p>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="bg-white border rounded-lg p-6" style="border-color:#edebe9;">
+        <p class="font-semibold">No modules assigned</p>
+        <p class="text-sm mt-1 text-[#605e5c]">Ask a tenant admin to grant you module access.</p>
+      </div>
+    {% endif %}
+  </main>
+
+  <script>feather.replace();</script>
+</body>
+</html>
+

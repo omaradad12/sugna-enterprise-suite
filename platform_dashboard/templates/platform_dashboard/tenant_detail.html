@@ -1,0 +1,140 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}{{ tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto animate-fade-in">
+  {# Back + header #}
+  <div class="mb-6">
+    <a href="{% url 'platform_dashboard:tenant_list' %}" class="inline-flex items-center gap-2 text-slate-600 hover:text-primary-600 text-sm font-medium mb-4">
+      <i data-feather="arrow-left" class="w-4 h-4"></i> Tenant Directory
+    </a>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <span class="avatar-cell bg-primary-100 text-primary-700 w-14 h-14 text-xl">{{ tenant.name|slice:":1"|upper }}</span>
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">{{ tenant.name }}</h1>
+          <p class="text-slate-500 text-sm font-mono">{{ tenant.slug }} · {{ tenant.domain }}</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+          {% if tenant.display_status == 'active' %}bg-success-50 text-success-700 border border-success-200/60
+          {% elif tenant.display_status == 'trial' %}bg-blue-50 text-blue-700 border border-blue-200/60
+          {% elif tenant.display_status == 'pending' %}bg-warning-50 text-warning-700 border border-warning-200/60
+          {% elif tenant.display_status == 'suspended' or not tenant.is_active %}bg-orange-50 text-orange-700 border border-orange-200/60
+          {% else %}bg-danger-50 text-danger-700 border border-danger-200/60{% endif %}">
+          <span class="w-2 h-2 rounded-full {% if tenant.display_status == 'active' %}bg-success-500{% elif tenant.display_status == 'trial' %}bg-blue-500{% elif tenant.display_status == 'pending' %}bg-warning-500{% else %}bg-danger-500{% endif %}"></span>
+          {{ tenant.get_status_display }}{% if not tenant.is_active and tenant.status == 'active' %} (inactive){% endif %}
+        </span>
+        <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="inline-flex items-center gap-2 px-4 py-2 rounded border bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">
+          <i data-feather="edit-2" class="w-4 h-4"></i> Edit
+        </a>
+        <a href="https://{{ tenant.domain }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-primary-500 text-white text-sm font-medium hover:bg-primary-700">
+          <i data-feather="external-link" class="w-4 h-4"></i> Open workspace
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {# Main column #}
+    <div class="lg:col-span-2 space-y-6">
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Organization details</h2>
+        <dl class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Name</dt><dd class="mt-1 font-medium text-slate-900">{{ tenant.name }}</dd></div>
+          <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Tenant code</dt><dd class="mt-1 font-mono text-slate-700">{{ tenant.slug }}</dd></div>
+          <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Domain / Subdomain</dt><dd class="mt-1 text-slate-700">{{ tenant.domain }}</dd></div>
+          <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Country</dt><dd class="mt-1 text-slate-700">{% if tenant.country %}{{ tenant.country }}{% else %}—{% endif %}</dd></div>
+          <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Created</dt><dd class="mt-1 text-slate-700">{{ tenant.created_at|date:"M d, Y H:i" }}</dd></div>
+          <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Last updated</dt><dd class="mt-1 text-slate-700">{{ tenant.updated_at|date:"M d, Y H:i" }}</dd></div>
+        </dl>
+      </div>
+
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Domain settings</h2>
+        <div class="px-5 py-4">
+          <p class="text-slate-700">Primary domain: <span class="font-mono font-medium">{{ tenant.domain }}</span></p>
+          <p class="text-slate-500 text-sm mt-1">Configure custom domains or SSL in Django admin or your reverse proxy.</p>
+        </div>
+      </div>
+
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Active modules</h2>
+        <div class="px-5 py-4">
+          {% if tenant.modules.all %}
+          <ul class="flex flex-wrap gap-2">
+            {% for m in tenant.modules.all %}
+            <li><span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium">{{ m.name }} ({{ m.code }})</span></li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-slate-500 text-sm">No modules assigned. <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="text-primary-600 hover:underline">Edit tenant</a> to enable modules.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Billing history</h2>
+        <div class="px-5 py-8 text-center text-slate-500 text-sm">
+          {% if billing_history %}
+          <ul class="text-left">{% for b in billing_history %}<li>{{ b }}</li>{% endfor %}</ul>
+          {% else %}
+          No billing history yet. Integrate with your billing system to show invoices and payments here.
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Audit logs</h2>
+        <div class="px-5 py-8 text-center text-slate-500 text-sm">
+          {% if audit_logs %}
+          <ul class="text-left">{% for log in audit_logs %}<li>{{ log }}</li>{% endfor %}</ul>
+          {% else %}
+          No audit events yet. Enable platform audit logging to track changes for this tenant.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Sidebar #}
+    <div class="space-y-6">
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Subscription</h2>
+        <dl class="px-5 py-4 space-y-3">
+          <div><dt class="text-xs font-medium text-slate-500">Plan</dt><dd class="mt-0.5 font-medium text-slate-900">{% if tenant.plan %}{{ tenant.plan }}{% else %}—{% endif %}</dd></div>
+          <div><dt class="text-xs font-medium text-slate-500">Expiry</dt><dd class="mt-0.5 text-slate-700">{% if tenant.subscription_expiry %}{{ tenant.subscription_expiry|date:"M d, Y" }}{% else %}—{% endif %}</dd></div>
+        </dl>
+        <div class="px-5 pb-4"><a href="/admin/" class="text-sm font-medium text-primary-600 hover:underline">Manage subscription →</a></div>
+      </div>
+
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Usage</h2>
+        <dl class="px-5 py-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <dt class="text-sm text-slate-600">Users</dt>
+            <dd class="font-semibold text-slate-900 tabular-nums">{{ tenant.user_count }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-sm text-slate-600">Storage</dt>
+            <dd class="font-semibold text-slate-900">{% if tenant.storage_mb %}{{ tenant.storage_mb }} MB{% else %}—{% endif %}</dd>
+          </div>
+        </dl>
+        <div class="px-5 pb-4"><a href="/admin/" class="text-sm font-medium text-primary-600 hover:underline">View usage details →</a></div>
+      </div>
+
+      <div class="dynamics-card overflow-hidden">
+        <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Quick actions</h2>
+        <ul class="px-5 py-2 space-y-1">
+          <li><a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="edit-2" class="w-4 h-4"></i> Edit tenant</a></li>
+          <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="play" class="w-4 h-4"></i> Activate / Suspend</a></li>
+          <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a></li>
+          <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="credit-card" class="w-4 h-4"></i> Manage subscription</a></li>
+          <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="bar-chart-2" class="w-4 h-4"></i> View usage</a></li>
+          <li><a href="https://{{ tenant.domain }}" target="_blank" rel="noopener" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="external-link" class="w-4 h-4"></i> Open workspace</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

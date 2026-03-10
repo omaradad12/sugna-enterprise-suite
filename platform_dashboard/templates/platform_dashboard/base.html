@@ -1,0 +1,282 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Platform Admin{% endblock %} | Sugna Enterprise Suite</title>
+  <link rel="icon" href="{% url 'platform_dashboard:logo' %}" type="image/png">
+  <!-- Microsoft Fluent / Dynamics 365: Segoe UI (system font) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'Roboto', 'Helvetica Neue', 'sans-serif'] },
+          colors: {
+            /* Microsoft Fluent / Dynamics 365 primary blue */
+            primary: {
+              50: '#eff6fc', 100: '#deecf9', 200: '#b5d4f1', 300: '#89b8e8', 400: '#5a9bdc',
+              500: '#0078D4', 600: '#106EBE', 700: '#0d5aab', 800: '#0a4792', 900: '#083578' },
+            /* Fluent neutrals */
+            surface: { 50: '#faf9f8', 100: '#f3f2f1', 200: '#edebe9', 300: '#e1dfdd', 400: '#d2d0ce', 500: '#a19f9d', 700: '#605e5c', 800: '#323130', 900: '#201f1e' },
+            success: { 50: '#dff6dd', 500: '#107c10', 600: '#0b5a0b' },
+            warning: { 50: '#fff4ce', 500: '#ffb900', 600: '#d83b01' },
+            danger: { 50: '#fde7e9', 500: '#d13438', 600: '#a4262c' }
+          },
+          boxShadow: {
+            'card': '0 1px 2px 0 rgba(0,0,0,.06)',
+            'card-hover': '0 2px 4px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04)',
+            'dropdown': '0 4px 16px rgba(0,0,0,.12)'
+          },
+          borderRadius: { 'card': '4px', 'button': '4px' }
+        }
+      }
+    }
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    /* Sidebar: professional nav with clear hierarchy */
+    .sidebar-wrap { background: #f3f2f1; border-right: 1px solid #edebe9; box-shadow: 1px 0 0 rgba(255,255,255,0.6) inset; }
+    .sidebar-brand { border-bottom: 1px solid #edebe9; background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%); }
+    .sidebar-link {
+      transition: background-color 0.15s ease, color 0.15s ease;
+      border-left: 3px solid transparent;
+      margin-left: 0;
+    }
+    .sidebar-link:hover:not(.active) { background: #e8e6e4; color: #201f1e; }
+    .sidebar-link.active {
+      background: linear-gradient(90deg, #deecf9 0%, #e8f2fa 100%);
+      color: #0078D4;
+      border-left-color: #0078D4;
+      font-weight: 600;
+    }
+    .sidebar-link.active i { color: #0078D4; }
+    .sidebar-group-title {
+      color: #605e5c;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0 0.75rem;
+      margin-top: 1.25rem;
+      margin-bottom: 0.375rem;
+    }
+    .sidebar-group-title:first-of-type { margin-top: 0; }
+    .sidebar-nav::-webkit-scrollbar { width: 6px; }
+    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: #d2d0ce; border-radius: 3px; }
+    .sidebar-nav::-webkit-scrollbar-thumb:hover { background: #a19f9d; }
+    .sidebar-footer { border-top: 1px solid #edebe9; background: #edebe9; }
+    .sidebar-collapse-btn { transition: background-color 0.15s ease, color 0.15s ease; }
+    .sidebar-collapse-btn:hover { background: #e1dfdd; color: #323130; }
+    .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+    .skeleton { background: linear-gradient(90deg, #f3f2f1 25%, #edebe9 50%, #f3f2f1 75%); background-size: 200% 100%; animation: skeleton 1.2s ease-in-out infinite; border-radius: 4px; }
+    @keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .kpi-card { transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease; }
+    .kpi-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.08); border-color: #b5d4f1; transform: translateY(-3px); }
+    .trend-up { color: #107c10; }
+    .trend-down { color: #d13438; }
+    .empty-state-card { background: #faf9f8; border: 1px solid #edebe9; }
+    .empty-state-icon-wrap { background: #deecf9; box-shadow: 0 2px 8px rgba(0,120,212,.2); }
+    .empty-state-icon-wrap i { color: #0078D4; }
+    .btn-primary-premium { background: #0078D4; transition: background 0.15s ease, box-shadow 0.15s ease; }
+    .btn-primary-premium:hover { background: #106EBE; box-shadow: 0 2px 4px rgba(0,120,212,.3); }
+    .data-table thead th { background: #f3f2f1; color: #323130; }
+    .data-table tbody tr { transition: background-color 0.1s ease; }
+    .data-table tbody tr:hover { background: #faf9f8; }
+    .avatar-cell { width: 2.5rem; height: 2.5rem; border-radius: 4px; font-weight: 600; font-size: 0.875rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .page-heading { letter-spacing: -0.01em; }
+    .dynamics-card { border: 1px solid #edebe9; border-radius: 4px; background: #fff; }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-surface-50 font-sans text-surface-800 antialiased min-h-full" style="--ms-primary: #0078D4;">
+  <div class="flex min-h-screen" x-data="{ sidebarOpen: true }">
+    <!-- Sidebar: professional nav pane -->
+    <aside
+      class="fixed inset-y-0 left-0 z-40 w-64 flex flex-col transition-all duration-300 ease-in-out sidebar-wrap"
+      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+    >
+      <div class="flex items-center min-h-[4.25rem] px-4 py-3 sidebar-brand">
+        <a href="{% url 'platform_dashboard:dashboard' %}" class="flex items-center gap-2.5 min-w-0 group">
+          <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-11 w-auto flex-shrink-0 object-contain transition-transform group-hover:scale-[1.02]" style="min-height: 44px;" />
+          <span class="flex flex-col min-w-0 leading-tight">
+            <span class="font-semibold text-[15px] text-[#323130] truncate">Sugna</span>
+            <span class="text-[11px] font-medium tracking-widest text-[#605e5c] truncate uppercase">Enterprise Suite</span>
+          </span>
+        </a>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-3 px-2 sidebar-nav">
+        <p class="sidebar-group-title">Platform</p>
+        <a href="{% url 'platform_dashboard:dashboard' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'dashboard_home' %}active{% endif %}">
+          <i data-feather="layout" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Dashboard</span>
+        </a>
+
+        <p class="sidebar-group-title">Tenants</p>
+        <a href="{% url 'platform_dashboard:tenant_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'tenant_list' %}active{% endif %}">
+          <i data-feather="building" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Tenant Directory</span>
+        </a>
+        <a href="{% url 'platform_dashboard:tenant_register' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md mb-0.5 {% if request.resolver_match.url_name == 'tenant_register' %}active{% endif %} text-[#323130]">
+          <i data-feather="file-plus" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Register Tenant</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="globe" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Tenant Domains</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="bar-chart-2" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Tenant Usage</span>
+        </a>
+
+        <p class="sidebar-group-title">Subscriptions</p>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="package" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Plans</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="credit-card" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Tenant Subscriptions</span>
+        </a>
+        <a href="{% url 'platform_dashboard:module_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'module_list' %}active{% endif %}">
+          <i data-feather="grid" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Modules</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="clock" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Trials</span>
+        </a>
+
+        <p class="sidebar-group-title">Billing</p>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="file-text" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Invoices</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="dollar-sign" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Payments</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="trending-up" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Revenue Reports</span>
+        </a>
+
+        <p class="sidebar-group-title">Support</p>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="message-circle" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Tickets</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="alert-circle" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Complaints</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="zap" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Feature Requests</span>
+        </a>
+
+        <p class="sidebar-group-title">Monitoring</p>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="activity" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>System Health</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="list" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Logs</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="hard-drive" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Backup Monitor</span>
+        </a>
+
+        <p class="sidebar-group-title">Settings</p>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="settings" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Platform Settings</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="mail" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Email Templates</span>
+        </a>
+        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
+          <i data-feather="bell" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Notifications</span>
+        </a>
+      </nav>
+      <div class="px-3 py-2.5 sidebar-footer">
+        <button type="button" @click="sidebarOpen = !sidebarOpen" class="sidebar-collapse-btn w-full flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium text-[#605e5c]">
+          <span x-show="sidebarOpen"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></span>
+          <span x-show="!sidebarOpen" x-cloak><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></span>
+          <span x-text="sidebarOpen ? 'Collapse' : 'Expand'">Collapse</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:ml-64' : 'ml-0'">
+      <!-- Dynamics-style top bar: dark blue header -->
+      <header class="sticky top-0 z-30 h-14 flex items-center justify-between px-4 sm:px-6" style="background: #0078D4;">
+        <div class="flex items-center gap-3 min-w-0">
+          <button type="button" @click="sidebarOpen = !sidebarOpen" class="p-2 rounded text-white/90 hover:bg-white/10 transition-colors lg:hidden flex-shrink-0">
+            <i data-feather="menu" class="w-5 h-5"></i>
+          </button>
+          <form class="hidden sm:block flex-1 max-w-md" action="/admin/" method="get">
+            <label for="global-search" class="sr-only">Search</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-white/70 pointer-events-none"><i data-feather="search" class="w-4 h-4"></i></span>
+              <input id="global-search" name="q" type="search" placeholder="Search tenants, invoices, users..." class="w-full pl-10 pr-4 py-2 border-0 rounded bg-white/15 text-white placeholder-white/60 text-sm focus:ring-2 focus:ring-white/30 focus:bg-white/20">
+            </div>
+          </form>
+        </div>
+        <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <div class="relative" x-data="{ open: false }">
+            <button type="button" @click="open = !open" class="p-2.5 rounded text-white/90 hover:bg-white/10 relative transition-colors">
+              <i data-feather="bell" class="w-5 h-5"></i>
+              <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-warning-500 rounded-full ring-2 ring-[#0078D4]"></span>
+            </button>
+            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-80 bg-white rounded py-2 animate-fade-in z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
+              <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Notifications</p>
+              <p class="px-4 py-4 text-sm" style="color: #605e5c;">No new notifications</p>
+            </div>
+          </div>
+          <div class="relative" x-data="{ open: false }">
+            <button type="button" @click="open = !open" class="flex items-center gap-2 px-3 py-2 rounded text-white/90 hover:bg-white/10 text-sm font-medium transition-colors">
+              <i data-feather="plus-circle" class="w-4 h-4 hidden sm:block"></i>
+              <span class="hidden sm:inline">Quick actions</span>
+              <i data-feather="chevron-down" class="w-4 h-4"></i>
+            </button>
+            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-56 bg-white rounded py-2 z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
+              <a href="{% url 'platform_dashboard:tenant_register' %}" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="building" class="w-4 h-4"></i> Create Tenant</a>
+              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="package" class="w-4 h-4"></i> Create Plan</a>
+              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="file-text" class="w-4 h-4"></i> Generate Invoice</a>
+              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="send" class="w-4 h-4"></i> Send Announcement</a>
+            </div>
+          </div>
+          <div class="relative pl-3 border-l border-white/20" x-data="{ open: false }">
+            <button type="button" @click="open = !open" class="flex items-center gap-2 py-1.5">
+              <div class="w-9 h-9 rounded-full bg-white/25 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">{{ user.get_short_name|default:user.username|slice:":1"|upper }}</div>
+              <span class="text-sm font-medium text-white hidden md:inline max-w-[120px] truncate">{{ user.get_full_name|default:user.username }}</span>
+              <i data-feather="chevron-down" class="w-4 h-4 text-white/80 flex-shrink-0"></i>
+            </button>
+            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded py-2 z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
+              <a href="/admin/password_change/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="key" class="w-4 h-4"></i> Change password</a>
+              <a href="/admin/logout/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="log-out" class="w-4 h-4"></i> Log out</a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="flex-1 p-4 sm:p-6 overflow-auto" style="background: #faf9f8;">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script>document.addEventListener('DOMContentLoaded', function() { feather.replace(); });</script>
+  <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

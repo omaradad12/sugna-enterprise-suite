@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Access denied</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-[#faf9f8] text-[#323130] flex items-center justify-center px-4">
+  <div class="max-w-md w-full bg-white border rounded-lg p-7" style="border-color:#edebe9;">
+    <h1 class="text-xl font-semibold">Access denied</h1>
+    <p class="text-sm mt-2 text-[#605e5c]">{{ reason|default:"You do not have access to this resource." }}</p>
+    <a href="{% url 'tenant_portal:home' %}" class="inline-flex items-center justify-center mt-5 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Back to console</a>
+  </div>
+</body>
+</html>
+

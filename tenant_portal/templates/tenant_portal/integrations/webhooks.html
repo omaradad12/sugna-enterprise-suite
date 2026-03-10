@@ -1,0 +1,79 @@
+{% extends "tenant_portal/_layout.html" %}
+{% block title %}{{ tenant.name }} | Integrations | Webhooks{% endblock %}
+{% block product_subtitle %}Integrations{% endblock %}
+
+{% block content %}
+<div class="flex items-start justify-between gap-4 mb-6">
+  <div>
+    <div class="flex items-center gap-2 text-sm text-[#605e5c]">
+      <a href="{% url 'tenant_portal:integrations_home' %}" class="hover:underline">Integrations</a>
+      <span>/</span>
+      <span>Webhooks</span>
+    </div>
+    <h1 class="text-2xl font-bold tracking-tight mt-1">Outbound Webhooks</h1>
+    <p class="text-sm mt-1 text-[#605e5c]">Store endpoints for outbound notifications. Secrets are encrypted at rest.</p>
+  </div>
+  <a href="{% url 'tenant_portal:integrations_erp' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-white text-sm font-medium shadow-sm hover:shadow" style="background:#0078D4;">
+    <i data-feather="link" class="w-4 h-4"></i> ERP Connections
+  </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
+    <h2 class="font-semibold">New webhook</h2>
+    <form method="post" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Name</label>
+        <input name="name" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">URL</label>
+        <input name="url" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" placeholder="https://..." />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Secret (optional)</label>
+        <input name="secret" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" placeholder="Stored encrypted" />
+      </div>
+      <button class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">
+        <i data-feather="plus" class="w-4 h-4"></i> Create webhook
+      </button>
+    </form>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
+    <div class="px-5 py-4 border-b" style="border-color:#edebe9;">
+      <h2 class="font-semibold">Webhooks</h2>
+    </div>
+    <div class="overflow-auto">
+      <table class="min-w-full text-sm">
+        <thead style="background:#f3f2f1;">
+          <tr>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Name</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">URL</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Active</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in webhooks %}
+          <tr class="border-b last:border-0" style="border-color:#edebe9;">
+            <td class="px-5 py-3 font-medium">{{ w.name }}</td>
+            <td class="px-5 py-3 text-[#605e5c]">{{ w.url }}</td>
+            <td class="px-5 py-3">
+              {% if w.is_active %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#dff6dd; color:#0b5a0b;">Active</span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#edebe9; color:#605e5c;">Inactive</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td class="px-5 py-6 text-[#605e5c]" colspan="3">No webhooks yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

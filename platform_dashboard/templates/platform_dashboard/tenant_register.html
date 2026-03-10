@@ -1,0 +1,230 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Register Tenant{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto animate-fade-in pb-24">
+  <div class="mb-8">
+    <a href="{% url 'platform_dashboard:tenant_list' %}" class="inline-flex items-center gap-2 text-sm font-medium mb-4" style="color: #605e5c;">
+      <i data-feather="arrow-left" class="w-4 h-4"></i> Tenant Directory
+    </a>
+    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight" style="color: #323130;">Tenant Registration</h1>
+    <p class="mt-1 text-sm sm:text-base" style="color: #605e5c;">Create a new organization workspace. Complete all sections and submit to provision the tenant.</p>
+  </div>
+
+  <form method="post" action="{% url 'platform_dashboard:tenant_register' %}" id="tenant-register-form" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 1. Organization Information -->
+      <div class="lg:col-span-2 dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="building" class="w-5 h-5" style="color: #0078D4;"></i>
+          1. Organization Information
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2"><label class="block text-sm font-medium mb-1" style="color: #323130;">Organization Legal Name</label><input type="text" name="organization_legal_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Full legal name"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Organization Short Name</label><input type="text" name="organization_short_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Short name"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Tenant Code</label><input type="text" name="tenant_code" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Unique code/slug"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Organization Type</label><select name="organization_type" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Select</option><option value="ngo">NGO</option><option value="corporate">Corporate</option><option value="government">Government</option><option value="other">Other</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Country</label><input type="text" name="country" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Country"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Region / State</label><input type="text" name="region_state" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Region or state"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">City</label><input type="text" name="city" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="City"></div>
+          <div class="sm:col-span-2"><label class="block text-sm font-medium mb-1" style="color: #323130;">Address</label><input type="text" name="address" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Street address"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Official Email</label><input type="email" name="official_email" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="org@example.com"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Phone Number</label><input type="tel" name="phone_number" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="+1234567890"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Website</label><input type="url" name="website" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="https://"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Registration Number</label><input type="text" name="registration_number" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Reg. number"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Tax ID</label><input type="text" name="tax_id" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Tax ID"></div>
+        </div>
+      </div>
+
+      <!-- 2. Primary Contact -->
+      <div class="dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="user" class="w-5 h-5" style="color: #0078D4;"></i>
+          2. Primary Contact
+        </h2>
+        <div class="space-y-4">
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Contact Person Full Name</label><input type="text" name="contact_full_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Full name"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Position / Title</label><input type="text" name="contact_position" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="e.g. Operations Manager"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Email</label><input type="email" name="contact_email" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="contact@example.com"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Phone</label><input type="tel" name="contact_phone" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="+1234567890"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Alternative Phone</label><input type="tel" name="contact_alt_phone" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Optional"></div>
+        </div>
+      </div>
+
+      <!-- 3. Workspace Setup -->
+      <div class="dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="settings" class="w-5 h-5" style="color: #0078D4;"></i>
+          3. Workspace Setup
+        </h2>
+        <div class="space-y-4">
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Preferred Subdomain</label><input type="text" name="preferred_subdomain" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="e.g. acme → acme.sugna.org"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Custom Domain</label><input type="text" name="custom_domain" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="app.yourorg.org"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Workspace Name</label><input type="text" name="workspace_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Display name"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Time Zone</label><select name="time_zone" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="UTC">UTC</option><option value="Africa/Nairobi">Africa/Nairobi</option><option value="America/New_York">America/New_York</option><option value="Europe/London">Europe/London</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Base Currency</label><select name="base_currency" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="KES">KES</option><option value="NGN">NGN</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Language</label><select name="language" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="en">English</option><option value="fr">French</option><option value="sw">Swahili</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Fiscal Year Start Month</label><select name="fiscal_year_start" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="1">January</option><option value="4">April</option><option value="7">July</option><option value="10">October</option></select></div>
+        </div>
+      </div>
+
+      <!-- 4. Subscription Setup -->
+      <div class="lg:col-span-2 dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="credit-card" class="w-5 h-5" style="color: #0078D4;"></i>
+          4. Subscription Setup
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Plan Name</label><input type="text" name="plan_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="e.g. Professional"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Billing Cycle</label><select name="billing_cycle" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Trial Period</label><select name="trial_period" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="0">No trial</option><option value="14">14 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Maximum Users</label><input type="number" name="max_users" min="1" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="10"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Storage Limit (GB)</label><input type="number" name="storage_limit_gb" min="0" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="50"></div>
+        </div>
+      </div>
+
+      <!-- 5. Modules Selection (checkable cards) -->
+      <div class="lg:col-span-2 dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="grid" class="w-5 h-5" style="color: #0078D4;"></i>
+          5. Modules Selection
+        </h2>
+        <p class="text-sm mb-4" style="color: #605e5c;">Select the modules to enable for this tenant.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {% for m in modules %}
+          <label class="flex items-center gap-3 p-4 rounded border cursor-pointer transition-colors hover:bg-surface-50" style="border-color: #edebe9;">
+            <input type="checkbox" name="selected_modules" value="{{ m.pk }}" class="rounded border-surface-400 text-primary-500 focus:ring-primary-500">
+            <span class="font-medium" style="color: #323130;">{{ m.name }}</span>
+            <span class="text-xs ml-auto" style="color: #605e5c;">{{ m.code }}</span>
+          </label>
+          {% empty %}
+          <p class="text-sm sm:col-span-2" style="color: #605e5c;">No modules defined. Add modules in admin first.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- 6. Branding Setup (logo on right) -->
+      <div class="lg:col-span-2 dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="image" class="w-5 h-5" style="color: #0078D4;"></i>
+          6. Branding Setup
+        </h2>
+        <div class="flex flex-col lg:flex-row gap-6">
+          <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2"><label class="block text-sm font-medium mb-1" style="color: #323130;">Brand Primary Color</label><input type="color" name="brand_primary_color" value="#0078D4" class="h-10 w-full rounded border cursor-pointer" style="border-color: #edebe9;"></div>
+            <div class="sm:col-span-2"><label class="block text-sm font-medium mb-1" style="color: #323130;">Brand Secondary Color</label><input type="color" name="brand_secondary_color" value="#106EBE" class="h-10 w-full rounded border cursor-pointer" style="border-color: #edebe9;"></div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Report Header Name</label><input type="text" name="report_header_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Organization name on reports"></div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Report Footer Text</label><input type="text" name="report_footer_text" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Footer text"></div>
+          </div>
+          <div class="lg:w-48 flex-shrink-0">
+            <label class="block text-sm font-medium mb-2" style="color: #323130;">Upload Logo</label>
+            <div class="aspect-square rounded border-2 border-dashed flex items-center justify-center bg-surface-50 p-4 relative overflow-hidden" style="border-color: #edebe9;">
+              <div id="logo-preview-wrapper" class="absolute inset-0 flex items-center justify-center hidden">
+                <img id="logo-preview" alt="Logo preview" class="max-w-full max-h-full object-contain" />
+              </div>
+              <div id="logo-upload-placeholder" class="text-center">
+                <i data-feather="upload-cloud" class="w-10 h-10 mx-auto mb-2" style="color: #a19f9d;"></i>
+                <input type="file" name="logo" accept="image/*" class="hidden" id="logo-upload">
+                <label for="logo-upload" class="text-sm font-medium cursor-pointer text-primary-600 hover:text-primary-700">Choose file</label>
+                <p class="text-xs mt-1" style="color: #605e5c;">PNG, JPG up to 2MB</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Admin User Setup -->
+      <div class="dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="shield" class="w-5 h-5" style="color: #0078D4;"></i>
+          7. Admin User Setup
+        </h2>
+        <div class="space-y-4">
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Admin Full Name</label><input type="text" name="admin_full_name" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Full name"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Admin Email</label><input type="email" name="admin_email" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="admin@example.com"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Username</label><input type="text" name="admin_username" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Username"></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Setup Method</label><select name="setup_method" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="invite">Send Invitation Link</option><option value="password">Set Temporary Password</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Default Role</label><select name="default_role" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="admin">Administrator</option><option value="manager">Manager</option><option value="user">User</option></select></div>
+        </div>
+      </div>
+
+      <!-- 8. Initial Templates -->
+      <div class="dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="file-text" class="w-5 h-5" style="color: #0078D4;"></i>
+          8. Initial Templates
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Chart of Accounts Template</label><select name="coa_template" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Default</option><option value="ifrs">IFRS</option><option value="gaap">GAAP</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Budget Template</label><select name="budget_template" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Default</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Donor Template</label><select name="donor_template" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Default</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Project Template</label><select name="project_template" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Default</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Procurement Template</label><select name="procurement_template" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Default</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">HR Template</label><select name="hr_template" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="">Default</option></select></div>
+        </div>
+      </div>
+
+      <!-- 9. Internal Notes -->
+      <div class="lg:col-span-2 dynamics-card p-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
+          <i data-feather="message-square" class="w-5 h-5" style="color: #0078D4;"></i>
+          9. Internal Notes
+        </h2>
+        <div class="space-y-4">
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Remarks</label><textarea name="remarks" rows="2" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Optional remarks"></textarea></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Approval Decision</label><select name="approval_decision" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
+          <div><label class="block text-sm font-medium mb-1" style="color: #323130;">Internal Notes</label><textarea name="internal_notes" rows="2" class="w-full px-3 py-2 border rounded text-sm" style="border-color: #edebe9;" placeholder="Internal only"></textarea></div>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- Sticky action bar -->
+  <div class="fixed bottom-0 left-0 right-0 z-30 border-t bg-white py-4 px-4 sm:px-6 lg:px-8" style="border-color: #edebe9; box-shadow: 0 -2px 8px rgba(0,0,0,.06);">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-end gap-3">
+      <a href="{% url 'platform_dashboard:tenant_list' %}" class="px-5 py-2.5 rounded border text-sm font-medium transition-colors" style="border-color: #edebe9; color: #323130;">Cancel</a>
+      <button type="submit" form="tenant-register-form" name="action" value="draft" class="px-5 py-2.5 rounded border text-sm font-medium transition-colors" style="border-color: #edebe9; color: #323130;">Save Draft</button>
+      <button type="submit" form="tenant-register-form" name="action" value="create" class="px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors">
+        <span class="inline-flex items-center gap-2"><i data-feather="plus" class="w-4 h-4"></i> Create Tenant</span>
+      </button>
+      <button type="submit" form="tenant-register-form" name="action" value="create_send_link" class="px-5 py-2.5 rounded bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors">
+        <span class="inline-flex items-center gap-2"><i data-feather="send" class="w-4 h-4"></i> Create Tenant & Send Setup Link</span>
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+  (function() {
+    const input = document.getElementById('logo-upload');
+    if (!input) return;
+    const previewWrapper = document.getElementById('logo-preview-wrapper');
+    const previewImg = document.getElementById('logo-preview');
+    const placeholder = document.getElementById('logo-upload-placeholder');
+
+    input.addEventListener('change', function (e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) {
+        if (previewWrapper) previewWrapper.classList.add('hidden');
+        if (placeholder) placeholder.classList.remove('hidden');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        input.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        if (previewImg && event.target.result) {
+          previewImg.src = event.target.result;
+          previewWrapper.classList.remove('hidden');
+          placeholder.classList.add('hidden');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  })();
+</script>
+{% endblock %}

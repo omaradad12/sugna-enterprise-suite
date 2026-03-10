@@ -1,0 +1,323 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Tenant Directory{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto animate-fade-in" x-data="tenantList()">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading">Tenant Directory</h1>
+      <p class="text-slate-500 mt-1 text-sm">Manage organizations, subscriptions, and usage</p>
+    </div>
+    <a href="{% url 'platform_dashboard:tenant_register' %}" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">
+      <i data-feather="plus" class="w-4 h-4"></i> Add tenant
+    </a>
+  </div>
+
+  {% if summary.total == 0 and not filters.q and not filters.status and not filters.plan and not filters.module and not filters.country and not filters.date_from and not filters.date_to %}
+  {# Empty state: no tenants at all #}
+  <div class="empty-state-card rounded overflow-hidden">
+    <div class="px-8 py-20 text-center relative">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-80 h-80 rounded-full bg-primary-50/50 blur-3xl"></div>
+      </div>
+      <div class="relative">
+        <div class="inline-flex items-center justify-center w-24 h-24 rounded-2xl empty-state-icon-wrap mb-6">
+          <i data-feather="building" class="w-12 h-12" stroke-width="1.5"></i>
+        </div>
+        <h2 class="text-2xl font-semibold text-slate-800 mb-2">No tenants yet</h2>
+        <p class="text-slate-500 max-w-md mx-auto mb-2">Create your first organization to start managing tenants, modules, and subscriptions in one place. You can also import tenants from a spreadsheet later.</p>
+        <p class="text-slate-400 text-sm mb-8">Need help? Check the onboarding guide or contact support.</p>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <a href="{% url 'platform_dashboard:tenant_register' %}" class="btn-primary-premium inline-flex items-center gap-2 px-6 py-3 rounded bg-primary-500 text-white text-sm font-semibold">
+            <i data-feather="plus" class="w-4 h-4"></i> Create tenant
+          </a>
+          <a href="{% url 'platform_dashboard:tenant_register' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+            <i data-feather="upload" class="w-4 h-4"></i> Import tenants
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  {# Summary cards #}
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+    <a href="?{% if filters.q %}q={{ filters.q|urlencode }}&{% endif %}" class="dynamics-card p-4 hover:border-primary-200 transition-all duration-200 hover:border-primary-200">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total</span>
+        <span class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i data-feather="layers" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ summary.total }}</p>
+    </a>
+    <a href="?status=active{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}" class="dynamics-card p-4 hover:border-primary-200 transition-all duration-200 hover:border-success-200">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Active</span>
+        <span class="w-8 h-8 rounded-lg bg-success-50 flex items-center justify-center text-success-600"><i data-feather="check-circle" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ summary.active }}</p>
+    </a>
+    <a href="?status=trial{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}" class="dynamics-card p-4 hover:border-primary-200 transition-all duration-200 hover:border-blue-200">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Trial</span>
+        <span class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><i data-feather="clock" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ summary.trial }}</p>
+    </a>
+    <a href="?status=suspended_inactive{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}" class="dynamics-card p-4 hover:border-primary-200 transition-all duration-200 hover:border-orange-200">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Suspended</span>
+        <span class="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600"><i data-feather="pause-circle" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ summary.suspended }}</p>
+    </a>
+    <a href="?status=expired{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}" class="dynamics-card p-4 hover:border-primary-200 transition-all duration-200 hover:border-danger-200">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Expired</span>
+        <span class="w-8 h-8 rounded-lg bg-danger-50 flex items-center justify-center text-danger-600"><i data-feather="x-circle" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ summary.expired }}</p>
+    </a>
+    <a href="?status=pending{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}" class="dynamics-card p-4 hover:border-primary-200 transition-all duration-200 hover:border-warning-200">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Pending</span>
+        <span class="w-8 h-8 rounded-lg bg-warning-50 flex items-center justify-center text-warning-600"><i data-feather="alert-circle" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ summary.pending }}</p>
+    </a>
+  </div>
+
+  {# Filters #}
+  <div class="dynamics-card p-4 mb-4">
+    <form method="get" action="{% url 'platform_dashboard:tenant_list' %}" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="sort" value="{{ filters.sort }}">
+      <input type="hidden" name="per_page" value="{{ filters.per_page }}">
+      <div class="flex-1 min-w-[180px]">
+        <label for="q" class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-feather="search" class="w-4 h-4"></i></span>
+          <input id="q" name="q" type="text" value="{{ filters.q }}" placeholder="Organization, domain, country..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+        </div>
+      </div>
+      <div class="w-36">
+        <label for="status" class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+        <select id="status" name="status" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+          <option value="">All</option>
+          <option value="active" {% if filters.status == "active" %}selected{% endif %}>Active</option>
+          <option value="trial" {% if filters.status == "trial" %}selected{% endif %}>Trial</option>
+          <option value="pending" {% if filters.status == "pending" %}selected{% endif %}>Pending</option>
+          <option value="suspended" {% if filters.status == "suspended" %}selected{% endif %}>Suspended</option>
+          <option value="suspended_inactive" {% if filters.status == "suspended_inactive" %}selected{% endif %}>Suspended / Inactive</option>
+          <option value="expired" {% if filters.status == "expired" %}selected{% endif %}>Expired</option>
+        </select>
+      </div>
+      <div class="w-40">
+        <label for="plan" class="block text-xs font-medium text-slate-500 mb-1">Plan</label>
+        <select id="plan" name="plan" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+          <option value="">All plans</option>
+          {% for p in plans %}
+          <option value="{{ p }}" {% if filters.plan == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="w-40">
+        <label for="module" class="block text-xs font-medium text-slate-500 mb-1">Module</label>
+        <select id="module" name="module" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+          <option value="">All modules</option>
+          {% for m in modules %}
+          <option value="{{ m.id }}" {% if filters.module == m.id|stringformat:"d" %}selected{% endif %}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="w-36">
+        <label for="country" class="block text-xs font-medium text-slate-500 mb-1">Country</label>
+        <input type="text" id="country" name="country" value="{{ filters.country }}" placeholder="Country" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+      </div>
+      <div class="w-32">
+        <label for="date_from" class="block text-xs font-medium text-slate-500 mb-1">Created from</label>
+        <input type="date" id="date_from" name="date_from" value="{{ filters.date_from }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+      </div>
+      <div class="w-32">
+        <label for="date_to" class="block text-xs font-medium text-slate-500 mb-1">Created to</label>
+        <input type="date" id="date_to" name="date_to" value="{{ filters.date_to }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors">Apply</button>
+        <a href="{% url 'platform_dashboard:tenant_list' %}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">Reset</a>
+      </div>
+    </form>
+  </div>
+
+  {# Bulk actions bar (shown when selection exists) #}
+  <form method="post" action="{% url 'platform_dashboard:tenant_list' %}" id="bulk-form" class="mb-4" x-show="selectedCount > 0" x-cloak x-transition>
+    {% csrf_token %}
+    <div class="flex flex-wrap items-center gap-3 bg-primary-50/80 border border-primary-200/80 rounded-xl px-4 py-3">
+      <span class="text-sm font-medium text-primary-800" x-text="selectedCount + ' selected'"></span>
+      <button type="submit" name="bulk_action" value="activate" class="px-3 py-1.5 rounded-lg bg-success-600 text-white text-sm font-medium hover:bg-success-700">Activate</button>
+      <button type="submit" name="bulk_action" value="suspend" class="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700">Suspend</button>
+      <span class="flex items-center gap-2">
+        <input type="text" name="bulk_plan_name" placeholder="Plan name" class="w-32 px-2 py-1.5 border border-slate-200 rounded-lg text-sm">
+        <button type="submit" name="bulk_action" value="assign_plan" class="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-sm font-medium hover:bg-slate-800">Assign plan</button>
+      </span>
+      <button type="submit" name="bulk_action" value="export" class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">Export selected</button>
+    </div>
+  </form>
+
+  {# Table #}
+  <div class="dynamics-card overflow-hidden">
+    {% if tenants %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left data-table min-w-[1100px]">
+        <thead class="border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10 bg-slate-50/95">
+          <tr>
+            <th class="px-4 py-3 w-10">
+              <input type="checkbox" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500" @change="toggleAll($event)" :checked="selectedCount === {{ page.object_list|length }} && {{ page.object_list|length }} > 0">
+            </th>
+            <th class="px-4 py-3">
+              <a href="?page=1&sort={% if filters.sort == 'name' %}-name{% else %}name{% endif %}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="flex items-center gap-1 hover:text-primary-600">Organization {% if filters.sort == 'name' %}↑{% elif filters.sort == '-name' %}↓{% endif %}</a>
+            </th>
+            <th class="px-4 py-3">
+              <a href="?page=1&sort={% if filters.sort == 'slug' %}-slug{% else %}slug{% endif %}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="flex items-center gap-1 hover:text-primary-600">Tenant code {% if filters.sort == 'slug' %}↑{% elif filters.sort == '-slug' %}↓{% endif %}</a>
+            </th>
+            <th class="px-4 py-3">Domain</th>
+            <th class="px-4 py-3">Plan</th>
+            <th class="px-4 py-3">Modules</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3 text-right">Users</th>
+            <th class="px-4 py-3 text-right">Storage</th>
+            <th class="px-4 py-3">
+              <a href="?page=1&sort={% if filters.sort == 'created_at' %}-created_at{% else %}created_at{% endif %}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="flex items-center gap-1 hover:text-primary-600">Created {% if filters.sort == 'created_at' %}↑{% elif filters.sort == '-created_at' %}↓{% endif %}</a>
+            </th>
+            <th class="px-4 py-3">
+              <a href="?page=1&sort={% if filters.sort == 'subscription_expiry' %}-subscription_expiry{% else %}subscription_expiry{% endif %}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="flex items-center gap-1 hover:text-primary-600">Expiry {% if filters.sort == 'subscription_expiry' %}↑{% elif filters.sort == '-subscription_expiry' %}↓{% endif %}</a>
+            </th>
+            <th class="px-4 py-3 text-right w-40">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in tenants %}
+          <tr class="group hover:bg-slate-50/80 transition-colors" data-tenant-id="{{ t.id }}">
+            <td class="px-4 py-3">
+              <input type="checkbox" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500 tenant-cb" value="{{ t.id }}" form="bulk-form" name="tenant_ids" @change="toggleOne({{ t.id }}, $event.target.checked)">
+            </td>
+            <td class="px-4 py-3">
+              <a href="{% url 'platform_dashboard:tenant_detail' t.pk %}" class="flex items-center gap-3 hover:opacity-90">
+                <span class="avatar-cell bg-primary-100 text-primary-700 flex-shrink-0">{{ t.name|slice:":1"|upper }}</span>
+                <span class="font-semibold text-slate-900">{{ t.name }}</span>
+              </a>
+            </td>
+            <td class="px-4 py-3 font-mono text-slate-600 text-xs">{{ t.slug }}</td>
+            <td class="px-4 py-3 text-slate-600">{{ t.domain }}</td>
+            <td class="px-4 py-3"><span class="text-slate-700">{% if t.plan %}{{ t.plan }}{% else %}—{% endif %}</span></td>
+            <td class="px-4 py-3">
+              <span class="text-slate-600">{{ t.modules.count }} module{{ t.modules.count|pluralize }}</span>
+              {% if t.modules.count %}<span class="text-slate-400 text-xs">{% for m in t.modules.all %}{{ m.code }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+            </td>
+            <td class="px-4 py-3">
+              {% with display_status=t.display_status %}
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                {% if display_status == 'active' %}bg-success-50 text-success-700 border border-success-200/60
+                {% elif display_status == 'trial' %}bg-blue-50 text-blue-700 border border-blue-200/60
+                {% elif display_status == 'pending' %}bg-warning-50 text-warning-700 border border-warning-200/60
+                {% elif display_status == 'suspended' or not t.is_active %}bg-orange-50 text-orange-700 border border-orange-200/60
+                {% else %}bg-danger-50 text-danger-700 border border-danger-200/60{% endif %}">
+                <span class="w-2 h-2 rounded-full
+                  {% if display_status == 'active' %}bg-success-500
+                  {% elif display_status == 'trial' %}bg-blue-500
+                  {% elif display_status == 'pending' %}bg-warning-500
+                  {% elif display_status == 'suspended' or not t.is_active %}bg-orange-500
+                  {% else %}bg-danger-500{% endif %}"></span>
+                {{ t.get_status_display }}{% if not t.is_active and t.status == 'active' %} (inactive){% endif %}
+              </span>
+              {% endwith %}
+            </td>
+            <td class="px-4 py-3 text-right text-slate-600 tabular-nums">{{ t.user_count }}</td>
+            <td class="px-4 py-3 text-right text-slate-600">{% if t.storage_mb %}{{ t.storage_mb }} MB{% else %}—{% endif %}</td>
+            <td class="px-4 py-3 text-slate-600">{{ t.created_at|date:"M d, Y" }}</td>
+            <td class="px-4 py-3 text-slate-600">{% if t.subscription_expiry %}{{ t.subscription_expiry|date:"M d, Y" }}{% else %}—{% endif %}</td>
+            <td class="px-4 py-3 text-right">
+              <div class="relative inline-block" x-data="{ open: false }">
+                <button type="button" @click="open = !open" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 text-xs font-medium">
+                  Actions <i data-feather="chevron-down" class="w-3.5 h-3.5"></i>
+                </button>
+                <div x-show="open" x-cloak @click.outside="open = false" x-transition class="absolute right-0 mt-1 w-48 py-1 bg-white rounded-lg shadow-dropdown border border-slate-200 z-20">
+                  <a href="{% url 'platform_dashboard:tenant_detail' t.pk %}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="eye" class="w-4 h-4"></i> View tenant</a>
+                  <a href="/admin/tenants/tenant/{{ t.id }}/change/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="edit-2" class="w-4 h-4"></i> Edit tenant</a>
+                  <a href="/admin/tenants/tenant/{{ t.id }}/change/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="play" class="w-4 h-4"></i> Activate / Suspend</a>
+                  <a href="/admin/tenants/tenant/{{ t.id }}/change/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a>
+                  <a href="/admin/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="credit-card" class="w-4 h-4"></i> Manage subscription</a>
+                  <a href="/admin/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="bar-chart-2" class="w-4 h-4"></i> View usage</a>
+                  <a href="https://{{ t.domain }}" target="_blank" rel="noopener" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="external-link" class="w-4 h-4"></i> Open workspace</a>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {# Pagination #}
+    <div class="flex flex-wrap items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+      <p class="text-sm text-slate-600">
+        Showing {{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }} tenant{{ page.paginator.count|pluralize }}
+      </p>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-slate-500">Per page:</span>
+        <select name="per_page" onchange="window.location.href='?page=1&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page='+this.value" class="px-2 py-1 border border-slate-200 rounded text-sm">
+          <option value="10" {% if filters.per_page == 10 %}selected{% endif %}>10</option>
+          <option value="25" {% if filters.per_page == 25 %}selected{% endif %}>25</option>
+          <option value="50" {% if filters.per_page == 50 %}selected{% endif %}>50</option>
+          <option value="100" {% if filters.per_page == 100 %}selected{% endif %}>100</option>
+        </select>
+        <nav class="flex gap-1">
+          {% if page.has_previous %}
+          <a href="?page={{ page.previous_page_number }}&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-100">Previous</a>
+          {% endif %}
+          {% for num in page.paginator.page_range %}
+            {% if num == page.number %}
+          <span class="px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm font-medium">{{ num }}</span>
+            {% elif num > page.number|add:"-3" and num < page.number|add:"3" %}
+          <a href="?page={{ num }}&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-100">{{ num }}</a>
+            {% endif %}
+          {% endfor %}
+          {% if page.has_next %}
+          <a href="?page={{ page.next_page_number }}&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&plan={{ filters.plan }}&module={{ filters.module }}&country={{ filters.country }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&per_page={{ filters.per_page }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-100">Next</a>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+    {% else %}
+    <div class="px-8 py-16 text-center">
+      <p class="text-slate-600 font-medium">No tenants match your filters.</p>
+      <p class="text-slate-500 text-sm mt-1">Try adjusting search or filters, or <a href="{% url 'platform_dashboard:tenant_list' %}" class="text-primary-600 hover:underline">clear all</a>.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function tenantList() {
+  return {
+    selectedIds: [],
+    get selectedCount() { return this.selectedIds.length; },
+    toggleOne(id, checked) {
+      if (checked) { if (!this.selectedIds.includes(id)) this.selectedIds.push(id); }
+      else this.selectedIds = this.selectedIds.filter(function(x) { return x !== id; });
+    },
+    toggleAll(ev) {
+      const checkboxes = document.querySelectorAll('.tenant-cb');
+      if (ev.target.checked) {
+        this.selectedIds = [];
+        checkboxes.forEach(function(cb) { cb.checked = true; });
+        checkboxes.forEach(function(cb) { this.selectedIds.push(parseInt(cb.value, 10)); }.bind(this));
+      } else {
+        checkboxes.forEach(function(cb) { cb.checked = false; });
+        this.selectedIds = [];
+      }
+    }
+  };
+}
+</script>
+{% block extra_js %}
+<script>document.addEventListener('DOMContentLoaded', function() { feather.replace(); });</script>
+{% endblock %}
+{% endblock %}

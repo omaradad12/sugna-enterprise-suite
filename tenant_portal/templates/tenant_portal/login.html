@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ tenant.name }} | Sign in</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#faf9f8' }};">
+  <div class="min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-md bg-white border rounded-lg shadow-sm p-7" style="border-color: #edebe9;">
+      <div class="flex items-center gap-3 mb-6">
+        {% if tenant.brand_logo_url %}
+          <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant.name }}" class="h-10 w-auto object-contain" />
+        {% else %}
+          <img src="{% url 'platform_dashboard:logo' %}" alt="Sugna Enterprise Suite" class="h-10 w-auto object-contain" />
+        {% endif %}
+        <div class="min-w-0">
+          <p class="text-sm font-semibold truncate">{{ tenant.name }}</p>
+          <p class="text-xs text-[#605e5c] truncate">
+            {% if tenant.brand_login_subtitle %}
+              {{ tenant.brand_login_subtitle }}
+            {% else %}
+              Sugna Enterprise Suite
+            {% endif %}
+          </p>
+        </div>
+      </div>
+
+      <h1 class="text-xl font-semibold">
+        {% if tenant.brand_login_title %}{{ tenant.brand_login_title }}{% else %}Sign in{% endif %}
+      </h1>
+      <p class="text-sm mt-1 text-[#605e5c]">
+        {% if tenant.brand_login_subtitle %}
+          {{ tenant.brand_login_subtitle }}
+        {% else %}
+          Use your tenant account to access authorized modules.
+        {% endif %}
+      </p>
+
+      {% if messages %}
+        <div class="mt-4 space-y-2">
+          {% for message in messages %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#fde7e9; background:#fde7e9; color:#a4262c;">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" class="mt-6 space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Email</label>
+          <input name="email" type="email" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="admin@tenant.com" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Password</label>
+          <input name="password" type="password" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="••••••••" />
+        </div>
+        <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium shadow-sm hover:shadow transition-all"
+                style="background: {{ tenant.brand_primary_color|default:'#0078D4' }};">
+          Sign in
+        </button>
+      </form>
+
+      <p class="text-xs mt-6 text-[#a19f9d]">This environment is tenant-isolated (DB-per-tenant). Unauthorized access is prohibited.</p>
+    </div>
+  </div>
+</body>
+</html>
+

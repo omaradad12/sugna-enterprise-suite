@@ -1,0 +1,84 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Module workplace preview{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto animate-fade-in">
+  <div class="flex flex-col gap-3 mb-6">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:#eff6fc;">
+        <i data-feather="monitor" class="w-5 h-5" style="color:#0078D4;"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight" style="color:#323130;">Module workplace preview</h1>
+        <p class="mt-1 text-sm" style="color:#605e5c;">Open any tenant's dashboard for this module in a new tab to see exactly what they experience.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="dynamics-card overflow-hidden">
+    <div class="px-6 py-5 border-b" style="border-color:#edebe9;">
+      <p class="text-xs font-semibold uppercase tracking-wide" style="color:#605e5c;">Preview configuration</p>
+    </div>
+    <form method="post" class="px-6 py-5 space-y-6">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">Module</label>
+          {% if modules %}
+            {% with m=modules.0 %}
+              <div class="px-3 py-2 rounded-md border bg-[#f3f2f1] text-sm font-semibold flex items-center gap-2" style="border-color:#edebe9; color:#323130;">
+                <span class="inline-flex items-center justify-center w-8 h-8 rounded-md" style="background:#fff;">
+                  {% if m.code == "finance" %}
+                    <i data-feather="dollar-sign" class="w-4 h-4" style="color:#107c10;"></i>
+                  {% elif m.code == "grants" %}
+                    <i data-feather="clipboard" class="w-4 h-4" style="color:#d83b01;"></i>
+                  {% elif m.code == "integrations" %}
+                    <i data-feather="link" class="w-4 h-4" style="color:#0078D4;"></i>
+                  {% else %}
+                    <i data-feather="grid" class="w-4 h-4" style="color:#605e5c;"></i>
+                  {% endif %}
+                </span>
+                <span class="min-w-0">
+                  <span class="block truncate">{{ m.name }}</span>
+                  <span class="block text-xs text-[#605e5c] font-mono">{{ m.code }}</span>
+                </span>
+              </div>
+              <input type="hidden" name="module_code" value="{{ m.code }}" />
+            {% endwith %}
+          {% else %}
+            <div class="px-3 py-2 rounded border bg-surface-50 text-sm" style="border-color:#edebe9; color:#605e5c;">
+              No active modules.
+            </div>
+          {% endif %}
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">Tenant</label>
+          <select name="tenant_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+            {% for t in tenants %}
+              <option value="{{ t.id }}">{{ t.name }}{% if t.domain %} — {{ t.domain }}{% endif %}</option>
+            {% empty %}
+              <option value="">No tenants with this module enabled.</option>
+            {% endfor %}
+          </select>
+          {% if not tenants %}
+            <p class="text-xs mt-1" style="color:#d13438;">No tenants are subscribed to this module yet. Assign it to at least one tenant in the Tenant Directory.</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex justify-between items-center gap-3 pt-2 flex-col sm:flex-row">
+        <p class="text-xs sm:text-[11px] sm:max-w-xs" style="color:#a19f9d;">
+          The preview opens using the tenant's domain (for example, <span class="font-mono">org1.local</span>) and the module dashboard path such as <span class="font-mono">/t/finance/</span>. Make sure your hosts or DNS point that domain to this server during development.
+        </p>
+        <a href="{% url 'platform_dashboard:module_list' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded border text-sm font-medium" style="border-color:#edebe9; color:#605e5c;">
+          Back to modules
+        </a>
+        <button type="submit" {% if not tenants %}disabled{% endif %} class="inline-flex items-center gap-2 px-5 py-2.5 rounded text-sm font-semibold text-white shadow-sm hover:shadow disabled:opacity-60 disabled:cursor-not-allowed" style="background:#0078D4;">
+          <i data-feather="external-link" class="w-4 h-4"></i>
+          Open tenant workplace
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

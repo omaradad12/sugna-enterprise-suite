@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ tenant.name }} | Provisioning</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-[#faf9f8] text-[#323130] flex items-center justify-center px-4">
+  <div class="max-w-md w-full bg-white border rounded-lg p-7" style="border-color:#edebe9;">
+    <h1 class="text-xl font-semibold">Tenant is not provisioned</h1>
+    <p class="text-sm mt-2 text-[#605e5c]">This tenant does not yet have an isolated database configured.</p>
+    <div class="mt-4 text-xs text-[#605e5c] space-y-1">
+      <p><span class="font-semibold">Tenant</span>: {{ tenant.name }}</p>
+      <p><span class="font-semibold">Slug</span>: {{ tenant.slug }}</p>
+    </div>
+    <p class="text-sm mt-5 text-[#605e5c]">Provision and migrate the tenant DB, then try again:</p>
+    <pre class="mt-3 text-xs bg-[#faf9f8] border rounded p-3 overflow-auto" style="border-color:#edebe9;"><code>python manage.py provision_tenant_db --tenant {{ tenant.slug }} --db-name ... --db-user ... --db-password ...
+python manage.py migrate_tenant --tenant {{ tenant.slug }}
+python manage.py bootstrap_tenant_rbac --tenant {{ tenant.slug }} --email admin@tenant.com --password ...</code></pre>
+  </div>
+</body>
+</html>
+

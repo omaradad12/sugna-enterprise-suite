@@ -1,0 +1,77 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Modules{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto animate-fade-in">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading">Modules</h1>
+      <p class="text-slate-500 mt-1 text-sm">Manage platform modules available to tenants</p>
+    </div>
+    <a href="/admin/tenants/module/add/" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">
+      <i data-feather="plus" class="w-4 h-4"></i> Add module
+    </a>
+  </div>
+
+  <div class="dynamics-card overflow-hidden">
+    {% if modules %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left data-table">
+        <thead class="border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
+          <tr>
+            <th class="px-6 py-4">Code</th>
+            <th class="px-6 py-4">Name</th>
+            <th class="px-6 py-4">Status</th>
+            <th class="px-6 py-4 text-right">Tenants</th>
+            <th class="px-6 py-4 text-right w-48">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for m in modules %}
+          <tr class="group">
+            <td class="px-6 py-4">
+              <span class="font-mono font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg text-xs">{{ m.code }}</span>
+            </td>
+            <td class="px-6 py-4 font-semibold text-slate-900">{{ m.name }}</td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium {% if m.is_active %}bg-success-50 text-success-700 border border-success-200/60{% else %}bg-slate-100 text-slate-600 border border-slate-200/60{% endif %}">
+                <span class="w-2 h-2 rounded-full {% if m.is_active %}bg-success-500{% else %}bg-slate-400{% endif %}"></span>
+                {{ m.is_active|yesno:"Active,Inactive" }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right text-slate-600 tabular-nums font-medium">{{ m.tenant_count }}</td>
+            <td class="px-6 py-4 text-right space-x-2">
+              <a href="/admin/tenants/module/{{ m.id }}/change/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-primary-600 hover:bg-primary-50 hover:text-primary-700 font-medium text-xs transition-colors">
+                <i data-feather="edit-2" class="w-3.5 h-3.5"></i> Edit
+              </a>
+              <a href="{% url 'platform_dashboard:module_workplace_preview' %}?module={{ m.code }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 font-medium text-xs transition-colors">
+                <i data-feather="monitor" class="w-3.5 h-3.5"></i> Workplace
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state-card rounded-2xl mx-4 mb-4 mt-0 overflow-hidden">
+      <div class="px-8 py-20 text-center relative">
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div class="w-64 h-64 rounded-full bg-primary-50/40 blur-3xl"></div>
+        </div>
+        <div class="relative">
+          <div class="empty-state-icon-wrap w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <i data-feather="grid" class="w-10 h-10" stroke-width="1.5"></i>
+          </div>
+          <h2 class="text-xl font-semibold text-slate-800 mb-2">No modules yet</h2>
+          <p class="text-slate-500 text-sm max-w-sm mx-auto mb-8">Add your first module to make it available to tenants and track subscriptions from here.</p>
+          <a href="/admin/tenants/module/add/" class="btn-primary-premium inline-flex items-center gap-2 px-6 py-3 rounded bg-primary-500 text-white text-sm font-semibold">
+            <i data-feather="plus" class="w-4 h-4"></i> Add your first module
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
