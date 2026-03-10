@@ -1,0 +1,36 @@
+/* Sugna Enterprise Suite admin branding */
+
+body.login-page {
+    background-color: #f4f6fb;
+}
+
+.login-logo,
+.brand-link {
+    font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+}
+
+.btn-primary,
+.btn-primary:focus,
+.btn-primary:hover {
+    background-color: #0052cc;
+    border-color: #0052cc;
+}
+
+.navbar,
+.main-header.navbar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e1e4ea;
+}
+
+.main-sidebar {
+    background-color: #101827;
+}
+
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+    background-color: #1f2937;
+}
+
+.content-wrapper {
+    background-color: #f4f6fb;
+}

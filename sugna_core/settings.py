@@ -71,6 +71,23 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Sugna",
     "welcome_sign": "Welcome to Sugna Enterprise Suite",
     "show_ui_builder": False,
+    # Brand assets (these paths are relative to STATIC_URL)
+    "site_logo": "img/sugna-logo-dark.png",
+    "login_logo": "img/sugna-logo-dark.png",
+    "login_logo_dark": "img/sugna-logo-light.png",
+    # Custom CSS for brand colors and layout tweaks
+    "custom_css": "css/sugna_admin.css",
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly",
+    "navbar": "navbar-light",
+    "navbar_fixed": True,
+    "footer_fixed": False,
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-outline-secondary",
+    },
 }
 
 MIDDLEWARE = [
