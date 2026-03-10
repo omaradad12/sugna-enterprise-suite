@@ -131,9 +131,25 @@ DATABASES = {
         "NAME": "sugna_enterprise_suite",
         "USER": "postgres",
         "PASSWORD": "@@Hooyomacaan143",
-        "HOST": "127.0.0.1",
+        "HOST": "localhost",
         "PORT": "5432",
-    }
+    },
+    "wardi": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "wardi_db",
+        "USER": "postgres",
+        "PASSWORD": "@@Hooyomacaan143",
+        "HOST": "localhost",
+        "PORT": "5432",
+    },
+    "hurdo": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "hurdo_db",
+        "USER": "postgres",
+        "PASSWORD": "@@Hooyomacaan143",
+        "HOST": "localhost",
+        "PORT": "5432",
+    },
 }
 
 # Multi-tenant routing (DB-per-tenant). Add tenant module app labels here as you introduce them.

@@ -1,23 +1,25 @@
 import csv
 import json
+import os
 from datetime import timedelta
 from pathlib import Path
+from secrets import token_urlsafe
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
-from django.utils import timezone
-from django.db.models import Count, Q
-from django.core.paginator import Paginator
-from django.http import HttpResponse, HttpResponseRedirect
-from django.contrib import messages
-from tenants.models import Tenant, Module
 from django.core.files.storage import default_storage
+from django.core.management import call_command
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.text import slugify
-import os
 
 from tenants.branding import extract_brand_colors
+from tenants.models import Module, Tenant
 
 
 def logo_view(request):
@@ -242,10 +244,6 @@ def module_workplace_preview_view(request):
             messages.error(request, "Please select a valid module and tenant.")
             return redirect("platform_dashboard:module_workplace_preview")
 
-        if not tenant.domain:
-            messages.error(request, "Selected tenant has no domain configured.")
-            return redirect(f"{reverse('platform_dashboard:module_workplace_preview')}?module={module.code}")
-
         module_path_map = {
             "finance": "/t/finance/",
             "grants": "/t/grants/",
@@ -253,7 +251,9 @@ def module_workplace_preview_view(request):
         }
         path = module_path_map.get(module.code, "/t/")
 
-        target = f"http://{tenant.domain}:8000{path}"
+        # For preview, always open on the current host/port instead of tenant.domain
+        host = request.get_host()
+        target = f"http://{host}{path}"
         return HttpResponseRedirect(target)
 
     context = {
@@ -476,8 +476,38 @@ def tenant_register_view(request):
                     tenant.brand_login_title = tenant.name
 
                 tenant.save()
+
+                # Auto-provision isolated Postgres database for this tenant (DB-per-tenant).
+                try:
+                    db_name = f"sugna_{tenant.slug}"
+                    db_user = f"sugna_{tenant.slug}_user"
+                    db_password = token_urlsafe(16)
+
+                    call_command(
+                        "provision_tenant_db",
+                        tenant=tenant.slug,
+                        db_name=db_name,
+                        db_user=db_user,
+                        db_password=db_password,
+                        db_host="",
+                        db_port="",
+                    )
+                    call_command("migrate_tenant", tenant=tenant.slug)
+                    messages.success(
+                        request,
+                        f"Tenant «{name}» created with isolated database «{db_name}».",
+                    )
+                except Exception as exc:
+                    messages.error(
+                        request,
+                        f"Tenant «{name}» was created, but database provisioning failed: {exc}",
+                    )
+
                 if action == "create_send_link":
-                    messages.success(request, f"Tenant «{name}» created. Setup link can be sent when email is configured.")
+                    messages.success(
+                        request,
+                        f"Tenant «{name}» created. Setup link can be sent when email is configured.",
+                    )
                 else:
                     messages.success(request, f"Tenant «{name}» created successfully.")
                 return redirect("platform_dashboard:tenant_detail", pk=tenant.pk)

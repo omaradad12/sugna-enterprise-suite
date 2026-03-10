@@ -40,8 +40,13 @@ class TenantResolutionMiddleware:
         host = (request.get_host() or "").split(":")[0].lower().strip()
 
         tenant = None
-        if host and host not in {"127.0.0.1", "localhost"}:
-            tenant = TenantDomain.objects.select_related("tenant").filter(domain=host).values_list("tenant", flat=True).first()
+        if host:
+            tenant = (
+                TenantDomain.objects.select_related("tenant")
+                .filter(domain=host)
+                .values_list("tenant", flat=True)
+                .first()
+            )
             if tenant:
                 tenant = Tenant.objects.filter(pk=tenant).first()
             if not tenant:
