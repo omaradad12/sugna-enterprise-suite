@@ -1,0 +1,20 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Confirm Delete | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Confirm Delete</h1>
+  <p class="text-sm mt-1" style="color:#605e5c;">This action cannot be undone.</p>
+</div>
+
+<div class="erp-section max-w-xl">
+  <div class="erp-section-body">
+    <p class="mb-4"><strong>{{ object_label }}</strong></p>
+    <form method="post" action="{{ delete_url }}" class="flex gap-3">
+      {% csrf_token %}
+      <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#a4262c;">Delete</button>
+      <a href="{{ cancel_url }}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

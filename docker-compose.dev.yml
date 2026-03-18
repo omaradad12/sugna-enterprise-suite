@@ -1,0 +1,8 @@
+# Development override: use .env.dev for the web service.
+# Run: docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  web:
+    env_file: .env.dev
+    # Optional: use runserver instead of gunicorn for dev (uncomment to use)
+    # command: python manage.py runserver 0.0.0.0:8000

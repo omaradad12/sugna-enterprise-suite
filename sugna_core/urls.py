@@ -15,17 +15,24 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.urls import path, include
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
+from . import views
+
 urlpatterns = [
     path("", RedirectView.as_view(url="/platform/", permanent=False)),
+    path("platform/login/", auth_views.LoginView.as_view(template_name="platform_dashboard/platform_login.html"), name="platform_login"),
+    path("admin/logout/", views.admin_logout_view, name="admin_logout"),
+    path("platform/logout/", views.platform_logout_view, name="platform_logout"),
     path("admin/", admin.site.urls),
     path("platform/", include("platform_dashboard.urls")),
     path("t/", include("tenant_portal.urls")),
-    path("api/ai-auditor/", include("ai_auditor.api.urls")),
+    path("api/diagnostics/", include("diagnostics.api.urls")),
+    # path("api/ai-auditor/", include("ai_auditor.api.urls")),  # enable when ai_auditor app exists
 ]
 
 if settings.DEBUG:

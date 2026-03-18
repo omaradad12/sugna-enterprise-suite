@@ -1,0 +1,48 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Update stage: {{ tracking.code }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-xl">
+  <div class="mb-4">
+    <h1 class="text-xl font-semibold" style="color:#323130;">Update pipeline stage</h1>
+    <p class="text-sm mt-1" style="color:#605E5C;">{{ tracking.code }} — {{ tracking.title }}</p>
+  </div>
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#EDEBE9;">
+    <form method="post" class="p-6 space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605E5C;">Pipeline stage <span style="color:#A4262C;">*</span></label>
+        <select name="pipeline_stage" required class="w-full px-3 py-2 border rounded text-sm" style="border-color:#EDEBE9;">
+          {% for value, label in pipeline_stages.choices %}
+          <option value="{{ value }}" {% if value == tracking.pipeline_stage %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605E5C;">Date submitted</label>
+        <input type="date" name="date_submitted" value="{{ tracking.date_submitted|date:'Y-m-d'|default:'' }}" class="w-full px-3 py-2 border rounded text-sm" style="border-color:#EDEBE9;" />
+        <p class="text-xs mt-1" style="color:#605E5C;">Required when stage is Proposal Submitted or later.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605E5C;">Project</label>
+        <select name="project_id" class="w-full px-3 py-2 border rounded text-sm bg-white" style="border-color:#EDEBE9;">
+          <option value="">—</option>
+          {% for p in projects %}
+          <option value="{{ p.pk }}" {% if tracking.project_id == p.pk %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605E5C;">Required when stage is Approved.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605E5C;">Notes</label>
+        <textarea name="notes" rows="3" class="w-full px-3 py-2 border rounded text-sm resize-y" style="border-color:#EDEBE9;">{{ tracking.notes|default:'' }}</textarea>
+        <p class="text-xs mt-1" style="color:#605E5C;">Required when stage is Rejected or Cancelled.</p>
+      </div>
+      <div class="flex flex-wrap gap-2 pt-2">
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded" style="background:#0078D4;">Save</button>
+        <a href="{% url 'tenant_portal:grants_grant_tracking_detail' tracking.pk %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded" style="border-color:#EDEBE9;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

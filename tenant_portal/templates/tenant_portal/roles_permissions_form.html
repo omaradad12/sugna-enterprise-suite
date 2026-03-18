@@ -1,0 +1,530 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | {% if is_add %}New role{% else %}Edit role{% endif %}{% endblock %}
+{% block content %}
+<style>
+  .d365-page { background:#f6f7f9; border:1px solid #edebe9; border-radius: 6px; overflow:hidden; }
+  .d365-topbar { background:#ffffff; border-bottom:1px solid #edebe9; }
+  .d365-card { background:#fff; border:1px solid #edebe9; border-radius:6px; }
+  .d365-muted { color:#605e5c; }
+  .d365-title { color:#323130; }
+
+  /* In-page left nav (like screenshot) */
+  .role-nav { background:#ffffff; border-right:1px solid #edebe9; }
+  .role-nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:6px; font-size:13px; color:#323130; text-decoration:none; }
+  .role-nav a:hover { background:#f3f2f1; }
+  .role-nav a.active { background:#e5f0ff; border-left:4px solid #0078d4; padding-left:8px; font-weight:600; color:#0078d4; }
+
+  /* Horizontal tabs */
+  .tab-row { display:flex; gap:8px; border-bottom:1px solid #edebe9; padding:10px 12px; background:#fff; }
+  .tab-btn { border:1px solid #edebe9; background:#fff; color:#323130; border-radius: 6px; padding:6px 10px; font-size:13px; }
+  .tab-btn.active { background:#0078d4; border-color:#0078d4; color:#fff; font-weight:600; }
+
+  /* Section header */
+  .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; background:#faf9f8; border-bottom:1px solid #edebe9; }
+  .section-title { display:flex; align-items:center; gap:8px; font-weight:600; color:#323130; }
+  .section-actions { display:flex; align-items:center; gap:8px; }
+  .ghost-btn { border:1px solid #edebe9; background:#fff; color:#323130; font-size:12px; padding:6px 10px; border-radius:6px; }
+  .ghost-btn:hover { background:#f3f2f1; }
+
+  /* Permission cards */
+  .perm-grid { display:grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap:12px; }
+  @media (min-width: 900px) { .perm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  .perm-card { border:1px solid #edebe9; border-radius:6px; background:#fff; padding:12px; }
+  .perm-card:hover { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .perm-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .perm-card-name { font-weight:600; color:#323130; }
+  .perm-card-desc { font-size:12px; color:#605e5c; margin-top:2px; }
+
+  /* Master toggle (module enable) */
+  .master-toggle { position: relative; display:inline-flex; align-items:center; gap:8px; }
+  .master-toggle input { position:absolute; opacity:0; width:1px; height:1px; }
+  .master-toggle .track { width: 42px; height: 20px; border-radius:999px; background:#edebe9; border:1px solid #d2d0ce; transition: background .12s ease, border-color .12s ease; }
+  .master-toggle .thumb { position:absolute; left:4px; top:4px; width:12px; height:12px; border-radius:999px; background:#fff; box-shadow:0 1px 1px rgba(0,0,0,0.12); transition: transform .12s ease; }
+  .master-toggle input:checked + .track { background:#107c10; border-color:#107c10; }
+  .master-toggle input:checked ~ .thumb { transform: translateX(20px); }
+
+  /* Action pills */
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid #edebe9; font-size:12px; cursor:pointer; user-select:none; }
+  .pill input { width: 14px; height: 14px; }
+  .pill[data-state="off"] { background:#fff; color:#323130; }
+  .pill[data-state="on"] { background:#e8f5e9; border-color:#b7ebc6; color:#0b5a0b; }
+  .pill[data-action="delete"][data-state="on"] { background:#fde7e9; border-color:#f3b6bd; color:#a4262c; }
+  .pill[data-action="approve"][data-state="on"] { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+  .pill[data-action="post"][data-state="on"],
+  .pill[data-action="reverse"][data-state="on"] { background:#eff6fc; border-color:#b5d4f1; color:#0d5aab; }
+  .pill-badge { font-size:10px; padding:2px 6px; border-radius:999px; border:1px solid #edebe9; color:#605e5c; background:#faf9f8; }
+  .pill[data-risk="high"][data-state="on"] { box-shadow: inset 0 0 0 1px rgba(255,185,0,0.45); }
+
+  /* Right panel */
+  .sticky-panel { position: sticky; top: 92px; }
+  .kv { display:flex; justify-content:space-between; gap:12px; font-size:12px; color:#605e5c; }
+  .kv b { color:#323130; font-weight:600; }
+  .status-row { display:flex; justify-content:space-between; gap:12px; font-size:12px; padding:6px 0; border-bottom:1px dashed #edebe9; }
+  .status-row:last-child { border-bottom:0; }
+  .status-ok { color:#107c10; font-weight:600; }
+  .status-warn { color:#b45309; font-weight:600; }
+  .status-muted { color:#605e5c; font-weight:600; }
+
+  .risk-box { border:1px solid #fde68a; background:#fffbeb; color:#92400e; border-radius:6px; padding:10px; }
+  .risk-box.hidden { display:none; }
+
+  .top-actions { display:flex; align-items:center; gap:8px; }
+  .btn-primary { background:#0078d4; color:#fff; border:1px solid #0078d4; border-radius:6px; padding:8px 12px; font-size:13px; font-weight:600; }
+  .btn-primary:hover { background:#106ebe; border-color:#106ebe; }
+  .btn-secondary { background:#fff; color:#323130; border:1px solid #edebe9; border-radius:6px; padding:8px 12px; font-size:13px; font-weight:600; }
+  .btn-secondary:hover { background:#f3f2f1; }
+
+  .hidden { display:none; }
+</style>
+
+<div class="max-w-[1600px] mx-auto pb-10">
+  <div class="d365-page">
+    <div class="d365-topbar px-4 py-3 flex items-center justify-between gap-4">
+      <div class="text-sm d365-muted">
+        <span class="font-semibold">Roles</span> <span class="mx-1">›</span> <span>{% if is_add %}New Role{% else %}Edit Role{% endif %}</span>
+      </div>
+      <div class="top-actions">
+        <button type="submit" form="roleForm" class="btn-primary">Save</button>
+        <a href="{% url 'tenant_portal:roles_permissions_list' %}" class="btn-secondary">Cancel</a>
+        <button type="button" class="btn-secondary" id="previewAccessBtn">Preview Access</button>
+      </div>
+    </div>
+
+    <div class="flex">
+      <!-- Left in-page nav -->
+      <aside class="role-nav w-[210px] p-3 hidden md:block">
+        <div class="text-xs font-semibold uppercase tracking-wider mb-2 d365-muted">Roles</div>
+        <a href="{% url 'tenant_portal:roles_permissions_list' %}"><i data-feather="list" class="w-4 h-4"></i> Roles</a>
+        <a href="#" class="active" data-left="new_role"><i data-feather="plus-square" class="w-4 h-4"></i> New Role</a>
+        <div class="mt-4 space-y-1">
+          {% for tab in catalog.tabs %}
+            <a href="#" class="left-tab" data-tab="{{ tab.key }}"><i data-feather="grid" class="w-4 h-4"></i> {{ tab.title }}</a>
+          {% endfor %}
+        </div>
+      </aside>
+
+      <!-- Center -->
+      <main class="flex-1 p-4">
+        <h1 class="text-2xl font-semibold d365-title">{% if is_add %}New Role{% else %}Edit Role{% endif %}</h1>
+        <p class="text-sm d365-muted mt-1">Configure role-based access to modules and actions.</p>
+
+        <form method="post" id="roleForm" class="mt-4 space-y-4">
+          {% csrf_token %}
+
+          <div class="d365-card p-4">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-3">
+              <div class="lg:col-span-2">
+                <label class="text-[11px] font-semibold uppercase tracking-wider d365-muted">Role Name</label>
+                <input type="text" name="name" value="{{ role.name|default:'' }}" maxlength="120"
+                       class="w-full mt-1 px-3 py-2 rounded border text-sm" style="border-color:#d1d5db;" required>
+              </div>
+              <div class="lg:col-span-2">
+                <label class="text-[11px] font-semibold uppercase tracking-wider d365-muted">Description</label>
+                <input type="text" name="description" value="{{ role.description|default:'' }}" maxlength="255"
+                       class="w-full mt-1 px-3 py-2 rounded border text-sm" style="border-color:#d1d5db;">
+              </div>
+              <div>
+                <label class="text-[11px] font-semibold uppercase tracking-wider d365-muted">Role Type</label>
+                <select name="role_type" id="roleType" class="w-full mt-1 px-3 py-2 rounded border text-sm" style="border-color:#d1d5db; background:white;">
+                  {% for v, lbl in role_type_choices %}
+                    <option value="{{ v }}" {% if role and role.role_type == v %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="text-[11px] font-semibold uppercase tracking-wider d365-muted">Role Template</label>
+                <select id="roleTemplate" class="w-full mt-1 px-3 py-2 rounded border text-sm" style="border-color:#d1d5db; background:white;">
+                  <option value="">Custom</option>
+                  {% for t in templates %}
+                    <option value="{{ t.key }}" data-role-type="{{ t.role_type }}" data-perm-ids="{{ t.permission_ids|join:',' }}">{{ t.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="lg:col-span-2 flex items-end gap-2">
+                <div class="flex-1">
+                  <label class="text-[11px] font-semibold uppercase tracking-wider d365-muted">Search</label>
+                  <input id="permSearch" type="text" placeholder="Search modules, journals, vouchers…" class="w-full mt-1 px-3 py-2 rounded border text-sm" style="border-color:#d1d5db;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Horizontal tabs -->
+          <div class="d365-card">
+            <div class="tab-row">
+              {% for tab in catalog.tabs %}
+                <button type="button" class="tab-btn" data-tab="{{ tab.key }}">{{ tab.title }}</button>
+              {% endfor %}
+            </div>
+
+            <!-- Panels -->
+            <div id="tabPanels" class="p-4">
+              {% for tab in catalog.tabs %}
+              <div class="tab-panel" data-tab="{{ tab.key }}" {% if not forloop.first %}style="display:none"{% endif %}>
+                {% if tab.sections_list %}
+                  {% for section in tab.sections_list %}
+                  <div class="d365-card mb-4">
+                    <div class="section-head">
+                      <div class="section-title">
+                        <i data-feather="list" class="w-4 h-4" style="color:#0078d4;"></i>
+                        <span>{{ section.title }}</span>
+                        <span class="pill-badge">{{ section.modules|length }} group{{ section.modules|length|pluralize }}</span>
+                      </div>
+                      <div class="section-actions">
+                        <button type="button" class="ghost-btn expand-all">Expand All</button>
+                        <button type="button" class="ghost-btn collapse-all">Collapse All</button>
+                      </div>
+                    </div>
+                    <div class="p-3">
+                      {% for mod in section.modules %}
+                      <details class="d365-card mb-3 section-block" open>
+                        <summary class="section-head" style="border-bottom:0;">
+                          <div class="section-title">
+                            <i data-feather="grid" class="w-4 h-4" style="color:#0078d4;"></i>
+                            <span>{{ mod.title }}</span>
+                          </div>
+                          <div class="section-actions">
+                            <button type="button" class="ghost-btn btn-select-all">Select All</button>
+                            <button type="button" class="ghost-btn btn-clear">Clear</button>
+                          </div>
+                        </summary>
+                        <div class="p-3">
+                          <div class="perm-grid">
+                            {% for card in mod.cards %}
+                            <div class="perm-card perm-card-scope" data-search="{{ card.search_text }}">
+                              <div class="perm-card-head">
+                                <div>
+                                  <div class="perm-card-name">{{ card.title }}</div>
+                                  <div class="perm-card-desc">Grant and refund access formats.</div>
+                                </div>
+                                <label class="master-toggle" title="Enable/disable this module permissions">
+                                  <input type="checkbox" class="card-master">
+                                  <span class="track" aria-hidden="true"></span>
+                                  <span class="thumb" aria-hidden="true"></span>
+                                </label>
+                              </div>
+                              <div class="mt-3 flex flex-wrap gap-2">
+                                {% for a in card.actions %}
+                                  {% if a.perm %}
+                                  <label class="pill"
+                                         data-action="{{ a.key }}"
+                                         data-risk="{{ a.risk }}"
+                                         data-state="{% if a.perm.id in selected_permission_ids %}on{% else %}off{% endif %}">
+                                    <input type="checkbox" name="permissions" value="{{ a.perm.id }}"
+                                           class="perm-box"
+                                           data-action="{{ a.key }}"
+                                           data-code="{{ a.perm.code }}"
+                                           data-label="{{ a.perm.name|default:a.perm.code }}"
+                                           {% if a.perm.id in selected_permission_ids %}checked{% endif %}>
+                                    <span>{{ a.label }}</span>
+                                    {% if a.risk == "high" %}
+                                      <span class="pill-badge" style="border-color:#fde68a; background:#fffbeb; color:#92400e;">High</span>
+                                    {% elif a.key == "approve" or a.key == "post" %}
+                                      <span class="pill-badge" style="border-color:#fde68a; background:#fffbeb; color:#92400e;">Approval</span>
+                                    {% endif %}
+                                  </label>
+                                  {% endif %}
+                                {% endfor %}
+                                {% for op in card.other %}
+                                  <label class="pill"
+                                         data-action="other"
+                                         data-risk="{{ op.risk }}"
+                                         data-state="{% if op.perm.id in selected_permission_ids %}on{% else %}off{% endif %}">
+                                    <input type="checkbox" name="permissions" value="{{ op.perm.id }}"
+                                           class="perm-box"
+                                           data-action="other"
+                                           data-code="{{ op.perm.code }}"
+                                           data-label="{{ op.perm.name|default:op.perm.code }}"
+                                           {% if op.perm.id in selected_permission_ids %}checked{% endif %}>
+                                    <span>{{ op.perm.name|default:op.perm.code }}</span>
+                                    {% if op.risk == "high" %}
+                                      <span class="pill-badge" style="border-color:#fde68a; background:#fffbeb; color:#92400e;">High</span>
+                                    {% endif %}
+                                  </label>
+                                {% endfor %}
+                              </div>
+                            </div>
+                            {% endfor %}
+                          </div>
+                        </div>
+                      </details>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="text-sm d365-muted">No permissions mapped to this tab yet.</div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </form>
+      </main>
+
+      <!-- Right panel -->
+      <aside class="w-[360px] border-l p-4 hidden lg:block" style="border-color:#edebe9; background:#fff;">
+        <div class="sticky-panel">
+          <div class="d365-card p-4" id="summaryPanel">
+            <div class="text-sm font-semibold d365-title mb-3">Selected Permissions</div>
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-9 h-9 rounded-full flex items-center justify-center" style="background:#f3f2f1;">
+                <i data-feather="user" class="w-4 h-4" style="color:#605e5c;"></i>
+              </div>
+              <div>
+                <div class="font-semibold d365-title" id="sumRoleName">{{ role.name|default:"" }}</div>
+                <div class="text-xs d365-muted"><span id="sumCount">0</span> permissions selected</div>
+              </div>
+            </div>
+
+            <div class="space-y-2 mb-4">
+              <div class="kv"><span>TYPE</span><b id="sumRoleType">—</b></div>
+              <div class="kv"><span>TEMPLATE</span><b id="sumTemplate">Custom</b></div>
+              <div class="kv"><span>SCOPE</span><b id="sumScope">Assigned Projects Only</b></div>
+            </div>
+
+            <div class="space-y-1 mb-4">
+              <div class="status-row"><span>Finance Access</span><span id="sumFinanceAccess" class="status-muted">—</span></div>
+              <div class="status-row"><span>Approvals</span><span id="sumApprovals" class="status-muted">—</span></div>
+              <div class="status-row"><span>Posting</span><span id="sumPosting" class="status-muted">—</span></div>
+              <div class="status-row"><span>Project Scope</span><span id="sumProjectScope" class="status-muted">—</span></div>
+            </div>
+
+            <div id="riskBox" class="risk-box hidden">
+              <div class="flex items-start gap-2">
+                <i data-feather="alert-triangle" class="w-4 h-4" style="color:#b45309; margin-top:2px;"></i>
+                <div>
+                  <div class="font-semibold">High Risk Role</div>
+                  <div class="text-xs">Review carefully before saving because it can approve, post, reverse, or manage sensitive records.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <div class="text-xs d365-muted">Selected list</div>
+              <div id="selList" class="mt-2 space-y-2"></div>
+            </div>
+
+            <div class="mt-4 flex gap-2">
+              <button type="submit" form="roleForm" class="btn-primary flex-1">Save</button>
+              <a href="{% url 'tenant_portal:roles_permissions_list' %}" class="btn-secondary flex-1 text-center">Cancel</a>
+              <button type="button" class="btn-secondary flex-1" id="previewAccessBtn2">Preview Access</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const leftTabs = document.querySelectorAll(".left-tab");
+    const panels = document.querySelectorAll(".tab-panel");
+    const search = document.getElementById("permSearch");
+    const roleTemplate = document.getElementById("roleTemplate");
+    const roleType = document.getElementById("roleType");
+
+    const sumRoleName = document.getElementById("sumRoleName");
+    const sumCount = document.getElementById("sumCount");
+    const sumRoleType = document.getElementById("sumRoleType");
+    const sumTemplate = document.getElementById("sumTemplate");
+    const sumScope = document.getElementById("sumScope");
+    const sumFinanceAccess = document.getElementById("sumFinanceAccess");
+    const sumApprovals = document.getElementById("sumApprovals");
+    const sumPosting = document.getElementById("sumPosting");
+    const sumProjectScope = document.getElementById("sumProjectScope");
+    const riskBox = document.getElementById("riskBox");
+    const selList = document.getElementById("selList");
+    const summaryPanel = document.getElementById("summaryPanel");
+    const previewBtn1 = document.getElementById("previewAccessBtn");
+    const previewBtn2 = document.getElementById("previewAccessBtn2");
+
+    function setActiveTab(key) {
+      tabButtons.forEach(b => b.classList.toggle("active", b.getAttribute("data-tab") === key));
+      leftTabs.forEach(b => b.classList.toggle("active", b.getAttribute("data-tab") === key));
+      panels.forEach(p => p.style.display = (p.getAttribute("data-tab") === key) ? "" : "none");
+    }
+    if (tabButtons.length) setActiveTab(tabButtons[0].getAttribute("data-tab"));
+    tabButtons.forEach(b => b.addEventListener("click", () => setActiveTab(b.getAttribute("data-tab"))));
+    leftTabs.forEach(b => b.addEventListener("click", (e) => { e.preventDefault(); setActiveTab(b.getAttribute("data-tab")); }));
+
+    function updatePills() {
+      document.querySelectorAll(".pill").forEach(p => {
+        const box = p.querySelector("input.perm-box");
+        if (!box) return;
+        p.setAttribute("data-state", box.checked ? "on" : "off");
+      });
+    }
+
+    function computeIndicators(checkedBoxes) {
+      const codes = checkedBoxes.map(b => (b.getAttribute("data-code") || "").toLowerCase());
+      const actions = checkedBoxes.map(b => (b.getAttribute("data-action") || "").toLowerCase());
+      const has = (substr) => codes.some(c => c === substr || c.includes(substr));
+      const hasAnyAction = (aSet) => actions.some(a => aSet.includes(a));
+
+      const financeFull = has("module:finance.manage");
+      const financeView = has("module:finance.view");
+      const approvalsEnabled = hasAnyAction(["approve"]) || codes.some(c => c.includes(".approve") || c.includes(":approve"));
+      const postingEnabled = hasAnyAction(["post", "reverse"]) || codes.some(c => c.includes(".post") || c.includes(".reverse"));
+      const allProjects = has("finance:scope.all_grants");
+
+      const highRisk = hasAnyAction(["delete", "approve", "post", "reverse"]) ||
+        codes.some(c => c.includes("override") || c.includes("unlock") || c.includes("backdated"));
+
+      return { financeFull, financeView, approvalsEnabled, postingEnabled, allProjects, highRisk };
+    }
+
+    function updateSummary() {
+      const checked = Array.from(document.querySelectorAll("input.perm-box:checked"));
+      if (sumCount) sumCount.textContent = String(checked.length);
+      if (sumRoleType && roleType) {
+        const opt = roleType.options[roleType.selectedIndex];
+        sumRoleType.textContent = (opt?.textContent || "—").trim();
+      }
+      if (sumTemplate && roleTemplate) {
+        const opt = roleTemplate.options[roleTemplate.selectedIndex];
+        sumTemplate.textContent = (opt?.textContent || "Custom").trim();
+      }
+
+      const ind = computeIndicators(checked);
+      if (sumFinanceAccess) sumFinanceAccess.textContent = ind.financeFull ? "Full" : (ind.financeView ? "Limited" : "Restricted");
+      if (sumFinanceAccess) sumFinanceAccess.className = ind.financeFull ? "status-ok" : (ind.financeView ? "status-warn" : "status-muted");
+      if (sumApprovals) sumApprovals.textContent = ind.approvalsEnabled ? "Enabled" : "Disabled";
+      if (sumApprovals) sumApprovals.className = ind.approvalsEnabled ? "status-ok" : "status-muted";
+      if (sumPosting) sumPosting.textContent = ind.postingEnabled ? "Enabled" : "Disabled";
+      if (sumPosting) sumPosting.className = ind.postingEnabled ? "status-ok" : "status-muted";
+      if (sumProjectScope) sumProjectScope.textContent = ind.allProjects ? "All" : "Assigned";
+      if (sumScope) sumScope.textContent = ind.allProjects ? "All Projects" : "Assigned Projects Only";
+
+      if (riskBox) riskBox.classList.toggle("hidden", !ind.highRisk);
+
+      if (selList) {
+        selList.innerHTML = "";
+        checked.slice(0, 18).forEach(b => {
+          const code = b.getAttribute("data-code") || "";
+          const label = b.getAttribute("data-label") || code;
+          const action = (b.getAttribute("data-action") || "").toLowerCase();
+          const el = document.createElement("div");
+          el.className = "d365-card p-2";
+          el.innerHTML = "<div class='text-xs font-semibold' style='color:#323130;'>" + label + "</div>"
+            + "<div class='text-[11px] font-mono' style='color:#6b7280;'>" + code + "</div>"
+            + (["approve","post","reverse","delete"].includes(action) ? "<div class='text-[11px] mt-1' style='color:#92400e;'>High risk action</div>" : "");
+          selList.appendChild(el);
+        });
+        if (checked.length > 18) {
+          const more = document.createElement("div");
+          more.className = "text-xs d365-muted";
+          more.textContent = "…and " + (checked.length - 18) + " more";
+          selList.appendChild(more);
+        }
+      }
+    }
+
+    function applySearch() {
+      const q = (search?.value || "").toLowerCase().trim();
+      document.querySelectorAll(".perm-card-scope").forEach(card => {
+        const t = (card.getAttribute("data-search") || "").toLowerCase();
+        card.style.display = (!q || t.includes(q)) ? "" : "none";
+      });
+    }
+
+    // Card master toggles: enable/disable all inside card
+    document.querySelectorAll(".perm-card-scope").forEach(card => {
+      const master = card.querySelector(".card-master");
+      const boxes = Array.from(card.querySelectorAll("input.perm-box"));
+      if (!master || !boxes.length) return;
+      const sync = () => { master.checked = boxes.some(b => b.checked); };
+      sync();
+      master.addEventListener("change", () => {
+        const target = master.checked;
+        boxes.forEach(b => { b.checked = target; });
+        updatePills(); updateSummary();
+      });
+      boxes.forEach(b => b.addEventListener("change", () => { sync(); updatePills(); updateSummary(); }));
+    });
+
+    // Module select/clear
+    document.querySelectorAll(".btn-select-all").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const details = e.target.closest("details");
+        if (!details) return;
+        details.querySelectorAll("input.perm-box").forEach(b => b.checked = true);
+        updatePills(); updateSummary();
+      });
+    });
+    document.querySelectorAll(".btn-clear").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const details = e.target.closest("details");
+        if (!details) return;
+        details.querySelectorAll("input.perm-box").forEach(b => b.checked = false);
+        updatePills(); updateSummary();
+      });
+    });
+
+    // Expand/collapse within section container
+    document.querySelectorAll(".expand-all").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const wrap = e.target.closest(".d365-card");
+        if (!wrap) return;
+        wrap.querySelectorAll("details").forEach(d => d.open = true);
+      });
+    });
+    document.querySelectorAll(".collapse-all").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const wrap = e.target.closest(".d365-card");
+        if (!wrap) return;
+        wrap.querySelectorAll("details").forEach(d => d.open = false);
+      });
+    });
+
+    // Update pills on checkbox change
+    document.querySelectorAll("input.perm-box").forEach(b => {
+      b.addEventListener("change", function () { updatePills(); updateSummary(); });
+    });
+
+    if (search) search.addEventListener("input", () => { applySearch(); });
+
+    if (roleTemplate) {
+      roleTemplate.addEventListener("change", function () {
+        const opt = roleTemplate.options[roleTemplate.selectedIndex];
+        const ids = (opt.getAttribute("data-perm-ids") || "").split(",").map(x => x.trim()).filter(Boolean);
+        document.querySelectorAll("input.perm-box").forEach(b => b.checked = false);
+        ids.forEach(id => {
+          const box = document.querySelector("input.perm-box[value='" + id + "']");
+          if (box) box.checked = true;
+        });
+        const rt = opt.getAttribute("data-role-type") || "";
+        if (roleType && rt) roleType.value = rt;
+        updatePills(); updateSummary();
+      });
+    }
+
+    // Role name sync into summary
+    const nameInput = document.querySelector("input[name='name']");
+    if (nameInput && sumRoleName) {
+      const syncName = () => { sumRoleName.textContent = (nameInput.value || "").trim() || "—"; };
+      nameInput.addEventListener("input", syncName);
+      syncName();
+    }
+
+    // Init
+    tabButtons.forEach((b, idx) => { if (idx === 0) b.classList.add("active"); });
+    updatePills();
+    updateSummary();
+    applySearch();
+
+    function focusSummary() {
+      if (!summaryPanel) return;
+      summaryPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      summaryPanel.classList.add("ring-2", "ring-[#0078d4]");
+      setTimeout(() => summaryPanel.classList.remove("ring-2", "ring-[#0078d4]"), 1200);
+    }
+    if (previewBtn1) previewBtn1.addEventListener("click", function (e) { e.preventDefault(); focusSummary(); });
+    if (previewBtn2) previewBtn2.addEventListener("click", function (e) { e.preventDefault(); focusSummary(); });
+  })();
+</script>
+{% endblock %}
+

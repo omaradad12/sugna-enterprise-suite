@@ -1,0 +1,65 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Opening Balances | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Opening Balances</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Set opening balances when initializing the system.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
+    <h2 class="font-semibold">Add / Update opening balance</h2>
+    <form method="post" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">As of date</label>
+        <input type="date" name="as_of_date" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Account</label>
+        <select name="account_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select —</option>
+          {% for a in accounts %}
+          <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Debit</label>
+        <input type="number" name="debit" step="0.01" value="0" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Credit</label>
+        <input type="number" name="credit" step="0.01" value="0" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Save</button>
+    </form>
+  </div>
+  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Existing opening balances</div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">As of date</th>
+          <th class="px-4 py-2 font-semibold">Account</th>
+          <th class="px-4 py-2 font-semibold text-right">Debit</th>
+          <th class="px-4 py-2 font-semibold text-right">Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in balances %}
+        <tr class="border-b" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ b.as_of_date|date:"Y-m-d" }}</td>
+          <td class="px-4 py-2">{{ b.account.code }} — {{ b.account.name }}</td>
+          <td class="px-4 py-2 text-right">{{ b.debit|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right">{{ b.credit|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No opening balances set.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Pending Approvals | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Pending Approvals</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Financial transactions and requests awaiting approval.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Pending Approvals</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Grant</th>
+          <th class="px-4 py-2 font-semibold">Requested By</th>
+          <th class="px-4 py-2 font-semibold">Requested At</th>
+          <th class="px-4 py-2 font-semibold">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in pending_list %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ item.grant.code }} — {{ item.grant.title|truncatewords:5 }}</td>
+          <td class="px-4 py-2">{{ item.requested_by.get_full_name|default:item.requested_by.username }}</td>
+          <td class="px-4 py-2">{{ item.created_at|date:"M d, Y H:i" }}</td>
+          <td class="px-4 py-2">{{ item.get_status_display }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No pending approvals.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

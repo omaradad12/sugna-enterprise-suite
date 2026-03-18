@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ tenant_display_name|default:tenant.name }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak]{display:none!important}
+
+    /* Global typography */
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #323130;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      font-weight: 400;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #323130;
+    }
+    /* Normalize h1 inside main to match page-title */
+    main h1 {
+      font-size: 22px !important;
+      font-weight: 600 !important;
+      color: #323130 !important;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+    /* ERP-style section + table visuals (Microsoft Dynamics–inspired) */
+    .erp-section {
+      border: 1px solid #edebe9;
+      margin-bottom: 12px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .erp-section-header {
+      background: #f3f2f1;
+      color: #323130;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #edebe9;
+    }
+    .erp-section-body {
+      background: #ffffff;
+      padding: 10px 12px 12px;
+    }
+    .erp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .erp-table th {
+      background: #f3f2f1;
+      color: #323130;
+      padding: 6px 8px;
+      border: 1px solid #edebe9;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+    }
+    .erp-table td {
+      background: #ffffff;
+      padding: 6px 8px;
+      border: 1px solid #edebe9;
+    }
+    .erp-table tfoot td {
+      background: #f3f2f1;
+      font-weight: 600;
+    }
+
+    /* Dynamics-style left sidebar navigation */
+    .sidebar-shell {
+      background: #f7f9fc;
+      border-right: 1px solid #e5e7eb;
+    }
+    .sidebar-header-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #111827;
+      letter-spacing: -0.01em;
+    }
+    .sidebar-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+    }
+    .sidebar-link {
+      border-left: 4px solid transparent;
+      border-radius: 0.375rem;
+      font-size: 13px;
+      color: #323130;
+      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+    }
+    .sidebar-link:hover {
+      background: #deecf9;
+      color: #0078D4;
+      border-left-color: #deecf9;
+    }
+    .sidebar-link-icon {
+      color: #605e5c;
+      transition: color 150ms ease;
+    }
+    .sidebar-link:hover .sidebar-link-icon {
+      color: #0078D4;
+    }
+    .sidebar-link--active {
+      background: #0078D4;
+      color: #ffffff;
+      border-left-color: #0078D4;
+      font-weight: 600;
+    }
+    .sidebar-link--active .sidebar-link-icon {
+      color: #ffffff;
+    }
+
+    /* Elements visible only when printing (e.g. document headers/footers) */
+    .print-only {
+      display: none;
+    }
+
+    /* Print page setup: landscape for reports like GL */
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    /* Print layout: hide app chrome, show only document content */
+    @media print {
+      .print-only {
+        display: block;
+      }
+      body {
+        background: #ffffff !important;
+      }
+      header,
+      .h-9,
+      aside,
+      .h-14,
+      .hidden-print,
+      #recent-payment-vouchers {
+        display: none !important;
+      }
+      .voucher-details-break {
+        page-break-before: always;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .print-area,
+      .flex.flex-1.min-h-0 > div:last-child {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 12mm !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden bg-[#faf9f8] text-[#323130]">
+  <div class="h-full flex flex-col" x-data="{ subMenu: '{{ active_submenu|default:'dashboard' }}', quickOpen: false, userOpen: false, notifOpen: false, sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }">
+
+    <!-- Microsoft Dynamics-style top bar: identity + search + actions -->
+    <header class="h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30" style="background:#0078D4;">
+      <!-- Left: organization identity + module (tenant logo from Organization Settings or control-plane fallback) -->
+      <div class="flex items-center gap-3 min-w-0">
+        {% if org_settings and org_settings.organization_logo %}
+        <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% elif tenant.brand_logo_url %}
+        <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% else %}
+        <img src="{% url 'platform_dashboard:logo' %}" alt=""
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% endif %}
+        <div class="flex flex-col leading-tight min-w-0">
+          <span class="text-[13px] font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis max-w-[280px]">
+            {{ tenant_display_name|default:tenant.name }}
+          </span>
+          <span class="text-[11px] text-white/85">
+            Financial &amp; Grant Management
+          </span>
+        </div>
+      </div>
+
+      <!-- Center: global search (slightly shifted right to free space for long org names) -->
+      <div class="flex-1 flex items-center justify-end px-4 min-w-0">
+        <form class="hidden md:block w-full max-w-lg" action="#" method="get">
+          <label for="tenant-search-fw" class="sr-only">Search</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[#0078D4] pointer-events-none">
+              <i data-feather="search" class="w-4 h-4"></i>
+            </span>
+            <input id="tenant-search-fw" name="q" type="search"
+                   placeholder="Search vouchers, journals, donors, grants, reports…"
+                   class="w-full pl-9 pr-3 py-1.5 rounded-full border border-white/90 text-xs bg-white text-[#323130] placeholder-[#605e5c] focus:outline-none focus:ring-1 focus:ring-white shadow-sm" />
+          </div>
+        </form>
+      </div>
+
+      <!-- Right: post transaction, quick actions, notifications, user -->
+      <div class="flex items-center gap-2 ml-2 md:ml-4">
+        <!-- Post transaction primary button -->
+        <a href="{% url 'tenant_portal:finance_post_transaction' %}"
+           class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-[#0078D4] hover:bg-[#e5f0ff] border border-white/25">
+          <i data-feather="edit-3" class="w-4 h-4"></i>
+          <span>Post transaction</span>
+        </a>
+
+        <!-- Quick actions dropdown -->
+        <div class="relative">
+          <button type="button"
+                  @click="quickOpen = !quickOpen"
+                  class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white hover:bg-white/15 border border-white/25">
+            <i data-feather="zap" class="w-4 h-4"></i>
+            <span>Quick actions</span>
+            <i data-feather="chevron-down" class="w-3 h-3"></i>
+          </button>
+          <button type="button"
+                  @click="quickOpen = !quickOpen"
+                  class="sm:hidden inline-flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-white/15 border border-white/25">
+            <i data-feather="zap" class="w-4 h-4"></i>
+          </button>
+          <div x-show="quickOpen" x-cloak
+               @click.outside="quickOpen = false"
+               class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-2 text-sm z-30">
+            <p class="px-4 pb-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Quick actions</p>
+            <div class="px-2 pb-1 space-y-1">
+              <a href="{% url 'tenant_portal:finance_post_transaction' %}"
+                 @click="quickOpen = false"
+                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
+                <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                  <i data-feather="edit-3" class="w-4 h-4 text-blue-600"></i>
+                </div>
+                <p class="text-[13px] font-semibold text-[#111827]">Post transaction</p>
+              </a>
+              <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+                 @click="quickOpen = false"
+                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
+                <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
+                  <i data-feather="file-minus" class="w-4 h-4 text-emerald-600"></i>
+                </div>
+                <p class="text-[13px] font-semibold text-[#111827]">Create payment voucher</p>
+              </a>
+              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}"
+                 @click="quickOpen = false"
+                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
+                <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                  <i data-feather="file-plus" class="w-4 h-4 text-indigo-600"></i>
+                </div>
+                <p class="text-[13px] font-semibold text-[#111827]">Create receipt voucher</p>
+              </a>
+              <div class="border-t my-1" style="border-color:#e5e7eb;"></div>
+              <a href="{% url 'tenant_portal:budget_creation' %}"
+                 @click="quickOpen = false"
+                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
+                <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
+                  <i data-feather="pie-chart" class="w-4 h-4 text-amber-600"></i>
+                </div>
+                <p class="text-[13px] font-semibold text-[#111827]">Create budget</p>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grants' %}"
+                 @click="quickOpen = false"
+                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
+                <div class="w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center">
+                  <i data-feather="folder-plus" class="w-4 h-4 text-sky-600"></i>
+                </div>
+                <p class="text-[13px] font-semibold text-[#111827]">Create grant / project</p>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_register' %}"
+                 @click="quickOpen = false"
+                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
+                <div class="w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center">
+                  <i data-feather="user-plus" class="w-4 h-4 text-sky-600"></i>
+                </div>
+                <p class="text-[13px] font-semibold text-[#111827]">Create donor</p>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Alerts / Notifications dropdown -->
+        <div class="relative">
+          <button type="button"
+                  @click="notifOpen = !notifOpen; quickOpen = false; userOpen = false"
+                  class="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-white/15 border border-white/20 relative">
+            <i data-feather="bell" class="w-4 h-4"></i>
+            {% if smart_alerts_count > 0 %}
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ffb900] text-[#201f1e]">{{ smart_alerts_count }}</span>
+            {% endif %}
+          </button>
+          <div x-show="notifOpen" x-cloak
+               @click.outside="notifOpen = false"
+               class="absolute right-0 mt-2 w-[360px] max-h-[400px] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col">
+            <div class="px-4 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#e5e7eb;">
+              <span class="text-[13px] font-semibold text-[#111827]">Alerts &amp; Warnings</span>
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:#0078D4;">View all</a>
+            </div>
+            <div class="overflow-y-auto flex-1 py-2">
+              {% for alert in smart_alerts %}
+              <a href="{{ alert.link_url }}" @click="notifOpen = false" class="flex gap-3 px-4 py-2.5 hover:bg-[#f9fafb] border-l-4" style="border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
+                <span class="shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
+                  <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-[13px] font-semibold text-[#111827] truncate">{{ alert.title }}</p>
+                  <p class="text-[12px] mt-0.5 truncate" style="color:#6b7280;">{{ alert.message }}</p>
+                </div>
+              </a>
+              {% empty %}
+              <p class="px-4 py-6 text-center text-[13px]" style="color:#6b7280;">No alerts.</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="hidden sm:block h-6 w-px bg-white/20 mx-1"></div>
+
+        <!-- User profile dropdown (Microsoft Dynamics / Fluent style) -->
+        <div class="relative">
+          <button type="button"
+                  @click="userOpen = !userOpen"
+                  class="flex items-center gap-2 px-2.5 py-2 rounded text-xs font-medium text-white hover:bg-white/15 transition-colors min-h-[36px]">
+            <span class="hidden sm:inline truncate max-w-[160px]">{{ tenant_user.position|default:tenant_user.full_name|default:tenant_user.email }}</span>
+            {% if tenant_user.profile_photo %}
+            <img src="{{ tenant_user.profile_photo.url }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0" />
+            {% else %}
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-[12px] font-semibold shrink-0">
+              {{ tenant_user.email|default:'?'|slice:':1'|upper }}
+            </span>
+            {% endif %}
+            <i data-feather="chevron-down" class="w-4 h-4 shrink-0 opacity-90"></i>
+          </button>
+          <div x-show="userOpen" x-cloak
+               x-transition:enter="transition ease-out duration-150"
+               x-transition:enter-start="opacity-0 scale-95"
+               x-transition:enter-end="opacity-100 scale-100"
+               x-transition:leave="transition ease-in duration-100"
+               x-transition:leave-start="opacity-100 scale-100"
+               x-transition:leave-end="opacity-0 scale-95"
+               @click.outside="userOpen = false"
+               class="absolute right-0 mt-2 w-[260px] bg-white rounded-lg z-30 overflow-hidden"
+               style="border: 1px solid #e5e7eb; box-shadow: 0 10px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);">
+            <div class="px-4 py-3 border-b" style="background: #f9fafb; border-color: #e5e7eb;">
+              <p class="text-[11px] font-semibold uppercase tracking-widest" style="color: #6b7280; letter-spacing: 0.08em;">ACCOUNT</p>
+            </div>
+            <div class="py-2 max-h-[320px] overflow-y-auto">
+              <a href="{% url 'tenant_portal:profile' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="user" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>My Profile</span>
+              </a>
+              <a href="{% url 'tenant_portal:organization_settings' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="sliders" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Organization Settings</span>
+              </a>
+              <a href="{% url 'tenant_portal:user_management' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="users" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>User Management</span>
+              </a>
+              <button type="button" class="w-full text-left px-4 py-3 flex items-center gap-3 transition-colors focus:outline-none hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="help-circle" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Help Center</span>
+              </button>
+            </div>
+            <div class="border-t py-2" style="border-color: #e5e7eb;">
+              <a href="{% url 'tenant_portal:logout' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="log-out" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Log Out</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {% if global_indicators %}
+    <!-- Global Financial Indicators bar (visible across all modules) -->
+    <div class="hidden md:block border-b border-[#e5e7eb] bg-white/95 backdrop-blur sticky top-14 z-20">
+      <div class="max-w-[1600px] mx-auto px-4 md:px-6 py-1.5 flex flex-wrap gap-2 items-stretch">
+        <!-- Total Bank Balance -->
+        <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+           class="group flex items-center gap-2 px-3 py-1.5 rounded-md border text-[11px] font-medium text-[#111827] bg-white hover:bg-[#f3f4ff] transition-colors"
+           style="border-color:#e5e7eb;">
+          <span class="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center">
+            <i data-feather="credit-card" class="w-3.5 h-3.5 text-blue-600"></i>
+          </span>
+          <span class="uppercase tracking-wide text-[#6b7280]">Bank</span>
+          <span class="ml-1 tabular-nums text-[#111827]">
+            {{ global_indicators.total_bank_balance|floatformat:2 }}
+          </span>
+        </a>
+        <!-- Total Cash Balance -->
+        <a href="{% url 'tenant_portal:cash_main_cashbook' %}"
+           class="group flex items-center gap-2 px-3 py-1.5 rounded-md border text-[11px] font-medium text-[#111827] bg-white hover:bg-[#f3f4ff] transition-colors"
+           style="border-color:#e5e7eb;">
+          <span class="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center">
+            <i data-feather="dollar-sign" class="w-3.5 h-3.5 text-emerald-600"></i>
+          </span>
+          <span class="uppercase tracking-wide text-[#6b7280]">Cash</span>
+          <span class="ml-1 tabular-nums text-[#111827]">
+            {{ global_indicators.total_cash_balance|floatformat:2 }}
+          </span>
+        </a>
+        <!-- Petty Cash Balance -->
+        <a href="{% url 'tenant_portal:cash_petty_expenses' %}"
+           class="group flex items-center gap-2 px-3 py-1.5 rounded-md border text-[11px] font-medium text-[#111827] bg-white hover:bg-[#f3f4ff] transition-colors"
+           style="border-color:#e5e7eb;">
+          <span class="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center">
+            <i data-feather="pocket" class="w-3.5 h-3.5 text-amber-600"></i>
+          </span>
+          <span class="uppercase tracking-wide text-[#6b7280]">Petty Cash</span>
+          <span class="ml-1 tabular-nums text-[#111827]">
+            {{ global_indicators.petty_cash_balance|floatformat:2 }}
+          </span>
+        </a>
+        <!-- Outstanding Receivables -->
+        <a href="{% url 'tenant_portal:recv_outstanding_receivables' %}"
+           class="group flex items-center gap-2 px-3 py-1.5 rounded-md border text-[11px] font-medium text-[#111827] bg-white hover:bg-[#f3f4ff] transition-colors"
+           style="border-color:#e5e7eb;">
+          <span class="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center">
+            <i data-feather="arrow-down-circle" class="w-3.5 h-3.5 text-indigo-600"></i>
+          </span>
+          <span class="uppercase tracking-wide text-[#6b7280]">Receivables</span>
+          <span class="ml-1 tabular-nums text-[#111827]">
+            {{ global_indicators.outstanding_receivables|floatformat:2 }}
+          </span>
+        </a>
+        <!-- Pending Payables -->
+        <a href="{% url 'tenant_portal:pay_outstanding' %}"
+           class="group flex items-center gap-2 px-3 py-1.5 rounded-md border text-[11px] font-medium text-[#111827] bg-white hover:bg-[#f3f4ff] transition-colors"
+           style="border-color:#e5e7eb;">
+          <span class="w-6 h-6 rounded-full bg-rose-50 flex items-center justify-center">
+            <i data-feather="arrow-up-circle" class="w-3.5 h-3.5 text-rose-600"></i>
+          </span>
+          <span class="uppercase tracking-wide text-[#6b7280]">Payables</span>
+          <span class="ml-1 tabular-nums text-[#111827]">
+            {{ global_indicators.pending_payables|floatformat:2 }}
+          </span>
+        </a>
+        <!-- Budget Utilization -->
+        <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+           class="group flex items-center gap-2 px-3 py-1.5 rounded-md border text-[11px] font-medium text-[#111827] bg-white hover:bg-[#f3f4ff] transition-colors"
+           style="border-color:#e5e7eb;">
+          <span class="w-6 h-6 rounded-full bg-sky-50 flex items-center justify-center">
+            <i data-feather="pie-chart" class="w-3.5 h-3.5 text-sky-600"></i>
+          </span>
+          <span class="uppercase tracking-wide text-[#6b7280]">Budget Util.</span>
+          <span class="ml-1 tabular-nums text-[#111827]">
+            {{ global_indicators.budget_utilization|floatformat:1 }}%
+          </span>
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Second topbar: main navigation menu (title case with icons) -->
+    <div class="h-9 flex items-center px-4 md:px-6 border-b bg-[#0063B1] shadow-sm" style="border-color:#005a9e;">
+      <nav class="flex items-center gap-1.5 text-[12px] text-white">
+        <!-- 1) Financial overview -->
+        <a href="{% url 'tenant_portal:finance_home' %}"
+           @click="subMenu = 'dashboard'"
+           :class="subMenu === 'dashboard' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="home" class="w-4 h-4"></i>
+          <span>Financial overview</span>
+        </a>
+
+        <!-- 2) Core Accounting -->
+        <a href="{% url 'tenant_portal:finance_journals' %}"
+           @click="subMenu = 'core'"
+           :class="subMenu === 'core' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="briefcase" class="w-4 h-4"></i>
+          <span>Core Accounting</span>
+        </a>
+
+        <!-- 3) Funds & Donors -->
+        <a href="{% url 'tenant_portal:grants_home' %}"
+           @click="subMenu = 'funds'"
+           :class="subMenu === 'funds' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="folder" class="w-4 h-4"></i>
+          <span>Funds &amp; Donors</span>
+        </a>
+
+        <!-- 4) Budgeting -->
+        <a href="{% url 'tenant_portal:grants_budgets' %}"
+           @click="subMenu = 'budget'"
+           :class="subMenu === 'budget' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="trending-up" class="w-4 h-4"></i>
+          <span>Budgeting</span>
+        </a>
+
+        <!-- 5) Cash & Bank (links to module dashboard) -->
+        <a href="{% url 'tenant_portal:cash_dashboard' %}"
+           @click="subMenu = 'cash'"
+           :class="subMenu === 'cash' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="credit-card" class="w-4 h-4"></i>
+          <span>Cash &amp; Bank</span>
+        </a>
+
+        <!-- 6) Incoming fund -->
+        <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}"
+           @click="subMenu = 'receivables'"
+           :class="subMenu === 'receivables' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="arrow-down-circle" class="w-4 h-4"></i>
+          <span>Incoming fund</span>
+        </a>
+
+        <!-- 7) Outgoing fund -->
+        <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+           @click="subMenu = 'payables'"
+           :class="subMenu === 'payables' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="arrow-up-circle" class="w-4 h-4"></i>
+          <span>Outgoing fund</span>
+        </a>
+
+        <!-- 8) Multi-donor sharing -->
+        <a href="{% url 'tenant_portal:cost_home' %}"
+           @click="subMenu = 'cost'"
+           :class="subMenu === 'cost' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="sliders" class="w-4 h-4"></i>
+          <span>Multi-donor sharing</span>
+        </a>
+
+        <!-- 9) Governance -->
+        <a href="{% url 'tenant_portal:controls_home' %}"
+           @click="subMenu = 'controls'"
+           :class="subMenu === 'controls' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="shield" class="w-4 h-4"></i>
+          <span>Governance</span>
+        </a>
+
+        <!-- 10) Reporting -->
+        <a href="{% url 'tenant_portal:grants_reports' %}"
+           @click="subMenu = 'reports'"
+           :class="subMenu === 'reports' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="bar-chart-2" class="w-4 h-4"></i>
+          <span>Reporting</span>
+        </a>
+
+        <!-- 11) Financial Setup -->
+        <a href="{% url 'tenant_portal:setup_home' %}"
+           @click="subMenu = 'setup'"
+           :class="subMenu === 'setup' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
+          <i data-feather="settings" class="w-4 h-4"></i>
+          <span>Financial Setup</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Body: sidebar + main content -->
+    <div class="flex flex-1 min-h-0">
+      <!-- Left sidebar: dynamic submenus for selected topbar module -->
+      <aside
+        class="flex-shrink-0 flex flex-col h-full border-r overflow-hidden transition-all duration-200 bg-[#f7f9fc]"
+        style="border-color:#e5e7eb;"
+        :class="sidebarCollapsed ? 'w-14' : 'w-64'">
+        <!-- Sidebar header: active module name + collapse toggle -->
+        <div class="flex items-center justify-between px-3 py-3 border-b" style="border-color:#e5e7eb;">
+          <div class="min-w-0">
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'dashboard'">Financial overview</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'core'">Core Accounting</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'funds'">Funds &amp; Donors</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'budget'">Budgeting</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'cash'">Cash &amp; Bank</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'receivables'">Incoming fund</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'payables'">Outgoing fund</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'cost'">Multi-donor sharing</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'controls'">Governance</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'reports'">Reporting</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'setup'">Financial Setup</p>
+            <p class="text-[13px] font-semibold text-[#9ca3af] truncate" x-show="!subMenu">Select a module above</p>
+          </div>
+          <button type="button"
+                  class="inline-flex items-center justify-center w-7 h-7 rounded-md border text-[#6b7280] hover:bg-white hover:text-[#111827]"
+                  style="border-color:#e5e7eb;"
+                  @click="sidebarCollapsed = !sidebarCollapsed"
+                  :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+            <i data-feather="chevron-left" class="w-3 h-3" x-show="!sidebarCollapsed"></i>
+            <i data-feather="chevron-right" class="w-3 h-3" x-show="sidebarCollapsed"></i>
+          </button>
+        </div>
+
+        <nav class="py-2 flex-1 overflow-y-auto" aria-label="Module submenu">
+          <!-- Helper: base classes for menu items -->
+          <!-- Financial overview submenu -->
+          <div class="px-2 pt-2 space-y-3" x-show="subMenu === 'dashboard'" x-cloak>
+            <!-- Management dashboard -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Executive overview
+              </p>
+              <a href="{% url 'tenant_portal:finance_home' %}"
+                 @click="activeItem = 'dashboard_overview'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_overview'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="activity"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_overview' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Financial overview (dashboard)</span>
+              </a>
+            </div>
+
+            <!-- Liquidity & fund position -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Liquidity &amp; fund position
+              </p>
+              <a href="{% url 'tenant_portal:finance_cash_position' %}"
+                 @click="activeItem = 'dashboard_cash'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_cash'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="dollar-sign"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_cash' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash position</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+                 @click="activeItem = 'dashboard_fund_balances'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_fund_balances'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_fund_balances' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balances</span>
+              </a>
+            </div>
+
+            <!-- Grants, projects & donors -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Grants, projects &amp; donors
+              </p>
+              <a href="{% url 'tenant_portal:finance_grant_utilization' %}"
+                 @click="activeItem = 'dashboard_grant_util'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_grant_util'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="pie-chart"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_grant_util' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_project_financial_status' %}"
+                 @click="activeItem = 'dashboard_project_status'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_project_status'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="briefcase"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_project_status' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Project financial status</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'dashboard_donor_status'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_donor_status'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_donor_status' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor funding status</span>
+              </a>
+            </div>
+
+            <!-- Budget performance & trends -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Budget performance &amp; trends
+              </p>
+              <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
+                 @click="activeItem = 'dashboard_bva'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_bva'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_bva' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_expense_trend' %}"
+                 @click="activeItem = 'dashboard_expense_trend'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_expense_trend'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-down"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_expense_trend' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense trend</span>
+              </a>
+            </div>
+
+            <!-- Approvals, alerts & recent activity -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Approvals, alerts &amp; activity
+              </p>
+              <a href="{% url 'tenant_portal:finance_pending_approvals' %}"
+                 @click="activeItem = 'dashboard_approvals'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_approvals'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="check-circle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_approvals' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Pending approvals</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_recent_transactions' %}"
+                 @click="activeItem = 'dashboard_recent_txn'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_recent_txn'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clock"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_recent_txn' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Recent financial transactions</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}"
+                 @click="activeItem = 'dashboard_alerts'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_alerts'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="alert-triangle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_alerts' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Financial alerts &amp; risks</span>
+              </a>
+            </div>
+          </div>
+          <!-- Core Accounting submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'core'" x-cloak>
+            <!-- Account setup -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Account setup
+              </p>
+              <a href="{% url 'tenant_portal:finance_accounts' %}"
+                 @click="activeItem = 'core_chart'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_chart'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="book-open"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_chart' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Chart of accounts</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_account_categories' %}"
+                 @click="activeItem = 'core_categories'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_categories'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_categories' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Account categories</span>
+              </a>
+            </div>
+
+            <!-- Journal management -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Journal management
+              </p>
+              <a href="{% url 'tenant_portal:finance_journals' %}"
+                 @click="activeItem = 'core_journals'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_journals'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="edit-3"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_journals' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Journal entries</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_recurring_journals' %}"
+                 @click="activeItem = 'core_recurring'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_recurring'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="rotate-cw"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_recurring' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Recurring journals</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_adjusting_journals' %}"
+                 @click="activeItem = 'core_adjusting'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_adjusting'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="sliders"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_adjusting' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Adjusting journals</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_journal_approval' %}"
+                 @click="activeItem = 'core_approval'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_approval'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="user-check"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_approval' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Journal approval</span>
+              </a>
+            </div>
+
+            <!-- General ledger -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                General ledger
+              </p>
+              <a href="{% url 'tenant_portal:finance_general_ledger' %}"
+                 @click="activeItem = 'core_gl'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_gl'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_gl' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">General ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_account_ledger' %}"
+                 @click="activeItem = 'core_account_ledger'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_account_ledger'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="list"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_account_ledger' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Account ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_trial_balance' %}"
+                 @click="activeItem = 'core_tb'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_tb'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="columns"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_tb' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Trial balance</span>
+              </a>
+            </div>
+
+            <!-- Fiscal period management -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Fiscal period management
+              </p>
+              <a href="{% url 'tenant_portal:finance_fiscal_periods' %}"
+                 @click="activeItem = 'core_periods'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_periods'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="calendar"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_periods' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fiscal periods</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_period_closing' %}"
+                 @click="activeItem = 'core_closing'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_closing'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="lock"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_closing' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Period closing</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_reopen_period' %}"
+                 @click="activeItem = 'core_reopen'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_reopen'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="unlock"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_reopen' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Reopen closed period (admin)</span>
+              </a>
+            </div>
+
+            <!-- Financial reports (NGO-focused) -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Financial reports
+              </p>
+              <a href="{% url 'tenant_portal:finance_statement_financial_position' %}"
+                 @click="activeItem = 'core_sfp'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_sfp'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_sfp' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Statement of financial position</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_statement_of_activities' %}"
+                 @click="activeItem = 'core_soa'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_soa'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_soa' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Statement of activities (NGO)</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_cash_flow_statement' %}"
+                 @click="activeItem = 'core_cfs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_cfs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-up"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_cfs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash flow statement</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_opening_balances' %}"
+                 @click="activeItem = 'core_fs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_fs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_fs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Opening balances</span>
+              </a>
+            </div>
+
+            <!-- Posting & transactions -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Posting &amp; transactions
+              </p>
+              <a href="{% url 'tenant_portal:finance_post_transaction' %}"
+                 @click="activeItem = 'dashboard_post_transaction'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'dashboard_post_transaction'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="edit-3"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'dashboard_post_transaction' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Post transaction</span>
+              </a>
+            </div>
+
+            <!-- Audit & compliance -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Audit &amp; compliance
+              </p>
+              <a href="{% url 'tenant_portal:finance_audit_trail' %}"
+                 @click="activeItem = 'core_audit'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_audit'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shield"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_audit' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Audit trail &amp; logs</span>
+              </a>
+            </div>
+          </div>
+          <!-- Funds & Donors submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'funds'" x-cloak>
+            <!-- Donor management -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Donor management
+              </p>
+              <a href="{% url 'tenant_portal:grants_donor_register' %}"
+                 @click="activeItem = 'funds_donor_register'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_donor_register'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_donor_register' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor register</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_funding_sources' %}"
+                 @click="activeItem = 'funds_funding_sources'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_funding_sources'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="database"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_funding_sources' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Funding sources</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_agreements' %}"
+                 @click="activeItem = 'funds_donor_agreements'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_donor_agreements'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_donor_agreements' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor agreements</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_conditions' %}"
+                 @click="activeItem = 'funds_donor_conditions'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_donor_conditions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shield"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_donor_conditions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor conditions &amp; restrictions</span>
+              </a>
+            </div>
+
+            <!-- Grant management -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Grant management
+              </p>
+              <a href="{% url 'tenant_portal:grants_grants' %}"
+                 @click="activeItem = 'funds_grant_agreements'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_agreements'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-plus"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_agreements' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant agreements</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
+                 @click="activeItem = 'funds_grant_allocation'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_allocation'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="share-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_allocation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant allocation (multi-donor)</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_tracking' %}"
+                 @click="activeItem = 'funds_grant_tracking'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_tracking'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="map"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_tracking' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant tracking</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_workplan' %}"
+                 @click="activeItem = 'funds_grant_workplan'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_workplan'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="list"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_workplan' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant workplan</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_pr_list' %}"
+                 @click="activeItem = 'funds_pr'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_pr'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clipboard"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_pr' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Purchase requisitions</span>
+              </a>
+              <a href="{% url 'tenant_portal:procurement_po_list' %}"
+                 @click="activeItem = 'procurement'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'procurement'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shopping-cart"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'procurement' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Procurement / POs</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_utilization' %}"
+                 @click="activeItem = 'funds_grant_utilization'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_utilization'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="pie-chart"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_utilization' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_timeline' %}"
+                 @click="activeItem = 'funds_grant_timeline'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_timeline'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="calendar"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_timeline' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant start &amp; end periods</span>
+              </a>
+            </div>
+
+            <!-- Compliance & reporting -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Compliance &amp; reporting
+              </p>
+              <a href="{% url 'tenant_portal:grants_reporting_requirements' %}"
+                 @click="activeItem = 'funds_reporting_reqs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_reporting_reqs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clipboard-list"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_reporting_reqs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor reporting requirements</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_financial_reports' %}"
+                 @click="activeItem = 'funds_grant_reports'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_grant_reports'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_grant_reports' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant financial reports</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_compliance' %}"
+                 @click="activeItem = 'funds_donor_compliance'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_donor_compliance'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="alert-circle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_donor_compliance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor compliance monitoring</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_reporting_deadlines' %}"
+                 @click="activeItem = 'funds_reporting_deadlines'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_reporting_deadlines'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clock"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_reporting_deadlines' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor reporting deadlines</span>
+              </a>
+            </div>
+          </div>
+          <!-- Budgeting submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'budget'" x-cloak>
+            <!-- Budget setup -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Budget setup
+              </p>
+              <a href="{% url 'tenant_portal:budget_creation' %}"
+                 @click="activeItem = 'budget_creation'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_creation'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-plus"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_creation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget creation</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_templates' %}"
+                 @click="activeItem = 'budget_templates'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_templates'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="copy"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_templates' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget templates</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_versions' %}"
+                 @click="activeItem = 'budget_versions'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_versions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_versions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget versions</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_structures' %}"
+                 @click="activeItem = 'budget_structures'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_structures'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_structures' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Project &amp; donor budget structures</span>
+              </a>
+            </div>
+
+            <!-- Budget approval -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Budget approval
+              </p>
+              <a href="{% url 'tenant_portal:budget_approval_workflow' %}"
+                 @click="activeItem = 'budget_approval_workflow'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_approval_workflow'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="check-square"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_approval_workflow' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget approval workflow</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_approvals' %}"
+                 @click="activeItem = 'budget_approval'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_approval'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="thumbs-up"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_approval' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget approvals</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_revisions' %}"
+                 @click="activeItem = 'budget_revisions'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_revisions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="edit-3"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_revisions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget revisions</span>
+              </a>
+            </div>
+
+            <!-- Budget monitoring -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Budget monitoring
+              </p>
+              <a href="{% url 'tenant_portal:budget_monitoring' %}"
+                 @click="activeItem = 'budget_monitoring'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_monitoring'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="eye"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_monitoring' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget monitoring</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_bva' %}"
+                 @click="activeItem = 'budget_vs_actual'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_vs_actual'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_vs_actual' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual analysis</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_variance' %}"
+                 @click="activeItem = 'budget_variance'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_variance'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="activity"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_variance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Variance analysis</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_control_warnings' %}"
+                 @click="activeItem = 'budget_control_warnings'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_control_warnings'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="alert-triangle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_control_warnings' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget control warnings</span>
+              </a>
+            </div>
+
+            <!-- Forecasting & adjustments -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Forecasting &amp; adjustments
+              </p>
+              <a href="{% url 'tenant_portal:budget_forecasting' %}"
+                 @click="activeItem = 'budget_forecasting'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_forecasting'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-up"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_forecasting' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget forecasting</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_adjustments' %}"
+                 @click="activeItem = 'budget_adjustments'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_adjustments'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="refresh-ccw"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_adjustments' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget adjustments</span>
+              </a>
+              <button type="button"
+                      @click="activeItem = 'budget_multi_year'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'budget_multi_year'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="calendar"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_multi_year' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Multi-year budgets</span>
+              </button>
+            </div>
+          </div>
+          <!-- Cash & Bank submenu (enterprise ERP style: sections always expanded) -->
+          <div class="px-2 pt-3 border-t overflow-y-auto" style="border-color:#e5e7eb;" x-show="subMenu === 'cash'" x-cloak>
+            <div class="space-y-1 pb-2">
+              <!-- 1. Account Setup -->
+              <div class="pt-2 first:pt-0">
+                <p class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">Account Setup</p>
+                <div class="mt-0.5 space-y-0.5">
+                  <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+                     @click="activeItem = 'cash_bank_accounts'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_bank_accounts'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="credit-card" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_bank_accounts' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Accounts</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_accounts' %}"
+                     @click="activeItem = 'cash_cash_accounts'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_cash_accounts'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="dollar-sign" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_cash_accounts' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Accounts</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_petty_accounts' %}"
+                     @click="activeItem = 'cash_petty_accounts'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_petty_accounts'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="pocket" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_petty_accounts' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Petty Cash Accounts</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 2. Transactions -->
+              <div class="pt-4 mt-2 border-t" style="border-color:#e5e7eb;">
+                <p class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">Transactions</p>
+                <div class="mt-0.5 space-y-0.5">
+                  <a href="{% url 'tenant_portal:cash_main_cashbook' %}"
+                     @click="activeItem = 'cash_main_cashbook'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_main_cashbook'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="book-open" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_main_cashbook' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Main Cashbook</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_bank_transfers' %}"
+                     @click="activeItem = 'cash_bank_transfers'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_bank_transfers'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="shuffle" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_bank_transfers' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Transfers</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_transfers' %}"
+                     @click="activeItem = 'cash_cash_transfers'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_cash_transfers'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="repeat" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_cash_transfers' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Transfers</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_petty_topup' %}"
+                     @click="activeItem = 'cash_petty_topup'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_petty_topup'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="plus-circle" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_petty_topup' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Petty Cash Top-Up</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_petty_expenses' %}"
+                     @click="activeItem = 'cash_petty_expenses'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_petty_expenses'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="file-minus" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_petty_expenses' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Petty Cash Expenses</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 3. Reconciliation -->
+              <div class="pt-4 mt-2 border-t" style="border-color:#e5e7eb;">
+                <p class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">Reconciliation</p>
+                <div class="mt-0.5 space-y-0.5">
+                  <a href="{% url 'tenant_portal:cash_bank_import' %}"
+                     @click="activeItem = 'cash_bank_import'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_bank_import'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="download-cloud" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_bank_import' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Statement Import</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_bank_recon' %}"
+                     @click="activeItem = 'cash_bank_recon'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_bank_recon'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="clipboard-check" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_bank_recon' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Reconciliation</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_count' %}"
+                     @click="activeItem = 'cash_cash_count'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_cash_count'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="check-circle" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_cash_count' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Count &amp; Verification</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_recon' %}"
+                     @click="activeItem = 'cash_cash_recon'"
+                     class="group flex w-full items-center gap-2.5 px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors"
+                     :class="activeItem === 'cash_cash_recon'
+                              ? 'bg-[#0078D4] text-white font-medium border-l-4 border-[#0078D4]'
+                              : 'border-l-4 border-transparent text-[#323130] hover:bg-[#deecf9] hover:text-[#0078D4]'">
+                    <i data-feather="bar-chart-2" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'cash_cash_recon' ? 'text-white' : 'text-[#605e5c] group-hover:text-[#0078D4]'"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Reconciliation Reports</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Incoming fund (Receivables) submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'receivables'" x-cloak>
+            <!-- Receipts -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Receipts
+              </p>
+              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}"
+                 @click="activeItem = 'recv_receipt_vouchers'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_receipt_vouchers'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-plus"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_receipt_vouchers' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Receipt vouchers</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_donor_receipts' %}"
+                 @click="activeItem = 'recv_donor_receipts'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_donor_receipts'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="award"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_donor_receipts' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor receipts</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_bank_cash_receipts' %}"
+                 @click="activeItem = 'recv_bank_cash_receipts'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_bank_cash_receipts'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="credit-card"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_bank_cash_receipts' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Bank &amp; cash receipt entries</span>
+              </a>
+            </div>
+
+            <!-- Income tracking -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Income tracking
+              </p>
+              <a href="{% url 'tenant_portal:recv_income_register' %}"
+                 @click="activeItem = 'recv_income_register'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_income_register'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="list"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_income_register' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Income register</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}"
+                 @click="activeItem = 'recv_incoming_fund_register'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_incoming_fund_register'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="arrow-down-circle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_incoming_fund_register' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Incoming fund register</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_grant_income_tracking' %}"
+                 @click="activeItem = 'recv_grant_income_tracking'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_grant_income_tracking'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="pie-chart"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_grant_income_tracking' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant income tracking</span>
+              </a>
+            </div>
+
+            <!-- Receivables -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Receivables
+              </p>
+              <a href="{% url 'tenant_portal:recv_receivable_ledger' %}"
+                 @click="activeItem = 'recv_ledger'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_ledger'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="book-open"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_ledger' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Receivable ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_outstanding_receivables' %}"
+                 @click="activeItem = 'recv_outstanding'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_outstanding'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="alert-circle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_outstanding' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Outstanding receivables</span>
+              </a>
+            </div>
+          </div>
+          <!-- Outgoing fund (Payables) submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'payables'" x-cloak>
+            <!-- Payments -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Payments
+              </p>
+              <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+                 @click="activeItem = 'pay_payment_vouchers'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_payment_vouchers'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-minus"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_payment_vouchers' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Payment vouchers</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_vendor_payments' %}"
+                 @click="activeItem = 'pay_vendor_payments'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_vendor_payments'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="truck"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_vendor_payments' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Vendor payments</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_non_vendor_payments' %}"
+                 @click="activeItem = 'pay_non_vendor_payments'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_non_vendor_payments'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_non_vendor_payments' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Non-vendor payments</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_disbursement_list' %}"
+                 @click="activeItem = 'pay_disbursement_form'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_disbursement_form'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="credit-card"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_disbursement_form' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Disbursement form</span>
+              </a>
+            </div>
+
+            <!-- Expense tracking -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Expense tracking
+              </p>
+              <a href="{% url 'tenant_portal:pay_expense_register' %}"
+                 @click="activeItem = 'pay_expense_register'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_expense_register'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clipboard-list"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_expense_register' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense register</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_expense_allocation' %}"
+                 @click="activeItem = 'pay_expense_allocation'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_expense_allocation'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="share-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_expense_allocation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense allocation (project &amp; grant)</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_budget_checks' %}"
+                 @click="activeItem = 'pay_budget_checks'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_budget_checks'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shield"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_budget_checks' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget control checks</span>
+              </a>
+            </div>
+
+            <!-- Payables -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Payables
+              </p>
+              <a href="{% url 'tenant_portal:pay_ledger' %}"
+                 @click="activeItem = 'pay_ledger'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_ledger'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="book-open"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_ledger' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Payables ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_outstanding' %}"
+                 @click="activeItem = 'pay_outstanding'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_outstanding'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="alert-circle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_outstanding' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Outstanding payables</span>
+              </a>
+            </div>
+          </div>
+          <!-- Multi-donor sharing (Cost Allocation) submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'cost'" x-cloak>
+            <!-- Cost allocation -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Cost allocation
+              </p>
+              <button type="button"
+                      @click="activeItem = 'cost_expense_allocation'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'cost_expense_allocation'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="share-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_expense_allocation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense allocation</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'cost_shared_costs'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'cost_shared_costs'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_shared_costs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Shared cost distribution</span>
+              </button>
+            </div>
+
+            <!-- Multi-donor management -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Multi-donor management
+              </p>
+              <button type="button"
+                      @click="activeItem = 'cost_multi_donor_allocation'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'cost_multi_donor_allocation'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="git-branch"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_multi_donor_allocation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Multi-donor allocation</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'cost_donor_cost_sharing'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'cost_donor_cost_sharing'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_donor_cost_sharing' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor cost sharing</span>
+              </button>
+            </div>
+
+            <!-- Allocation setup -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Allocation setup
+              </p>
+              <button type="button"
+                      @click="activeItem = 'cost_allocation_rules'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'cost_allocation_rules'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="sliders"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_allocation_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Allocation rules</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'cost_allocation_templates'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'cost_allocation_templates'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="copy"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_allocation_templates' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Allocation templates</span>
+              </button>
+            </div>
+          </div>
+          <!-- Governance (Controls & Compliance) submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'controls'" x-cloak>
+            <!-- Approval control -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Approval control
+              </p>
+              <button type="button"
+                      @click="activeItem = 'gov_approval_workflows'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_approval_workflows'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="check-square"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_approval_workflows' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Approval workflows</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'gov_authorization_levels'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_authorization_levels'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="user-check"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_authorization_levels' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Authorization levels</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'gov_maker_checker'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_maker_checker'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_maker_checker' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Maker-checker approval</span>
+              </button>
+            </div>
+
+            <!-- Audit & monitoring -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Audit &amp; monitoring
+              </p>
+              <button type="button"
+                      @click="activeItem = 'gov_audit_trail'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_audit_trail'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shield"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_audit_trail' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Audit trail</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'gov_compliance_logs'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_compliance_logs'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clipboard"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_compliance_logs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Compliance logs</span>
+              </button>
+            </div>
+
+            <!-- Document management -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Document management
+              </p>
+              <button type="button"
+                      @click="activeItem = 'gov_document_attachments'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_document_attachments'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="paperclip"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_document_attachments' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Document attachments</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'gov_supporting_docs'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'gov_supporting_docs'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'gov_supporting_docs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Supporting documents</span>
+              </button>
+            </div>
+          </div>
+          <!-- Reporting submenu -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'reports'" x-cloak>
+            <!-- Financial reports -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Financial reports
+              </p>
+              <button type="button"
+                      @click="activeItem = 'rpt_financial_statements'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_financial_statements'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_financial_statements' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Financial statements</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'rpt_general_ledger'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_general_ledger'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="book-open"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_general_ledger' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">General ledger report</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'rpt_trial_balance'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_trial_balance'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="columns"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_trial_balance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Trial balance report</span>
+              </button>
+            </div>
+
+            <!-- Budget & cash reports -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Budget &amp; cash reports
+              </p>
+              <button type="button"
+                      @click="activeItem = 'rpt_budget'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_budget'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="pie-chart"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_budget' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget reports</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'rpt_cash'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_cash'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="dollar-sign"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_cash' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash reports</span>
+              </button>
+            </div>
+
+            <!-- Donor & grant reports -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Donor &amp; grant reports
+              </p>
+              <button type="button"
+                      @click="activeItem = 'rpt_donor'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_donor'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_donor' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor reports</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'rpt_grant_utilization'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_grant_utilization'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-up"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_grant_utilization' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization reports</span>
+              </button>
+            </div>
+
+            <!-- Report tools -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Report tools
+              </p>
+              <button type="button"
+                      @click="activeItem = 'rpt_project_financial'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_project_financial'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="briefcase"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_project_financial' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Project financial reports</span>
+              </button>
+              <button type="button"
+                      @click="activeItem = 'rpt_export_filters'"
+                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                      :class="activeItem === 'rpt_export_filters'
+                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="download"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'rpt_export_filters' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Export (PDF &amp; Excel) &amp; filters</span>
+              </button>
+            </div>
+          </div>
+          <!-- Financial Setup submenu (Dynamics-style grouping) -->
+          <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'setup'" x-cloak>
+            <!-- Overview -->
+            <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Overview
+              </p>
+              <a href="{% url 'tenant_portal:setup_home' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Setup overview</span>
+              </a>
+            </div>
+
+            <!-- Dimensions -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Dimensions
+              </p>
+              <a href="{% url 'tenant_portal:setup_dimensions_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_dimensions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_dimensions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Dimensions</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_cost_centers_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_cost_centers'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="tag"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_cost_centers' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cost centers</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_project_grant_dims'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="briefcase"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_project_grant_dims' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Projects &amp; grants</span>
+              </a>
+            </div>
+
+            <!-- Currency management -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Currency management
+              </p>
+              <a href="{% url 'tenant_portal:setup_currencies_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_currencies'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="dollar-sign"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_currencies' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Currencies</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_exchange_rates_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_exchange_rates'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-up"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_exchange_rates' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Exchange rates</span>
+              </a>
+            </div>
+
+            <!-- Document numbering -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Document numbering
+              </p>
+              <a href="{% url 'tenant_portal:setup_voucher_numbering_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_voucher_numbering'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_voucher_numbering' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Voucher numbering</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_numbering_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_numbering'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="hash"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_numbering' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Document series</span>
+              </a>
+            </div>
+
+            <!-- Accounting rules -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Accounting rules
+              </p>
+              <a href="{% url 'tenant_portal:setup_posting_rules_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_posting_rules'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="sliders"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_posting_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Posting rules</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_default_accounts_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_default_accounts'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="map"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_default_accounts' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Default mapping</span>
+              </a>
+            </div>
+
+            <!-- Controls & approvals -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Controls &amp; approvals
+              </p>
+              <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_posting_permissions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="user-check"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_posting_permissions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Posting controls</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_approval_workflows'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="check-square"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_approval_workflows' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Approval workflows</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_budget_control_rules'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shield"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_budget_control_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget control rules</span>
+              </a>
+            </div>
+
+            <!-- Compliance & operations -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Compliance &amp; operations
+              </p>
+              <a href="{% url 'tenant_portal:setup_reversal_rules' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_reversal_rules'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="rotate-ccw"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_reversal_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Reversal &amp; corrections</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_interfund_rules_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_interfund_rules'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shuffle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_interfund_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Inter-fund transfers</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_grant_compliance_rules_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_grant_compliance_rules'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="check-circle"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_grant_compliance_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant compliance</span>
+              </a>
+            </div>
+
+            <!-- Periods & workflows -->
+            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Periods &amp; workflows
+              </p>
+              <a href="{% url 'tenant_portal:setup_fiscal_years_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_fiscal_years'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="calendar"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_fiscal_years' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fiscal years</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_accounting_periods_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_accounting_periods'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="calendar"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_accounting_periods' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Accounting periods</span>
+              </a>
+            </div>
+
+            <!-- Security & audit -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Security &amp; audit
+              </p>
+              <a href="{% url 'tenant_portal:roles_permissions_list' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_roles_permissions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="shield-off"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_roles_permissions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Roles &amp; permissions</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"
+                 :class="activeItem === 'setup_audit_trail_settings'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="activity"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'setup_audit_trail_settings' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Audit trail settings</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Audit & Risk is a separate workplace: open via user menu (Audit & Risk) or URL /t/audit-risk/ -->
+        </nav>
+      </aside>
+      <main class="min-w-0 flex-1 px-6 py-6 overflow-y-auto">
+      {% if messages %}
+        <div class="mb-5 space-y-2">
+          {% for message in messages %}
+            <div class="text-sm px-3 py-2 rounded border"
+                 style="border-color:{% if message.tags == 'error' %}#fde7e9{% else %}#dff6dd{% endif %};
+                        background:{% if message.tags == 'error' %}#fde7e9{% else %}#dff6dd{% endif %};
+                        color:{% if message.tags == 'error' %}#a4262c{% else %}#0b5a0b{% endif %};">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+    </div>
+  </div>
+
+  <script>feather.replace();</script>
+</body>
+</html>
+

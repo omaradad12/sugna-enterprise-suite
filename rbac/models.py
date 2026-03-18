@@ -21,8 +21,25 @@ class Permission(models.Model):
 
 
 class Role(models.Model):
+    class RoleType(models.TextChoices):
+        FINANCIAL = "financial", "Financial"
+        OPERATIONAL = "operational", "Operational"
+        PROGRAM = "program", "Program"
+        ADMIN = "admin", "Admin"
+
     name = models.CharField(max_length=120, unique=True)
     description = models.TextField(blank=True)
+    role_type = models.CharField(
+        max_length=20,
+        choices=RoleType.choices,
+        default=RoleType.OPERATIONAL,
+        db_index=True,
+    )
+    is_system = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Protected system role (cannot be edited or deleted by tenants).",
+    )
 
     class Meta:
         ordering = ["name"]
@@ -57,8 +74,6 @@ def user_has_permission(user, code: str, using: str) -> bool:
     """
     Check if a tenant user has a permission code in the tenant DB.
     """
-    if getattr(user, "is_tenant_admin", False):
-        return True
     return RolePermission.objects.using(using).filter(
         role__role_users__user_id=user.id,
         permission__code=code,

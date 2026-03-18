@@ -1,0 +1,106 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Report #{{ report.id }} | Diagnostics{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto animate-fade-in">
+  <div class="mb-4">
+    <a href="{% url 'platform_dashboard:diagnostics' %}" class="text-sm font-medium hover:underline mb-1 inline-block" style="color:#0078D4;">← Diagnostics</a>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Diagnostic report #{{ report.id }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{{ report.get_trigger_display }} · {{ report.get_status_display }} · {{ report.started_at|date:"M d, Y H:i" }}</p>
+  </div>
+
+  {% if report.error_message %}
+  <div class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-800 text-sm">{{ report.error_message }}</div>
+  {% endif %}
+
+  <div class="dynamics-card p-5 mb-6">
+    <h2 class="font-semibold text-slate-800 mb-2">Summary</h2>
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+      <div><dt class="text-slate-500">Target</dt><dd class="font-medium">{{ report.target.scope|default:"—" }}{% if report.target.tenant_id %} (tenant {{ report.target.tenant_id }}){% endif %}</dd></div>
+      <div><dt class="text-slate-500">Total checks</dt><dd class="font-medium">{{ report.summary.total_checks|default:0 }}</dd></div>
+      <div><dt class="text-slate-500">Success</dt><dd class="font-medium text-green-700">{{ report.summary.success_count|default:0 }}</dd></div>
+      <div><dt class="text-slate-500">Failed</dt><dd class="font-medium text-red-700">{{ report.summary.failure_count|default:0 }}</dd></div>
+      <div><dt class="text-slate-500">Incidents created</dt><dd class="font-medium">{{ report.summary.incidents_created|default:0 }}</dd></div>
+      <div><dt class="text-slate-500">Remediations applied</dt><dd class="font-medium">{{ report.summary.remediations_applied|default:0 }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="dynamics-card overflow-hidden">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Check runs</h2>
+      </div>
+      <div class="overflow-auto max-h-[300px]">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-4 py-2 text-xs font-semibold" style="color:#605e5c;">Type</th>
+              <th class="text-left px-4 py-2 text-xs font-semibold" style="color:#605e5c;">Status</th>
+              <th class="text-left px-4 py-2 text-xs font-semibold" style="color:#605e5c;">Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for run in report.check_runs.all %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-4 py-2" style="color:#323130;">{{ run.check_type }}</td>
+              <td class="px-4 py-2"><span class="inline-flex px-2 py-0.5 rounded text-xs {% if run.status == 'success' %}bg-success-100 text-success-700{% else %}bg-danger-100 text-danger-700{% endif %}">{{ run.get_status_display }}</span></td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ run.message|truncatewords:12 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="px-4 py-4 text-slate-500 text-center">No check runs.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dynamics-card overflow-hidden">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Findings</h2>
+      </div>
+      <div class="overflow-auto max-h-[300px]">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-4 py-2 text-xs font-semibold" style="color:#605e5c;">Code</th>
+              <th class="text-left px-4 py-2 text-xs font-semibold" style="color:#605e5c;">Title</th>
+              <th class="text-left px-4 py-2 text-xs font-semibold" style="color:#605e5c;">Severity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in report_findings %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-4 py-2" style="color:#323130;">{{ f.code }}</td>
+              <td class="px-4 py-2" style="color:#323130;">{{ f.title|truncatewords:6 }}</td>
+              <td class="px-4 py-2"><span class="inline-flex px-2 py-0.5 rounded text-xs {% if f.severity == 'critical' or f.severity == 'high' %}bg-red-100 text-red-700{% else %}bg-slate-100 text-slate-700{% endif %}">{{ f.get_severity_display }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="px-4 py-4 text-slate-500 text-center">No findings.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-6 dynamics-card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+      <h2 class="font-semibold text-lg" style="color:#323130;">Incidents</h2>
+    </div>
+    <div class="p-5">
+      {% for inc in report.incidents.all %}
+      <div class="border rounded-lg p-4 mb-3" style="border-color:#edebe9;">
+        <div class="font-medium" style="color:#323130;">{{ inc.title }}</div>
+        <p class="text-sm mt-1" style="color:#605e5c;">{{ inc.root_cause_summary|truncatewords:30 }}</p>
+        <p class="text-xs mt-2" style="color:#605e5c;">Suggested: {{ inc.suggested_actions|join:", "|default:"—" }}</p>
+        {% for log in inc.remediation_logs.all %}
+        <p class="text-xs mt-1" style="color:#605e5c;">{{ log.action_code }}: {{ log.status }} — {{ log.message }}</p>
+        {% endfor %}
+      </div>
+      {% empty %}
+      <p class="text-slate-500 text-sm">No incidents from this scan.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Donor Register | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div x-data="{}" class="contents">
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Donor Register</h1>
+  </div>
+  {% if can_manage %}
+  <div class="flex items-center gap-2">
+    <button type="button" @click="$refs.newDonorModal.classList.remove('hidden')"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow"
+            style="background:#0078D4;">
+      <i data-feather="plus" class="w-4 h-4"></i>
+      Create Donor
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+{# Search and filter bar #}
+<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
+  <form method="get" action="" class="flex flex-wrap items-end gap-3">
+    <div class="flex-1 min-w-[200px]">
+      <label for="donor-search" class="sr-only">Search</label>
+      <div class="relative">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:#605e5c;">
+          <i data-feather="search" class="w-4 h-4"></i>
+        </span>
+        <input id="donor-search" name="q" type="search" value="{{ filters.q|default:'' }}"
+               placeholder="Search by code, name, contact, country..."
+               class="w-full pl-10 pr-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-xs font-medium" style="color:#605e5c;">Type</label>
+      <select name="donor_type" class="rounded-lg border px-3 py-2 text-sm min-w-[140px] bg-white" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for value, label in donor_types.choices %}
+        <option value="{{ value }}" {% if filters.donor_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-xs font-medium" style="color:#605e5c;">Category</label>
+      <select name="donor_category" class="rounded-lg border px-3 py-2 text-sm min-w-[140px] bg-white" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for value, label in donor_categories.choices %}
+        <option value="{{ value }}" {% if filters.donor_category == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-xs font-medium" style="color:#605e5c;">Status</label>
+      <select name="status" class="rounded-lg border px-3 py-2 text-sm min-w-[120px] bg-white" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for value, label in donor_statuses.choices %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
+  </form>
+  <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
+    <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export CSV</a>
+    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export Excel</a>
+    <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export PDF</a>
+    <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Print</button>
+  </div>
+</div>
+
+{# Donors table #}
+<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
+  <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+    <h2 class="font-semibold text-lg" style="color:#323130;">Donors</h2>
+  </div>
+  <div class="overflow-auto">
+    <table class="min-w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Code</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Donor Name</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Short Name</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Type</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Category</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Contact</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Country</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Currency</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Grants</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in donors %}
+        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-5 py-3 font-mono" style="color:#323130;">{{ d.code }}</td>
+          <td class="px-5 py-3 font-medium" style="color:#323130;">{{ d.name }}</td>
+          <td class="px-5 py-3" style="color:#605e5c;">{{ d.short_name|default:"—" }}</td>
+          <td class="px-5 py-3" style="color:#605e5c;">{{ d.get_donor_type_display|default:"—" }}</td>
+          <td class="px-5 py-3" style="color:#605e5c;">{{ d.get_donor_category_display|default:"—" }}</td>
+          <td class="px-5 py-3" style="color:#605e5c;">{{ d.contact_person|default:d.email|default:"—" }}</td>
+          <td class="px-5 py-3" style="color:#605e5c;">{{ d.country|default:"—" }}</td>
+          <td class="px-5 py-3" style="color:#605e5c;">{{ d.preferred_currency|default:"—" }}</td>
+          <td class="px-5 py-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                  style="{% if d.status == 'active' %}background:#dff6dd; color:#0b5a0b;{% elif d.status == 'archived' %}background:#fde7e9; color:#a4262c;{% else %}background:#fff4ce; color:#7a5c00;{% endif %}">
+              {{ d.get_status_display }}
+            </span>
+          </td>
+          <td class="px-5 py-3 font-medium" style="color:#323130;">{{ d.grants_count|default:0 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="px-5 py-8 text-center" style="color:#605e5c;">No donors match the filters. {% if can_manage %}Create one to get started.{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-5 py-3 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ donors|length }} of {{ donors|length }} entries</div>
+</div>
+
+{# New Donor modal #}
+{% if can_manage %}
+<div x-ref="newDonorModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/30" @click="$refs.newDonorModal.classList.add('hidden')"></div>
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" style="border:1px solid #edebe9;">
+      <div class="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-white z-10" style="border-color:#edebe9;">
+        <h3 class="text-lg font-semibold" style="color:#323130;">New Donor</h3>
+        <button type="button" @click="$refs.newDonorModal.classList.add('hidden')" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" class="p-5 space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Code <span style="color:#A4262C;">*</span></label>
+            <input name="code" required class="w-full px-3 py-2 rounded-lg border text-sm uppercase" style="border-color:#edebe9;" placeholder="DONOR-001" maxlength="50" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Name <span style="color:#A4262C;">*</span></label>
+            <input name="name" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Full donor name" maxlength="200" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Short Name</label>
+            <input name="short_name" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Abbreviation" maxlength="80" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Status</label>
+            <select name="status" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+              {% for value, label in donor_statuses.choices %}
+              <option value="{{ value }}" {% if value == 'active' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Type</label>
+            <select name="donor_type" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+              <option value="">—</option>
+              {% for value, label in donor_types.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Category</label>
+            <select name="donor_category" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+              <option value="">—</option>
+              {% for value, label in donor_categories.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Contact Person</label>
+            <input name="contact_person" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" maxlength="120" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Email</label>
+            <input name="email" type="email" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Phone</label>
+            <input name="phone" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" maxlength="50" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Country</label>
+            <input name="country" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" maxlength="100" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Address</label>
+          <textarea name="address" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Website</label>
+            <input name="website" type="url" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="https://" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Preferred Currency</label>
+            <input name="preferred_currency" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="e.g. USD, EUR" maxlength="10" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Default Restriction Type</label>
+            <select name="default_restriction_type" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+              <option value="">—</option>
+              {% for value, label in restriction_types.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Default Reporting Frequency</label>
+            <select name="default_reporting_frequency" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+              <option value="">—</option>
+              {% for value, label in reporting_frequencies.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Notes</label>
+          <textarea name="notes" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">
+            <i data-feather="save" class="w-4 h-4"></i> Save Donor
+          </button>
+          <button type="button" @click="$refs.newDonorModal.classList.add('hidden')" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}

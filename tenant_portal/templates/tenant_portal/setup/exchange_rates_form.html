@@ -1,0 +1,102 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">
+      Maintain exchange rates used to convert foreign currency transactions into the base currency.
+    </p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_exchange_rates_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Exchange rates</a>
+</div>
+
+<div class="erp-section max-w-2xl">
+  <div class="erp-section-header">Exchange rate details</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Base currency</label>
+          <input type="text" readonly
+                 value="{% if base_currency %}{{ base_currency.code }} — {{ base_currency.name }}{% else %}Not configured{% endif %}"
+                 class="w-full px-3 py-2 rounded border text-sm bg-gray-50"
+                 style="border-color:#edebe9;" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Defined in Organization settings; used as system currency.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">From currency <span style="color:#a4262c;">*</span></label>
+          <select name="from_currency" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            <option value="">— Select currency —</option>
+            {% for c in currencies %}
+            <option value="{{ c.code }}" {% if rate and rate.currency_id == c.id %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Exchange rate <span style="color:#a4262c;">*</span></label>
+          <input type="number" step="0.00000001" min="0" name="rate"
+                 value="{% if rate %}{{ rate.rate }}{% endif %}"
+                 class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
+          <p class="text-xs mt-1" style="color:#605e5c;">Rate to convert 1 {{ base_currency.code|default:"BASE" }} to the from currency.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Effective date <span style="color:#a4262c;">*</span></label>
+          <input type="date" name="effective_date"
+                 value="{% if rate %}{{ rate.effective_date|date:'Y-m-d' }}{% endif %}"
+                 class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Rate type</label>
+          <select name="rate_type" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            {% for value, label in rate_type_choices %}
+            <option value="{{ value }}" {% if rate and rate.rate_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Source</label>
+          <select name="source" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            {% for value, label in source_choices %}
+            <option value="{{ value }}" {% if rate and rate.source == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
+          <select name="status" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if rate and rate.status == value or not rate and value == 'active' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Notes</label>
+        <textarea name="notes" rows="3"
+                  class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">{% if rate %}{{ rate.notes }}{% endif %}</textarea>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">
+          Save
+        </button>
+        <a href="{% url 'tenant_portal:setup_exchange_rates_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

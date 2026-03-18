@@ -1,0 +1,7 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Investigation Cases{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto"><h1 class="page-title mb-4">Investigation Cases</h1>
+<div class="erp-section"><div class="erp-section-header">Cases</div><div class="erp-section-body overflow-x-auto">
+<table class="erp-table"><thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead>
+<tbody>{% for c in cases %}<tr><td>{{ c.title }}</td><td>{{ c.get_status_display }}</td><td>{{ c.get_priority_display }}</td><td>{{ c.created_at|date:"Y-m-d H:i" }}</td></tr>{% empty %}<tr><td colspan="4" class="text-center" style="color:#605e5c;">No investigation cases.</td></tr>{% endfor %}</tbody></table></div></div></div>{% endblock %}

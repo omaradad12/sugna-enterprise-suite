@@ -1,0 +1,226 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Disbursement form — {{ reference }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Disbursement form</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Review voucher details, confirm validations, and mark as paid. Once paid, the voucher is read-only.</p>
+</div>
+
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Transaction header</div>
+  <div class="erp-section-body">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Voucher no.</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ reference }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Date</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.entry_date|date:"d/m/Y" }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Status</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.get_status_display }}{% if is_paid %} — Paid{% endif %}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Project / Grant</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">
+          {% if grant %}{{ grant.code }} — {{ grant.title }}{% else %}—{% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Fund / Donor</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">
+          {% if grant.donor %}{{ grant.donor.name }}{% else %}—{% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Payee</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ payee_display }}</p>
+      </div>
+      <div class="sm:col-span-2">
+        <p class="text-xs font-semibold text-[#605e5c]">Narration / Purpose</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.memo|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Project bank account</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">
+          {% if project_bank %}{{ project_bank.bank_name }} — {{ project_bank.account_name }} ({{ project_bank.account_number }}){% else %}—{% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Amount</p>
+        <p class="border-b pb-1 font-semibold" style="border-color:#edebe9;">{{ amount }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Payment details (GL lines)</div>
+  <div class="erp-section-body">
+    <table class="erp-table text-xs">
+      <thead>
+        <tr>
+          <th>Account code</th>
+          <th>Account name</th>
+          <th>Description</th>
+          <th>Debit</th>
+          <th>Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in lines %}
+        <tr>
+          <td>{{ line.account.code }}</td>
+          <td>{{ line.account.name }}</td>
+          <td>{{ line.description|default:"—" }}</td>
+          <td>{{ line.debit }}</td>
+          <td>{{ line.credit }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if budget_lines %}
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Budget lines (grant)</div>
+  <div class="erp-section-body">
+    <table class="erp-table text-xs">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Account</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bl in budget_lines %}
+        <tr>
+          <td>{{ bl.category }}</td>
+          <td>{{ bl.description|default:"—" }}</td>
+          <td>{% if bl.account %}{{ bl.account.code }} — {{ bl.account.name }}{% else %}—{% endif %}</td>
+          <td>{{ bl.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if attachments %}
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Attachments</div>
+  <div class="erp-section-body">
+    <ul class="text-sm space-y-1">
+      {% for att in attachments %}
+      <li><a href="{{ att.file.url }}" target="_blank" rel="noopener" class="text-[#0078D4] hover:underline">{{ att.original_filename|default:"File" }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Validation</div>
+  <div class="erp-section-body">
+    <ul class="text-sm space-y-1">
+      <li>{% if has_project %}<span class="text-green-700">Project / Grant selected</span>{% else %}<span class="text-red-700">Project / Grant required</span>{% endif %}</li>
+      <li>{% if has_payee %}<span class="text-green-700">Payee present</span>{% else %}<span class="text-red-700">Payee required</span>{% endif %}</li>
+      <li>{% if has_attachments %}<span class="text-green-700">Supporting document(s) attached</span>{% else %}<span class="text-[#605e5c]">No attachments (optional)</span>{% endif %}</li>
+    </ul>
+  </div>
+</div>
+
+{% if not is_paid %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="mark_paid" />
+
+  <!-- Cheque / transfer details -->
+  <div class="erp-section mb-4">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Cheque / transfer details</div>
+    <div class="erp-section-body">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Cheque number</label>
+          <input type="text" name="cheque_number" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="Optional" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Transfer reference</label>
+          <input type="text" name="transfer_reference" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="Optional" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payment method</label>
+          <select name="payment_method" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">—</option>
+            <option value="cheque">Cheque</option>
+            <option value="bank_transfer">Bank transfer</option>
+            <option value="cash">Cash</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Post Transaction: transaction type determines accounting posting logic -->
+  <div class="erp-section mb-4">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Post transaction</div>
+    <div class="erp-section-body">
+      <p class="text-xs text-[#605e5c] mb-3">Transaction type determines how the payment is recorded in the general ledger, bank ledger, vendor ledger, and payment register.</p>
+      <div class="max-w-sm">
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Transaction type</label>
+        <select name="transaction_type" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+          {% for code, label in transaction_types %}
+          <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="submit" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium text-white shadow-sm hover:shadow" style="background:#0078D4;">
+      <span>Mark as paid</span>
+    </button>
+    <a href="{% url 'tenant_portal:pay_disbursement_list' %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium bg-white hover:bg-[#faf9f8]" style="border-color:#edebe9;">Back to list</a>
+  </div>
+</form>
+{% else %}
+<!-- Paid: show payment register info and lock message -->
+{% if payment_register %}
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Payment register (recorded)</div>
+  <div class="erp-section-body">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Paid at</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ payment_register.paid_at|date:"d/m/Y H:i" }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Transaction type</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ payment_register.get_transaction_type_display }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Cheque no.</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ payment_register.cheque_number|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Transfer reference</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ payment_register.transfer_reference|default:"—" }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+<div class="flex flex-wrap items-center gap-3">
+  <p class="text-sm text-[#605e5c]">This voucher has been marked as paid{% if entry.paid_at %} on {{ entry.paid_at|date:"d/m/Y H:i" }}{% endif %}. Record is locked from further editing. Transaction has been posted to the general ledger, bank ledger, vendor ledger, and payment register.</p>
+  <a href="{% url 'tenant_portal:pay_disbursement_list' %}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium bg-white hover:bg-[#faf9f8]" style="border-color:#edebe9;">Back to list</a>
+</div>
+{% endif %}
+{% endblock %}

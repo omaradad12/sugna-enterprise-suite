@@ -1,85 +1,349 @@
-{% extends "tenant_portal/_layout.html" %}
-{% block title %}{{ tenant.name }} | Finance | Accounts{% endblock %}
-{% block product_subtitle %}Finance{% endblock %}
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Chart of Accounts | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="flex items-start justify-between gap-4 mb-6">
+<div class="w-full mx-auto px-0 md:px-0" x-data="coaPage()">
+<div class="flex items-start justify-between gap-4 mb-4">
   <div>
-    <div class="flex items-center gap-2 text-sm text-[#605e5c]">
-      <a href="{% url 'tenant_portal:finance_home' %}" class="hover:underline">Finance</a>
-      <span>/</span>
-      <span>Chart of Accounts</span>
-    </div>
-    <h1 class="text-2xl font-bold tracking-tight mt-1">Chart of Accounts</h1>
-    <p class="text-sm mt-1 text-[#605e5c]">Create and manage accounts for postings.</p>
+    <h1 class="page-title">Chart of Accounts</h1>
+    <p class="page-subtitle mt-1">Manage ledger accounts, hierarchy, and posting configuration.</p>
   </div>
-  <a href="{% url 'tenant_portal:finance_journals' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-white text-sm font-medium shadow-sm hover:shadow" style="background:#0078D4;">
-    <i data-feather="edit-3" class="w-4 h-4"></i> New Journal Entry
-  </a>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'tenant_portal:setup_home' %}"
+       class="text-[13px] font-medium text-[#0078d4] hover:underline">
+      Back to Financial Setup
+    </a>
+  </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
-    <h2 class="font-semibold">New account</h2>
-    <form method="post" class="mt-4 space-y-3">
-      {% csrf_token %}
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Code</label>
-        <input name="code" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" />
+  <!-- Accounts table -->
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm" style="border-color:#edebe9;">
+    <div class="px-5 py-3.5 border-b flex items-center justify-between gap-3" style="border-color:#edebe9; background:#faf9f8;">
+      <div class="flex flex-col">
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
+          Accounts
+        </p>
+        <p class="page-subtitle hidden sm:block">
+          Tree view of all ledger accounts with type, posting status, and hierarchy.
+        </p>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Name</label>
-        <input name="name" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" />
+      <div class="flex items-center gap-2">
+        <div class="hidden md:flex items-center gap-2 mr-4">
+          <div class="relative">
+            <i data-feather="search" class="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-[#6b7280]"></i>
+            <input type="text"
+                   x-model="search"
+                   placeholder="Search code or name…"
+                   class="pl-7 pr-2 py-1.5 rounded-full border text-xs bg-white"
+                   style="border-color:#d1d5db; min-width:220px;" />
+          </div>
+        </div>
+        <button type="button"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white shadow-sm"
+                style="background:#0078D4;"
+                @click="createModalOpen = true">
+          <i data-feather="plus" class="w-4 h-4"></i>
+          <span>Create account</span>
+        </button>
+        <button type="button"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+                style="border-color:#cfd0d4; color:#323130; background:#ffffff;"
+                onclick="document.getElementById('import-coa-input')?.click();">
+          <i data-feather="upload" class="w-4 h-4"></i>
+          <span>Import Excel</span>
+        </button>
+        <a href="?export=1"
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+           style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+          <i data-feather="download" class="w-4 h-4"></i>
+          <span>Export COA</span>
+        </a>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Type</label>
-        <select name="type" required class="w-full px-3 py-2 rounded border bg-white focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;">
-          {% for value,label in types.choices %}
-            <option value="{{ value }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <button class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium shadow-sm hover:shadow" style="background:#0078D4;">
-        <i data-feather="plus" class="w-4 h-4"></i> Create account
-      </button>
-    </form>
-  </div>
-
-  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
-    <div class="px-5 py-4 border-b" style="border-color:#edebe9;">
-      <h2 class="font-semibold">Accounts</h2>
     </div>
     <div class="overflow-auto">
-      <table class="min-w-full text-sm">
-        <thead style="background:#f3f2f1;">
+      <table class="min-w-full text-sm coa-table">
+        <thead>
           <tr>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Code</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Name</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Type</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Status</th>
+            <th class="coa-col-code">Code</th>
+            <th class="coa-col-name">Name</th>
+            <th>Type</th>
+            <th>Parent</th>
+            <th>Category</th>
+            <th>Posting allowed</th>
+            <th>Status</th>
+            <th class="text-right pr-6">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for a in accounts %}
-          <tr class="border-b last:border-0" style="border-color:#edebe9;">
-            <td class="px-5 py-3 font-mono">{{ a.code }}</td>
-            <td class="px-5 py-3">{{ a.name }}</td>
-            <td class="px-5 py-3 capitalize text-[#605e5c]">{{ a.type }}</td>
-            <td class="px-5 py-3">
-              {% if a.is_active %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#dff6dd; color:#0b5a0b;">Active</span>
+          {% for row in tree_accounts %}
+          {% with a=row.account %}
+          <tr x-show="matchesSearch('{{ a.code|escapejs }}', '{{ a.name|escapejs }}')"
+              x-data="{ open: true }"
+              data-account-id="{{ a.id }}"
+              data-parent-id="{{ a.parent_id|default:'' }}"
+              class="border-b last:border-0"
+              style="border-color:#edebe9;">
+            <td class="px-5 py-2 font-mono whitespace-nowrap coa-col-code">
+              <div class="flex items-center gap-1">
+                <span class="inline-flex" style="margin-left: {{ row.depth|add:'0' }}0px;"></span>
+                {% if row.has_children %}
+                <button type="button"
+                        class="w-4 h-4 flex items-center justify-center rounded hover:bg-[#e5e5e5] mr-1"
+                        @click="toggleBranch($el.closest('tr'))">
+                  <span class="text-[10px] text-[#4b5563]">&#x25BC;</span>
+                </button>
+                {% else %}
+                <span class="w-4 h-4 mr-1"></span>
+                {% endif %}
+                <span>{{ a.code }}</span>
+              </div>
+            </td>
+            <td class="px-5 py-2 coa-col-name">
+              {{ a.name }}
+            </td>
+            <td class="px-5 py-2">
+              {% if a.type == 'asset' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#eff6ff; color:#1d4ed8;">Asset</span>
+              {% elif a.type == 'liability' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#fff7ed; color:#c05621;">Liability</span>
+              {% elif a.type == 'income' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#ecfdf3; color:#15803d;">Income</span>
+              {% elif a.type == 'expense' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#fef2f2; color:#b91c1c;">Expense</span>
               {% else %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#edebe9; color:#605e5c;">Inactive</span>
+              <span class="capitalize text-[#605e5c] text-xs">{{ a.type }}</span>
               {% endif %}
             </td>
+            <td class="px-5 py-2">
+              {% if a.parent %}
+                <span class="font-mono text-xs text-[#6b7280]">{{ a.parent.code }}</span>
+                <span class="ml-1 text-xs">{{ a.parent.name }}</span>
+              {% else %}
+                <span class="text-xs text-[#9ca3af]">—</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-2 text-xs">
+              {{ a.category.name|default:"—" }}
+            </td>
+            <td class="px-5 py-2 text-xs">
+              {% if row.is_posting %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#ecfdf3; color:#15803d;">
+                Posting
+              </span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#eef2ff; color:#4338ca;">
+                Summary
+              </span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-2">
+              {% if a.is_active %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#dff6dd; color:#0b5a0b;">Active</span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#edebe9; color:#605e5c;">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2 text-right">
+              <details class="relative inline-block text-left">
+                <summary class="list-none inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-medium cursor-pointer"
+                         style="border-color:#d1d5db; color:#374151; background:#ffffff;">
+                  <span>Actions</span>
+                  <span class="text-xs">&#9662;</span>
+                </summary>
+                <div class="origin-top-right absolute right-0 mt-1 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                  <div class="py-1 text-[13px]">
+                    <a href="{% url 'tenant_portal:finance_account_edit' a.pk %}"
+                       class="block px-3 py-1.5 text-[#111827] hover:bg-[#f3f4f6]">Edit</a>
+                    <a href="{% url 'tenant_portal:finance_account_ledger' %}?account_id={{ a.pk }}"
+                       class="block px-3 py-1.5 text-[#111827] hover:bg-[#f3f4f6]">View ledger</a>
+                    <form method="post" class="border-t border-[#e5e7eb] mt-1 pt-1">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="toggle_active" />
+                      <input type="hidden" name="account_id" value="{{ a.pk }}" />
+                      <button type="submit"
+                              class="w-full text-left px-3 py-1.5 text-[#b91c1c] hover:bg-[#fef2f2]">
+                        {% if a.is_active %}Disable{% else %}Enable{% endif %}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </details>
+            </td>
           </tr>
+          {% endwith %}
           {% empty %}
-          <tr><td class="px-5 py-6 text-[#605e5c]" colspan="4">No accounts yet.</td></tr>
+          <tr><td class="px-5 py-6 text-[#605e5c]" colspan="8">No accounts yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
-</div>
-{% endblock %}
 
+  <!-- Hidden import form (Excel/CSV) -->
+  <form id="import-coa-form" method="post" enctype="multipart/form-data" class="hidden">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="import" />
+    <input id="import-coa-input" type="file" name="file" accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+           onchange="if(this.files.length){document.getElementById('import-coa-form').submit();}" />
+  </form>
+
+  <!-- Create Account modal -->
+  <div x-show="createModalOpen" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4"
+       style="background:rgba(0,0,0,0.4);"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+    <div @click.self="createModalOpen = false" class="absolute inset-0"></div>
+    <div class="relative bg-white rounded-lg border shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+         style="border-color:#edebe9;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <div class="sticky top-0 bg-white px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9;">
+        <h2 class="text-lg font-semibold text-[#323130]">Chart of Accounts — New account</h2>
+        <button type="button" @click="createModalOpen = false" class="p-1 rounded hover:bg-[#f3f2f1] text-[#605e5c]">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" action="{% url 'tenant_portal:finance_accounts' %}" class="p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Code<span class="text-[#a4262c]">*</span></label>
+            <input name="code" required type="text"
+                   class="w-full px-3 py-2 rounded border text-[13px] font-mono bg-white"
+                   style="border-color:#edebe9;"
+                   placeholder="e.g. 1100" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Name<span class="text-[#a4262c]">*</span></label>
+            <input name="name" required type="text"
+                   class="w-full px-3 py-2 rounded border text-[13px] bg-white"
+                   style="border-color:#edebe9;"
+                   placeholder="e.g. Cash" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Type<span class="text-[#a4262c]">*</span></label>
+            <select name="type" required
+                    class="w-full px-3 py-2 rounded border bg-white text-[13px]"
+                    style="border-color:#edebe9;">
+              <option value="">Select type</option>
+              {% for value, label in types.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Parent</label>
+            <select name="parent_id"
+                    class="w-full px-3 py-2 rounded border bg-white text-[13px]"
+                    style="border-color:#edebe9;">
+              <option value="">— None (top-level) —</option>
+              {% for p in accounts %}
+              <option value="{{ p.pk }}">{{ p.code }} — {{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Category</label>
+            <select name="category_id"
+                    class="w-full px-3 py-2 rounded border bg-white text-[13px]"
+                    style="border-color:#edebe9;">
+              <option value="">— None —</option>
+              {% for c in categories %}
+              <option value="{{ c.pk }}">{{ c.code }} — {{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Status</label>
+            <select name="status"
+                    class="w-full px-3 py-2 rounded border bg-white text-[13px]"
+                    style="border-color:#edebe9;">
+              <option value="active" selected>Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-6 pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+          <button type="button" @click="createModalOpen = false"
+                  class="px-4 py-2 rounded text-[13px] font-semibold border"
+                  style="border-color:#edebe9; color:#323130;">Cancel</button>
+          <button type="submit"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+                  style="background:#0078D4;">
+            <i data-feather="plus" class="w-4 h-4"></i>
+            Create account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<style>
+  .coa-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f3f2f1;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .coa-table .coa-col-code {
+    position: sticky;
+    left: 0;
+    z-index: 9;
+    background: #ffffff;
+  }
+  .coa-table .coa-col-name {
+    position: sticky;
+    left: 160px;
+    z-index: 9;
+    background: #ffffff;
+  }
+  .coa-table thead .coa-col-name {
+    left: 160px;
+    background: #f3f2f1;
+  }
+</style>
+
+<script>
+  function coaPage() {
+    return {
+      search: "",
+      createModalOpen: false,
+      matchesSearch(code, name) {
+        const q = this.search.trim().toLowerCase();
+        if (!q) return true;
+        return code.toLowerCase().includes(q) || name.toLowerCase().includes(q);
+      },
+    };
+  }
+
+  function toggleBranch(rowEl) {
+    const id = rowEl.getAttribute("data-account-id");
+    const tbody = rowEl.parentElement;
+    const rows = Array.from(tbody.querySelectorAll("tr[data-parent-id]"));
+    const stack = [id];
+    const shouldHide = !rowEl.classList.contains("branch-open");
+    rowEl.classList.toggle("branch-open", shouldHide);
+    rows.forEach(r => {
+      const parentId = r.getAttribute("data-parent-id");
+      if (parentId === id) {
+        if (rowEl.classList.contains("branch-open")) {
+          r.style.display = "";
+        } else {
+          r.style.display = "none";
+        }
+      }
+    });
+  }
+</script>
+
+<!-- (slide-over removed as requested; create form now uses the centered modal in a separate block) -->
+{% endblock %}

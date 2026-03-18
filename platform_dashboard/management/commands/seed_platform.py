@@ -4,12 +4,11 @@ from tenants.models import Module
 
 
 class Command(BaseCommand):
-    help = "Seed default platform modules (Finance, Grants, Integrations, AI Auditor)."
+    help = "Seed default platform modules (Financial & Grant Management, Integrations, AI Auditor)."
 
     def handle(self, *args, **options):
         defaults = [
-            ("finance", "Finance"),
-            ("grants", "Grants & Programs"),
+            ("finance_grants", "Financial & Grant Management"),
             ("integrations", "Integrations"),
             ("ai_auditor", "AI Auditor"),
         ]

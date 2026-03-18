@@ -1,0 +1,92 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title|default:"Posting permission" }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0">
+  <div class="mb-4">
+    <h1 class="page-title">
+      {% if form_mode == "edit" %}Edit posting permission{% else %}New posting permission{% endif %}
+    </h1>
+  </div>
+
+  <div class="bg-white border rounded-lg shadow-sm" style="border-color:#edebe9;">
+    <form method="post" class="p-5 space-y-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Role name <span class="text-[#a4262c]">*</span>
+          </label>
+          <input type="text" name="role_name"
+                 value="{{ form_initial.role_name|default_if_none:'' }}"
+                 class="w-full px-3 py-2 rounded border text-sm bg-white"
+                 style="border-color:#d1d5db;"
+                 placeholder="Finance Officer, Finance Manager, CFO" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Maximum posting amount
+          </label>
+          <input type="number" step="0.01" min="0" name="max_posting_amount"
+                 value="{{ form_initial.max_posting_amount|default:'0.00' }}"
+                 class="w-full px-3 py-2 rounded border text-sm bg-white text-right font-mono"
+                 style="border-color:#d1d5db;" />
+          <p class="text-[11px] text-[#6b7280]">Maximum amount this role can post without higher-level approval.</p>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+            <input type="checkbox" name="can_create_voucher"
+                   class="rounded border-[#d1d5db]"
+                   {% if form_initial.can_create_voucher %}checked{% endif %}>
+            <span class="text-[13px]">Can create voucher</span>
+          </label>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+            <input type="checkbox" name="can_approve_voucher"
+                   class="rounded border-[#d1d5db]"
+                   {% if form_initial.can_approve_voucher %}checked{% endif %}>
+            <span class="text[13px]">Can approve voucher</span>
+          </label>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+            <input type="checkbox" name="can_post_to_ledger"
+                   class="rounded border-[#d1d5db]"
+                   {% if form_initial.can_post_to_ledger %}checked{% endif %}>
+            <span class="text[13px]">Can post to ledger (finalize)</span>
+          </label>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+            <input type="checkbox" name="require_second_approval_above_amount"
+                   class="rounded border-[#d1d5db]"
+                   {% if form_initial.require_second_approval_above_amount %}checked{% endif %}>
+            <span class="text[13px]">Require second approval above limit</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+        <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}"
+           class="px-4 py-2 rounded text-sm font-semibold border"
+           style="border-color:#edebe9; color:#323130;">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

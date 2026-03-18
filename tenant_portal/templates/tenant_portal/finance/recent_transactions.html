@@ -1,0 +1,41 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Recent Financial Transactions | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="page-title">Recent Financial Transactions</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Recent vouchers, journal entries, and payments.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Recent Journal Entries</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Date</th>
+          <th class="px-4 py-2 font-semibold">Reference</th>
+          <th class="px-4 py-2 font-semibold">Account</th>
+          <th class="px-4 py-2 font-semibold">Project / Grant</th>
+          <th class="px-4 py-2 font-semibold text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for txn in transactions %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ txn.date|date:"M d, Y" }}</td>
+          <td class="px-4 py-2"><a href="{% url 'tenant_portal:finance_journals' %}" class="text-[#0078d4] hover:underline">{{ txn.reference|default:"—" }}</a></td>
+          <td class="px-4 py-2">{{ txn.account }}</td>
+          <td class="px-4 py-2">{{ txn.project|default:"—" }}</td>
+          <td class="px-4 py-2 text-right font-medium">{{ txn.amount|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-6 text-center text-[#605e5c]">No recent transactions.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

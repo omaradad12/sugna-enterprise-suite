@@ -1,0 +1,193 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h1 class="page-title">{{ page_title }}</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'tenant_portal:setup_numbering_list' %}"
+         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+         style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+        <i data-feather="arrow-left" class="w-4 h-4"></i>
+        <span>Back to Numbering</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg shadow-sm" style="border-color:#edebe9;">
+    <div class="px-5 py-3.5 border-b flex items-center justify-between"
+         style="border-color:#edebe9; background:#faf9f8;">
+      <div class="text-xs font-semibold uppercase tracking-wide" style="color:#605e5c;">
+        Document series details
+      </div>
+      <div class="text-[11px]" style="color:#a19f9d;">
+        Required fields help the system generate unique document numbers across fiscal years.
+      </div>
+    </div>
+
+    <form method="post" class="px-5 py-4 space-y-6">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Document type
+            </label>
+            <select name="document_type"
+                    class="w-full rounded border px-3 py-2 text-sm bg-white"
+                    style="border-color:#edebe9;">
+              <option value="">Select document type</option>
+              {% for value, label in document_type_choices %}
+              <option value="{{ value }}"
+                      {% if form_initial.document_type == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Prefix
+              </label>
+              <input type="text" name="prefix"
+                     value="{{ form_initial.prefix|default_if_none:'' }}"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">Example: PV-, RV-, JV-.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Fiscal year (optional)
+              </label>
+              <select name="fiscal_year"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                <option value="">All fiscal years</option>
+                {% for fy in fiscal_years %}
+                <option value="{{ fy.id }}"
+                        {% if form_initial.fiscal_year_id|add:'' == fy.id|add:'' %}selected{% endif %}>
+                  {{ fy.name }} ({{ fy.start_date|date:"Y" }})
+                </option>
+                {% endfor %}
+              </select>
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">Link to a specific fiscal year for year-based series.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Starting number
+              </label>
+              <input type="number" name="start_number"
+                     value="{{ form_initial.start_number|default:1 }}"
+                     min="1"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Current number
+              </label>
+              <input type="number" name="current_number"
+                     value="{{ form_initial.current_number|default:0 }}"
+                     min="0"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">Last used sequence. The system increments from here.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Number format
+            </label>
+            <input type="text" name="number_format"
+                   value="{{ form_initial.number_format|default:'{prefix}{year}-{seq:05d}' }}"
+                   class="w-full rounded border px-3 py-2 text-sm font-mono"
+                   style="border-color:#edebe9;">
+            <p class="mt-1 text-[11px]" style="color:#a19f9d;">
+              Tokens: <code>prefix</code>, <code>year</code>, <code>month</code>, <code>seq</code>, <code>project_code</code>, <code>grant_code</code>, <code>fiscal_year</code>.
+              Example: <span class="font-mono">PV-{year}{month}-{seq:05d}</span>.
+            </p>
+            {% if preview_value %}
+            <div class="mt-2 rounded border px-3 py-2 text-xs" style="border-color:#edebe9; background:#faf9f8;">
+              <div class="uppercase tracking-wide font-semibold text-[11px]" style="color:#605e5c;">Preview</div>
+              <div class="mt-1 font-mono text-sm" style="color:#323130;">{{ preview_value }}</div>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Reset frequency
+              </label>
+              <select name="reset_frequency"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                {% for value, label in reset_choices %}
+                <option value="{{ value }}"
+                        {% if form_initial.reset_frequency == value %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Status
+              </label>
+              <select name="status"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}"
+                        {% if form_initial.status == value or not form_initial.status and value == 'active' %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Notes
+            </label>
+            <textarea name="notes" rows="3"
+                      class="w-full rounded border px-3 py-2 text-sm"
+                      style="border-color:#edebe9;">{{ form_initial.notes|default_if_none:'' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t flex items-center justify-end gap-3"
+           style="border-color:#edebe9;">
+        <a href="{% url 'tenant_portal:setup_numbering_list' %}"
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold"
+           style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+          <span>Cancel</span>
+        </a>
+        {% if can_manage %}
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save</span>
+        </button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

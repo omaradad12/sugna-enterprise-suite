@@ -1,0 +1,98 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title|default:"Currency" }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0">
+  <div class="mb-4">
+    <h1 class="page-title">
+      {% if form_mode == "edit" %}Edit currency{% else %}New currency{% endif %}
+    </h1>
+    <p class="text-xs md:text-sm mt-1 text-[#605e5c]">
+      Define currencies for use in journals, bank accounts, grants, and organization settings.
+    </p>
+  </div>
+
+  <div class="bg-white border rounded-lg shadow-sm" style="border-color:#edebe9;">
+    <form method="post" class="p-5 space-y-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Code <span class="text-[#a4262c]">*</span>
+          </label>
+          <input type="text" name="code"
+                 value="{{ form_initial.code|default_if_none:'' }}"
+                 maxlength="3"
+                 class="w-full px-3 py-2 rounded border text-sm font-mono bg-white"
+                 style="border-color:#d1d5db;"
+                 placeholder="USD" />
+          <p class="text-[11px] text-[#6b7280]">3-letter ISO code, e.g. USD, EUR, KSH.</p>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Name
+          </label>
+          <input type="text" name="name"
+                 value="{{ form_initial.name|default_if_none:'' }}"
+                 class="w-full px-3 py-2 rounded border text-sm bg-white"
+                 style="border-color:#d1d5db;"
+                 placeholder="US Dollar" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Symbol
+          </label>
+          <input type="text" name="symbol"
+                 value="{{ form_initial.symbol|default_if_none:'' }}"
+                 class="w-full px-3 py-2 rounded border text-sm bg-white"
+                 style="border-color:#d1d5db;"
+                 placeholder="$" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Decimal places
+          </label>
+          <input type="number" name="decimal_places"
+                 value="{{ form_initial.decimal_places|default:2 }}"
+                 min="0" max="6"
+                 class="w-full px-3 py-2 rounded border text-sm bg-white"
+                 style="border-color:#d1d5db;" />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">
+            Status
+          </label>
+          <select name="status"
+                  class="w-full px-3 py-2 rounded border text-sm bg-white"
+                  style="border-color:#d1d5db;">
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if form_initial.status == value or not form_initial.status and value == "active" %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+        <a href="{% url 'tenant_portal:setup_currencies_list' %}"
+           class="px-4 py-2 rounded text-sm font-semibold border"
+           style="border-color:#edebe9; color:#323130;">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save currency</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

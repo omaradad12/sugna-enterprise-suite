@@ -1,0 +1,50 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Grant Start &amp; End Periods | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Grant Start &amp; End Periods</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Manage grant timelines; alerts for expiring grants.</p>
+</div>
+
+{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+
+{% if expiring %}
+<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+  <h2 class="font-semibold text-amber-800">Expiring in 90 days</h2>
+  <ul class="mt-2 space-y-1 text-sm">
+    {% for g in expiring %}
+    <li>{{ g.code }} — {{ g.title|truncatewords:5 }} (ends {{ g.end_date|date:"Y-m-d" }})</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Grant timeline</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">Grant</th>
+        <th class="px-4 py-2 font-semibold">Donor</th>
+        <th class="px-4 py-2 font-semibold">Start</th>
+        <th class="px-4 py-2 font-semibold">End</th>
+        <th class="px-4 py-2 font-semibold">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in grants %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ g.code }} — {{ g.title|truncatewords:4 }}</td>
+        <td class="px-4 py-2">{{ g.donor.name }}</td>
+        <td class="px-4 py-2">{{ g.start_date|date:"Y-m-d"|default:"—" }}</td>
+        <td class="px-4 py-2">{{ g.end_date|date:"Y-m-d"|default:"—" }}</td>
+        <td class="px-4 py-2">{{ g.get_status_display }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="px-4 py-6 text-center text-[#605e5c]">No grants.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

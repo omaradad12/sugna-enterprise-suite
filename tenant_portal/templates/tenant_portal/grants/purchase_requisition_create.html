@@ -1,0 +1,186 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Purchase Requisition | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Purchase Requisition</h1>
+  <p class="text-sm mt-1" style="color:#605e5c;">Create a PR from an approved workplan activity. PR total cannot exceed the activity’s remaining budget or the grant allocation.</p>
+</div>
+
+<div class="bg-white border rounded-lg p-6 max-w-3xl hidden-print" style="border-color:#edebe9;">
+  <form method="post" action="" enctype="multipart/form-data" class="space-y-4">
+    {% csrf_token %}
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Workplan activity <span style="color:#A4262C;">*</span></label>
+      <select name="workplan_activity_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;"
+              id="id_workplan_activity">
+        <option value="">Select approved activity</option>
+        {% for a in approved_activities %}
+        <option value="{{ a.pk }}" {% if activity and activity.pk == a.pk %}selected{% endif %}>
+          {{ a.workplan_code }} — {{ a.activity|truncatewords:5 }} (Grant: {{ a.grant.code }}, remaining: {{ a.remaining_budget_display|floatformat:2 }})
+        </option>
+        {% endfor %}
+      </select>
+      {% if not approved_activities %}
+      <p class="text-xs mt-1" style="color:#a4262c;">No activities approved for PR. Approve an activity from <a href="{% url 'tenant_portal:grants_grant_workplan' %}" class="underline">Grant Workplan</a> first.</p>
+      {% endif %}
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">PR date <span style="color:#A4262C;">*</span></label>
+        <input type="date" name="pr_date" value="{{ today|date:'Y-m-d' }}" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Delivery date</label>
+        <input type="date" name="delivery_date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Default budget line</label>
+        <input type="text" name="budget_line" value="{{ activity.budget_line|default:'' }}" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Used if line budget line empty" />
+      </div>
+    </div>
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <label class="block text-xs font-semibold" style="color:#605e5c;">Line items (activity breakdown) <span style="color:#A4262C;">*</span></label>
+        <button type="button" id="add_line_btn" class="inline-flex items-center gap-1 px-2 py-1.5 rounded text-sm font-medium border" style="border-color:#0078D4; color:#0078D4;">
+          <i data-feather="plus" class="w-4 h-4"></i> Add line
+        </button>
+      </div>
+      <div class="overflow-x-auto border rounded-lg" style="border-color:#edebe9;">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Item description</th>
+              <th class="text-right px-3 py-2 text-xs font-semibold w-24" style="color:#605e5c;">Quantity</th>
+              <th class="text-right px-3 py-2 text-xs font-semibold w-28" style="color:#605e5c;">Unit cost</th>
+              <th class="text-left px-3 py-2 text-xs font-semibold w-32" style="color:#605e5c;">Budget line</th>
+              <th class="text-right px-3 py-2 text-xs font-semibold w-24" style="color:#605e5c;">Total</th>
+              <th class="w-20 px-2 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="pr_lines_tbody">
+            <tr class="pr-line-row border-t" style="border-color:#edebe9;">
+              <td class="px-3 py-2"><input type="text" name="line_0_item" class="w-full px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Item or service" required /></td>
+              <td class="px-3 py-2"><input type="number" name="line_0_qty" step="0.01" min="0.01" value="1" class="line-qty w-full px-2 py-1.5 rounded border text-sm text-right" style="border-color:#edebe9;" /></td>
+              <td class="px-3 py-2"><input type="number" name="line_0_unit_cost" step="0.01" min="0" value="0" class="line-unit w-full px-2 py-1.5 rounded border text-sm text-right" style="border-color:#edebe9;" /></td>
+              <td class="px-3 py-2"><input type="text" name="line_0_budget_line" class="w-full px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Optional" /></td>
+              <td class="px-3 py-2 text-right font-medium line-total" style="color:#323130;">0.00</td>
+              <td class="px-2 py-2"><button type="button" class="remove-line px-2 py-1 rounded text-xs border" style="border-color:#edebe9; color:#605e5c;">Remove</button></td>
+            </tr>
+          </tbody>
+          <tfoot style="background:#faf9f8; border-top:2px solid #edebe9;">
+            <tr>
+              <td colspan="4" class="px-3 py-2 text-right font-semibold" style="color:#605e5c;">Total</td>
+              <td class="px-3 py-2 text-right font-semibold" id="grand_total_display" style="color:#323130;">0.00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Procurement method</label>
+        <select name="procurement_method" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+          {% for value, label in procurement_methods %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Priority</label>
+        <select name="priority" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+          {% for value, label in pr_priorities %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Justification</label>
+      <textarea name="justification" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Attachment(s)</label>
+      <input type="file" name="attachment" multiple class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" />
+      <p class="text-xs mt-1" style="color:#605e5c;">Optional. You can also add attachments on the PR detail page after creating.</p>
+    </div>
+    <div class="flex gap-2 pt-2">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Create PR</button>
+      <a href="{% url 'tenant_portal:grants_pr_list' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</a>
+      <a href="{% url 'tenant_portal:grants_grant_workplan' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Back to Workplan</a>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var tbody = document.getElementById('pr_lines_tbody');
+  var addBtn = document.getElementById('add_line_btn');
+  var grandTotalEl = document.getElementById('grand_total_display');
+
+  function nextLineIndex() {
+    var rows = tbody.querySelectorAll('.pr-line-row');
+    var max = -1;
+    rows.forEach(function(r) {
+      var inp = r.querySelector('input[name^="line_"]');
+      if (inp) {
+        var m = inp.name.match(/line_(\d+)_/);
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+      }
+    });
+    return max + 1;
+  }
+
+  function updateLineTotal(row) {
+    var qty = parseFloat(row.querySelector('.line-qty') && row.querySelector('.line-qty').value) || 0;
+    var unit = parseFloat(row.querySelector('.line-unit') && row.querySelector('.line-unit').value) || 0;
+    var totalEl = row.querySelector('.line-total');
+    if (totalEl) totalEl.textContent = (qty * unit).toFixed(2);
+    updateGrandTotal();
+  }
+
+  function updateGrandTotal() {
+    var total = 0;
+    tbody.querySelectorAll('.pr-line-row').forEach(function(row) {
+      var t = row.querySelector('.line-total');
+      if (t) total += parseFloat(t.textContent) || 0;
+    });
+    grandTotalEl.textContent = total.toFixed(2);
+  }
+
+  tbody.addEventListener('input', function(e) {
+    if (e.target.closest('.pr-line-row')) updateLineTotal(e.target.closest('.pr-line-row'));
+  });
+
+  addBtn.addEventListener('click', function() {
+    var idx = nextLineIndex();
+    var tr = document.createElement('tr');
+    tr.className = 'pr-line-row border-t';
+    tr.style.borderColor = '#edebe9';
+    tr.innerHTML =
+      '<td class="px-3 py-2"><input type="text" name="line_' + idx + '_item" class="w-full px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Item or service" /></td>' +
+      '<td class="px-3 py-2"><input type="number" name="line_' + idx + '_qty" step="0.01" min="0.01" value="1" class="line-qty w-full px-2 py-1.5 rounded border text-sm text-right" style="border-color:#edebe9;" /></td>' +
+      '<td class="px-3 py-2"><input type="number" name="line_' + idx + '_unit_cost" step="0.01" min="0" value="0" class="line-unit w-full px-2 py-1.5 rounded border text-sm text-right" style="border-color:#edebe9;" /></td>' +
+      '<td class="px-3 py-2"><input type="text" name="line_' + idx + '_budget_line" class="w-full px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Optional" /></td>' +
+      '<td class="px-3 py-2 text-right font-medium line-total" style="color:#323130;">0.00</td>' +
+      '<td class="px-2 py-2"><button type="button" class="remove-line px-2 py-1 rounded text-xs border" style="border-color:#edebe9; color:#605e5c;">Remove</button></td>';
+    tbody.appendChild(tr);
+    updateGrandTotal();
+    if (window.feather) feather.replace();
+  });
+
+  tbody.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-line')) {
+      var row = e.target.closest('.pr-line-row');
+      if (tbody.querySelectorAll('.pr-line-row').length > 1) {
+        row.remove();
+        updateGrandTotal();
+      }
+    }
+  });
+
+  updateLineTotal(tbody.querySelector('.pr-line-row'));
+});
+</script>
+{% endblock %}

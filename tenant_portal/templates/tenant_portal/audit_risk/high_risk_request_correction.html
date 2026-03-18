@@ -1,0 +1,37 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Request correction{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Request correction</h1>
+    <p class="page-subtitle mt-1">Create a correction request for transaction {{ assessment.source_type }}#{{ assessment.source_id }}</p>
+  </div>
+  <div class="erp-section">
+    <div class="erp-section-header">Correction request</div>
+    <div class="erp-section-body">
+      <form method="post" action="{% url 'tenant_portal:audit_risk_high_risk_request_correction' assessment_id=assessment.id %}">
+        {% csrf_token %}
+        <div class="space-y-4">
+          <div>
+            <label class="block text-[12px] font-medium mb-1" style="color: #605e5c;">Assign to</label>
+            <select name="assigned_to_id" required class="w-full text-[13px] px-3 py-2 rounded border" style="border-color: #8a8886;">
+              <option value="">Select user</option>
+              {% for u in tenant_users %}
+              <option value="{{ u.id }}">{{ u.full_name|default:u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[12px] font-medium mb-1" style="color: #605e5c;">Instructions</label>
+            <textarea name="instructions" rows="3" class="w-full text-[13px] px-3 py-2 rounded border" style="border-color: #8a8886;" placeholder="Please review and correct."></textarea>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 rounded text-[13px] font-medium" style="background: #0078D4; color: #fff;">Create request</button>
+            <a href="{% url 'tenant_portal:audit_risk_high_risk' %}" class="px-4 py-2 rounded text-[13px] font-medium border" style="border-color: #8a8886;">Cancel</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

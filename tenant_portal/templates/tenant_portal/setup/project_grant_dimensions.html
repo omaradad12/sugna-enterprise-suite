@@ -1,0 +1,518 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Projects &amp; Grants | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Page shell */
+  .dyn-page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #201f1e;
+    letter-spacing: -0.01em;
+  }
+  .dyn-page-desc {
+    font-size: 13px;
+    color: #605e5c;
+    margin-top: 2px;
+  }
+  .dyn-command-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 20px 18px;
+    margin: 0 -20px 18px;
+    border-bottom: 1px solid #e1dfdd;
+    background: linear-gradient(90deg, #f3f2f1 0, #faf9f8 40%, #ffffff 100%);
+  }
+
+  /* Sections */
+  .dyn-section {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .dyn-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #323130;
+    padding: 10px 16px;
+    background: #faf9f8;
+    border-bottom: 1px solid #edebe9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .dyn-section-title span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dyn-section-title span::before {
+    content: "";
+    width: 3px;
+    height: 16px;
+    border-radius: 999px;
+    background: #0078d4;
+    opacity: 0.55;
+  }
+  .dyn-section-body {
+    padding: 14px 16px 16px;
+  }
+
+  /* Toolbar & inputs */
+  .dyn-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .dyn-toolbar input[type="text"],
+  .dyn-toolbar select {
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid #edebe9;
+    border-radius: 2px;
+    font-size: 13px;
+    background: #ffffff;
+  }
+  .dyn-toolbar input[type="text"] {
+    min-width: 220px;
+  }
+  .dyn-toolbar select {
+    min-width: 140px;
+  }
+
+  /* Buttons & links */
+  .dyn-btn-primary {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    border-radius: 2px;
+    background: #0078d4;
+    color: #ffffff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  }
+  .dyn-btn-primary:hover {
+    background: #106ebe;
+    color: #ffffff;
+  }
+  .dyn-btn-secondary {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #edebe9;
+    border-radius: 2px;
+    background: #ffffff;
+    color: #323130;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+  }
+  .dyn-btn-secondary:hover {
+    background: #f3f2f1;
+    color: #323130;
+  }
+  .dyn-link {
+    color: #0078d4;
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .dyn-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Tables */
+  .dyn-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .dyn-table thead tr {
+    height: 32px;
+  }
+  .dyn-table th {
+    text-align: left;
+    font-weight: 600;
+    color: #323130;
+    background: #f3f2f1;
+    padding: 8px 12px;
+    border: 1px solid #edebe9;
+    white-space: nowrap;
+  }
+  .dyn-table td {
+    padding: 7px 12px;
+    border: 1px solid #edebe9;
+    background: #ffffff;
+    vertical-align: middle;
+  }
+  .dyn-table tbody tr:nth-child(even) td {
+    background: #fbfbfb;
+  }
+  .dyn-table tbody tr:hover td {
+    background: #f3f2f1;
+  }
+
+  /* Status badges */
+  .dyn-badge-active {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #dff6dd;
+    color: #0b5a0b;
+  }
+  .dyn-badge-inactive {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #f3f2f1;
+    color: #605e5c;
+  }
+
+  /* Pagination & helpers */
+  .dyn-pagination {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #605e5c;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dyn-pagination a {
+    color: #0078d4;
+    text-decoration: none;
+  }
+  .dyn-pagination a:hover {
+    text-decoration: underline;
+  }
+  .dyn-empty {
+    text-align: center;
+    padding: 28px 16px;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .dyn-code {
+    font-family: Consolas, Menlo, Monaco, "Segoe UI Mono", monospace;
+    font-size: 12px;
+  }
+  /* Grant utilization pills */
+  .dyn-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .dyn-pill-green {
+    background: #dff6dd;
+    color: #0b5a0b;
+  }
+  .dyn-pill-orange {
+    background: #fff4ce;
+    color: #8a6d1a;
+  }
+  .dyn-pill-red {
+    background: #fde7e9;
+    color: #a4262c;
+  }
+</style>
+
+<div class="dyn-command-bar">
+  <div>
+    <h1 class="dyn-page-title">Projects &amp; Grants</h1>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+    <div style="display:flex; gap:10px; font-size:12px;">
+      <span>Projects: <strong>{{ projects_page.paginator.count }}</strong></span>
+      <span>|</span>
+      <span>Grants: <strong>{{ grants_page.paginator.count }}</strong></span>
+      <span>|</span>
+      <span>Mappings: <strong>{{ mapping_page.paginator.count }}</strong></span>
+    </div>
+    <a href="{% url 'tenant_portal:setup_home' %}" class="dyn-link">Back to Financial Setup</a>
+  </div>
+</div>
+
+<!-- 1. Projects -->
+<div class="dyn-section">
+  <div class="dyn-section-title">
+    <span>1. Projects</span>
+    {% if can_manage %}
+    <a href="{% url 'tenant_portal:setup_project_dimension_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> Add project</a>
+    {% endif %}
+  </div>
+  <div class="dyn-section-body">
+    <form method="get" class="dyn-toolbar">
+      <input type="hidden" name="page_grant" value="{{ request.GET.page_grant|default:'1' }}" />
+      <input type="hidden" name="page_map" value="{{ request.GET.page_map|default:'1' }}" />
+      <input type="text" name="q_proj" value="{{ filter_q_proj }}" placeholder="Search code, name…" />
+      <select name="status_proj">
+        <option value="">All statuses</option>
+        <option value="planning" {% if filter_status_proj == 'planning' %}selected{% endif %}>Planning</option>
+        <option value="active" {% if filter_status_proj == 'active' %}selected{% endif %}>Active</option>
+        <option value="on_hold" {% if filter_status_proj == 'on_hold' %}selected{% endif %}>On hold</option>
+        <option value="closed" {% if filter_status_proj == 'closed' %}selected{% endif %}>Closed</option>
+        <option value="completed" {% if filter_status_proj == 'completed' %}selected{% endif %}>Completed</option>
+      </select>
+      <button type="submit" class="dyn-btn-primary">Filter</button>
+      <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="dyn-btn-secondary">Clear</a>
+    </form>
+    <div class="overflow-x-auto">
+      <table class="dyn-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Project Name</th>
+            <th>Donor</th>
+            <th>Project Manager</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+            {% if can_manage %}<th style="width:100px;">Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in projects_page %}
+          <tr>
+            <td class="dyn-code">{{ p.code }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.donor.name|default:"—" }}</td>
+            <td>
+              {% if p.project_manager %}
+                {{ p.project_manager.get_full_name|default:p.project_manager.email }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ p.start_date|date:"Y-m-d"|default:"—" }}</td>
+            <td>{{ p.end_date|date:"Y-m-d"|default:"—" }}</td>
+            <td>
+              <span class="{% if p.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">
+                {{ p.get_status_display }}
+              </span>
+            </td>
+            {% if can_manage %}
+            <td>
+              <a href="{% url 'tenant_portal:setup_project_dimension_edit' p.pk %}" class="dyn-link">Edit</a>
+              <span style="color:#c8c6c4;">|</span>
+              <a href="{% url 'tenant_portal:setup_project_dimension_delete' p.pk %}" class="dyn-link" style="color:#a4262c;">Delete</a>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if can_manage %}8{% else %}7{% endif %}" class="dyn-empty">No projects found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if projects_page.has_other_pages %}
+    <div class="dyn-pagination">
+      {% if projects_page.has_previous %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page_proj={{ projects_page.previous_page_number }}&page_grant={{ request.GET.page_grant|default:1 }}&page_map={{ request.GET.page_map|default:1 }}">Previous</a>
+      {% endif %}
+      <span>Page {{ projects_page.number }} of {{ projects_page.paginator.num_pages }}</span>
+      {% if projects_page.has_next %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page_proj={{ projects_page.next_page_number }}&page_grant={{ request.GET.page_grant|default:1 }}&page_map={{ request.GET.page_map|default:1 }}">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 2. Grants -->
+<div class="dyn-section">
+  <div class="dyn-section-title">
+    <span>2. Grants</span>
+    {% if can_manage %}
+    <a href="{% url 'tenant_portal:setup_grant_dimension_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> Add grant</a>
+    {% endif %}
+  </div>
+  <div class="dyn-section-body">
+    <form method="get" class="dyn-toolbar">
+      <input type="hidden" name="page_proj" value="{{ request.GET.page_proj|default:'1' }}" />
+      <input type="hidden" name="page_map" value="{{ request.GET.page_map|default:'1' }}" />
+      <input type="hidden" name="q_proj" value="{{ filter_q_proj }}" />
+      <input type="hidden" name="status_proj" value="{{ filter_status_proj }}" />
+      <input type="text" name="q_grant" value="{{ filter_q_grant }}" placeholder="Search code, name, donor…" />
+      <select name="status_grant">
+        <option value="">All statuses</option>
+        <option value="draft" {% if filter_status_grant == 'draft' %}selected{% endif %}>Draft</option>
+        <option value="active" {% if filter_status_grant == 'active' %}selected{% endif %}>Active</option>
+        <option value="closed" {% if filter_status_grant == 'closed' %}selected{% endif %}>Closed</option>
+      </select>
+      <button type="submit" class="dyn-btn-primary">Filter</button>
+      <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="dyn-btn-secondary">Clear</a>
+    </form>
+    <div class="overflow-x-auto">
+      <table class="dyn-table">
+        <thead>
+          <tr>
+            <th>Grant Code</th>
+            <th>Grant Name</th>
+            <th>Donor</th>
+            <th>Project</th>
+            <th>Budget</th>
+            <th>Spent</th>
+            <th>Remaining</th>
+            <th>Currency</th>
+            <th>Status</th>
+            {% if can_manage %}<th style="width:110px;">Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in grants_page %}
+          <tr>
+            <td class="dyn-code">{{ g.code }}</td>
+            <td>{{ g.title }}</td>
+            <td>{{ g.donor.name }}</td>
+            <td>{{ g.project.code|default:"—" }}</td>
+            <td>{{ g.award_amount|floatformat:2 }}</td>
+            <td>{{ g.spent_amount|floatformat:2 }}</td>
+            <td>
+              <span class="dyn-pill {{ g.utilization_class|default:'dyn-pill-green' }}">
+                {{ g.remaining_amount|floatformat:2 }}
+              </span>
+            </td>
+            <td>{{ g.currency.code|default:"—" }}</td>
+            <td><span class="{% if g.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">{{ g.get_status_display }}</span></td>
+            {% if can_manage %}
+            <td>
+              <a href="{% url 'tenant_portal:setup_grant_dimension_edit' g.pk %}" class="dyn-link">Edit</a>
+              <span style="color:#c8c6c4;">|</span>
+              <a href="{% url 'tenant_portal:setup_grant_dimension_delete' g.pk %}" class="dyn-link" style="color:#a4262c;">Delete</a>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if can_manage %}10{% else %}9{% endif %}" class="dyn-empty">No grants found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if grants_page.has_other_pages %}
+    <div class="dyn-pagination">
+      {% if grants_page.has_previous %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page_proj={{ request.GET.page_proj|default:1 }}&page_grant={{ grants_page.previous_page_number }}&page_map={{ request.GET.page_map|default:1 }}">Previous</a>
+      {% endif %}
+      <span>Page {{ grants_page.number }} of {{ grants_page.paginator.num_pages }}</span>
+      {% if grants_page.has_next %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page_proj={{ request.GET.page_proj|default:1 }}&page_grant={{ grants_page.next_page_number }}&page_map={{ request.GET.page_map|default:1 }}">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- 3. Default Mapping -->
+<div class="dyn-section">
+  <div class="dyn-section-title">
+    <span>3. Default Mapping (Project → Cost center → Bank account → Donor)</span>
+    {% if can_manage %}
+    <a href="{% url 'tenant_portal:setup_project_mapping_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> Add mapping</a>
+    {% endif %}
+  </div>
+  <div class="dyn-section-body">
+    <form method="get" class="dyn-toolbar">
+      <input type="hidden" name="page_proj" value="{{ request.GET.page_proj|default:'1' }}" />
+      <input type="hidden" name="page_grant" value="{{ request.GET.page_grant|default:'1' }}" />
+      <input type="hidden" name="q_proj" value="{{ filter_q_proj }}" />
+      <input type="hidden" name="status_proj" value="{{ filter_status_proj }}" />
+      <input type="hidden" name="q_grant" value="{{ filter_q_grant }}" />
+      <input type="hidden" name="status_grant" value="{{ filter_status_grant }}" />
+      <button type="submit" class="dyn-btn-primary">Refresh</button>
+    </form>
+    <div class="overflow-x-auto">
+      <table class="dyn-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Cost Center</th>
+            <th>Bank Account</th>
+            <th>Donor</th>
+            <th>Currency</th>
+            <th>Budget line</th>
+            <th>Default accounts</th>
+            <th>Active period</th>
+            <th>Status</th>
+            {% if can_manage %}<th style="width:120px;">Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in mapping_page %}
+          <tr>
+            <td class="dyn-code">{{ m.project.code }} — {{ m.project.name }}</td>
+            <td>{{ m.cost_center.code|default:"—" }} {% if m.cost_center %}{{ m.cost_center.name }}{% endif %}</td>
+            <td>{{ m.bank_account.account_number|default:"—" }} {% if m.bank_account %}({{ m.bank_account.bank_name }}){% endif %}</td>
+            <td>{{ m.donor.name|default:"—" }}</td>
+            <td>{{ m.currency.code|default:"—" }}</td>
+            <td>
+              {% if m.budget_line %}
+                {{ m.budget_line.category }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="text-xs">
+              {% if m.default_debit_account or m.default_credit_account %}
+                {{ m.default_debit_account.code|default:"—" }} → {{ m.default_credit_account.code|default:"—" }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="text-xs">
+              {{ m.active_from|date:"Y-m-d"|default:"—" }} → {{ m.active_to|date:"Y-m-d"|default:"—" }}
+            </td>
+            <td>
+              <span class="{% if m.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">
+                {% if m.status == 'inactive' %}Inactive{% else %}Active{% endif %}
+              </span>
+            </td>
+            {% if can_manage %}
+            <td>
+              <a href="{% url 'tenant_portal:setup_project_mapping_edit' m.pk %}" class="dyn-link">Edit</a>
+              <span style="color:#c8c6c4;">|</span>
+              <a href="{% url 'tenant_portal:setup_project_mapping_delete' m.pk %}" class="dyn-link" style="color:#a4262c;">Delete</a>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if can_manage %}10{% else %}9{% endif %}" class="dyn-empty">No mappings found. Add a default mapping to link a project to its default coding and controls.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if mapping_page.has_other_pages %}
+    <div class="dyn-pagination">
+      {% if mapping_page.has_previous %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page_proj={{ request.GET.page_proj|default:1 }}&page_grant={{ request.GET.page_grant|default:1 }}&page_map={{ mapping_page.previous_page_number }}">Previous</a>
+      {% endif %}
+      <span>Page {{ mapping_page.number }} of {{ mapping_page.paginator.num_pages }}</span>
+      {% if mapping_page.has_next %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page_proj={{ request.GET.page_proj|default:1 }}&page_grant={{ request.GET.page_grant|default:1 }}&page_map={{ mapping_page.next_page_number }}">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Period Closing | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Period Closing</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Close month or year. Posting is prevented after closing. Reopen from the Reopen page (admin).</p>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden mb-4" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Open periods (available to close)</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">Fiscal year</th>
+        <th class="px-4 py-2 font-semibold">Period</th>
+        <th class="px-4 py-2 font-semibold">Start — End</th>
+        <th class="px-4 py-2 font-semibold">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in open_periods %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ p.fiscal_year.name }}</td>
+        <td class="px-4 py-2">{{ p.name|default:p.period_number }}</td>
+        <td class="px-4 py-2">{{ p.start_date|date:"Y-m-d" }} — {{ p.end_date|date:"Y-m-d" }}</td>
+        <td class="px-4 py-2">
+          <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="period_id" value="{{ p.pk }}" />
+            <button type="submit" class="text-[#0078d4] font-medium hover:underline">Close period</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No open periods. Create fiscal years and periods first.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Recently closed periods</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">Year</th>
+        <th class="px-4 py-2 font-semibold">Period</th>
+        <th class="px-4 py-2 font-semibold">Closed at</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in closed_periods %}
+      <tr class="border-b" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ p.fiscal_year.name }}</td>
+        <td class="px-4 py-2">{{ p.name|default:p.period_number }}</td>
+        <td class="px-4 py-2">{{ p.closed_at|date:"Y-m-d H:i"|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="px-4 py-4 text-center text-[#605e5c]">None</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

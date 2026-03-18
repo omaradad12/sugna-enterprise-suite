@@ -1,0 +1,55 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Funding Sources | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Funding Sources</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Define funding types (grants, donations, contributions) and link to donors.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
+    <h2 class="font-semibold">New funding source</h2>
+    <form method="post" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Name</label><input name="name" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Type</label>
+        <select name="funding_type" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          {% for value, label in funding_types.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
+        <select name="donor_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for d in donors %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Description</label><input name="description" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
+      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Create</button>
+    </form>
+  </div>
+  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Funding sources</div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Name</th>
+          <th class="px-4 py-2 font-semibold">Type</th>
+          <th class="px-4 py-2 font-semibold">Donor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sources %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ s.name }}</td>
+          <td class="px-4 py-2">{{ s.get_funding_type_display }}</td>
+          <td class="px-4 py-2">{{ s.donor.name|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="px-4 py-6 text-center text-[#605e5c]">No funding sources.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

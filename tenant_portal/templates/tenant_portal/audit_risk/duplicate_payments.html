@@ -1,0 +1,42 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Duplicate Payments{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Duplicate Payments</h1>
+    <p class="page-subtitle mt-1">Alerts when the same payment amount is posted more than once for the same beneficiary or date.</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">Alerts</div>
+    <div class="erp-section-body overflow-x-auto">
+      {% if alerts %}
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in alerts %}
+          <tr>
+            <td>{{ a.title }}</td>
+            <td>{{ a.get_status_display }}</td>
+            <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-12 text-center">
+        <i data-feather="copy" class="w-12 h-12 mb-3" style="color: #c8c6c4;"></i>
+        <p class="text-[13px]" style="color: #605e5c;">No duplicate payment alerts.</p>
+        <p class="text-[12px] mt-1" style="color: #a19f9d;">Alerts are created when payment vouchers with the same amount and date are detected.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

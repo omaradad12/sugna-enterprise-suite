@@ -1,5 +1,5 @@
 {% extends "tenant_portal/_layout.html" %}
-{% block title %}{{ tenant.name }} | Grants | Budgets{% endblock %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Grants | Budgets{% endblock %}
 {% block product_subtitle %}Grant Management{% endblock %}
 
 {% block content %}
@@ -24,7 +24,7 @@
     <form method="post" class="mt-4 space-y-3">
       {% csrf_token %}
       <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant</label>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project / Grant</label>
         <select name="grant_id" required class="w-full px-3 py-2 rounded border bg-white focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;">
           {% for g in grants %}
             <option value="{{ g.id }}">{{ g.code }} — {{ g.title }}</option>
@@ -37,16 +37,25 @@
         {% endif %}
       </div>
       <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">COA account</label>
+        <select name="account_id" class="w-full px-3 py-2 rounded border bg-white focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;">
+          <option value="">— Optional —</option>
+          {% for acc in accounts %}
+          <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
         <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Category</label>
-        <input name="category" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="Personnel / Travel / Supplies" />
+        <input name="category" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="Personnel / Logistics / Program costs" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Budget description</label>
+        <input name="description" class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 text-xs" style="border-color:#edebe9;" placeholder="Describe what this budget line covers" />
       </div>
       <div>
         <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount</label>
         <input name="amount" inputmode="decimal" class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="0.00" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Notes</label>
-        <input name="notes" class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="Optional" />
       </div>
       <button {% if not grants %}disabled{% endif %} class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed" style="background:#0078D4;">
         <i data-feather="plus" class="w-4 h-4"></i> Create budget line
@@ -62,19 +71,31 @@
       <table class="min-w-full text-sm">
         <thead style="background:#f3f2f1;">
           <tr>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Grant</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Project / Grant</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Project code</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Project name</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">COA account</th>
             <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Category</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Budget description</th>
             <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Amount</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Notes</th>
           </tr>
         </thead>
         <tbody>
           {% for b in budget_lines %}
           <tr class="border-b last:border-0" style="border-color:#edebe9;">
             <td class="px-5 py-3"><span class="font-mono">{{ b.grant.code }}</span></td>
+            <td class="px-5 py-3 text-xs text-[#605e5c]">{{ b.grant.code }}</td>
+            <td class="px-5 py-3 text-xs text-[#605e5c] truncate max-w-[200px]">{{ b.grant.title }}</td>
+            <td class="px-5 py-3 text-xs text-[#605e5c]">
+              {% if b.account %}
+              {{ b.account.code }} — {{ b.account.name }}
+              {% else %}
+              —
+              {% endif %}
+            </td>
             <td class="px-5 py-3 font-medium">{{ b.category }}</td>
-            <td class="px-5 py-3 font-semibold">${{ b.amount }}</td>
-            <td class="px-5 py-3 text-[#605e5c]">{{ b.notes|default:"—" }}</td>
+            <td class="px-5 py-3 text-xs text-[#605e5c]">{{ b.description|default:"—" }}</td>
+            <td class="px-5 py-3 font-semibold">{{ b.amount }}</td>
           </tr>
           {% empty %}
           <tr><td class="px-5 py-6 text-[#605e5c]" colspan="4">No budget lines yet.</td></tr>

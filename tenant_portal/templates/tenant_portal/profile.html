@@ -1,0 +1,224 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | My Profile{% endblock %}
+{% block content %}
+<style>
+  .profile-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .profile-hero { background: linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%); }
+  .profile-card { transition: box-shadow 0.2s ease; }
+  .profile-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+</style>
+<div class="profile-page max-w-4xl mx-auto pb-10">
+  <!-- Hero (compact) -->
+  <div class="profile-hero rounded-lg overflow-hidden mb-5 text-white">
+    <div class="px-4 py-3 flex items-center gap-3">
+      {% if tenant_user.profile_photo %}
+      <img src="{{ tenant_user.profile_photo.url }}" alt="" class="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+      {% else %}
+      <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold" style="background: rgba(255,255,255,0.22);">
+        {{ tenant_user.email|default:"?"|slice:":1"|upper }}
+      </div>
+      {% endif %}
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">My Profile</h1>
+        <p class="text-xs opacity-90">Signed in as {{ tenant_user.email|default:"—" }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Profile Information -->
+  <div class="profile-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+    <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+      <i data-feather="user" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Profile information</span>
+    </div>
+    <div class="p-6">
+      <form method="post" enctype="multipart/form-data" action="{% url 'tenant_portal:profile' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="profile_save" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Full name</label>
+            <input type="text" name="full_name" value="{{ tenant_user.full_name|default:'' }}" maxlength="200" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Email address</label>
+            <input type="text" value="{{ tenant_user.email }}" readonly class="w-full px-3 py-2 rounded border text-sm bg-[#f9fafb]" style="border-color: #e5e7eb; color: #6b7280;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Phone number</label>
+            <input type="text" name="phone_number" value="{{ tenant_user.phone_number|default:'' }}" maxlength="30" placeholder="e.g. +1 234 567 8900" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Position / job title</label>
+            <input type="text" name="position" value="{{ tenant_user.position|default:'' }}" maxlength="120" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Department</label>
+            <input type="text" name="department" value="{{ tenant_user.department|default:'' }}" maxlength="120" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Preferred language</label>
+            <select name="preferred_language" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color: #d1d5db;">
+              <option value="en" {% if tenant_user.preferred_language == 'en' %}selected{% endif %}>English</option>
+              <option value="ar" {% if tenant_user.preferred_language == 'ar' %}selected{% endif %}>Arabic</option>
+              <option value="fr" {% if tenant_user.preferred_language == 'fr' %}selected{% endif %}>French</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Time zone</label>
+            <select name="time_zone" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color: #d1d5db;">
+              <option value="UTC" {% if tenant_user.time_zone == 'UTC' %}selected{% endif %}>UTC</option>
+              <option value="Africa/Mogadishu" {% if tenant_user.time_zone == 'Africa/Mogadishu' %}selected{% endif %}>Africa/Mogadishu</option>
+              <option value="Africa/Nairobi" {% if tenant_user.time_zone == 'Africa/Nairobi' %}selected{% endif %}>Africa/Nairobi</option>
+              <option value="Europe/London" {% if tenant_user.time_zone == 'Europe/London' %}selected{% endif %}>Europe/London</option>
+              <option value="America/New_York" {% if tenant_user.time_zone == 'America/New_York' %}selected{% endif %}>America/New York</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5 sm:col-span-2">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Profile photo (max 2MB)</label>
+            <input type="file" name="profile_photo" accept="image/*" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+            {% if tenant_user.profile_photo %}<p class="text-xs mt-1" style="color: #6b7280;">Current photo is set. Upload a new file to replace.</p>{% endif %}
+          </div>
+        </div>
+        <div class="mt-5">
+          <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background: #0078d4;">Save profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. Security settings -->
+  <div class="profile-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+    <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+      <i data-feather="lock" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Security settings</span>
+    </div>
+    <div class="p-6 space-y-6">
+      <div>
+        <h3 class="text-sm font-semibold mb-3" style="color: #323130;">Change password</h3>
+        <form method="post" action="{% url 'tenant_portal:profile' %}" class="max-w-sm space-y-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="change_password" />
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Current password</label>
+            <input type="password" name="current_password" autocomplete="current-password" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">New password (min 8 characters)</label>
+            <input type="password" name="new_password" autocomplete="new-password" minlength="8" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Confirm new password</label>
+            <input type="password" name="confirm_password" autocomplete="new-password" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <button type="submit" class="px-4 py-2 rounded text-sm font-medium border" style="border-color: #d1d5db; color: #374151;">Change password</button>
+        </form>
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold mb-2" style="color: #323130;">Two-factor authentication (2FA)</h3>
+        {% if pending_2fa_secret %}
+        <div class="rounded-lg border p-4 max-w-sm" style="border-color: #e5e7eb; background: #fafbfc;">
+          <p class="text-xs font-semibold mb-2" style="color: #605e5c;">Scan with your app or enter the key manually:</p>
+          {% if totp_qr_data_url %}
+          <img src="{{ totp_qr_data_url }}" alt="QR code" class="w-40 h-40 border rounded mb-3" style="border-color: #e5e7eb;" />
+          {% endif %}
+          <p class="font-mono text-xs mb-3 break-all" style="color: #323130;">{{ pending_2fa_secret }}</p>
+          <form method="post" action="{% url 'tenant_portal:profile' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="enable_2fa_verify" />
+            <label class="block text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Enter 6-digit code from app</label>
+            <input type="text" name="totp_code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" class="w-full px-3 py-2 rounded border text-sm mb-2" style="border-color: #d1d5db;" />
+            <div class="flex items-center gap-2">
+              <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background: #0078d4;">Verify and enable 2FA</button>
+              <a href="{% url 'tenant_portal:profile' %}?cancel_2fa=1" class="px-4 py-2 rounded text-sm font-medium border" style="border-color: #d1d5db; color: #374151;">Cancel</a>
+            </div>
+          </form>
+        </div>
+        {% elif tenant_user.two_factor_enabled %}
+        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium bg-green-100 text-green-800">Enabled</span>
+        <form method="post" action="{% url 'tenant_portal:profile' %}" class="mt-3 max-w-sm">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="disable_2fa" />
+          <label class="block text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Current password or 2FA code to disable</label>
+          <input type="password" name="current_password" autocomplete="current-password" class="w-full px-3 py-2 rounded border text-sm mb-2" style="border-color: #d1d5db;" />
+          <button type="submit" class="px-4 py-2 rounded text-sm font-medium border" style="border-color: #d1d5db; color: #374151;">Disable 2FA</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'tenant_portal:profile' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="enable_2fa_start" />
+          <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background: #0078d4;">Enable 2FA</button>
+        </form>
+        {% endif %}
+      </div>
+      <div>
+        <h3 class="text-sm font-semibold mb-3" style="color: #323130;">Login activity history</h3>
+        {% if login_logs %}
+        <div class="rounded border overflow-hidden" style="border-color: #e5e7eb;">
+          <table class="w-full text-sm">
+            <thead><tr style="background: #f9fafb;"><th class="text-left px-3 py-2 font-semibold" style="color: #6b7280;">Date & time</th><th class="text-left px-3 py-2 font-semibold" style="color: #6b7280;">IP address</th><th class="text-left px-3 py-2 font-semibold" style="color: #6b7280;">Device / browser</th></tr></thead>
+            <tbody>
+              {% for log in login_logs %}
+              <tr class="border-t" style="border-color: #f3f4f6;"><td class="px-3 py-2" style="color: #374151;">{{ log.created_at|date:"Y-m-d H:i" }}</td><td class="px-3 py-2" style="color: #374151;">{{ log.ip_address|default:"—" }}</td><td class="px-3 py-2 max-w-[200px] truncate" style="color: #374151;" title="{{ log.user_agent }}">{{ log.user_agent|default:"—"|truncatewords:8 }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-sm" style="color: #6b7280;">No login history recorded yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Notification preferences -->
+  <div class="profile-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+    <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+      <i data-feather="bell" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Notification preferences</span>
+    </div>
+    <div class="p-6">
+      <form method="post" action="{% url 'tenant_portal:profile' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="notifications" />
+        <div class="space-y-4">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="email_notifications" {% if tenant_user.email_notifications %}checked{% endif %} class="w-4 h-4 rounded border-gray-300 text-[#0078d4] focus:ring-[#0078d4]" />
+            <span class="text-sm" style="color: #323130;">Email notifications</span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="system_alerts" {% if tenant_user.system_alerts %}checked{% endif %} class="w-4 h-4 rounded border-gray-300 text-[#0078d4] focus:ring-[#0078d4]" />
+            <span class="text-sm" style="color: #323130;">System alerts</span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" name="approval_notifications" {% if tenant_user.approval_notifications %}checked{% endif %} class="w-4 h-4 rounded border-gray-300 text-[#0078d4] focus:ring-[#0078d4]" />
+            <span class="text-sm" style="color: #323130;">Approval notifications</span>
+          </label>
+        </div>
+        <p class="text-xs mt-2" style="color: #6b7280;">Checkboxes are ON when checked. Save to apply.</p>
+        <div class="mt-4">
+          <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background: #0078d4;">Save preferences</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Organization (read-only) -->
+  <div class="profile-card rounded-xl border bg-white overflow-hidden" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+    <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+      <i data-feather="building" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Organization</span>
+    </div>
+    <div class="p-6">
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Current organization</label>
+        <p class="text-sm font-medium" style="color: #323130;">{{ tenant_display_name|default:tenant.name }}</p>
+      </div>
+      <div class="mt-4 flex flex-col gap-1">
+        <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Role</label>
+        <p class="text-sm font-medium" style="color: #323130;">{{ role_display }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

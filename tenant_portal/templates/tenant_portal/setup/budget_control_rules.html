@@ -1,0 +1,141 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Budget control rules | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .bc-page-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #323130;
+    letter-spacing: -0.01em;
+  }
+  .bc-page-desc {
+    font-size: 13px;
+    color: #605e5c;
+    margin-top: 2px;
+  }
+  .bc-header-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px 14px;
+    margin: 0 -16px 16px;
+    border-bottom: 1px solid #edebe9;
+    background: linear-gradient(90deg, #f3f2f1 0, #faf9f8 40%, #ffffff 100%);
+  }
+  .bc-section {
+    max-width: 720px;
+  }
+  .bc-section .erp-section-header {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .bc-section .erp-section-body {
+    background: #ffffff;
+  }
+  .bc-label {
+    color: #323130;
+  }
+  .bc-help {
+    color: #605e5c;
+  }
+</style>
+
+<div class="bc-header-bar">
+  <div>
+    <h1 class="bc-page-title">Budget control rules</h1>
+    <p class="bc-page-desc">
+      Configure warning, critical, and block thresholds for grant / project budgets and define which roles can override blocks.
+    </p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_home' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Financial Setup</a>
+</div>
+
+<div class="erp-section bc-section">
+  <div class="erp-section-header">Thresholds and overrides</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1 bc-label">Warning threshold (%)</label>
+          <input type="number" step="0.01" min="0" max="100" name="warning_threshold"
+                 value="{{ rule.warn_at_percent }}"
+                 class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
+          <p class="text-xs mt-1 bc-help">Show warning when utilization reaches or exceeds this percent.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 bc-label">Critical threshold (%)</label>
+          <input type="number" step="0.01" min="0" max="100" name="critical_threshold"
+                 value="{{ rule.critical_at_percent }}"
+                 class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
+          <p class="text-xs mt-1 bc-help">Optional higher warning band before blocking.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 bc-label">Block threshold (%)</label>
+          <input type="number" step="0.01" min="0" max="100" name="block_threshold"
+                 value="{{ rule.block_at_percent }}"
+                 class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
+          <p class="text-xs mt-1 bc-help">Block when projected utilization is at or above this percent.</p>
+        </div>
+      </div>
+
+      <div class="border-t pt-4 mt-2" style="border-color:#edebe9;">
+        <label class="inline-flex items-center gap-2 text-sm bc-label">
+          <input type="checkbox" name="allow_override" value="1"
+                 {% if rule.allow_override %}checked{% endif %}
+                 class="rounded border" style="border-color:#edebe9;">
+          <span>Allow budget override by authorized roles</span>
+        </label>
+        <p class="text-xs mt-1 bc-help">
+          When enabled, users in override roles can approve or post transactions beyond the block threshold (with a reason).
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold mb-1 bc-label">Override approval role / title</label>
+        <input type="text" name="override_roles" value="{{ rule.override_roles }}"
+               class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;"
+               placeholder="e.g. Finance Manager, Finance Director">
+        <p class="text-xs mt-1 bc-help">
+          Enter the role or job title required to override budget blocks (e.g. Finance Manager, Finance Director).
+        </p>
+      </div>
+
+      <div class="border-t pt-4 mt-2 space-y-2" style="border-color:#edebe9;">
+        <label class="inline-flex items-center gap-2 text-sm bc-label">
+          <input type="checkbox" name="check_before_posting" value="1"
+                 {% if rule.check_before_posting %}checked{% endif %}
+                 class="rounded border" style="border-color:#edebe9;">
+          <span>Check budget before posting transactions</span>
+        </label>
+        <p class="text-xs bc-help">
+          Applies to payment vouchers, disbursements, vendor payments, journals affecting expense accounts, and procurement commitments.
+        </p>
+        <label class="inline-flex items-center gap-2 text-sm mt-2 bc-label">
+          <input type="checkbox" name="include_commitments" value="1"
+                 {% if rule.include_commitments %}checked{% endif %}
+                 class="rounded border" style="border-color:#edebe9;">
+          <span>Include commitments in budget calculation</span>
+        </label>
+        <p class="text-xs bc-help">
+          When enabled, commitments (e.g. purchase requisitions / orders) are included with actual spending when calculating available budget.
+        </p>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">
+          Save rules
+        </button>
+        <a href="{% url 'tenant_portal:setup_home' %}" class="px-4 py-2 rounded text-sm font-medium border"
+           style="border-color:#edebe9; color:#323130;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

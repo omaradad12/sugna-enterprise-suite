@@ -1,0 +1,365 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Financial Setup | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Microsoft Dynamics–style setup cards */
+  .setup-page-header {
+    border-bottom: 1px solid #edebe9;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .setup-card {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .setup-card:hover {
+    border-color: #0078d4;
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.08);
+  }
+  .setup-card-header {
+    background: #f3f2f1;
+    color: #323130;
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid #edebe9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .setup-card-header i {
+    color: #0078d4;
+    flex-shrink: 0;
+  }
+  .setup-card-body {
+    padding: 16px;
+    flex: 1;
+  }
+  .setup-card-body p {
+    color: #605e5c;
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0 0 14px 0;
+  }
+  .setup-card-actions {
+    font-size: 13px;
+  }
+  .setup-card-actions a {
+    color: #0078d4;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .setup-card-actions a:hover {
+    text-decoration: underline;
+  }
+  .setup-card-actions .sep {
+    color: #c8c6c4;
+    margin: 0 6px;
+    font-weight: 400;
+  }
+</style>
+
+<div class="setup-page-header">
+  <h1 class="page-title">Financial Setup</h1>
+  <p class="text-sm mt-1" style="color:#605e5c;">Configure dimensions, currencies, numbering, fiscal years, and accounting rules.</p>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="book" class="w-4 h-4"></i>
+      <span>Chart of Accounts</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Ledger accounts and structure.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:finance_accounts' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:finance_accounts' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:finance_accounts' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="layers" class="w-4 h-4"></i>
+      <span>Dimensions &amp; Cost Centers</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Financial dimensions (department, program, location, project).</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_dimensions_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_dimensions_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_dimensions_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="briefcase" class="w-4 h-4"></i>
+      <span>Project / Grant Dimensions</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Grant dimension configuration and donor links.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_grant_dimensions_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="dollar-sign" class="w-4 h-4"></i>
+      <span>Currencies</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Currency setup and status.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_currencies_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_currencies_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_currencies_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="trending-up" class="w-4 h-4"></i>
+      <span>Exchange Rates</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Rates per currency and effective date.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_exchange_rates_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_exchange_rates_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_exchange_rates_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="calendar" class="w-4 h-4"></i>
+      <span>Fiscal Years</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Fiscal year definitions and status.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_fiscal_years_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_fiscal_years_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_fiscal_years_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="hash" class="w-4 h-4"></i>
+      <span>Numbering &amp; Document Series</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Document type prefixes and sequences.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_numbering_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_numbering_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_numbering_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="sliders" class="w-4 h-4"></i>
+      <span>Accounting Posting Rules</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Voucher and transaction type mappings to debit/credit accounts and automatic posting rules.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_posting_rules_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_posting_rules_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_posting_rules_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="check-square" class="w-4 h-4"></i>
+      <span>Approval Workflows</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Document approval steps and roles.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_approval_workflows_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="shield" class="w-4 h-4"></i>
+      <span>Budget Control Rules</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Warn/block thresholds (e.g. 90% / 100%).</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_budget_control_rules_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="check-circle" class="w-4 h-4"></i>
+      <span>Grant Compliance Rules</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Donor and grant-specific compliance configuration.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_grant_compliance_rules_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_grant_compliance_rules_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_grant_compliance_rules_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="shuffle" class="w-4 h-4"></i>
+      <span>Inter-fund Transfer Rules</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Control and approvals for fund-to-fund transfers.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_interfund_rules_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_interfund_rules_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_interfund_rules_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="user-check" class="w-4 h-4"></i>
+      <span>Posting Permissions</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Who can create, approve, and post vouchers.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_posting_permissions_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="shield-off" class="w-4 h-4"></i>
+      <span>Roles &amp; Permissions</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Manage system roles and permission levels for users across the organization.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:roles_permissions_list' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:roles_permissions_list' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:roles_permissions_assign' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="rotate-ccw" class="w-4 h-4"></i>
+      <span>Reversal &amp; Correction Rules</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Control how posted errors are reversed and corrected.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_reversal_rules' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_reversal_rules' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_reversal_rules' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="activity" class="w-4 h-4"></i>
+      <span>Audit Trail Settings</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Logging of voucher edits, approvals, and postings.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

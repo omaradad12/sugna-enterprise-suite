@@ -1,0 +1,74 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Journal Approval | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Journal Approval</h1>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Pending approval</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">ID</th>
+        <th class="px-4 py-2 font-semibold">Date</th>
+        <th class="px-4 py-2 font-semibold">Reference</th>
+        <th class="px-4 py-2 font-semibold">Memo</th>
+        <th class="px-4 py-2 font-semibold">Project / Grant</th>
+        <th class="px-4 py-2 font-semibold">Created by</th>
+        <th class="px-4 py-2 font-semibold">Status</th>
+        <th class="px-4 py-2 font-semibold">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in pending_entries %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ entry.id }}</td>
+        <td class="px-4 py-2">{{ entry.entry_date|date:"Y-m-d" }}</td>
+        <td class="px-4 py-2">{{ entry.reference|default:"—" }}</td>
+        <td class="px-4 py-2">{{ entry.memo|truncatewords:5|default:"—" }}</td>
+        <td class="px-4 py-2">{{ entry.grant.code|default:"—" }}</td>
+        <td class="px-4 py-2">{{ entry.created_by.get_full_name|default:entry.created_by.username|default:"—" }}</td>
+        <td class="px-4 py-2">
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fff4ce] text-[#8a6d1a]">
+            Submitted
+          </span>
+        </td>
+        <td class="px-4 py-2">
+          <form method="post" class="flex flex-col gap-1">
+            {% csrf_token %}
+            <input type="hidden" name="entry_id" value="{{ entry.id }}" />
+            <div class="flex gap-2 items-center">
+              <a href="{% url 'tenant_portal:finance_journals' %}?q={{ entry.reference|urlencode }}"
+                 class="text-blue-700 font-medium hover:underline">
+                View
+              </a>
+              <button type="submit"
+                      name="action"
+                      value="approve"
+                      class="text-green-700 font-medium hover:underline">
+                Approve &amp; Post
+              </button>
+              <button type="submit"
+                      name="action"
+                      value="reject"
+                      class="text-red-700 font-medium hover:underline">
+                Return for correction
+              </button>
+            </div>
+            <textarea name="correction_comment"
+                      rows="2"
+                      class="mt-1 w-full text-xs border rounded px-2 py-1"
+                      style="border-color:#edebe9;"
+                      placeholder="Explain what needs to be corrected (optional)"></textarea>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="px-4 py-6 text-center text-[#605e5c]">No journal entries pending approval.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

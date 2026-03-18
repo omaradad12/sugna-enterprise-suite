@@ -1,0 +1,59 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Audit Findings{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <h1 class="page-title mb-4">Audit Findings</h1>
+  <p class="page-subtitle mt-1 mb-4">All findings by lifecycle stage. Promote preliminary → confirmed → realized from the list.</p>
+  <div class="erp-section">
+    <div class="erp-section-header">Findings</div>
+    <div class="erp-section-body overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Stage</th>
+            <th>Is actual</th>
+            <th>Is realized</th>
+            <th>Status</th>
+            <th>Due date</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings %}
+          <tr>
+            <td>{{ f.title }}</td>
+            <td>{{ f.get_finding_stage_display }}</td>
+            <td>{% if f.is_actual %}Yes{% else %}No{% endif %}</td>
+            <td>{% if f.is_realized %}Yes{% else %}No{% endif %}</td>
+            <td>{{ f.get_status_display }}</td>
+            <td>{{ f.due_date|date:"Y-m-d"|default:"—" }}</td>
+            <td>{{ f.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              {% if f.finding_stage == 'preliminary' %}
+              <form method="post" action="{% url 'tenant_portal:audit_risk_finding_promote' finding_id=f.id %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm">
+                <button type="submit" class="text-[12px] px-2 py-1 rounded font-medium transition-colors" style="background: #e5f0ff; color: #1d4ed8; border: 1px solid #93c5fd;">Confirm</button>
+              </form>
+              {% elif f.finding_stage == 'confirmed' %}
+              <form method="post" action="{% url 'tenant_portal:audit_risk_finding_promote' finding_id=f.id %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="realize">
+                <button type="submit" class="text-[12px] px-2 py-1 rounded font-medium transition-colors" style="background: #fef3c7; color: #b45309; border: 1px solid #fcd34d;">Mark realized</button>
+              </form>
+              {% else %}
+              <span style="color: #a19f9d;">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center" style="color:#605e5c;">No audit findings.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

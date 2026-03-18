@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sugna Platform Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              500: '#0078D4',
+              600: '#106EBE',
+            },
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="min-h-screen bg-slate-100 flex items-center justify-center font-sans">
+  <div class="w-full max-w-md px-4">
+    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
+      <div class="px-8 pt-7 pb-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
+        <div class="text-lg font-semibold tracking-wide">Sugna Enterprise Suite</div>
+        <div class="text-xs opacity-90 mt-1">Platform Administration</div>
+      </div>
+      <div class="px-8 pt-6 pb-7">
+        {% if form.errors %}
+          <div class="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+            Invalid username or password.
+          </div>
+        {% endif %}
+        <form method="post" action="">
+          {% csrf_token %}
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Username</label>
+              <input
+                type="text"
+                name="{{ form.username.html_name }}"
+                value="{{ form.username.value|default_if_none:'' }}"
+                autocomplete="username"
+                required
+                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-slate-50"
+              >
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Password</label>
+              <input
+                type="password"
+                name="{{ form.password.html_name }}"
+                autocomplete="current-password"
+                required
+                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-slate-50"
+              >
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="mt-5 w-full inline-flex items-center justify-center rounded-md bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium py-2.5 shadow-md transition-colors"
+          >
+            Log in
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

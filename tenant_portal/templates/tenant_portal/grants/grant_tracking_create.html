@@ -1,0 +1,190 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Grant Tracking / Add opportunity | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  /* Microsoft Dynamics / Fluent-style branding */
+  .grant-create-form {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+  }
+  .grant-create-form input:focus,
+  .grant-create-form select:focus,
+  .grant-create-form textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #0078D4;
+    border-color: #0078D4;
+  }
+  .grant-create-form .dynamics-section {
+    background: linear-gradient(to bottom, #E5F1FB, #D0E2FF);
+    color: #323130;
+    border-bottom: 1px solid #C8C6C4;
+  }
+</style>
+
+<div class="grant-create-form">
+  <!-- Page header (scrolls with content) -->
+  <div class="-mx-4 px-4 py-3 border-b mb-4 flex items-center gap-3" style="background: #FAF9F8; border-color: #EDEBE9;">
+    <div class="flex-shrink-0 w-10 h-10 rounded flex items-center justify-center text-white" style="background: #0078D4;">
+      <i data-feather="file-plus" class="w-5 h-5"></i>
+    </div>
+    <h1 class="text-2xl font-semibold tracking-tight" style="color: #323130;">Grant Tracking / Add opportunity</h1>
+  </div>
+
+  <div class="bg-white border overflow-hidden" style="border-color: #EDEBE9; border-radius: 2px;">
+    <form method="post" enctype="multipart/form-data" class="grant-create-form">
+      {% csrf_token %}
+
+      <!-- Grant Information -->
+      <div id="grant-information" class="dynamics-section px-4 py-2.5">
+        <h2 class="text-xs font-semibold uppercase tracking-wider">Grant Information</h2>
+      </div>
+      <div class="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Grant Name <span style="color: #A4262C;">*</span></label>
+          <input type="text" name="grant_name" required minlength="3"
+                 class="w-full px-3 py-2 border text-sm"
+                 style="border-color: #EDEBE9; border-radius: 2px; color: #323130;"
+                 placeholder="e.g. Health Program Phase 2" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Grant Type <span style="color: #A4262C;">*</span></label>
+          <select name="grant_type" required class="w-full px-3 py-2 border bg-white text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;">
+            <option value="">Select type</option>
+            {% for value, label in grant_types.choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Priority <span style="color: #A4262C;">*</span></label>
+          <select name="priority" required class="w-full px-3 py-2 border bg-white text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;">
+            {% for value, label in priority_choices.choices %}
+            <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Grant manager <span style="color: #A4262C;">*</span></label>
+          <select name="grant_manager_id" required class="w-full px-3 py-2 border bg-white text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;">
+            <option value="">Select user</option>
+            {% for u in tenant_users %}
+            <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
+            {% empty %}
+            <option value="">No users — contact admin</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Donor <span style="color: #A4262C;">*</span></label>
+          <select name="donor_id" required class="w-full px-3 py-2 border bg-white text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;">
+            <option value="">Select donor</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}">{{ d.name }}</option>
+            {% empty %}
+            <option value="">No donors — add in Donor register first</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Pipeline stage</label>
+          <select name="pipeline_stage" class="w-full px-3 py-2 border bg-white text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;">
+            {% for value, label in pipeline_stages.choices %}
+            <option value="{{ value }}" {% if value == 'opportunity' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Submission Information -->
+      <div id="submission-information" class="dynamics-section px-4 py-2.5 mt-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider">Submission Information</h2>
+      </div>
+      <div class="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Submission Deadline <span style="color: #A4262C;">*</span></label>
+          <input type="date" name="submission_deadline" required class="w-full px-3 py-2 border text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Date Submitted</label>
+          <input type="date" name="date_submitted" class="w-full px-3 py-2 border text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;" />
+        </div>
+      </div>
+
+      <!-- Project & Award Information -->
+      <div id="project-award" class="dynamics-section px-4 py-2.5 mt-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider">Project & amount requested</h2>
+      </div>
+      <div class="p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Project</label>
+          <select name="project_id" class="w-full px-3 py-2 border bg-white text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;">
+            <option value="">Select project (required when Approved)</option>
+            {% for p in projects %}
+            <option value="{{ p.pk }}">{{ p.name }}</option>
+            {% empty %}
+            <option value="">No projects — add in Projects module</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Project name (if not in list)</label>
+          <input type="text" name="project_name" class="w-full px-3 py-2 border text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;" placeholder="Optional" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Amount requested (USD) <span style="color: #A4262C;">*</span></label>
+          <input type="number" name="amount_requested" step="0.01" min="0.01" required class="w-full px-3 py-2 border text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;" placeholder="0.00" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Amount awarded (USD)</label>
+          <input type="number" name="amount_awarded" step="0.01" min="0" class="w-full px-3 py-2 border text-sm" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;" placeholder="Optional; cannot exceed requested" />
+        </div>
+      </div>
+
+      <!-- Documents -->
+      <div id="documents" class="dynamics-section px-4 py-2.5 mt-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider">Documents</h2>
+      </div>
+      <div class="p-4 lg:p-6">
+        <label class="block text-xs font-semibold mb-2" style="color: #605E5C;">Upload Documents (ZIP file only)</label>
+        <div class="border-2 border-dashed px-6 py-8 text-center" style="border-color: #EDEBE9; background: #F3F2F1; border-radius: 2px;">
+          <i data-feather="upload-cloud" class="w-12 h-12 mx-auto mb-2" style="color: #0078D4;"></i>
+          <p class="text-sm font-medium" style="color: #323130;">Drag and drop a ZIP file here, or click to browse</p>
+          <p class="text-xs mt-1" style="color: #605E5C;">ZIP files only</p>
+          <label class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white cursor-pointer" style="background: #0078D4; border-radius: 2px;">
+            <i data-feather="folder" class="w-4 h-4"></i>
+            <span>Choose file</span>
+            <input type="file" name="document" accept=".zip" class="sr-only" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div id="notes" class="dynamics-section px-4 py-2.5 mt-2">
+        <h2 class="text-xs font-semibold uppercase tracking-wider">Notes</h2>
+      </div>
+      <div class="p-4 lg:p-6">
+        <label class="block text-xs font-semibold mb-1" style="color: #605E5C;">Internal comments</label>
+        <textarea name="notes" rows="4" class="w-full px-3 py-2 border text-sm resize-y" style="border-color: #EDEBE9; border-radius: 2px; color: #323130;" placeholder="Optional notes for internal use."></textarea>
+      </div>
+
+      <!-- Actions (Dynamics-style command bar) -->
+      <div id="actions" class="px-4 lg:px-6 py-4 flex flex-wrap items-center gap-2 border-t" style="border-color: #EDEBE9; background: #FAF9F8;">
+        <button type="submit" name="action" value="save_draft"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold border" style="border-color: #EDEBE9; color: #323130; background: #FFF; border-radius: 2px;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          Save Draft
+        </button>
+        <button type="submit" name="action" value="submit_grant"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white" style="background: #0078D4; border-radius: 2px;">
+          <i data-feather="send" class="w-4 h-4"></i>
+          Submit (mark as Submitted)
+        </button>
+        <button type="submit" name="action" value="cancel"
+                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium" style="color: #605E5C; border: 1px solid #EDEBE9; background: #FFF; border-radius: 2px;">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

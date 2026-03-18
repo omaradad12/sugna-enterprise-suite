@@ -1,0 +1,187 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Organization Settings{% endblock %}
+{% block content %}
+<style>
+  .org-settings-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .org-settings-hero { background: linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%); color: #ffffff !important; }
+  .org-settings-hero h1, .org-settings-hero span { color: #ffffff !important; }
+  .org-settings-hero [data-feather] { stroke: #ffffff; }
+  .org-settings-card { transition: box-shadow 0.2s ease; }
+  .org-settings-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+</style>
+<div class="org-settings-page max-w-4xl mx-auto pb-10">
+  <!-- Hero (compact, white text) -->
+  <div class="org-settings-hero rounded-lg overflow-hidden mb-5">
+    <div class="px-4 py-2 flex items-center gap-2.5">
+      <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(255,255,255,0.22);">
+        <i data-feather="sliders" class="w-4 h-4"></i>
+      </div>
+      <h1 class="text-base font-bold tracking-tight">Organization Settings</h1>
+    </div>
+  </div>
+
+  {% if not can_edit %}
+  <div class="rounded-lg border px-4 py-3 mb-5 bg-amber-50 border-amber-200 text-amber-800 text-sm">
+    Only System Administrators can edit organization settings. You can view the current configuration below.
+  </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" action="{% url 'tenant_portal:organization_settings' %}">
+    {% csrf_token %}
+
+    <!-- 1. Organization Information -->
+    <div class="org-settings-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+      <div class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="sm:col-span-2 flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Organization name</label>
+            <input type="text" name="organization_name" value="{{ settings.organization_name|default:'' }}" maxlength="255" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="sm:col-span-2 flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Brand logo</label>
+            {% if settings.organization_logo %}
+            <div class="flex items-start gap-4 flex-wrap">
+              <img src="{{ settings.organization_logo.url }}" alt="Current logo" class="h-16 w-auto object-contain border rounded-lg shrink-0" style="border-color: #e5e7eb; background: #fafbfc;" />
+              <div class="flex-1 min-w-0">
+                <input type="file" name="organization_logo" accept="image/*" {% if not can_edit %}disabled{% endif %} class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+                <p class="text-xs mt-1" style="color: #6b7280;">One logo for the whole system: tenant portal, reports, and templates. Upload a new file to replace.</p>
+              </div>
+            </div>
+            {% else %}
+            <input type="file" name="organization_logo" accept="image/*" {% if not can_edit %}disabled{% endif %} class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+            <p class="text-xs mt-1" style="color: #6b7280;">One logo for the whole system: tenant portal, reports, and templates.</p>
+            {% endif %}
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Registration number</label>
+            <input type="text" name="registration_number" value="{{ settings.registration_number|default:'' }}" maxlength="80" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Country</label>
+            <input type="text" name="country" value="{{ settings.country|default:'' }}" maxlength="100" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">City</label>
+            <input type="text" name="city" value="{{ settings.city|default:'' }}" maxlength="100" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="sm:col-span-2 flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Address</label>
+            <textarea name="address" rows="2" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %}>{{ settings.address|default:'' }}</textarea>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Phone</label>
+            <input type="text" name="phone" value="{{ settings.phone|default:'' }}" maxlength="40" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Email</label>
+            <input type="email" name="email" value="{{ settings.email|default:'' }}" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="sm:col-span-2 flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Website</label>
+            <input type="url" name="website" value="{{ settings.website|default:'' }}" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Branding -->
+    <div class="org-settings-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+      <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+        <i data-feather="palette" class="w-4 h-4" style="color: #0078d4;"></i>
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Branding</span>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Primary color (hex)</label>
+            <input type="text" name="primary_color" value="{{ settings.primary_color|default:'' }}" placeholder="#0078d4" maxlength="20" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Secondary color (hex)</label>
+            <input type="text" name="secondary_color" value="{{ settings.secondary_color|default:'' }}" placeholder="#106ebe" maxlength="20" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Fiscal Settings -->
+    <div class="org-settings-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+      <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+        <i data-feather="calendar" class="w-4 h-4" style="color: #0078d4;"></i>
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Fiscal settings</span>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Fiscal year start (month 1–12)</label>
+            <input type="number" name="fiscal_year_start_month" value="{{ settings.fiscal_year_start_month|default:1 }}" min="1" max="12" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Fiscal year end (month 1–12)</label>
+            <input type="number" name="fiscal_year_end_month" value="{{ settings.fiscal_year_end_month|default:12 }}" min="1" max="12" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Default currency</label>
+            <select name="default_currency" {% if not can_edit %}disabled class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color: #d1d5db;"{% endif %}>
+              <option value="">— Select —</option>
+              {% for c in currencies %}
+              <option value="{{ c.id }}" {% if settings.default_currency_id == c.id %}selected{% endif %}>{{ c.code }} ({{ c.name|default:"" }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Currency format</label>
+            <input type="text" name="currency_format" value="{{ settings.currency_format|default:'#,##0.00' }}" maxlength="40" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5 sm:col-span-2">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Time zone</label>
+            <select name="time_zone" {% if not can_edit %}disabled class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color: #d1d5db;"{% endif %}>
+              <option value="UTC" {% if settings.time_zone == 'UTC' %}selected{% endif %}>UTC</option>
+              <option value="Africa/Mogadishu" {% if settings.time_zone == 'Africa/Mogadishu' %}selected{% endif %}>Africa/Mogadishu</option>
+              <option value="Africa/Nairobi" {% if settings.time_zone == 'Africa/Nairobi' %}selected{% endif %}>Africa/Nairobi</option>
+              <option value="Europe/London" {% if settings.time_zone == 'Europe/London' %}selected{% endif %}>Europe/London</option>
+              <option value="America/New_York" {% if settings.time_zone == 'America/New_York' %}selected{% endif %}>America/New York</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Document Settings -->
+    <div class="org-settings-card rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+      <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+        <i data-feather="file-text" class="w-4 h-4" style="color: #0078d4;"></i>
+        <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Document settings</span>
+      </div>
+      <div class="p-6">
+        <p class="text-xs mb-4" style="color: #6b7280;">Prefixes used for document numbers (e.g. INV-00001, PV-00001, RV-00001, JV-00001).</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Invoice prefix</label>
+            <input type="text" name="invoice_prefix" value="{{ settings.invoice_prefix|default:'INV-' }}" maxlength="20" placeholder="INV-" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Payment voucher prefix</label>
+            <input type="text" name="payment_voucher_prefix" value="{{ settings.payment_voucher_prefix|default:'PV-' }}" maxlength="20" placeholder="PV-" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Receipt voucher prefix</label>
+            <input type="text" name="receipt_voucher_prefix" value="{{ settings.receipt_voucher_prefix|default:'RV-' }}" maxlength="20" placeholder="RV-" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Journal prefix</label>
+            <input type="text" name="journal_prefix" value="{{ settings.journal_prefix|default:'JV-' }}" maxlength="20" placeholder="JV-" {% if not can_edit %}readonly class="bg-[#f9fafb]"{% else %}class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;"{% endif %} />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if can_edit %}
+    <div class="flex items-center gap-3">
+      <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background: #0078d4;">Save organization settings</button>
+      <a href="{% url 'tenant_portal:profile' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color: #d1d5db; color: #374151;">Cancel</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

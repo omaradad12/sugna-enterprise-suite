@@ -1,0 +1,29 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Convert to Grant Agreement | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="bg-white border rounded-lg p-6" style="border-color:#edebe9;">
+    <h1 class="text-xl font-semibold mb-2" style="color:#323130;">Convert to Grant Agreement</h1>
+    <p class="text-sm mb-4" style="color:#605e5c;">
+      This will create a <strong>draft</strong> Grant Agreement from the approved tracking record below.
+      You will then complete bank account, signed date, effective period, and optional signed contract document.
+    </p>
+    <div class="border rounded p-4 mb-6" style="border-color:#edebe9; background:#faf9f8;">
+      <p class="font-mono text-sm font-semibold">{{ tracking.code }} — {{ tracking.title }}</p>
+      <p class="text-sm mt-1" style="color:#605e5c;">Donor: {{ tracking.donor.name }}</p>
+      <p class="text-sm" style="color:#605e5c;">Amount requested: {{ tracking.amount_requested|floatformat:2|default:"—" }}</p>
+    </div>
+    <form method="post" class="flex flex-wrap items-center gap-3">
+      {% csrf_token %}
+      <label class="text-sm" style="color:#605e5c;">Agreement code (optional):</label>
+      <input type="text" name="code" value="GR-{{ tracking.code }}" class="px-3 py-2 border rounded text-sm" style="border-color:#edebe9;" placeholder="GR-{{ tracking.code }}" />
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded" style="background:#0078D4;">
+        <i data-feather="file-plus" class="w-4 h-4"></i>
+        Create Grant Agreement
+      </button>
+      <a href="{% url 'tenant_portal:grants_grant_tracking' %}" class="px-4 py-2 text-sm font-medium border rounded" style="border-color:#edebe9; color:#605e5c;">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

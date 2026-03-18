@@ -1,0 +1,339 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0">
+  <!-- Header -->
+  <div class="flex items-start justify-between gap-4 mb-5">
+    <div>
+      <h1 class="page-title">{{ page_title }}</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'tenant_portal:setup_grant_compliance_rules_list' %}"
+         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+         style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+        <i data-feather="arrow-left" class="w-4 h-4"></i>
+        <span>Back to Grant Compliance</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Card -->
+  <div class="bg-white border rounded-xl shadow-sm overflow-hidden"
+       style="border-color:#edebe9;">
+    <div class="px-6 py-4 border-b flex items-center justify-between"
+         style="border-color:#edebe9; background:linear-gradient(90deg,#faf9f8,#f3f2f1);">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide" style="color:#605e5c;">
+          Rule definition
+        </div>
+        <p class="mt-0.5 text-[11px]" style="color:#a19f9d;">
+          Link donors and grants to eligible expense categories, period rules and approval controls.
+        </p>
+      </div>
+    </div>
+
+    <form method="post" class="px-6 py-5 space-y-7">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <!-- Left column -->
+        <div class="space-y-5">
+          <!-- Rule name & scope -->
+          <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4">
+            <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Rule name
+            </label>
+            <input type="text" name="name"
+                   value="{{ form_initial.name|default_if_none:'' }}"
+                   class="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                   style="border-color:#edebe9; border-radius:6px; caret-color:#0078d4;">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Scope
+              </label>
+              <div class="text-[11px] rounded px-3 py-2 border bg-[#faf9f8]"
+                   style="border-color:#edebe9; color:#605e5c;">
+                Choose a donor and optionally a specific grant or project to which this rule will apply.
+              </div>
+            </div>
+          </div>
+
+          <!-- Donor / Grant -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Donor
+              </label>
+              <input type="text"
+                     id="donor-search"
+                     placeholder="Search donor..."
+                     class="w-full mb-1 rounded border px-2 py-1 text-[11px]"
+                     style="border-color:#edebe9;">
+              <select name="donor"
+                      id="donor-select"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                <option value="">Select donor</option>
+                {% for d in donors %}
+                <option value="{{ d.id }}"
+                        {% if form_initial.donor_id|add:'' == d.id|add:'' %}selected{% endif %}>
+                  {{ d.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Grant
+              </label>
+              <input type="text"
+                     id="grant-search"
+                     placeholder="Search grant..."
+                     class="w-full mb-1 rounded border px-2 py-1 text-[11px]"
+                     style="border-color:#edebe9;">
+              <select name="grant"
+                      id="grant-select"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                <option value="">Select grant</option>
+                {% for g in grants %}
+                <option value="{{ g.id }}"
+                        {% if form_initial.grant_id|add:'' == g.id|add:'' %}selected{% endif %}>
+                  {{ g.code }} – {{ g.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Dates, reporting period & admin % -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Effective from
+              </label>
+              <input type="date" name="effective_from"
+                     value="{{ form_initial.effective_from|date:'Y-m-d' }}"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Effective to
+              </label>
+              <input type="date" name="effective_to"
+                     value="{{ form_initial.effective_to|date:'Y-m-d' }}"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Reporting period start
+              </label>
+              <input type="date" name="reporting_period_start"
+                     value="{{ form_initial.reporting_period_start|date:'Y-m-d' }}"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Reporting period end
+              </label>
+              <input type="date" name="reporting_period_end"
+                     value="{{ form_initial.reporting_period_end|date:'Y-m-d' }}"
+                     class="w-full rounded border px-3 py-2 text-sm"
+                     style="border-color:#edebe9;">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Maximum admin cost percentage
+              </label>
+              <input type="number" step="0.01" min="0" name="maximum_admin_cost_percent"
+                     value="{{ form_initial.maximum_admin_cost_percent|default_if_none:'' }}"
+                     class="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                     style="border-color:#edebe9; border-radius:6px;">
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">
+                Optional ceiling for admin / overhead spend as a percentage of total grant expenditure.
+              </p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Reminder days before deadline
+              </label>
+              <input type="number" min="1" name="reminder_days_before_deadline"
+                     value="{{ form_initial.reminder_days_before_deadline|default_if_none:5 }}"
+                     class="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                     style="border-color:#edebe9; border-radius:6px;">
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">
+                Number of days before the reporting period end date when reminder notifications are sent.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="space-y-5">
+          <!-- Categories -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Allowed account categories
+              </label>
+              <select name="allowed_account_categories" multiple
+                      class="w-full rounded border px-3 py-2 text-xs bg-white"
+                      style="border-color:#edebe9; min-height:140px; border-radius:6px;">
+                {% for c in account_categories %}
+                <option value="{{ c.id }}"
+                        {% if c.id in allowed_ids %}selected{% endif %}>
+                  {{ c.code }} – {{ c.name }}
+                </option>
+                {% endfor %}
+              </select>
+              {% if overlap_categories %}
+              <p class="mt-1 text-[11px]" style="color:#a4262c;">
+                The following categories are both allowed and disallowed: 
+                {% for c in overlap_categories %}
+                  {{ c.code }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}. Please resolve the conflict.
+              </p>
+              {% endif %}
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Disallowed account categories
+              </label>
+              <select name="disallowed_account_categories" multiple
+                      class="w-full rounded border px-3 py-2 text-xs bg-white"
+                      style="border-color:#edebe9; min-height:140px; border-radius:6px;">
+                {% for c in account_categories %}
+                <option value="{{ c.id }}"
+                        {% if c.id in disallowed_ids %}selected{% endif %}>
+                  {{ c.code }} – {{ c.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Options -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Rule options
+              </label>
+              <label class="flex items-center gap-2 text-xs" style="color:#605e5c;">
+                <input type="checkbox" name="require_attachments" {% if form_initial.require_attachments %}checked{% endif %}>
+                <span>Require attachments</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs" style="color:#605e5c;">
+                <input type="checkbox" name="require_procurement_compliance" {% if form_initial.require_procurement_compliance %}checked{% endif %}>
+                <span>Require procurement compliance</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs" style="color:#605e5c;">
+                <input type="checkbox" name="require_budget_check" {% if form_initial.require_budget_check %}checked{% endif %}>
+                <span>Require budget check</span>
+              </label>
+            </div>
+            <div class="space-y-2">
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Period &amp; approval
+              </label>
+              <label class="flex items-center gap-2 text-xs" style="color:#605e5c;">
+                <input type="checkbox" name="allow_posting_outside_grant_period" {% if form_initial.allow_posting_outside_grant_period %}checked{% endif %}>
+                <span>Allow posting outside grant period</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs" style="color:#605e5c;">
+                <input type="checkbox" name="require_donor_specific_approval" {% if form_initial.require_donor_specific_approval %}checked{% endif %}>
+                <span>Require donor-specific approval</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Status
+              </label>
+              <select name="status"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9; border-radius:6px;">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}"
+                        {% if form_initial.status == value or not form_initial.status and value == 'active' %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Notes
+              </label>
+              <textarea name="notes" rows="3"
+                        class="w-full rounded border px-3 py-2 text-sm"
+                        style="border-color:#edebe9;">{{ form_initial.notes|default_if_none:'' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer actions -->
+      <div class="pt-4 mt-2 border-t flex items-center justify-end gap-3 bg-[#faf9f8]"
+           style="border-color:#edebe9; margin-left:-1.5rem; margin-right:-1.5rem; padding-left:1.5rem; padding-right:1.5rem; border-bottom-left-radius:0.75rem; border-bottom-right-radius:0.75rem;">
+        <a href="{% url 'tenant_portal:setup_grant_compliance_rules_list' %}"
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold"
+           style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+          <span>Cancel</span>
+        </a>
+        {% if can_manage %}
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save</span>
+        </button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+  (function () {
+    function attachSearch(inputId, selectId) {
+      var input = document.getElementById(inputId);
+      var select = document.getElementById(selectId);
+      if (!input || !select) return;
+
+      // Cache original options
+      var allOptions = Array.prototype.slice.call(select.options);
+
+      input.addEventListener("input", function () {
+        var term = (input.value || "").toLowerCase();
+        select.innerHTML = "";
+        allOptions.forEach(function (opt) {
+          if (!term || opt.text.toLowerCase().indexOf(term) !== -1) {
+            select.appendChild(opt);
+          }
+        });
+      });
+    }
+
+    attachSearch("donor-search", "donor-select");
+    attachSearch("grant-search", "grant-select");
+  })();
+</script>
+{% endblock %}
+

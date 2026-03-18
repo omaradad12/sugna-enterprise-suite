@@ -1,0 +1,55 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{% if dimension %}Edit{% else %}Create{% endif %} Dimension | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{% if dimension %}Edit Dimension{% else %}Create Dimension{% endif %}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{% if dimension %}Update dimension details.{% else %}Add a new financial dimension. Code must be unique.{% endif %}</p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Dimensions &amp; Cost Centers</a>
+</div>
+
+<div class="erp-section max-w-2xl">
+  <div class="erp-section-header">Dimension details</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Dimension Code <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="dimension_code" value="{% if dimension %}{{ dimension.dimension_code }}{% endif %}" required maxlength="30" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. DEPT-01" />
+        <p class="text-xs mt-1" style="color:#605e5c;">Unique code; used in transactions and reports.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Dimension Name <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="dimension_name" value="{% if dimension %}{{ dimension.dimension_name }}{% endif %}" required maxlength="120" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Dimension Type <span style="color:#a4262c;">*</span></label>
+        <select name="dimension_type" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select —</option>
+          {% for value, label in dimension_types %}
+          <option value="{{ value }}" {% if dimension and dimension.dimension_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Description</label>
+        <textarea name="description" rows="3" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;">{% if dimension %}{{ dimension.description }}{% endif %}</textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
+        <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if dimension and dimension.status == value %}selected{% elif not dimension and value == 'active' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if dimension %}Update{% else %}Create{% endif %} Dimension</button>
+        <a href="{% url 'tenant_portal:setup_dimensions_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

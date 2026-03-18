@@ -1,0 +1,124 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{% if mapping %}Update mapping for project {{ mapping.project.code }}.{% else %}Configure default mapping and controls for a project (one mapping per project).{% endif %}</p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Projects &amp; Grants</a>
+</div>
+
+<div class="erp-section max-w-2xl">
+  <div class="erp-section-header">Default mapping &amp; controls</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% if not mapping %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project <span style="color:#a4262c;">*</span></label>
+        <select name="project_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select project —</option>
+          {% for p in projects %}
+          <option value="{{ p.pk }}">{{ p.code }} — {{ p.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">One mapping per project. Projects that already have a mapping are not listed.</p>
+      </div>
+      {% else %}
+      <p class="text-sm" style="color:#323130;"><strong>Project:</strong> {{ mapping.project.code }} — {{ mapping.project.name }}</p>
+      {% endif %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Cost Center</label>
+        <select name="cost_center_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for cc in cost_centers %}
+          <option value="{{ cc.pk }}" {% if mapping and mapping.cost_center_id == cc.pk %}selected{% endif %}>{{ cc.code }} — {{ cc.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Bank Account</label>
+        <select name="bank_account_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for ba in bank_accounts %}
+          <option value="{{ ba.pk }}" {% if mapping and mapping.bank_account_id == ba.pk %}selected{% endif %}>{{ ba.bank_name }} — {{ ba.account_number }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor</label>
+        <select name="donor_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if mapping and mapping.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Currency</label>
+        <select name="currency_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for c in currencies %}
+          <option value="{{ c.pk }}" {% if mapping and mapping.currency_id == c.pk %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Default budget line</label>
+        <select name="budget_line_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for bl in budget_lines %}
+          <option value="{{ bl.pk }}" {% if mapping and mapping.budget_line_id == bl.pk %}selected{% endif %}>{{ bl.grant.code }} — {{ bl.category }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">Optional: used as a default budget line when posting for this project.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Default debit account</label>
+          <select name="default_debit_account_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— None —</option>
+            {% for a in accounts %}
+            <option value="{{ a.pk }}" {% if mapping and mapping.default_debit_account_id == a.pk %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Default credit account</label>
+          <select name="default_credit_account_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— None —</option>
+            {% for a in accounts %}
+            <option value="{{ a.pk }}" {% if mapping and mapping.default_credit_account_id == a.pk %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Active from</label>
+          <input type="date" name="active_from" value="{{ mapping.active_from|date:'Y-m-d'|default_if_none:'' }}"
+                 class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Active to</label>
+          <input type="date" name="active_to" value="{{ mapping.active_to|date:'Y-m-d'|default_if_none:'' }}"
+                 class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
+        <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="active" {% if not mapping or mapping.status == 'active' %}selected{% endif %}>Active</option>
+          <option value="inactive" {% if mapping and mapping.status == 'inactive' %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if mapping %}Update{% else %}Create{% endif %} Mapping</button>
+        <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

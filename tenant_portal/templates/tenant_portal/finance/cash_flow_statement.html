@@ -1,0 +1,37 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Cash Flow Statement | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Cash Flow Statement</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Cash and bank movements for period {{ filters.period_start|date:"M d, Y" }} — {{ filters.period_end|date:"M d, Y" }}.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Cash and bank (net change)</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">Account</th>
+        <th class="px-4 py-2 font-semibold text-right">Net change</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for code, name, net in cash_lines %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ code }} — {{ name }}</td>
+        <td class="px-4 py-2 text-right">{{ net|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="2" class="px-4 py-6 text-center text-[#605e5c]">No cash/bank activity in period.</td></tr>
+      {% endfor %}
+      <tr class="font-semibold border-t-2" style="border-color:#edebe9;">
+        <td class="px-4 py-2">Net cash movement</td>
+        <td class="px-4 py-2 text-right">{{ net_cash|floatformat:2 }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

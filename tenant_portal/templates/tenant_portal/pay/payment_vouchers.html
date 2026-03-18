@@ -1,0 +1,492 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Payment Vouchers | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Payment voucher</h1>
+</div>
+
+{% include "tenant_portal/_smart_alerts_module.html" with alert_category="payables" %}
+
+<form method="post" enctype="multipart/form-data" class="space-y-3 mb-6"
+      x-data="{
+        details: [{ amount: '' }],
+        allocations: [{ amount: '' }],
+        showFunding: false,
+        refNo: '',
+        paymentMethod: '',
+        totalVoucherAmount() {
+          // Sum payment detail amounts from reactive state
+          let total = 0;
+          (this.details || []).forEach(r => {
+            const v = parseFloat(r.amount || 0);
+            if (!isNaN(v)) total += v;
+          });
+          return total;
+        },
+        allocationTotal() {
+          let total = 0;
+          (this.allocations || []).forEach(r => {
+            const v = parseFloat(r.amount || 0);
+            if (!isNaN(v)) total += v;
+          });
+          return total;
+        },
+        remainingBalance() {
+          return this.totalVoucherAmount() - this.allocationTotal();
+        },
+        remainingClass() {
+          const rem = this.remainingBalance();
+          if (rem < 0) return 'text-red-700 font-semibold';
+          if (rem > 0) return 'text-orange-600 font-semibold';
+          return 'text-green-700 font-semibold';
+        },
+        rowPct(row) {
+          const grand = this.totalVoucherAmount();
+          const v = parseFloat(row.amount || 0);
+          if (!grand || isNaN(v)) return '';
+          return ((v / grand) * 100).toFixed(2);
+        },
+        paymentAccountLabel() {
+          if (this.paymentMethod === 'cash') return 'Cash Account';
+          if (this.paymentMethod === 'mobile_money') return 'Mobile Money Account';
+          if (this.paymentMethod === 'cheque') return 'Cheque Account';
+          if (this.paymentMethod === 'bank_transfer') return 'Bank Account';
+          return 'Payment Account';
+        },
+        filterPaymentAccounts() {
+          const sel = this.$refs.paymentAccount;
+          if (!sel) return;
+          const method = this.paymentMethod;
+          Array.from(sel.options).forEach((opt, idx) => {
+            if (idx === 0) {
+              opt.hidden = false;
+              return;
+            }
+            const label = (opt.textContent || '').toLowerCase();
+            let inferred = '';
+            if (label.includes('cash')) {
+              inferred = 'cash';
+            } else if (label.includes('mobile') || label.includes('evc') || label.includes('momo')) {
+              inferred = 'mobile_money';
+            } else if (label.includes('cheque') || label.includes('check')) {
+              inferred = 'cheque';
+            } else {
+              inferred = 'bank_transfer';
+            }
+            opt.dataset.method = inferred;
+            opt.hidden = !!method && inferred !== method;
+          });
+          // Clear selection whenever method changes
+          sel.value = '';
+        }
+      }">
+  {% csrf_token %}
+
+  <!-- Header section (similar to sample) -->
+  <div class="erp-section">
+    <div class="erp-section-body">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Transaction type</label>
+          <input type="text" value="Payment Voucher" readonly class="w-full px-2 py-1.5 rounded border text-xs bg-[#f3f2f1]" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
+          <input type="text" value="Auto-generated on post" readonly class="w-full px-2 py-1.5 rounded border text-xs bg-[#f3f2f1]" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher date</label>
+          <input type="date"
+                 name="entry_date"
+                 required
+                 class="w-full px-2 py-1.5 rounded border text-xs"
+                 style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
+          <select name="grant_id" class="w-full px-2 py-1.5 rounded border bg-white text-xs" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for g in grants %}
+            <option value="{{ g.id }}">{{ g.code }} — {{ g.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
+          <input type="text" name="fund_name" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Currency</label>
+          <input type="text" value="USD" name="currency" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payment method</label>
+          <select name="payment_method"
+                  x-model="paymentMethod"
+                  @change="filterPaymentAccounts()"
+                  class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                  style="border-color:#edebe9;">
+            <option value="">Select</option>
+            <option value="cheque">Cheque</option>
+            <option value="bank_transfer">Bank transfer</option>
+            <option value="mobile_money">Mobile money</option>
+            <option value="cash">Cash</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Reference no.</label>
+          <input type="text"
+                 name="reference_no"
+                 x-model="refNo"
+                 class="w-full px-2 py-1.5 rounded border text-xs"
+                 style="border-color:#edebe9;" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payee information -->
+  <div class="erp-section">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Payee Information</div>
+    <div class="erp-section-body text-sm">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payee type</label>
+          <select name="payee_type" class="w-full px-2 py-1.5 rounded border bg-white text-xs" style="border-color:#edebe9;">
+            <option>Vendor</option>
+            <option>Staff</option>
+            <option>Partner</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payee name</label>
+          <input type="text" name="payee" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Account number</label>
+          <input type="text"
+                 name="bank_account_number"
+                 x-model="refNo"
+                 class="w-full px-2 py-1.5 rounded border text-xs"
+                 style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payment reason</label>
+          <input type="text" name="description" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;" placeholder="Purpose of payment" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment account (organisation bank / cash / mobile money) - hidden as requested -->
+  <div class="hidden">
+    <select name="payment_account_id" x-ref="paymentAccount">
+      <option value="">Select payment account</option>
+      {% for acc in payment_accounts %}
+      <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Payment details -->
+  <div class="erp-section">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Payment Details</div>
+    <div class="erp-section-body">
+      <table class="erp-table text-xs">
+        <thead>
+          <tr>
+            <th>Account Code</th>
+            <th>Account Name</th>
+            <th>Description</th>
+            <th>Budget line</th>
+            <th>Project</th>
+            <th>Fund</th>
+            <th>Amount (USD)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(row, idx) in details" :key="idx">
+            <tr>
+              <td><input type="text" class="w-full border-none px-1 py-0.5 text-xs" :name="'detail_account_code_' + idx" /></td>
+              <td><input type="text" class="w-full border-none px-1 py-0.5 text-xs" :name="'detail_account_name_' + idx" /></td>
+              <td><input type="text" class="w-full border-none px-1 py-0.5 text-xs" :name="'detail_description_' + idx" /></td>
+              <td><input type="text" class="w-full border-none px-1 py-0.5 text-xs" :name="'detail_budget_line_' + idx" /></td>
+              <td><input type="text" class="w-full border-none px-1 py-0.5 text-xs" :name="'detail_project_' + idx" /></td>
+              <td><input type="text" class="w-full border-none px-1 py-0.5 text-xs" :name="'detail_fund_' + idx" /></td>
+              <td><input type="number" step="0.01"
+                         x-model="row.amount"
+                         class="w-full border-none px-1 py-0.5 text-xs"
+                         :name="'detail_amount_' + idx" /></td>
+            </tr>
+          </template>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="6" class="text-right">Total amount:</td>
+            <td>
+              <span class="font-semibold" x-text="totalVoucherAmount().toFixed(2)"></span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="mt-2 flex gap-2 hidden-print">
+        <button type="button"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-[11px] font-medium bg-white hover:bg-[#faf9f8]"
+                style="border-color:#edebe9;"
+                @click="details.push({})">
+          <span>Add line</span>
+        </button>
+        <button type="button"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-[11px] font-medium bg-white hover:bg-[#faf9f8]"
+                style="border-color:#edebe9;"
+                @click="if (details.length > 1) details.pop()">
+          <span>Remove line</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Funding allocation (NGO) -->
+  <div class="hidden-print text-xs mb-2">
+    <label class="inline-flex items-center gap-2">
+      <input type="checkbox" x-model="showFunding" name="use_co_funding" value="1" class="rounded border-[#edebe9]" />
+      <span class="text-[#605e5c]">Use funding allocation (co-funding)</span>
+    </label>
+  </div>
+  <div class="erp-section" x-show="showFunding">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Funding Allocation</div>
+    <div class="erp-section-body">
+      <table class="erp-table text-xs">
+        <thead>
+          <tr>
+            <th>Account Code</th>
+            <th>Project</th>
+            <th>Description</th>
+            <th>Budget Line</th>
+            <th>Bank / Cash Account</th>
+            <th>Amount (USD)</th>
+            <th>Percentage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(row, idx) in allocations" :key="idx">
+            <tr>
+              <td>
+                <input type="text"
+                       class="w-full border-none px-1 py-0.5 text-xs"
+                       :name="'funding_account_code_' + idx" />
+              </td>
+              <td>
+                <input type="text"
+                       class="w-full border-none px-1 py-0.5 text-xs"
+                       :name="'funding_project_' + idx" />
+              </td>
+              <td>
+                <input type="text"
+                       class="w-full border-none px-1 py-0.5 text-xs"
+                       :name="'funding_description_' + idx" />
+              </td>
+              <td>
+                <input type="text"
+                       class="w-full border-none px-1 py-0.5 text-xs"
+                       :name="'funding_budget_line_' + idx" />
+              </td>
+              <td>
+                <select :name="'funding_bank_' + idx"
+                        class="w-full border-none px-1 py-0.5 text-xs bg-white">
+                  <option value="">Select bank / cash</option>
+                  {% for acc in payment_accounts %}
+                  <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="number" step="0.01"
+                       x-model="row.amount"
+                       class="w-full border-none px-1 py-0.5 text-xs"
+                       :name="'funding_amount_' + idx" />
+              </td>
+              <td>
+                <input type="text"
+                       :value="rowPct(row)"
+                       readonly
+                       class="w-full border-none px-1 py-0.5 text-xs"
+                       tabindex="-1" />
+              </td>
+            </tr>
+          </template>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" class="text-right">
+              Payment details total:
+              <span class="font-semibold" x-text="totalVoucherAmount().toFixed(2)"></span>
+              &nbsp;|&nbsp;
+              Funding allocation total:
+              <span class="font-semibold" x-text="allocationTotal().toFixed(2)"></span>
+              &nbsp;|&nbsp;
+              Remaining balance:
+              <span :class="remainingClass()" x-text="remainingBalance().toFixed(2)"></span>
+            </td>
+            <td>
+              <span class="font-semibold" x-text="allocationTotal().toFixed(2)"></span>
+            </td>
+            <td>
+              <span class="font-semibold"
+                    x-text="(function(){ const grand = totalVoucherAmount(); return grand ? ((allocationTotal()/grand)*100).toFixed(2) : '0.00' })()"></span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="mt-2 flex gap-2 hidden-print">
+        <button type="button"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-[11px] font-medium bg-white hover:bg-[#faf9f8]"
+                style="border-color:#edebe9;"
+                @click="allocations.push({ amount: (function(){ const rem = remainingBalance(); return rem > 0 ? rem.toFixed(2) : '' })() })">
+          <span>Add line (auto-fill remaining)</span>
+        </button>
+        <button type="button"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-[11px] font-medium bg-white hover:bg-[#faf9f8]"
+                style="border-color:#edebe9;"
+                @click="if (allocations.length > 1) allocations.pop()">
+          <span>Remove line</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attachments -->
+  <div id="recent-payment-vouchers" class="erp-section hidden-print">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Attachments</div>
+    <div class="erp-section-body text-xs space-y-3">
+      <table class="erp-table text-xs">
+        <thead>
+          <tr>
+            <th style="width:22%;">Document type</th>
+            <th>File name</th>
+            <th style="width:16%;">Upload date</th>
+            <th style="width:18%;">Uploaded by</th>
+            <th style="width:18%;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Invoice</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#2563eb]">View / Download / Remove</td>
+          </tr>
+          <tr>
+            <td>Purchase order</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#2563eb]">View / Download / Remove</td>
+          </tr>
+          <tr>
+            <td>Approval memo</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#2563eb]">View / Download / Remove</td>
+          </tr>
+          <tr>
+            <td>Other supporting documents</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#605e5c]">—</td>
+            <td class="text-[#2563eb]">View / Download / Remove</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-semibold text-[#605e5c]">Attach supporting document:</span>
+        <select name="attachment_type"
+                class="text-xs border rounded px-2 py-1 bg-white"
+                style="border-color:#edebe9;">
+          <option value="invoice">Invoice</option>
+          <option value="purchase_order">Purchase Order</option>
+          <option value="approval_memo">Approval Memo</option>
+          <option value="other">Other Supporting Document</option>
+        </select>
+        <input type="file"
+               name="attachment"
+               class="text-xs"
+               multiple
+               accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" />
+        <span class="text-[11px] text-[#605e5c]">
+          Allowed types: PDF, JPG, PNG, DOCX, XLSX.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approvals -->
+  <div class="erp-section">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Approvals</div>
+    <div class="erp-section-body text-xs space-y-2">
+      <table class="erp-table text-xs">
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Prepared by</td>
+            <td>{{ tenant_user.full_name|default:tenant_user.email }}</td>
+            <td>Draft</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Checked by (Project manager)</td>
+            <td>—</td>
+            <td>Pending</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Approved by (Finance manager)</td>
+            <td>—</td>
+            <td>Pending</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer workflow buttons -->
+  <div class="hidden-print border-t pt-3 mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style="border-color:#edebe9;">
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="submit" name="action" value="save_draft"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white text-[#323130] hover:bg-[#faf9f8]"
+              style="border-color:#edebe9;">
+        <i data-feather="save" class="w-4 h-4"></i>
+        <span>Save draft</span>
+      </button>
+      <button type="button"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white text-[#323130] hover:bg-[#faf9f8]"
+              style="border-color:#edebe9;">
+        <i data-feather="check-circle" class="w-4 h-4"></i>
+        <span>Validate</span>
+      </button>
+      <button type="submit"
+              name="action"
+              value="submit_for_approval"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white text-[#1d4ed8] hover:bg-[#eef3ff]"
+              style="border-color:#c7d2fe;">
+        <i data-feather="send" class="w-4 h-4"></i>
+        <span>Submit for approval</span>
+      </button>
+    </div>
+  </div>
+</form>
+
+{% endblock %}
+

@@ -1,0 +1,72 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Create Purchase Order | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{% url 'tenant_portal:procurement_po_list' %}" class="text-sm font-medium hover:underline mb-1 inline-block" style="color:#0078D4;">← Purchase orders</a>
+  <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Create Purchase Order</h1>
+  <p class="text-sm mt-1" style="color:#605e5c;">Select an approved PR and supplier. Method is set from procurement thresholds by value.</p>
+</div>
+
+<div class="bg-white border rounded-lg p-6 max-w-2xl" style="border-color:#edebe9;">
+  <form method="post" action="">
+    {% csrf_token %}
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Purchase Requisition <span style="color:#A4262C;">*</span></label>
+        <select name="pr_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;" id="id_pr">
+          <option value="">Select approved PR</option>
+          {% for p in approved_prs %}
+          <option value="{{ p.pk }}" {% if pr and pr.pk == p.pk %}selected{% endif %}>{{ p.pr_number }} — {{ p.workplan_activity.activity|truncatewords:4 }} ({{ p.effective_total|floatformat:2 }})</option>
+          {% endfor %}
+        </select>
+        {% if not approved_prs %}
+        <p class="text-xs mt-1" style="color:#a4262c;">No approved PRs. Approve a PR from the Line Manager first.</p>
+        {% endif %}
+      </div>
+      {% if pr %}
+      <div class="p-3 rounded-lg text-sm" style="background:#f3f2f1; color:#605e5c;">
+        <strong>PR total:</strong> {{ pr.effective_total|floatformat:2 }} | Grant: {{ pr.grant.code }} | Activity: {{ pr.workplan_activity.activity|truncatewords:6 }}
+      </div>
+      {% endif %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Supplier <span style="color:#A4262C;">*</span></label>
+        <select name="supplier_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+          <option value="">Select supplier</option>
+          {% for s in suppliers %}
+          <option value="{{ s.pk }}">{{ s.code }} — {{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Order date</label>
+          <input type="date" name="order_date" value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Expected delivery</label>
+          <input type="date" name="expected_delivery_date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Procurement method (from threshold or override)</label>
+        <select name="procurement_method" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+          <option value="direct_purchase">Direct Purchase</option>
+          <option value="request_quotation">Request for Quotation (RFQ)</option>
+          <option value="open_tender">Open Tender</option>
+          <option value="framework">Framework Agreement</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Create PO</button>
+      <a href="{% url 'tenant_portal:procurement_po_list' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

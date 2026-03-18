@@ -1,0 +1,157 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Outstanding Receivables | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4" x-data="{ search: '' }">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Outstanding receivables</h1>
+      <p class="text-sm mt-1 text-[#605e5c]">Receivables with unpaid balances and days outstanding.</p>
+    </div>
+    {% include "tenant_portal/_smart_alerts_module.html" with alert_category="receivables" %}
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
+        <input type="text"
+               x-model="search"
+               placeholder="Search receivable, debtor, project..."
+               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
+               style="border-color:#edebe9;" />
+      </div>
+    </div>
+  </div>
+
+  {% include "tenant_portal/_smart_alerts_module.html" with alert_category="receivables" %}
+
+  <!-- Filter bar -->
+  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
+    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Debtor name</label>
+        <input type="text" name="debtor" value="{{ request.GET.debtor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Type</label>
+        <select name="type" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
+          <option value="">All</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
+        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
+        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Due from</label>
+          <input type="date" name="due_from" value="{{ request.GET.due_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Due to</label>
+          <input type="date" name="due_to" value="{{ request.GET.due_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Days from</label>
+          <input type="text" name="days_from" value="{{ request.GET.days_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Days to</label>
+          <input type="text" name="days_to" value="{{ request.GET.days_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Balance from</label>
+          <input type="text" name="balance_from" value="{{ request.GET.balance_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Balance to</label>
+          <input type="text" name="balance_to" value="{{ request.GET.balance_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
+        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for code, label in status_choices %}
+          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
+        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
+          <i data-feather="filter" class="w-4 h-4"></i>
+          <span>Apply filters</span>
+        </button>
+        <a href="{% url 'tenant_portal:recv_outstanding_receivables' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <span>Reset</span>
+        </a>
+      </div>
+    </div>
+  </form>
+
+  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
+    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
+      <span class="text-sm font-semibold uppercase tracking-wide">Outstanding receivables</span>
+    </div>
+    <div class="erp-section-body overflow-auto p-0">
+      <table class="erp-table text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-2.5">Receivable no.</th>
+            <th class="px-4 py-2.5">Debtor name</th>
+            <th class="px-4 py-2.5">Type</th>
+            <th class="px-4 py-2.5">Description</th>
+            <th class="px-4 py-2.5">Project</th>
+            <th class="px-4 py-2.5">Fund / Donor</th>
+            <th class="px-4 py-2.5 text-right">Original amount</th>
+            <th class="px-4 py-2.5 text-right">Amount collected</th>
+            <th class="px-4 py-2.5 text-right">Outstanding balance</th>
+            <th class="px-4 py-2.5">Due date</th>
+            <th class="px-4 py-2.5 text-right">Days outstanding</th>
+            <th class="px-4 py-2.5">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="hover:bg-[#faf9f8] transition-colors"
+              data-search="{{ r.receivable_no|lower }} {{ r.debtor_name|lower }} {{ r.project|lower }} {{ r.fund_donor|lower }}"
+              x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
+            <td class="px-4 py-2.5">
+              <a href="{% url transaction_url_name %}?focus={{ r.entry_id }}" class="text-[#0078D4] font-medium hover:underline">
+                {{ r.receivable_no }}
+              </a>
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.debtor_name|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.receivable_type }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.description|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.fund_donor|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.original_amount }}</td>
+            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.amount_collected }}</td>
+            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.outstanding_balance }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.due_date|date:"d/m/Y" }}</td>
+            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.days_outstanding }}</td>
+            <td class="px-4 py-2.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                {{ r.status }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="12" class="px-4 py-6 text-center text-sm text-[#605e5c]">No outstanding receivables found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,83 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Purchase Orders | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Procurement — Purchase Orders</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">Process approved PRs into POs; track goods receipts and supplier invoices.</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'tenant_portal:procurement_po_create' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm" style="background:#0078D4;">
+      <i data-feather="plus" class="w-4 h-4"></i> New PO
+    </a>
+    <a href="{% url 'tenant_portal:procurement_suppliers' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium" style="border-color:#edebe9;">Suppliers</a>
+    <a href="{% url 'tenant_portal:procurement_thresholds' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium" style="border-color:#edebe9;">Thresholds</a>
+  </div>
+</div>
+
+<div class="bg-white border rounded-lg p-4 mb-4" style="border-color:#edebe9;">
+  <form method="get" action="" class="flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Status</label>
+      <select name="status" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for value, label in po_status_choices %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Supplier</label>
+      <select name="supplier_id" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[160px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for s in suppliers %}
+        <option value="{{ s.pk }}" {% if filters.supplier_id == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
+    <a href="{% url 'tenant_portal:procurement_po_list' %}" class="px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Reset</a>
+  </form>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="overflow-auto">
+    <table class="min-w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PO number</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PR</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Supplier</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Order date</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Total</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for po in pos %}
+        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2 font-mono font-medium" style="color:#323130;">{{ po.po_number }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{{ po.pr.pr_number }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{{ po.supplier.name }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ po.order_date|date:"d/m/Y" }}</td>
+          <td class="px-4 py-2 text-right font-medium" style="color:#323130;">{{ po.total_amount|floatformat:2 }}</td>
+          <td class="px-4 py-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                  style="{% if po.status == 'approved' or po.status == 'sent' %}background:#e5f0ff; color:#1d4ed8;{% elif po.status == 'received' or po.status == 'closed' %}background:#dff6dd; color:#0b5a0b;{% elif po.status == 'pending_approval' %}background:#fff4ce; color:#7a5c00;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
+              {{ po.get_status_display }}
+            </span>
+          </td>
+          <td class="px-4 py-2">
+            <a href="{% url 'tenant_portal:procurement_po_detail' po.pk %}" class="font-medium hover:underline" style="color:#0078D4;">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="px-4 py-8 text-center" style="color:#605e5c;">No purchase orders. Create a PO from an approved PR.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

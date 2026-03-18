@@ -1,0 +1,175 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}PO {{ po.po_number }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <a href="{% url 'tenant_portal:procurement_po_list' %}" class="text-sm font-medium hover:underline mb-1 inline-block" style="color:#0078D4;">← Purchase orders</a>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ po.po_number }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{{ po.supplier.name }} · PR {{ po.pr.pr_number }}</p>
+  </div>
+  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
+        style="{% if po.status == 'approved' or po.status == 'sent' %}background:#e5f0ff; color:#1d4ed8;{% elif po.status == 'received' or po.status == 'closed' %}background:#dff6dd; color:#0b5a0b;{% elif po.status == 'pending_approval' %}background:#fff4ce; color:#7a5c00;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
+    {{ po.get_status_display }}
+  </span>
+</div>
+
+{% if messages %}
+<ul class="mb-4">
+  {% for message in messages %}
+  <li class="py-2 px-4 rounded-lg text-sm {% if message.tags == 'error' %}bg-[#fde7e9] text-[#a4262c]{% else %}bg-[#dff6dd] text-[#0b5a0b]{% endif %}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">PO details</h2>
+      </div>
+      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold" style="color:#605e5c;">PR</span><br/><a href="{% url 'tenant_portal:grants_pr_detail' po.pr_id %}" class="text-[#0078D4] hover:underline">{{ po.pr.pr_number }}</a></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Supplier</span><br/><span style="color:#323130;">{{ po.supplier.name }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Order date</span><br/><span style="color:#323130;">{{ po.order_date|date:"d M Y" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Expected delivery</span><br/><span style="color:#323130;">{{ po.expected_delivery_date|date:"d M Y"|default:"—" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Method</span><br/><span style="color:#323130;">{{ po.get_procurement_method_display }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Total</span><br/><span class="font-semibold" style="color:#323130;">{{ po.total_amount|floatformat:2 }}</span></div>
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">PO lines</h2>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Item</th>
+              <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Qty</th>
+              <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Received</th>
+              <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Unit price</th>
+              <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in po.lines.all %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-4 py-2" style="color:#323130;">{{ line.item_description }}</td>
+              <td class="px-4 py-2 text-right" style="color:#323130;">{{ line.quantity|floatformat:2 }}</td>
+              <td class="px-4 py-2 text-right" style="color:#323130;">{{ line.received_quantity|floatformat:2 }}</td>
+              <td class="px-4 py-2 text-right" style="color:#323130;">{{ line.unit_price|floatformat:2 }}</td>
+              <td class="px-4 py-2 text-right font-medium" style="color:#323130;">{{ line.amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Goods receipts</h2>
+      </div>
+      <div class="p-5">
+        {% for gr in po.goods_receipts.all %}
+        <div class="flex items-center justify-between py-2 border-b last:border-0" style="border-color:#edebe9;">
+          <span class="font-medium" style="color:#323130;">{{ gr.gr_number }}</span>
+          <span style="color:#605e5c;">{{ gr.receipt_date|date:"d/m/Y" }}</span>
+        </div>
+        {% empty %}
+        <p class="text-sm" style="color:#605e5c;">No goods receipts yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Supplier invoices</h2>
+      </div>
+      <div class="p-5">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Invoice</th>
+              <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Date</th>
+              <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Amount</th>
+              <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Status</th>
+              {% if can_process %}<th></th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in po.invoices.all %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-3 py-2 font-medium" style="color:#323130;">{{ inv.invoice_number }}</td>
+              <td class="px-3 py-2" style="color:#605e5c;">{{ inv.invoice_date|date:"d/m/Y" }}</td>
+              <td class="px-3 py-2 text-right" style="color:#323130;">{{ inv.total_amount|floatformat:2 }}</td>
+              <td class="px-3 py-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                      style="{% if inv.status == 'paid' %}background:#dff6dd; color:#0b5a0b;{% elif inv.status == 'approved' %}background:#e5f0ff; color:#1d4ed8;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
+                  {{ inv.get_status_display }}
+                </span>
+              </td>
+              {% if can_process %}
+              <td class="px-3 py-2">
+                {% if inv.status == 'draft' %}
+                <form method="post" action="" class="inline">
+                  {% csrf_token %}<input type="hidden" name="action" value="submit_invoice_for_approval" /><input type="hidden" name="invoice_id" value="{{ inv.pk }}" />
+                  <button type="submit" class="text-xs px-2 py-1 rounded border" style="border-color:#7a5c00; color:#7a5c00;">Submit for approval</button>
+                </form>
+                {% elif inv.status == 'pending_approval' %}
+                <form method="post" action="" class="inline">
+                  {% csrf_token %}<input type="hidden" name="action" value="approve_invoice" /><input type="hidden" name="invoice_id" value="{{ inv.pk }}" />
+                  <button type="submit" class="text-xs px-2 py-1 rounded border" style="border-color:#107C10; color:#107C10;">Approve</button>
+                </form>
+                {% elif inv.status == 'approved' %}
+                <form method="post" action="" class="inline">
+                  {% csrf_token %}<input type="hidden" name="action" value="mark_invoice_paid" /><input type="hidden" name="invoice_id" value="{{ inv.pk }}" />
+                  <input type="text" name="payment_reference" placeholder="Ref" class="w-24 px-1 py-0.5 text-xs border rounded" style="border-color:#edebe9;" />
+                  <input type="date" name="payment_date" class="w-28 px-1 py-0.5 text-xs border rounded" style="border-color:#edebe9;" />
+                  <button type="submit" class="text-xs px-2 py-1 rounded border" style="border-color:#0b5a0b; color:#0b5a0b;">Mark paid</button>
+                </form>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-3 py-4 text-sm" style="color:#605e5c;">No invoices yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Actions</h2>
+      </div>
+      <div class="p-5 space-y-2">
+        {% if can_process %}
+          {% if po.status == 'pending_approval' %}
+          <form method="post" action=""><input type="hidden" name="action" value="approve_po" />{% csrf_token %}
+            <button type="submit" class="w-full px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#107C10;">Approve PO</button>
+          </form>
+          {% endif %}
+          {% if po.status == 'draft' or po.status == 'approved' %}
+          <form method="post" action=""><input type="hidden" name="action" value="send_po" />{% csrf_token %}
+            <button type="submit" class="w-full px-4 py-2 rounded-lg text-sm font-semibold border" style="border-color:#0078D4; color:#0078D4;">Mark sent to supplier</button>
+          </form>
+          {% endif %}
+          <a href="{% url 'tenant_portal:procurement_gr_create' po.pk %}" class="block w-full text-center px-4 py-2 rounded-lg text-sm font-semibold border" style="border-color:#7a5c00; color:#7a5c00;">Record goods receipt</a>
+          <a href="{% url 'tenant_portal:procurement_invoice_create' po.pk %}" class="block w-full text-center px-4 py-2 rounded-lg text-sm font-semibold border" style="border-color:#0b5a0b; color:#0b5a0b;">Add supplier invoice</a>
+          {% if po.status == 'received' %}
+          <form method="post" action=""><input type="hidden" name="action" value="close_po" />{% csrf_token %}
+            <button type="submit" class="w-full px-4 py-2 rounded-lg text-sm font-semibold border" style="border-color:#605e5c;">Close PO</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

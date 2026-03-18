@@ -1,0 +1,49 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Realized Findings{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Realized Findings</h1>
+    <p class="page-subtitle mt-1">Findings with materialized impact; financial loss, recovered amount, and outstanding exposure.</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">Realized findings register</div>
+    <div class="erp-section-body overflow-x-auto">
+      {% if findings %}
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Financial impact</th>
+            <th>Recovered</th>
+            <th>Outstanding</th>
+            <th>Recovery status</th>
+            <th>Realized</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings %}
+          <tr>
+            <td>{{ f.title }}</td>
+            <td>{{ f.financial_impact|floatformat:2|default:"—" }}</td>
+            <td>{{ f.recovered_amount|floatformat:2|default:"—" }}</td>
+            <td>{{ f.unrecovered_amount|floatformat:2|default:"—" }}</td>
+            <td>{{ f.get_recovery_status_display|default:"—" }}</td>
+            <td>{{ f.realized_at|date:"Y-m-d"|default:"—" }}</td>
+            <td>{{ f.get_status_display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-12 text-center">
+        <i data-feather="trending-down" class="w-12 h-12 mb-3" style="color: #c8c6c4;"></i>
+        <p class="text-[13px]" style="color: #605e5c;">No realized findings.</p>
+        <p class="text-[12px] mt-1" style="color: #a19f9d;">Findings with materialized financial impact appear here.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

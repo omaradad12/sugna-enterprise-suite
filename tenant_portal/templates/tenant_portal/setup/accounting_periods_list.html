@@ -1,0 +1,155 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-page-title { font-size: 22px; font-weight: 600; color: #323130; letter-spacing: -0.01em; }
+  .dyn-page-desc { font-size: 13px; color: #605e5c; margin-top: 2px; }
+  .dyn-command-bar {
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;
+    padding: 12px 16px 16px; margin: 0 -16px 16px; border-bottom:1px solid #edebe9;
+    background: linear-gradient(90deg, #f3f2f1 0, #faf9f8 40%, #ffffff 100%);
+  }
+  .dyn-section { background:#fff; border:1px solid #edebe9; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.02); }
+  .dyn-section-title {
+    font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:#323130;
+    padding:10px 16px; background:#faf9f8; border-bottom:1px solid #edebe9;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .dyn-section-body { padding: 12px 16px 16px; }
+  .dyn-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px; }
+  .dyn-toolbar select {
+    height:32px; padding:0 8px; border:1px solid #edebe9; border-radius:2px; font-size:13px; background:#fff;
+    min-width: 200px;
+  }
+  .dyn-btn-primary {
+    height: 32px; padding: 0 12px; font-size: 13px; font-weight: 500; border: none; border-radius: 2px;
+    background:#0078d4; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+  }
+  .dyn-btn-primary:hover { background:#106ebe; color:#fff; }
+  .dyn-btn-secondary {
+    height: 32px; padding: 0 12px; font-size: 13px; font-weight: 500; border: 1px solid #edebe9; border-radius: 2px;
+    background:#fff; color:#323130; text-decoration:none; display:inline-flex; align-items:center;
+  }
+  .dyn-btn-secondary:hover { background:#f3f2f1; color:#323130; }
+  .dyn-link { color:#0078d4; text-decoration:none; font-size:13px; }
+  .dyn-link:hover { text-decoration:underline; }
+  .dyn-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .dyn-table th { text-align:left; font-weight:600; color:#323130; background:#f3f2f1; padding:8px 12px; border:1px solid #edebe9; }
+  .dyn-table td { padding:8px 12px; border:1px solid #edebe9; vertical-align:top; }
+  .dyn-badge-open { background:#dff6dd; color:#0b5a0b; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .dyn-badge-soft { background:#fff4ce; color:#8a6d1a; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .dyn-badge-hard { background:#fde7e9; color:#a4262c; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .dyn-reason { width: 220px; height: 32px; padding: 0 8px; border: 1px solid #edebe9; border-radius: 2px; font-size: 13px; }
+  .dyn-pagination { margin-top:12px; font-size:13px; color:#605e5c; display:flex; align-items:center; gap:12px; }
+  .dyn-empty { text-align:center; padding:32px 16px; color:#605e5c; font-size:13px; }
+</style>
+
+<div class="dyn-command-bar">
+  <div>
+    <div class="dyn-page-title">Accounting periods</div>
+    <div class="dyn-page-desc">Open and close periods to control posting. Posting is blocked when a period is closed.</div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <a href="{% url 'tenant_portal:setup_home' %}" class="dyn-link">Back to Financial Setup</a>
+  </div>
+</div>
+
+<div class="dyn-section">
+  <div class="dyn-section-title">
+    <span>Periods</span>
+  </div>
+  <div class="dyn-section-body">
+    <form method="get" class="dyn-toolbar">
+      <select name="fiscal_year">
+        <option value="">All fiscal years</option>
+        {% for fy in fiscal_years %}
+        <option value="{{ fy.id }}" {% if filter_fiscal_year|add:'' == fy.id|add:'' %}selected{% endif %}>
+          {{ fy.name }} ({{ fy.start_date|date:"Y-m-d" }} → {{ fy.end_date|date:"Y-m-d" }})
+        </option>
+        {% endfor %}
+      </select>
+      <select name="status">
+        <option value="">All statuses</option>
+        <option value="open" {% if filter_status == 'open' %}selected{% endif %}>Open</option>
+        <option value="closed" {% if filter_status == 'closed' %}selected{% endif %}>Closed</option>
+      </select>
+      <button type="submit" class="dyn-btn-primary">Apply</button>
+      <a href="{% url 'tenant_portal:setup_accounting_periods_list' %}" class="dyn-btn-secondary">Reset</a>
+    </form>
+
+    <div class="overflow-x-auto">
+      <table class="dyn-table">
+        <thead>
+          <tr>
+            <th>Fiscal year</th>
+            <th>Period</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Status</th>
+            <th>Closed by</th>
+            <th>Closed at</th>
+            {% if can_manage %}<th style="width:140px;">Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods_page %}
+          <tr>
+            <td>{{ p.fiscal_year.name }}</td>
+            <td>
+              <div class="font-medium">{{ p.name|default:p.period_name|default:"P"|add:p.period_number }}</div>
+              <div class="text-xs" style="color:#605e5c;">P{{ p.period_number }}</div>
+            </td>
+            <td>{{ p.start_date|date:"Y-m-d" }}</td>
+            <td>{{ p.end_date|date:"Y-m-d" }}</td>
+            <td>
+              {% if p.status == 'soft_closed' %}
+              <span class="dyn-badge-soft">Soft closed</span>
+              {% elif p.status == 'hard_closed' or p.is_closed %}
+              <span class="dyn-badge-hard">Hard closed</span>
+              {% else %}
+              <span class="dyn-badge-open">Open</span>
+              {% endif %}
+            </td>
+            <td class="text-xs">{{ p.closed_by.email|default:"—" }}</td>
+            <td class="text-xs">{{ p.closed_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            {% if can_manage %}
+            <td>
+              <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="period_id" value="{{ p.id }}">
+                <input type="text" name="reason" class="dyn-reason" placeholder="Reason (required)">
+                <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                  {% if p.status == 'open' %}
+                  <button type="submit" name="action" value="soft_close" class="dyn-btn-secondary">Soft close</button>
+                  <button type="submit" name="action" value="hard_close" class="dyn-btn-secondary" style="border-color:#fde7e9; color:#a4262c;">Hard close</button>
+                  {% else %}
+                  <button type="submit" name="action" value="reopen" class="dyn-btn-secondary">Reopen</button>
+                  {% endif %}
+                </div>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if can_manage %}8{% else %}7{% endif %}" class="dyn-empty">No accounting periods found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if periods_page.paginator.num_pages > 1 %}
+    <div class="dyn-pagination">
+      {% if periods_page.has_previous %}
+      <a class="dyn-link" href="?page={{ periods_page.previous_page_number }}{% if base_query %}&{{ base_query }}{% endif %}">Previous</a>
+      {% endif %}
+      <span>Page {{ periods_page.number }} of {{ periods_page.paginator.num_pages }}</span>
+      {% if periods_page.has_next %}
+      <a class="dyn-link" href="?page={{ periods_page.next_page_number }}{% if base_query %}&{{ base_query }}{% endif %}">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

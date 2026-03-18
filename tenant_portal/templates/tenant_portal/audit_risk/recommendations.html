@@ -1,0 +1,7 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Recommendations Tracker{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto"><h1 class="page-title mb-4">Recommendations Tracker</h1>
+<div class="erp-section"><div class="erp-section-header">Open recommendations</div><div class="erp-section-body overflow-x-auto">
+<table class="erp-table"><thead><tr><th>Title</th><th>Due date</th><th>Created</th></tr></thead>
+<tbody>{% for f in findings %}<tr><td>{{ f.title }}</td><td>{{ f.due_date|date:"Y-m-d"|default:"—" }}</td><td>{{ f.created_at|date:"Y-m-d H:i" }}</td></tr>{% empty %}<tr><td colspan="3" class="text-center" style="color:#605e5c;">No open recommendations.</td></tr>{% endfor %}</tbody></table></div></div></div>{% endblock %}

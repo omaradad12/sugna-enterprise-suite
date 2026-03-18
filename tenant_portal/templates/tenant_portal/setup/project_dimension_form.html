@@ -1,0 +1,62 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{% if project %}Update project.{% else %}Add a project dimension. Code must be unique. Only active projects appear in transactions.{% endif %}</p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Project / Grant Dimensions</a>
+</div>
+
+<div class="erp-section max-w-2xl">
+  <div class="erp-section-header">Project details</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Code <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="code" value="{% if project %}{{ project.code }}{% endif %}" required maxlength="50" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. PRJ-001" />
+        <p class="text-xs mt-1" style="color:#605e5c;">Unique project code.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project Name <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="name" value="{% if project %}{{ project.name }}{% endif %}" required maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor</label>
+        <select name="donor_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if project and project.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Start Date</label>
+          <input type="date" name="start_date" value="{% if project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Transactions must fall within this range.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">End Date</label>
+          <input type="date" name="end_date" value="{% if project and project.end_date %}{{ project.end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
+        <select name="is_active" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="1" {% if project and project.is_active or not project %}selected{% endif %}>Active</option>
+          <option value="0" {% if project and not project.is_active %}selected{% endif %}>Inactive</option>
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">Only active projects appear in transaction dropdowns.</p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if project %}Update{% else %}Create{% endif %} Project</button>
+        <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

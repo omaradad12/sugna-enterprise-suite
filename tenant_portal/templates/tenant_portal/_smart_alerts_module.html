@@ -1,0 +1,29 @@
+{% comment %}
+Include on module dashboards to show alerts for this module only.
+Usage: {% include "tenant_portal/_smart_alerts_module.html" with alert_category="cash_bank" %}
+Valid alert_category: cash_bank, budget, payables, receivables, audit_risk
+{% endcomment %}
+{% if smart_alerts %}
+  {% for alert in smart_alerts %}
+    {% if alert.category == alert_category %}
+      {% if forloop.first %}
+<div class="bg-white border rounded-lg p-4 mb-4" style="border-color:#edebe9;">
+  <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Alerts</h2>
+  <div class="space-y-2">
+      {% endif %}
+    <a href="{{ alert.link_url }}" class="flex gap-3 items-start p-3 rounded-lg border-l-4 hover:bg-[#faf9f8]" style="border-color:#edebe9; border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
+      <span class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
+        <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="text-[13px] font-semibold text-[#111827]">{{ alert.title }}</p>
+        <p class="text-[12px] mt-0.5" style="color:#6b7280;">{{ alert.message }}</p>
+      </div>
+    </a>
+      {% if forloop.last %}
+  </div>
+</div>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endif %}

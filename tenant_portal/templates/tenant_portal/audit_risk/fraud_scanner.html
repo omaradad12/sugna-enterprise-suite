@@ -1,0 +1,17 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Fraud Risk Scanner{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Fraud Risk Scanner</h1>
+    <p class="page-subtitle mt-1">Transactions are automatically scored when posted. View results in High Risk Transactions and Fraud Alerts.</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">How it works</div>
+    <div class="erp-section-body">
+      <p class="text-[13px]" style="color: #605e5c;">The fraud detection engine runs on every journal entry and payment when they are posted. Risk scores (0–100) and indicators are stored; high and critical scores generate alerts. Use <strong>High Risk Transactions</strong> and <strong>Fraud Alerts</strong> in the sidebar to review findings.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

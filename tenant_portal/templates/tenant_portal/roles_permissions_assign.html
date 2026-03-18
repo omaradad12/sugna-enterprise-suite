@@ -1,0 +1,108 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Assign Roles{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto pb-10">
+  <div class="rounded-lg overflow-hidden mb-5" style="background: linear-gradient(135deg,#0078d4 0%,#106ebe 50%,#005a9e 100%); color:#ffffff;">
+    <div class="px-4 py-2 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(255,255,255,0.22);">
+          <i data-feather="users" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight">Assign roles to users</h1>
+          <p class="text-xs opacity-90">Map system roles to users in this organization.</p>
+        </div>
+      </div>
+      <a href="{% url 'tenant_portal:roles_permissions_list' %}"
+         class="px-3 py-1.5 rounded text-xs font-medium border border-white/60 text-white hover:bg-white/15">
+        Back to roles
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="rounded-lg bg-white border" style="border-color:#edebe9;">
+    {% csrf_token %}
+    <div class="px-5 py-3 border-b flex items-center gap-2" style="background:#faf9f8; border-color:#edebe9;">
+      <i data-feather="sliders" class="w-4 h-4" style="color:#0078d4;"></i>
+      <span class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">User role assignments</span>
+    </div>
+    <div class="px-5 py-3 border-b flex items-center justify-between gap-3" style="border-color:#edebe9;">
+      <div class="flex items-center gap-2">
+        <i data-feather="search" class="w-4 h-4" style="color:#605e5c;"></i>
+        <input id="userSearch" type="text" placeholder="Search users…" class="px-3 py-2 rounded border text-sm w-72"
+               style="border-color:#d1d5db;">
+      </div>
+      <div class="text-xs" style="color:#6b7280;">Tip: users can have multiple roles.</div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:#faf9f8; color:#605e5c; text-transform:uppercase; font-size:11px;">
+            <th class="px-4 py-2 text-left">User</th>
+            <th class="px-4 py-2 text-left">Email</th>
+            <th class="px-4 py-2 text-left">Roles</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="border-t user-row" style="border-color:#edebe9;">
+            <td class="px-4 py-2 font-medium user-name">{{ row.user.full_name|default:"—" }}</td>
+            <td class="px-4 py-2 user-email">{{ row.user.email }}</td>
+            <td class="px-4 py-2">
+              <div class="flex flex-wrap gap-3">
+                {% for r in roles %}
+                <label class="inline-flex items-center gap-2 text-xs" style="color:#374151;">
+                  <input type="checkbox"
+                         name="user_{{ row.user.id }}_roles"
+                         value="{{ r.id }}"
+                         class="rounded border-[#d1d5db]"
+                         {% if r.id in row.current_role_ids %}checked{% endif %}>
+                  <span>{{ r.name }}</span>
+                  {% if r.is_system %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] border"
+                          style="border-color:#d1d5db; color:#605e5c; background:#faf9f8;">System</span>
+                  {% endif %}
+                </label>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="3" class="px-4 py-8 text-center text-sm" style="color:#605e5c;">
+              No users found for this organization.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-5 py-3 border-t flex items-center gap-3" style="border-color:#edebe9;">
+      <button type="submit"
+              class="px-4 py-2 rounded text-sm font-medium text-white"
+              style="background:#0078d4;">
+        Save assignments
+      </button>
+      <p class="text-xs" style="color:#6b7280;">
+        Role assignments are scoped to this tenant only and are fully tracked in the audit trail.
+      </p>
+    </div>
+  </form>
+</div>
+<script>
+  (function () {
+    const input = document.getElementById("userSearch");
+    if (!input) return;
+    input.addEventListener("input", function () {
+      const q = (input.value || "").toLowerCase().trim();
+      document.querySelectorAll(".user-row").forEach(function (row) {
+        const name = (row.querySelector(".user-name")?.textContent || "").toLowerCase();
+        const email = (row.querySelector(".user-email")?.textContent || "").toLowerCase();
+        const ok = !q || name.includes(q) || email.includes(q);
+        row.style.display = ok ? "" : "none";
+      });
+    });
+  })();
+</script>
+{% endblock %}
+

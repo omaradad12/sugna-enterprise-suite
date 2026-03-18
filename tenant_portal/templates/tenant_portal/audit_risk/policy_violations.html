@@ -1,0 +1,5 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Policy Violations{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto"><h1 class="page-title mb-4">Policy Violations</h1>
+<p class="text-sm" style="color:#605e5c;">Policy violation alerts can be linked to control rules and risk alerts.</p></div>{% endblock %}

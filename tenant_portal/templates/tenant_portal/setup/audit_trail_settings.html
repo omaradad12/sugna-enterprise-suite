@@ -1,0 +1,452 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Audit trail settings | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .dyn-card { border: 1px solid #edebe9; background: #ffffff; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .dyn-card-h { padding: 14px 16px; border-bottom: 1px solid #edebe9; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .dyn-card-title { font-size: 14px; font-weight: 700; color:#323130; }
+  .dyn-card-sub { font-size: 12px; color:#6b7280; margin-top: 2px; }
+  .dyn-help { color:#6b7280; font-size:12px; line-height: 1.4; }
+  .dyn-divider { height:1px; background:#edebe9; }
+  /* Row style (checkbox indicator + toggle) */
+  .dyn-row { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding: 12px 16px; }
+  .dyn-row + .dyn-row { border-top: 1px solid #f3f2f1; }
+  .dyn-row-left { display:flex; align-items:flex-start; gap:10px; min-width: 0; }
+  .dyn-ind { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #c8c6c4; background:#ffffff; margin-top: 2px; position: relative; flex: 0 0 auto; }
+  .dyn-ind::after { content:""; position:absolute; inset: 0; margin:auto; width: 8px; height: 4px; border-left:2px solid #ffffff; border-bottom:2px solid #ffffff; transform: rotate(-45deg); top: 4px; left: 3px; opacity: 0; }
+  .dyn-row-title { font-size: 13px; font-weight: 600; color:#323130; }
+  .dyn-row-desc { font-size: 12px; color:#6b7280; margin-top: 2px; }
+  .dyn-row:hover { background: #faf9f8; }
+
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex: 0 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#c8c6c4; transition:.15s; border-radius: 999px; }
+  .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; top:3px; background:white; transition:.15s; border-radius:999px; box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+  .switch input:checked + .slider { background:#0078d4; }
+  .switch input:checked + .slider:before { transform: translateX(20px); }
+  .switch input:disabled + .slider { opacity:.55; cursor:not-allowed; }
+  .dyn-select, .dyn-input { border:1px solid #d1d5db; border-radius: 8px; padding: 9px 10px; font-size: 13px; width: 100%; background:#fff; }
+  .dyn-select:disabled, .dyn-input:disabled { background:#f9fafb; color:#6b7280; }
+  .dyn-multi { min-height: 44px; }
+
+  /* Checked indicator mapping: input inside .dyn-row-left */
+  .dyn-row-left input[type="checkbox"]:checked ~ .dyn-ind { background:#0078d4; border-color:#0078d4; }
+  .dyn-row-left input[type="checkbox"]:checked ~ .dyn-ind::after { opacity: 1; }
+  .dyn-row-left input[type="checkbox"]:disabled ~ .dyn-ind { opacity: .55; }
+
+  /* Retention segmented options */
+  .dyn-seg { display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
+  .dyn-pill { display:inline-flex; align-items:center; gap:8px; padding: 6px 10px; border-radius: 8px; border: 1px solid #edebe9; background:#ffffff; font-size: 12px; color:#323130; cursor:pointer; }
+  .dyn-pill input { display:none; }
+  .dyn-pill.active { background:#e8f1fb; border-color:#a7c7ef; color:#0b3d73; }
+</style>
+
+<div class="dyn-page w-full mx-auto px-0 md:px-0">
+  <div class="mb-4">
+    <h1 class="page-title">Audit trail settings</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">
+      Controls system-wide audit logging, user activity tracking, and fraud detection to ensure full transparency, accountability, and donor compliance.
+    </p>
+  </div>
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- 1) Audit Control -->
+      <div class="dyn-card">
+        <div class="dyn-card-h">
+          <div class="flex items-start gap-10">
+            <div class="flex items-start gap-3">
+              <i data-feather="file-text" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+              <div>
+                <div class="dyn-card-title">Audit Control</div>
+                <div class="dyn-card-sub">Manage core audit logging behavior</div>
+              </div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="enable_audit_logging" {% if setting.enable_audit_logging %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="enable_audit_logging" class="hidden" {% if setting.enable_audit_logging %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Enable Audit Logging</div>
+              <div class="dyn-row-desc">Tracks all changes made to vouchers after creation</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="enable_audit_logging" {% if setting.enable_audit_logging %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_posting_actions" class="hidden" {% if setting.track_posting_actions %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track posting actions</div>
+              <div class="dyn-row-desc">Records all financial posting actions (approved, reversed)</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_posting_actions" {% if setting.track_posting_actions %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_approvals" class="hidden" {% if setting.track_approvals %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track approvals</div>
+              <div class="dyn-row-desc">Logs all approval activities (who, when)</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_approvals" {% if setting.track_approvals %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_field_level_changes" class="hidden" {% if setting.track_field_level_changes %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track field-level changes</div>
+              <div class="dyn-row-desc">Captures before and after values for field modifications</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_field_level_changes" {% if setting.track_field_level_changes %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 2) User Activity & Access -->
+      <div class="dyn-card">
+        <div class="dyn-card-h">
+          <div class="flex items-start gap-3">
+            <i data-feather="user" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+            <div>
+              <div class="dyn-card-title">User Activity &amp; Access</div>
+              <div class="dyn-card-sub">Track user logins and access changes</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_user_changes" {% if setting.track_user_changes %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_logins" class="hidden" {% if setting.track_logins %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track logins &amp; logouts</div>
+              <div class="dyn-row-desc">Flags failed logins after 3 attempts</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_logins" {% if setting.track_logins %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_failed_logins" class="hidden" {% if setting.track_failed_logins %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track failed login attempts</div>
+              <div class="dyn-row-desc">Flags failed logins after 3+ attempts</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_failed_logins" {% if setting.track_failed_logins %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_user_changes" class="hidden" {% if setting.track_user_changes %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track user &amp; role changes</div>
+              <div class="dyn-row-desc">Logs changes in user roles &amp; permissions</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_user_changes" {% if setting.track_user_changes %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-divider"></div>
+
+        <div class="p-4 space-y-2">
+          <div class="text-[11px] font-semibold uppercase tracking-wide" style="color:#605e5c;">Authorized roles</div>
+          <select name="authorized_roles_for_audit_logs" multiple class="dyn-select dyn-multi" {% if read_only %}disabled{% endif %}>
+            {% for r in roles %}
+            <option value="{{ r }}" {% if r in selected_roles_for_audit_logs %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+          </select>
+          <p class="dyn-help">Only selected roles can review full audit logs</p>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="allow_users_see_own_activity" class="hidden" {% if setting.allow_users_see_own_activity %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Allow users to view only their activity</div>
+              <div class="dyn-row-desc">Limits users to their own audit trail</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="allow_users_see_own_activity" {% if setting.allow_users_see_own_activity %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 3) Transaction Safety -->
+      <div class="dyn-card">
+        <div class="dyn-card-h">
+          <div class="flex items-start gap-3">
+            <i data-feather="headphones" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+            <div>
+              <div class="dyn-card-title">Transaction Safety</div>
+              <div class="dyn-card-sub">Protect transactions from unauthorized changes</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="strict_posting_protection" {% if setting.strict_posting_protection %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="prevent_hard_delete_transactions" class="hidden" {% if setting.prevent_hard_delete_transactions %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Prevent deletion of posted transactions</div>
+              <div class="dyn-row-desc">Locks posted transactions from being deleted</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="prevent_hard_delete_transactions" {% if setting.prevent_hard_delete_transactions %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="require_reason_for_reversal" class="hidden" {% if setting.require_reason_for_reversal %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Require reason for reversals / void</div>
+              <div class="dyn-row-desc">Mandatory reason required for reversals</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="require_reason_for_reversal" {% if setting.require_reason_for_reversal %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="strict_posting_protection" class="hidden" {% if setting.strict_posting_protection %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Block edits after posting (strict mode)</div>
+              <div class="dyn-row-desc">Locks vouchers from further modification</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="strict_posting_protection" {% if setting.strict_posting_protection %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 4) Risk & Compliance Engine (matches screenshot bottom-left) -->
+      <div class="dyn-card">
+        <div class="dyn-card-h">
+          <div class="flex items-start gap-3">
+            <i data-feather="alert-triangle" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+            <div>
+              <div class="dyn-card-title">Risk &amp; Compliance Engine</div>
+              <div class="dyn-card-sub">Detect and escalate high-risk activities</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_high_risk_events" {% if setting.track_high_risk_events %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="track_high_risk_events" class="hidden" {% if setting.track_high_risk_events %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Track high-risk events</div>
+              <div class="dyn-row-desc">Backdated entries, duplicate documents, manual overrides</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="track_high_risk_events" {% if setting.track_high_risk_events %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="px-4 py-3 border-t" style="border-color:#edebe9;">
+          <div class="text-[11px] font-semibold uppercase tracking-wide" style="color:#605e5c;">Risk level classification</div>
+          <div class="flex items-center gap-8 mt-2 flex-wrap">
+            <label class="dyn-pill {% if setting.risk_classification == 'low' %}active{% endif %}">
+              <input type="radio" name="risk_classification" value="low" {% if setting.risk_classification == "low" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              Low
+            </label>
+            <label class="dyn-pill {% if setting.risk_classification == 'medium' %}active{% endif %}">
+              <input type="radio" name="risk_classification" value="medium" {% if setting.risk_classification == "medium" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              Medium
+            </label>
+            <label class="dyn-pill {% if setting.risk_classification == 'high' %}active{% endif %}">
+              <input type="radio" name="risk_classification" value="high" {% if setting.risk_classification == "high" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              High
+            </label>
+          </div>
+        </div>
+
+        <div class="dyn-row">
+          <div class="dyn-row-left">
+            <input type="checkbox" name="escalate_to_audit_risk" class="hidden" {% if setting.escalate_to_audit_risk %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="dyn-ind"></span>
+            <div class="min-w-0">
+              <div class="dyn-row-title">Escalate suspicious activity</div>
+              <div class="dyn-row-desc">Creates an alert in Audit &amp; Risk for follow-up</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="escalate_to_audit_risk" {% if setting.escalate_to_audit_risk %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 5) Retention & Storage (matches screenshot bottom-right) -->
+      <div class="dyn-card">
+        <div class="dyn-card-h">
+          <div class="flex items-start gap-3">
+            <i data-feather="file-text" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+            <div>
+              <div class="dyn-card-title">Retention &amp; Storage</div>
+              <div class="dyn-card-sub">Retention policy and audit export controls</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="auto_archive" {% if setting.auto_archive %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="p-4 space-y-3">
+          <div class="dyn-seg">
+            <label class="dyn-pill {% if setting.retention_policy == '30' %}active{% endif %}">
+              <input type="radio" name="retention_policy" value="30" {% if setting.retention_policy == "30" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              30
+            </label>
+            <label class="dyn-pill {% if setting.retention_policy == '90' %}active{% endif %}">
+              <input type="radio" name="retention_policy" value="90" {% if setting.retention_policy == "90" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              90
+            </label>
+            <label class="dyn-pill {% if setting.retention_policy == '180' %}active{% endif %}">
+              <input type="radio" name="retention_policy" value="180" {% if setting.retention_policy == "180" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              180
+            </label>
+            <label class="dyn-pill {% if setting.retention_policy == '365' %}active{% endif %}">
+              <input type="radio" name="retention_policy" value="365" {% if setting.retention_policy == "365" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              365
+            </label>
+            <label class="dyn-pill {% if setting.retention_policy == '730' %}active{% endif %}">
+              <input type="radio" name="retention_policy" value="730" {% if setting.retention_policy == "730" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              730
+            </label>
+            <label class="dyn-pill {% if setting.retention_policy == 'custom' %}active{% endif %}">
+              <input type="radio" name="retention_policy" value="custom" {% if setting.retention_policy == "custom" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              Custom
+            </label>
+          </div>
+
+          <div class="dyn-row" style="border-top: 1px solid #edebe9;">
+            <div class="dyn-row-left">
+              <input type="checkbox" name="auto_archive" class="hidden" {% if setting.auto_archive %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="dyn-ind"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Archive logs automatically</div>
+                <div class="dyn-row-desc">Store logs in read-only archive after retention-period</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="auto_archive" {% if setting.auto_archive %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="px-4 pb-4 pt-2">
+            <label class="dyn-help block mb-1">Retention days (custom)</label>
+            <input type="number" min="0" name="retention_days"
+                   value="{{ setting.retention_days }}"
+                   class="dyn-input font-mono text-right"
+                   {% if read_only %}disabled{% endif %} />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 flex justify-between items-center gap-3">
+      <p class="text-xs text-[#605e5c]">
+        Audit logs are append-only and cannot be edited or deleted.
+      </p>
+      {% if not read_only %}
+      <div class="flex gap-3">
+        <a href="{% url 'tenant_portal:setup_home' %}"
+           class="px-4 py-2 rounded text-sm font-semibold border"
+           style="border-color:#edebe9; color:#323130;">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save</span>
+        </button>
+      </div>
+      {% else %}
+      <a href="{% url 'tenant_portal:setup_home' %}"
+         class="px-4 py-2 rounded text-sm font-semibold border"
+         style="border-color:#edebe9; color:#323130;">
+        Back
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+

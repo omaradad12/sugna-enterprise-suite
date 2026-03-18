@@ -1,0 +1,122 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Incoming Fund Register | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4" x-data="{ search: '' }">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Incoming fund register</h1>
+      <p class="text-sm mt-1 text-[#605e5c]">Summary of donor and project funding versus receipts.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
+        <input type="text"
+               x-model="search"
+               placeholder="Search donor, project, grant..."
+               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
+               style="border-color:#edebe9;" />
+      </div>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
+        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
+        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant / Agreement</label>
+        <input type="text" name="grant" value="{{ request.GET.grant }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
+          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
+          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
+        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for code, label in status_choices %}
+          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lg:col-span-5 flex flex-wrap justify-end gap-2 mt-2">
+        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
+          <i data-feather="filter" class="w-4 h-4"></i>
+          <span>Apply filters</span>
+        </button>
+        <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <span>Reset</span>
+        </a>
+      </div>
+    </div>
+  </form>
+
+  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
+    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
+      <span class="text-sm font-semibold uppercase tracking-wide">Incoming fund register</span>
+    </div>
+    <div class="erp-section-body overflow-auto p-0">
+      <table class="erp-table text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-2.5">Donor</th>
+            <th class="px-4 py-2.5">Project</th>
+            <th class="px-4 py-2.5">Grant / Agreement</th>
+            <th class="px-4 py-2.5 text-right">Total grant amount</th>
+            <th class="px-4 py-2.5 text-right">Total received</th>
+            <th class="px-4 py-2.5 text-right">Remaining balance</th>
+            <th class="px-4 py-2.5">First receipt date</th>
+            <th class="px-4 py-2.5">Latest receipt date</th>
+            <th class="px-4 py-2.5">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="hover:bg-[#faf9f8] transition-colors"
+              data-search="{{ r.donor|lower }} {{ r.project|lower }} {{ r.grant_code|lower }}"
+              x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.donor }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.project }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.grant_code }}</td>
+            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.total_grant }}</td>
+            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.total_received }}</td>
+            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.remaining }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">
+              {% if r.first_date %}{{ r.first_date|date:"d/m/Y" }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">
+              {% if r.latest_date %}{{ r.latest_date|date:"d/m/Y" }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                {% if r.status == 'Active' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+                {{ r.status }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="px-4 py-10 text-center text-sm text-[#605e5c]">No incoming fund records found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

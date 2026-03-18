@@ -120,6 +120,10 @@
           <i data-feather="building" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
           <span>Tenant Directory</span>
         </a>
+        <a href="{% url 'platform_dashboard:platform_users' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'platform_users' %}active{% endif %}">
+          <i data-feather="users" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Tenant Users</span>
+        </a>
         <a href="{% url 'platform_dashboard:tenant_register' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md mb-0.5 {% if request.resolver_match.url_name == 'tenant_register' %}active{% endif %} text-[#323130]">
           <i data-feather="file-plus" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
           <span>Register Tenant</span>
@@ -145,6 +149,10 @@
         <a href="{% url 'platform_dashboard:module_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'module_list' %}active{% endif %}">
           <i data-feather="grid" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
           <span>Modules</span>
+        </a>
+        <a href="{% url 'platform_dashboard:diagnostics' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'diagnostics' %}active{% endif %}">
+          <i data-feather="activity" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
+          <span>Diagnostics</span>
         </a>
         <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
           <i data-feather="clock" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
@@ -263,7 +271,7 @@
             </button>
             <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded py-2 z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
               <a href="/admin/password_change/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="key" class="w-4 h-4"></i> Change password</a>
-              <a href="/admin/logout/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="log-out" class="w-4 h-4"></i> Log out</a>
+              <a href="{% url 'platform_logout' %}" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="log-out" class="w-4 h-4"></i> Log out</a>
             </div>
           </div>
         </div>

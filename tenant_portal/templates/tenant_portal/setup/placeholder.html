@@ -1,0 +1,15 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title|default:"Setup" }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold tracking-tight">{{ page_title|default:"Setup" }}</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">This page is under construction.</p>
+</div>
+<div class="erp-section">
+  <div class="erp-section-body">
+    <p class="text-sm text-[#605e5c]">Full list, add, edit, and delete will be implemented here.</p>
+    <a href="{% url 'tenant_portal:setup_home' %}" class="inline-block mt-3 text-sm font-medium text-[#0078d4] hover:underline">Back to Financial Setup home</a>
+  </div>
+</div>
+{% endblock %}

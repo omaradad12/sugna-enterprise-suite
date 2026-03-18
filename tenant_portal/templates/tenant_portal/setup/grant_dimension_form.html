@@ -1,0 +1,78 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{% if grant %}Update grant.{% else %}Add a grant dimension. Code must be unique. Grants must belong to a project. Grant budget cannot be exceeded in transactions.{% endif %}</p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Project / Grant Dimensions</a>
+</div>
+
+<div class="erp-section max-w-2xl">
+  <div class="erp-section-header">Grant details</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Grant Code <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="code" value="{% if grant %}{{ grant.code }}{% endif %}" required maxlength="50" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. GRT-001" />
+        <p class="text-xs mt-1" style="color:#605e5c;">Unique grant code.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Grant Name <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="title" value="{% if grant %}{{ grant.title }}{% endif %}" required maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor <span style="color:#a4262c;">*</span></label>
+        <select name="donor_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select donor —</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if grant and grant.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project <span style="color:#a4262c;">*</span></label>
+        <select name="project_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select project —</option>
+          {% for p in projects %}
+          <option value="{{ p.pk }}" {% if grant and grant.project_id == p.pk %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">Grant must belong to a project.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Budget</label>
+          <input type="number" name="award_amount" value="{% if grant %}{{ grant.award_amount }}{% else %}0{% endif %}" min="0" step="0.01" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Grant budget cannot be exceeded.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Currency</label>
+          <select name="currency_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— None —</option>
+            {% for c in currencies %}
+            <option value="{{ c.pk }}" {% if grant and grant.currency_id == c.pk %}selected{% endif %}>{{ c.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
+        <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if grant and grant.status == value %}selected{% elif not grant and value == 'draft' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">Only active grants appear in transactions.</p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if grant %}Update{% else %}Create{% endif %} Grant</button>
+        <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

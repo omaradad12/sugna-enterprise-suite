@@ -1,0 +1,124 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Purchase Requisitions | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Purchase Requisitions</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">PRs raised from approved grant workplan activities. Values are validated against activity budget.</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'tenant_portal:grants_pr_create' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow" style="background:#0078D4;">
+      <i data-feather="plus" class="w-4 h-4"></i>
+      New PR
+    </a>
+    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+      <i data-feather="download" class="w-4 h-4"></i> Export Excel
+    </a>
+    <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+      <i data-feather="file-text" class="w-4 h-4"></i> Export PDF
+    </a>
+  </div>
+</div>
+
+{# Filters #}
+<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
+  <form method="get" action="" class="flex flex-wrap items-end gap-4">
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant</label>
+      <select name="grant_id" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for g in grants %}
+        <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor</label>
+      <select name="donor_id" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for d in donors %}
+        <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Status</label>
+      <select name="status" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[120px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for value, label in pr_status_choices %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">PR date from</label>
+      <input type="date" name="date_from" value="{{ filters.date_from }}" class="rounded-lg border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">PR date to</label>
+      <input type="date" name="date_to" value="{{ filters.date_to }}" class="rounded-lg border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
+    <a href="{% url 'tenant_portal:grants_pr_list' %}" class="px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Reset</a>
+  </form>
+</div>
+
+{# PR table #}
+<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
+  <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9; background:#faf9f8;">
+    <h2 class="font-semibold text-lg" style="color:#323130;">Purchase Requisitions</h2>
+  </div>
+  <div class="overflow-auto">
+    <table class="min-w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PR number</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PR date</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Grant</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Donor</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Workplan activity</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Item</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Total cost</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Priority</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pr in prs %}
+        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2 font-mono font-medium" style="color:#323130;">{{ pr.pr_number }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ pr.pr_date|date:"d/m/Y" }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{{ pr.grant.code|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ pr.donor.name|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ pr.workplan_activity.workplan_code|default:"—" }} {{ pr.workplan_activity.activity|truncatewords:3 }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{{ pr.item_description|truncatewords:8 }}</td>
+          <td class="px-4 py-2 text-right font-medium" style="color:#323130;">{{ pr.estimated_total_cost|floatformat:2 }}</td>
+          <td class="px-4 py-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                  style="{% if pr.priority == 'critical' %}background:#fde7e9; color:#a4262c;{% elif pr.priority == 'high' %}background:#fff4ce; color:#7a5c00;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
+              {{ pr.get_priority_display }}
+            </span>
+          </td>
+          <td class="px-4 py-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                  style="{% if pr.status == 'fulfilled' or pr.status == 'approved_by_line_manager' %}background:#dff6dd; color:#0b5a0b;{% elif pr.status == 'pending_line_manager_approval' %}background:#e5f0ff; color:#1d4ed8;{% elif pr.status == 'rejected' or pr.status == 'cancelled' %}background:#fde7e9; color:#a4262c;{% elif pr.status == 'assigned_to_procurement' or pr.status == 'under_procurement_processing' or pr.status == 'po_issued' %}background:#fff4ce; color:#7a5c00;{% elif pr.status == 'draft' %}background:#eaeaea; color:#605e5c;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
+              {{ pr.get_status_display }}
+            </span>
+          </td>
+          <td class="px-4 py-2">
+            <a href="{% url 'tenant_portal:grants_pr_detail' pr.pk %}" class="font-medium hover:underline" style="color:#0078D4;">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" class="px-4 py-8 text-center" style="color:#605e5c;">No purchase requisitions. Create a PR from an approved workplan activity.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-4 py-2 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ prs|length }} entries</div>
+</div>
+{% endblock %}

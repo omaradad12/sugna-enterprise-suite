@@ -1,0 +1,198 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}General Ledger | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+{# Period / Project / Donor filters + Export / Print (Dynamics-style filter bar) #}
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors export_csv_url=export_csv_url %}
+
+{# Extended filters row: Account, Budget Line (ERP-style) #}
+<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
+  <form method="get" action="" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs md:items-end">
+    <div>
+      <label class="block font-semibold mb-1 text-[#605e5c] uppercase tracking-wide text-[11px]">Account</label>
+      <select name="account_id"
+              class="w-full rounded border px-2 py-1.5 text-sm bg-white min-w-[200px]"
+              style="border-color:#edebe9;">
+        <option value="">All accounts</option>
+        {% for a in accounts %}
+        <option value="{{ a.id }}" {% if selected_account_id == a.id|stringformat:'s' %}selected{% endif %}>
+          {{ a.code }} — {{ a.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block font-semibold mb-1 text-[#605e5c] uppercase tracking-wide text-[11px]">Budget Line</label>
+      <input type="text"
+             name="budget_line"
+             value="{{ filters.budget_line }}"
+             class="w-full rounded border px-2 py-1.5 text-sm bg-white"
+             style="border-color:#edebe9;"
+             placeholder="Code or description" />
+    </div>
+    <div class="md:col-span-2 flex flex-wrap gap-2 md:justify-end mt-2 md:mt-0">
+      <button type="submit"
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium"
+              style="border:1px solid #edebe9; background:#ffffff; color:#323130;">
+        <i data-feather="sliders" class="w-4 h-4"></i>
+        Apply filters
+      </button>
+      <a href="."
+         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium hover:bg-[#faf9f8]"
+         style="border-color:#edebe9;">
+        Reset
+      </a>
+    </div>
+  </form>
+</div>
+
+{# Header with logo above title + centered organization, report name, and project/donor/period strip (screen + print) #}
+<div class="mb-4 print:mb-2">
+  <div class="h-[2px] w-full mb-3" style="background:#f4b41a;"></div>
+  <div class="text-center leading-tight mb-1">
+    <div class="flex justify-center mb-1">
+      {% if tenant.brand_logo_url %}
+      <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+           class="h-12 w-auto object-contain" />
+      {% elif org_settings and org_settings.report_logo %}
+      <img src="{{ org_settings.report_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+           class="h-14 w-auto object-contain" />
+      {% elif org_settings and org_settings.organization_logo %}
+      <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+           class="h-14 w-auto object-contain" />
+      {% else %}
+      <img src="{% url 'platform_dashboard:logo' %}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+           class="h-12 w-auto object-contain" />
+      {% endif %}
+    </div>
+    <div class="text-sm font-semibold text-[#323130] uppercase tracking-wide">
+      {{ org_settings.organization_name|default:tenant_display_name|default:tenant.name }}
+    </div>
+    <div class="text-[11px] text-[#605e5c]">
+      {% if org_settings and org_settings.organization_address %}
+        {{ org_settings.organization_address }}
+      {% endif %}
+    </div>
+  </div>
+  <div class="text-center mt-2 mb-2">
+    <h1 class="text-[15px] font-semibold text-[#323130] tracking-wide uppercase">General Ledger</h1>
+  </div>
+  <div class="flex flex-wrap items-center justify-between text-[11px] text-[#605e5c] border-y py-1"
+       style="border-color:#edebe9;">
+    <div class="leading-tight">
+      <span class="font-semibold">Project:</span>
+      {% if selected_grant %}
+        {{ selected_grant.code }} – {{ selected_grant.title|truncatewords:6 }}
+      {% else %}
+        All projects
+      {% endif %}
+      {% if selected_donor %}
+        <span class="mx-1">|</span>
+        <span class="font-semibold">Donor:</span> {{ selected_donor.name }}
+      {% elif filters.donor_id %}
+        <span class="mx-1">|</span>
+        <span class="font-semibold">Donor:</span> Filtered donor
+      {% endif %}
+    </div>
+    <div class="leading-tight text-right">
+      <span class="font-semibold">Period:</span>
+      {{ filters.period_start|date:"d/m/Y" }} – {{ filters.period_end|date:"d/m/Y" }}
+      <span class="mx-1 hidden-print">|</span>
+      <span class="hidden-print">Printed on: {% now "d/m/Y H:i" %}</span>
+    </div>
+  </div>
+  <div class="h-[2px] w-full mt-2" style="background:#f4b41a;"></div>
+</div>
+
+{# Ledger table in Microsoft Dynamics–style card (screen + print) #}
+<div class="erp-section print-area w-full" style="background:#ffffff;">
+  <div class="erp-section-body overflow-x-auto" style="background:#ffffff;">
+    <table class="erp-table">
+      <thead>
+        <tr style="background:#201f1f; color:#ffffff;">
+          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Date</th>
+          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">PV No</th>
+          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Account Code</th>
+          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Budget Line</th>
+          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Description</th>
+          <th class="text-right uppercase text-xs" style="background:#201f1f; color:#ffffff;">Debit</th>
+          <th class="text-right uppercase text-xs" style="background:#201f1f; color:#ffffff;">Credit</th>
+          <th class="text-right uppercase text-xs" style="background:#201f1f; color:#ffffff;">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if groups %}
+          {# Opening balance row before transactions #}
+          {% if opening_balance is not None %}
+          <tr style="background:#fef6e7; font-weight:600;">
+            <td>{{ filters.period_start|date:"d/m/Y" }}</td>
+            <td></td>
+            <td></td>
+            <td class="text-xs text-[#605e5c]">—</td>
+            <td>Opening balance</td>
+            <td style="text-align:right; color:#a4262c;">0.00</td>
+            <td style="text-align:right; color:#107c10;">0.00</td>
+            <td style="text-align:right; font-weight:700;">{{ opening_balance|floatformat:2 }}</td>
+          </tr>
+          {% endif %}
+
+          {% for g in groups %}
+          <tr>
+            <td colspan="8" style="background:#f3f2f1; font-weight:600; color:#323130;">
+              {{ g.category }}
+            </td>
+          </tr>
+          {% for row in g.rows %}
+          <tr>
+            <td>{{ row.date|date:"d/m/Y" }}</td>
+            <td>{{ row.reference }}</td>
+            <td>{{ row.account_code }}</td>
+            <td class="text-xs text-[#605e5c]">{{ row.budget_category }}</td>
+            <td>{{ row.memo|truncatewords:10 }}</td>
+            <td style="text-align:right; color:#a4262c;">{{ row.debit|floatformat:2 }}</td>
+            <td style="text-align:right; color:#107c10;">{{ row.credit|floatformat:2 }}</td>
+            <td style="text-align:right; font-weight:600;">{{ row.running_balance|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+          {% endfor %}
+          <tr style="background:#1b4f9c; color:#ffffff; font-weight:600; border-top:1px solid #102a6b;">
+            <td colspan="5" style="text-align:right;">Grand Total</td>
+            <td style="text-align:right; color:#ffb3b3; background:#1b4f9c;">{{ grand_total_debit|floatformat:2 }}</td>
+            <td style="text-align:right; color:#c6f6d5; background:#1b4f9c;">{{ grand_total_credit|floatformat:2 }}</td>
+            <td style="text-align:right; font-weight:700; background:#1b4f9c;">
+              {{ closing_balance|floatformat:2 }}
+            </td>
+          </tr>
+        {% else %}
+        <tr><td colspan="8" style="padding:16px; text-align:center; color:#605e5c;">No transactions in the selected period.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# Footer totals section with large ERP-style summary cards #}
+<div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 print:bg-transparent print:border-0">
+  <div class="rounded-lg border shadow-sm px-4 py-3 bg-white"
+       style="border-color:#edebe9;">
+    <div class="text-[11px] uppercase tracking-wide text-[#605e5c] mb-1">Total Income</div>
+    <div class="text-[20px] font-semibold text-[#107c10]">
+      {{ grand_total_credit|floatformat:2 }}
+    </div>
+  </div>
+  <div class="rounded-lg border shadow-sm px-4 py-3 bg-white"
+       style="border-color:#edebe9;">
+    <div class="text-[11px] uppercase tracking-wide text-[#605e5c] mb-1">Total Expenditure</div>
+    <div class="text-[20px] font-semibold text-[#a4262c]">
+      {{ grand_total_debit|floatformat:2 }}
+    </div>
+  </div>
+  <div class="rounded-lg border shadow-sm px-4 py-3 bg-white"
+       style="border-color:#edebe9;">
+    <div class="text-[11px] uppercase tracking-wide text-[#605e5c] mb-1">Balance</div>
+    <div class="text-[20px] font-semibold text-[#005a9e]">
+      {{ closing_balance|floatformat:2 }}
+    </div>
+  </div>
+</div>
+{% endblock %}

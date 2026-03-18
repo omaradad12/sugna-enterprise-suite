@@ -1,3 +1,5 @@
+from django.conf import settings
+
 """
 Redirect staff users from Django admin index to the enterprise Platform Dashboard.
 Keeps /admin/tenants/..., /admin/auth/... etc. unchanged for CRUD.
@@ -41,16 +43,22 @@ class TenantResolutionMiddleware:
 
         tenant = None
         if host:
-            tenant = (
+            tenant_id = (
                 TenantDomain.objects.select_related("tenant")
                 .filter(domain=host)
                 .values_list("tenant", flat=True)
                 .first()
             )
-            if tenant:
-                tenant = Tenant.objects.filter(pk=tenant).first()
+            if tenant_id:
+                tenant = Tenant.objects.filter(pk=tenant_id).first()
             if not tenant:
                 tenant = Tenant.objects.filter(domain=host).first()
+
+        # Developer-friendly fallback: when running locally with DEBUG on and no
+        # explicit domain match, route localhost to the first active tenant so
+        # paths like /t/finance/ work without DNS / host headers.
+        if not tenant and settings.DEBUG and host in {"127.0.0.1", "localhost"}:
+            tenant = Tenant.objects.filter(is_active=True).order_by("id").first()
 
         request.tenant = tenant
         set_current_tenant(tenant)

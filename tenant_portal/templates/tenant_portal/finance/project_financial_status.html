@@ -1,0 +1,41 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Project Financial Status | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Project Financial Status</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Project budgets, expenses, and remaining balances.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Projects (Grants)</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Project / Grant</th>
+          <th class="px-4 py-2 font-semibold">Donor</th>
+          <th class="px-4 py-2 font-semibold text-right">Budget</th>
+          <th class="px-4 py-2 font-semibold text-right">Expenses</th>
+          <th class="px-4 py-2 font-semibold text-right">Remaining</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in project_rows %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ row.project.code }} — {{ row.project.title|truncatewords:6 }}</td>
+          <td class="px-4 py-2">{{ row.project.donor.name }}</td>
+          <td class="px-4 py-2 text-right">{{ row.budget|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right">{{ row.expenses|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right font-medium">{{ row.remaining|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-6 text-center text-[#605e5c]">No projects found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

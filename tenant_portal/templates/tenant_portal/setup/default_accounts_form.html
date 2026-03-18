@@ -1,0 +1,205 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h1 class="page-title">{{ page_title }}</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'tenant_portal:setup_default_accounts_list' %}"
+         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+         style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+        <i data-feather="arrow-left" class="w-4 h-4"></i>
+        <span>Back to Default Mapping</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg shadow-sm" style="border-color:#edebe9;">
+    <div class="px-5 py-3.5 border-b flex items-center justify-between"
+         style="border-color:#edebe9; background:#faf9f8;">
+      <div class="text-xs font-semibold uppercase tracking-wide" style="color:#605e5c;">
+        Account mapping definition
+      </div>
+      <div class="text-[11px]" style="color:#a19f9d;">
+        Used automatically when no specific posting rule is defined for a transaction.
+      </div>
+    </div>
+
+    <form method="post" class="px-5 py-5 space-y-6">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Mapping name
+            </label>
+            <input type="text" name="name"
+                   value="{{ form_initial.name|default_if_none:'' }}"
+                   class="w-full rounded border px-3 py-2 text-sm"
+                   style="border-color:#edebe9;">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Transaction type
+            </label>
+            <select name="transaction_type"
+                    class="w-full rounded border px-3 py-2 text-sm bg-white"
+                    style="border-color:#edebe9;">
+              <option value="">Select transaction type</option>
+              {% for value, label in transaction_type_choices %}
+              <option value="{{ value }}"
+                      {% if form_initial.transaction_type == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Default debit account
+              </label>
+              <select name="default_debit_account"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;"
+                      x-data
+                      x-on:change="
+                        const debit = $el.value;
+                        const credit = document.querySelector('select[name=default_credit_account]');
+                        const hint = document.getElementById('default-same-account-hint');
+                        if (credit && credit.value && credit.value === debit) {
+                          $el.classList.add('border-red-500');
+                          credit.classList.add('border-red-500');
+                          if (hint) hint.style.display = 'block';
+                        } else {
+                          $el.classList.remove('border-red-500');
+                          if (credit) credit.classList.remove('border-red-500');
+                          if (hint) hint.style.display = 'none';
+                        }
+                      ">
+                <option value="">Select debit account</option>
+                {% for a in accounts %}
+                <option value="{{ a.id }}"
+                        {% if form_initial.default_debit_account_id|add:'' == a.id|add:'' %}selected{% endif %}>
+                  {{ a.code }} – {{ a.name }}
+                </option>
+                {% endfor %}
+              </select>
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">
+                Account that will be debited by default when this transaction type posts.
+              </p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Default credit account
+              </label>
+              <select name="default_credit_account"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;"
+                      x-data
+                      x-on:change="
+                        const credit = $el.value;
+                        const debit = document.querySelector('select[name=default_debit_account]');
+                        const hint = document.getElementById('default-same-account-hint');
+                        if (debit && debit.value && debit.value === credit) {
+                          $el.classList.add('border-red-500');
+                          debit.classList.add('border-red-500');
+                          if (hint) hint.style.display = 'block';
+                        } else {
+                          $el.classList.remove('border-red-500');
+                          if (debit) debit.classList.remove('border-red-500');
+                          if (hint) hint.style.display = 'none';
+                        }
+                      ">
+                <option value="">Select credit account</option>
+                {% for a in accounts %}
+                <option value="{{ a.id }}"
+                        {% if form_initial.default_credit_account_id|add:'' == a.id|add:'' %}selected{% endif %}>
+                  {{ a.code }} – {{ a.name }}
+                </option>
+                {% endfor %}
+              </select>
+              <p class="mt-1 text-[11px]" style="color:#a19f9d;">
+                Account that will be credited by default when this transaction type posts.
+              </p>
+            </div>
+          </div>
+          <p id="default-same-account-hint"
+             class="mt-1 text-[11px]"
+             style="color:#a4262c; display:none;">
+            Default debit and credit accounts cannot be the same.
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Apply dimension
+              </label>
+              <select name="apply_dimension"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                {% for value, label in dimension_choices %}
+                <option value="{{ value }}"
+                        {% if form_initial.apply_dimension == value %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+                Status
+              </label>
+              <select name="status"
+                      class="w-full rounded border px-3 py-2 text-sm bg-white"
+                      style="border-color:#edebe9;">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}"
+                        {% if form_initial.status == value or not form_initial.status and value == 'active' %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1 uppercase tracking-wide" style="color:#605e5c;">
+              Description
+            </label>
+            <textarea name="description" rows="4"
+                      class="w-full rounded border px-3 py-2 text-sm"
+                      style="border-color:#edebe9;">{{ form_initial.description|default_if_none:'' }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t flex items-center justify-end gap-3"
+           style="border-color:#edebe9;">
+        <a href="{% url 'tenant_portal:setup_default_accounts_list' %}"
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold"
+           style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+          <span>Cancel</span>
+        </a>
+        {% if can_manage %}
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save</span>
+        </button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

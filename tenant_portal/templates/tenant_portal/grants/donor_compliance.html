@@ -1,0 +1,37 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Donor Compliance Monitoring | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Donor Compliance Monitoring</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Monitor compliance with donor financial rules and restrictions.</p>
+</div>
+
+{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Donor restrictions (apply to grants)</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">Donor</th>
+        <th class="px-4 py-2 font-semibold">Grant</th>
+        <th class="px-4 py-2 font-semibold">Type</th>
+        <th class="px-4 py-2 font-semibold">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in restrictions %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ r.donor.name }}</td>
+        <td class="px-4 py-2">{{ r.grant.code|default:"All" }}</td>
+        <td class="px-4 py-2">{{ r.get_restriction_type_display }}</td>
+        <td class="px-4 py-2">{{ r.description|truncatewords:10 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No restrictions recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

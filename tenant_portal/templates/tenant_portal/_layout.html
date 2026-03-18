@@ -3,43 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}{{ tenant.name }}{% endblock %}</title>
+  <title>{% block title %}{{ tenant_display_name|default:tenant.name }}{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/feather-icons"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-[#faf9f8] text-[#323130]">
-  <header class="h-14 bg-white border-b flex items-center justify-between px-5" style="border-color:#edebe9;">
-    <div class="flex items-center gap-3 min-w-0">
-      <a href="{% url 'tenant_portal:home' %}" class="flex items-center gap-3 min-w-0">
-        <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-8 w-auto object-contain" />
-        <div class="min-w-0">
-          <p class="text-sm font-semibold truncate">{{ tenant.name }}</p>
-          <p class="text-xs text-[#605e5c] truncate">{% block product_subtitle %}Tenant Console{% endblock %}</p>
-        </div>
-      </a>
-    </div>
-    <div class="flex items-center gap-3">
-      <span class="text-sm text-[#605e5c] hidden sm:inline">{{ tenant_user.email }}</span>
-      <a class="text-sm font-medium text-[#0078D4] hover:underline" href="{% url 'tenant_portal:logout' %}">Sign out</a>
-    </div>
-  </header>
-
-  <main class="max-w-6xl mx-auto px-5 py-8">
-    {% if messages %}
-      <div class="mb-5 space-y-2">
-        {% for message in messages %}
-          <div class="text-sm px-3 py-2 rounded border"
-               style="border-color:{% if message.tags == 'error' %}#fde7e9{% else %}#dff6dd{% endif %};
-                      background:{% if message.tags == 'error' %}#fde7e9{% else %}#dff6dd{% endif %};
-                      color:{% if message.tags == 'error' %}#a4262c{% else %}#0b5a0b{% endif %};">
-            {{ message }}
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    {% block content %}{% endblock %}
-  </main>
+<body class="h-screen overflow-hidden bg-[#faf9f8] text-[#323130]">
+  <div class="h-full flex flex-col" x-data="{ mainMenu: 'financial', subMenu: 'dashboard', quickOpen: false, userOpen: false }">
+    {% comment %}This layout is now a thin wrapper around the full-width topbar shell (no sidebar).{% endcomment %}
+    {% include "tenant_portal/_layout_fullwidth.html" %}
+  </div>
 
   <script>feather.replace();</script>
 </body>

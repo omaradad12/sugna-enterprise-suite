@@ -1,0 +1,102 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | User Management{% endblock %}
+{% block content %}
+<style>
+  .user-mgmt-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .user-mgmt-hero { background: linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%); color: #ffffff !important; }
+  .user-mgmt-hero h1, .user-mgmt-hero a, .user-mgmt-hero span { color: #ffffff !important; }
+  .user-mgmt-hero [data-feather] { stroke: #ffffff; }
+  .user-mgmt-hero .btn-add { border-color: rgba(255,255,255,0.6); color: #ffffff !important; }
+  .user-mgmt-hero .btn-add:hover { background: rgba(255,255,255,0.15); }
+  .user-mgmt-card { transition: box-shadow 0.2s ease; border: 1px solid #edebe9; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .user-mgmt-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .user-mgmt-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .user-mgmt-table th, .user-mgmt-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #edebe9; }
+  .user-mgmt-table th { background: #faf9f8; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #605e5c; }
+  .user-mgmt-table tbody tr { transition: background 0.12s ease; }
+  .user-mgmt-table tbody tr:hover { background: #f3f2f1; }
+  .user-mgmt-table td { color: #323130; }
+  .user-mgmt-table .actions a { color: #0078d4; text-decoration: none; margin-right: 12px; font-size: 13px; }
+  .user-mgmt-table .actions a:hover { text-decoration: underline; }
+  .user-mgmt-table .actions form { display: inline; }
+  .user-mgmt-table .actions button { background: none; border: none; color: #c4314b; cursor: pointer; font-size: 13px; padding: 0; }
+  .user-mgmt-table .actions button:hover { text-decoration: underline; }
+  .user-mgmt-badge-active { background: #dff6dd; color: #107c10; padding: 2px 8px; border-radius: 2px; font-size: 12px; font-weight: 500; }
+  .user-mgmt-badge-inactive { background: #f3f2f1; color: #605e5c; padding: 2px 8px; border-radius: 2px; font-size: 12px; font-weight: 500; }
+</style>
+<div class="user-mgmt-page max-w-6xl mx-auto pb-10">
+  <!-- Hero: compact, white text, Dynamics-style -->
+  <div class="user-mgmt-hero rounded-lg overflow-hidden mb-5">
+    <div class="px-4 py-2 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(255,255,255,0.22);">
+          <i data-feather="users" class="w-4 h-4"></i>
+        </div>
+        <h1 class="text-base font-bold tracking-tight">User Management</h1>
+      </div>
+      <a href="{% url 'tenant_portal:user_management_add' %}" class="btn-add px-4 py-2 rounded text-sm font-medium border transition-colors">
+        Add user
+      </a>
+    </div>
+  </div>
+
+  <div class="user-mgmt-card rounded-lg bg-white overflow-hidden">
+    <div class="px-5 py-3 border-b flex items-center gap-2" style="background: #faf9f8; border-color: #edebe9;">
+      <i data-feather="list" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">User list</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="user-mgmt-table">
+        <thead>
+          <tr>
+            <th>User name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Last login</th>
+            <th class="w-44">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td class="font-medium">{{ row.user.full_name|default:"—" }}</td>
+            <td>{{ row.user.email }}</td>
+            <td style="color: #605e5c;">{{ row.role_display }}</td>
+            <td style="color: #605e5c;">{{ row.user.department|default:"—" }}</td>
+            <td>
+              {% if row.user.is_active %}
+              <span class="user-mgmt-badge-active">Active</span>
+              {% else %}
+              <span class="user-mgmt-badge-inactive">Inactive</span>
+              {% endif %}
+            </td>
+            <td style="color: #605e5c;">
+              {% if row.user.last_login_at %}{{ row.user.last_login_at|date:"M j, Y H:i" }}{% else %}—{% endif %}
+            </td>
+            <td class="actions">
+              <a href="{% url 'tenant_portal:user_management_view' row.user.pk %}">View</a>
+              <a href="{% url 'tenant_portal:user_management_edit' row.user.pk %}">Edit</a>
+              {% if row.user.id != tenant_user.id %}
+              <a href="{% url 'tenant_portal:user_management_reset_password' row.user.pk %}">Reset password</a>
+              {% if row.user.is_active %}
+              <form method="post" action="{% url 'tenant_portal:user_management_deactivate' row.user.pk %}" class="inline" onsubmit="return confirm('Deactivate this user? They will not be able to log in.');">
+                {% csrf_token %}
+                <button type="submit">Deactivate</button>
+              </form>
+              {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="py-10 text-center" style="color: #605e5c;">No users yet. <a href="{% url 'tenant_portal:user_management_add' %}" style="color: #0078d4;">Add user</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Budget vs Actual | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Budget vs Actual</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Budget performance by project, grant, and account.</p>
+</div>
+
+{% include "tenant_portal/_smart_alerts_module.html" with alert_category="budget" %}
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Budget vs Actual by Grant</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Grant</th>
+          <th class="px-4 py-2 font-semibold text-right">Budget</th>
+          <th class="px-4 py-2 font-semibold text-right">Actual</th>
+          <th class="px-4 py-2 font-semibold text-right">Variance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in bva_rows %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</td>
+          <td class="px-4 py-2 text-right">{{ row.budget|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right">{{ row.actual|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right font-medium {% if row.variance < 0 %}text-[#a4262c]{% else %}text-[#107c10]{% endif %}">{{ row.variance|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No budget vs actual data found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

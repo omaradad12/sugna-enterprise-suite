@@ -1,5 +1,5 @@
 {% extends "tenant_portal/_layout.html" %}
-{% block title %}{{ tenant.name }} | Grants | Approvals{% endblock %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Grants | Approvals{% endblock %}
 {% block product_subtitle %}Grant Management{% endblock %}
 
 {% block content %}

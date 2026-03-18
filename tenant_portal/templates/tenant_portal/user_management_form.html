@@ -1,0 +1,93 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | {% if is_add %}Add user{% else %}Edit user{% endif %}{% endblock %}
+{% block content %}
+<style>
+  .user-mgmt-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .user-mgmt-hero { background: linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%); }
+  .user-mgmt-card { transition: box-shadow 0.2s ease; }
+</style>
+<div class="user-mgmt-page max-w-4xl mx-auto pb-10">
+  <div class="user-mgmt-hero rounded-lg overflow-hidden mb-5 text-white">
+    <div class="px-4 py-3 flex items-center gap-3">
+      <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: rgba(255,255,255,0.22);">
+        <i data-feather="user-plus" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">{% if is_add %}Add user{% else %}Edit user{% endif %}</h1>
+        <p class="text-xs opacity-90">{% if is_add %}Create a new system user{% else %}Update {{ target_user.email }}{% endif %}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="user-mgmt-card rounded-xl border bg-white overflow-hidden" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+    <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+      <i data-feather="edit-3" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">{% if is_add %}User details{% else %}User details{% endif %}</span>
+    </div>
+    <div class="p-6">
+      <form method="post" action="{% if is_add %}{% url 'tenant_portal:user_management_add' %}{% else %}{% url 'tenant_portal:user_management_edit' target_user.pk %}{% endif %}">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Full name</label>
+            <input type="text" name="full_name" value="{{ target_user.full_name|default:'' }}" maxlength="200" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Email</label>
+            {% if is_add %}
+            <input type="email" name="email" value="" required class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+            {% else %}
+            <input type="text" value="{{ target_user.email }}" readonly class="w-full px-3 py-2 rounded border text-sm bg-[#f9fafb]" style="border-color: #e5e7eb; color: #6b7280;" />
+            {% endif %}
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Phone</label>
+            <input type="text" name="phone_number" value="{{ target_user.phone_number|default:'' }}" maxlength="30" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Role</label>
+            <select name="role_id" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color: #d1d5db;">
+              <option value="">— Select role —</option>
+              {% for r in roles %}
+              <option value="{{ r.id }}" {% if current_role_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Department</label>
+            <input type="text" name="department" value="{{ target_user.department|default:'' }}" maxlength="120" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Status</label>
+            <select name="status" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color: #d1d5db;">
+              <option value="active" {% if target_user.is_active %}selected{% endif %}>Active</option>
+              <option value="inactive" {% if not target_user.is_active %}selected{% endif %}>Inactive</option>
+            </select>
+          </div>
+          {% if is_add %}
+          <div class="sm:col-span-2 flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Password (min 8 characters)</label>
+            <input type="password" name="password" minlength="8" autocomplete="new-password" class="w-full px-3 py-2 rounded border text-sm" style="border-color: #d1d5db;" />
+          </div>
+          {% endif %}
+          {% if grants %}
+          <div class="sm:col-span-2 flex flex-col gap-1.5">
+            <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: #605e5c;">Assigned projects</label>
+            <select name="assigned_grants" multiple class="w-full px-3 py-2 rounded border text-sm bg-white min-h-[100px]" style="border-color: #d1d5db;">
+              {% for gid, code, title in grants %}
+              <option value="{{ gid }}" {% if gid in selected_grant_ids %}selected{% endif %}>{{ code }} — {{ title|default:code }}</option>
+              {% endfor %}
+            </select>
+            <p class="text-xs mt-1" style="color: #6b7280;">Hold Ctrl/Cmd to select multiple.</p>
+          </div>
+          {% endif %}
+        </div>
+        <div class="mt-5 flex items-center gap-3">
+          <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background: #0078d4;">{% if is_add %}Add user{% else %}Save changes{% endif %}</button>
+          <a href="{% url 'tenant_portal:user_management' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color: #d1d5db; color: #374151;">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

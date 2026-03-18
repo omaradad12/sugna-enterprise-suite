@@ -1,0 +1,89 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Account Ledger | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h1 class="page-title">Account Ledger</h1>
+      <p class="page-subtitle mt-1">View transactions for a single account. Filter by date and project.</p>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm mb-4" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b flex flex-wrap items-end justify-between gap-3" style="border-color:#edebe9; background:#faf9f8;">
+      <form method="get" class="flex flex-wrap items-end gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">From</label>
+          <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
+                 class="rounded border px-2 py-1.5 text-sm bg-white h-8" style="border-color:#edebe9; min-width:140px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">To</label>
+          <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
+                 class="rounded border px-2 py-1.5 text-sm bg-white h-8" style="border-color:#edebe9; min-width:140px;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">Account</label>
+          <select name="account_id" class="rounded border px-2 py-1.5 text-sm bg-white h-8" style="border-color:#edebe9; min-width:220px;">
+            <option value="">— All —</option>
+            {% for a in accounts %}
+            <option value="{{ a.pk }}" {% if selected_account_id == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if grants %}
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">Grant</label>
+          <select name="grant_id" class="rounded border px-2 py-1.5 text-sm bg-white h-8" style="border-color:#edebe9; min-width:140px;">
+            <option value="">All</option>
+            {% for g in grants %}
+            <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <button type="submit" class="h-8 px-4 rounded text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
+      </form>
+      {% if export_csv_url %}
+      <div class="flex items-center gap-2">
+        <a href="{{ export_csv_url }}" class="inline-flex items-center gap-1.5 h-8 px-3 rounded border text-sm font-medium" style="border-color:#d1d5db; color:#323130; background:#fff;">Export CSV</a>
+        <button type="button" onclick="window.print()" class="hidden-print inline-flex items-center gap-1.5 h-8 px-3 rounded border text-sm font-medium" style="border-color:#d1d5db; color:#323130; background:#fff;">Print / PDF</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm" style="border-color:#edebe9;">
+    <div class="px-4 py-2.5 border-b flex items-center" style="border-color:#edebe9; background:#faf9f8;">
+      <span class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">Transactions</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="erp-table w-full text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-2.5">Date</th>
+            <th class="px-4 py-2.5">Reference</th>
+            <th class="px-4 py-2.5">Memo</th>
+            <th class="px-4 py-2.5 text-right">Debit</th>
+            <th class="px-4 py-2.5 text-right">Credit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+            <td class="px-4 py-2">{{ row.date|date:"d/m/Y" }}</td>
+            <td class="px-4 py-2 font-mono text-[13px]">{{ row.ref }}</td>
+            <td class="px-4 py-2 text-[#323130]">{{ row.memo|truncatewords:8 }}</td>
+            <td class="px-4 py-2 text-right font-mono" style="color:#a4262c;">{{ row.debit|floatformat:2 }}</td>
+            <td class="px-4 py-2 text-right font-mono" style="color:#107c10;">{{ row.credit|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="px-4 py-8 text-center page-subtitle">No transactions. Select an account and period.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

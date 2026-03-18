@@ -1,0 +1,204 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Diagnostics{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto animate-fade-in">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading">Diagnostics</h1>
+      <p class="text-slate-500 mt-1 text-sm">Self-healing health checks, incidents, and remediation</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="/api/diagnostics/health/?full=1" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2.5 rounded border text-sm font-medium" style="border-color:#edebe9; color:#323130;">
+        <i data-feather="refresh-cw" class="w-4 h-4"></i> Full health (API)
+      </a>
+      <a href="/admin/diagnostics/" class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white" style="background:#0078D4;">
+        <i data-feather="settings" class="w-4 h-4"></i> Admin
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+    <div class="dynamics-card p-4">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Open incidents</span>
+        <span class="w-8 h-8 rounded-lg flex items-center justify-center {% if open_incidents %}bg-danger-50 text-danger-600{% else %}bg-success-50 text-success-600{% endif %}"><i data-feather="alert-circle" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ open_incidents }}</p>
+    </div>
+    <div class="dynamics-card p-4">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Failed checks</span>
+        <span class="w-8 h-8 rounded-lg flex items-center justify-center {% if failed_runs %}bg-danger-50 text-danger-600{% else %}bg-slate-100 text-slate-600{% endif %}"><i data-feather="x-circle" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ failed_runs }}</p>
+    </div>
+    <div class="dynamics-card p-4">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Recent incidents</span>
+        <span class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i data-feather="list" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ incidents|length }}</p>
+    </div>
+    <div class="dynamics-card p-4">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Check runs</span>
+        <span class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"><i data-feather="activity" class="w-4 h-4"></i></span>
+      </div>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ check_runs|length }}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="dynamics-card overflow-hidden">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Recent incidents</h2>
+      </div>
+      <div class="overflow-auto max-h-[400px]">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Title</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Severity</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Tenant</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inc in incidents %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-4 py-2" style="color:#323130;">{{ inc.title|truncatewords:8 }}</td>
+              <td class="px-4 py-2">
+                <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {% if inc.severity == 'critical' %}bg-danger-100 text-danger-700{% elif inc.severity == 'high' %}bg-orange-100 text-orange-700{% else %}bg-slate-100 text-slate-700{% endif %}">{{ inc.get_severity_display }}</span>
+              </td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ inc.get_status_display }}</td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ inc.tenant_slug|default:"—" }}</td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ inc.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">No incidents yet. Run <code class="text-xs bg-slate-100 px-1 rounded">python manage.py run_diagnostics</code> to populate.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dynamics-card overflow-hidden">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Recent check runs</h2>
+      </div>
+      <div class="overflow-auto max-h-[400px]">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Scope</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Type</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Tenant</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for run in check_runs %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-4 py-2" style="color:#323130;">{{ run.get_scope_display }}</td>
+              <td class="px-4 py-2" style="color:#323130;">{{ run.check_type }}</td>
+              <td class="px-4 py-2">
+                <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {% if run.status == 'success' %}bg-success-100 text-success-700{% elif run.status == 'failure' %}bg-danger-100 text-danger-700{% else %}bg-slate-100 text-slate-700{% endif %}">{{ run.get_status_display }}</span>
+              </td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ run.tenant_slug|default:"—" }}</td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ run.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">No check runs yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-6 dynamics-card p-5">
+    <h3 class="font-semibold text-slate-800 mb-3">Run scan (manual mode)</h3>
+    <form method="post" action="{% url 'platform_dashboard:diagnostics_run_scan' %}" class="flex flex-wrap items-end gap-4">
+      {% csrf_token %}
+      <div>
+        <label for="scope" class="block text-xs font-medium text-slate-500 mb-1">Scope</label>
+        <select id="scope" name="scope" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+          <option value="platform">Platform</option>
+          <option value="tenant">Tenant</option>
+          <option value="database">Database</option>
+          <option value="api">API</option>
+          <option value="service">Service</option>
+        </select>
+      </div>
+      <div id="tenant-field" class="hidden">
+        <label for="tenant_id" class="block text-xs font-medium text-slate-500 mb-1">Tenant</label>
+        <select id="tenant_id" name="tenant_id" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+          <option value="">-- Select --</option>
+          {% for t in tenants %}
+          <option value="{{ t.id }}">{{ t.name }} ({{ t.slug }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="apply_fixes" value="1" class="rounded border-slate-300">
+          <span class="text-sm text-slate-700">Apply fixes</span>
+        </label>
+      </div>
+      <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Run scan</button>
+    </form>
+    <p class="text-slate-500 text-sm mt-3">Targeted scan: platform (DB, app, cache), tenant (one tenant DB), database (default or one tenant), API (health URL), or service (e.g. cache).</p>
+  </div>
+
+  <div class="mt-6 dynamics-card overflow-hidden">
+    <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+      <h2 class="font-semibold text-lg" style="color:#323130;">Recent reports</h2>
+    </div>
+    <div class="overflow-auto">
+      <table class="min-w-full text-sm">
+        <thead style="background:#f3f2f1;">
+          <tr>
+            <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">ID</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Trigger</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Target</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Summary</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reports %}
+          <tr class="border-b last:border-0" style="border-color:#edebe9;">
+            <td class="px-4 py-2 font-medium" style="color:#323130;">{{ r.id }}</td>
+            <td class="px-4 py-2" style="color:#605e5c;">{{ r.get_trigger_display }}</td>
+            <td class="px-4 py-2" style="color:#323130;">{{ r.target.scope|default:"" }} {% if r.target.tenant_id %}(tenant {{ r.target.tenant_id }}){% endif %}</td>
+            <td class="px-4 py-2"><span class="inline-flex px-2 py-0.5 rounded text-xs {% if r.status == 'completed' %}bg-success-100 text-success-700{% elif r.status == 'failed' %}bg-danger-100 text-danger-700{% else %}bg-slate-100 text-slate-700{% endif %}">{{ r.get_status_display }}</span></td>
+            <td class="px-4 py-2" style="color:#605e5c;">{{ r.summary.total_checks|default:"—" }} checks, {{ r.summary.failure_count|default:0 }} failed</td>
+            <td class="px-4 py-2" style="color:#605e5c;">{{ r.created_at|date:"M d, H:i" }}</td>
+            <td class="px-4 py-2"><a href="{% url 'platform_dashboard:diagnostics_report' r.id %}" class="text-primary-600 hover:underline text-xs">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">No reports yet. Run a scan above.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-6 dynamics-card p-5">
+    <h3 class="font-semibold text-slate-800 mb-2">Automatic mode (continuous)</h3>
+    <p class="text-slate-500 text-sm mb-3">Run: <code class="bg-slate-100 px-2 py-1 rounded text-sm">python manage.py run_diagnostics</code>. Add <code class="bg-slate-100 px-2 py-1 rounded text-sm">--auto-remediate</code> to apply allowed fixes. Set <code class="bg-slate-100 px-2 py-1 rounded text-sm">DIAGNOSTICS_AUTO_REMEDIATE=true</code> to auto-remediate without the flag.</p>
+    <p class="text-slate-500 text-sm">Health: <a href="/api/diagnostics/health/" class="text-primary-600 hover:underline">/api/diagnostics/health/</a> or <a href="/api/diagnostics/health/?full=1" class="text-primary-600 hover:underline">?full=1</a> (staff).</p>
+  </div>
+</div>
+<script>
+document.getElementById('scope').addEventListener('change', function() {
+  var tenantField = document.getElementById('tenant-field');
+  tenantField.classList.toggle('hidden', this.value !== 'tenant' && this.value !== 'database');
+});
+</script>
+{% endblock %}

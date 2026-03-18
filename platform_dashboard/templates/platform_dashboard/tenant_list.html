@@ -240,6 +240,7 @@
                 </button>
                 <div x-show="open" x-cloak @click.outside="open = false" x-transition class="absolute right-0 mt-1 w-48 py-1 bg-white rounded-lg shadow-dropdown border border-slate-200 z-20">
                   <a href="{% url 'platform_dashboard:tenant_detail' t.pk %}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="eye" class="w-4 h-4"></i> View tenant</a>
+                  <a href="{% url 'platform_dashboard:tenant_detail' t.pk %}#tenant-users" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="users" class="w-4 h-4"></i> View users</a>
                   <a href="/admin/tenants/tenant/{{ t.id }}/change/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="edit-2" class="w-4 h-4"></i> Edit tenant</a>
                   <a href="/admin/tenants/tenant/{{ t.id }}/change/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="play" class="w-4 h-4"></i> Activate / Suspend</a>
                   <a href="/admin/tenants/tenant/{{ t.id }}/change/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a>

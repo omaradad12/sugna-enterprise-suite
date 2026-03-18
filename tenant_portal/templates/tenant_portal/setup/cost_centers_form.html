@@ -1,0 +1,64 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{% if cost_center %}Update cost center.{% else %}Add a new cost center. Code must be unique. Hierarchical structure via parent.{% endif %}</p>
+  </div>
+  <a href="{% url 'tenant_portal:setup_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Dimensions &amp; Cost Centers</a>
+</div>
+
+<div class="erp-section max-w-2xl">
+  <div class="erp-section-header">Cost center details</div>
+  <div class="erp-section-body">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Cost Center Code <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="code" value="{% if cost_center %}{{ cost_center.code }}{% endif %}" required maxlength="30" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. CC-01" />
+        <p class="text-xs mt-1" style="color:#605e5c;">Unique code.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Cost Center Name <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="name" value="{% if cost_center %}{{ cost_center.name }}{% endif %}" required maxlength="120" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Parent Cost Center</label>
+        <select name="parent_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for cc in cost_centers %}
+          <option value="{{ cc.pk }}" {% if cost_center and cost_center.parent_id == cc.pk %}selected{% endif %}>{{ cc.code }} — {{ cc.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Manager</label>
+        <select name="manager_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— None —</option>
+          {% for u in users %}
+          <option value="{{ u.pk }}" {% if cost_center and cost_center.manager_id == u.pk %}selected{% endif %}>{{ u.email }}{% if u.get_full_name %} ({{ u.get_full_name }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Description</label>
+        <textarea name="description" rows="3" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;">{% if cost_center %}{{ cost_center.description }}{% endif %}</textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
+        <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if cost_center and cost_center.status == value %}selected{% elif not cost_center and value == 'active' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if cost_center %}Update{% else %}Create{% endif %} Cost Center</button>
+        <a href="{% url 'tenant_portal:setup_dimensions_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

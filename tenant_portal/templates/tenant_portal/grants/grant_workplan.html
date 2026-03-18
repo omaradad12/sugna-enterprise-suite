@@ -1,0 +1,346 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Grant Workplan | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div x-data="{ createWorkplanOpen: false, raisePROpen: false, importWorkplanOpen: false }" class="contents">
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Grant Workplan</h1>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <button type="button"
+            @click="createWorkplanOpen = true"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow"
+            style="background:#0078D4;">
+      <i data-feather="plus" class="w-4 h-4"></i>
+      Create workplan
+    </button>
+    {% if can_manage %}
+    <button type="button"
+            @click="importWorkplanOpen = true"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border hover:bg-[#faf9f8]"
+            style="border-color:#107C10; color:#107C10;">
+      <i data-feather="upload" class="w-4 h-4"></i>
+      Import
+    </button>
+    {% endif %}
+    <button type="button"
+            @click="raisePROpen = true"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border hover:bg-[#faf9f8]"
+            style="border-color:#0078D4; color:#0078D4;">
+      <i data-feather="clipboard" class="w-4 h-4"></i>
+      PR
+    </button>
+    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+      <i data-feather="download" class="w-4 h-4"></i>
+      Export Excel
+    </a>
+  </div>
+</div>
+
+{# Filters #}
+<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
+  <form method="get" action="" class="space-y-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant</label>
+        <select name="grant_id" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor</label>
+        <select name="donor_id" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Workplan status</label>
+        <select name="workplan_status" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for value, label in workplan_status_choices %}
+          <option value="{{ value }}" {% if filters.workplan_status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Responsible department</label>
+        <select name="responsible_department" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for d in departments %}
+          <option value="{{ d }}" {% if filters.responsible_department == d %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Activity status</label>
+        <select name="activity_status" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for value, label in activity_status_choices %}
+          <option value="{{ value }}" {% if filters.activity_status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Start date</label>
+        <input type="date" name="start_date" value="{{ filters.start_date }}" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">End date</label>
+        <input type="date" name="end_date" value="{{ filters.end_date }}" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
+      <a href="{% url 'tenant_portal:grants_grant_workplan' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Reset</a>
+    </div>
+  </form>
+</div>
+
+{# Workplan table #}
+<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
+  <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+  </div>
+  <div class="overflow-auto">
+    <table class="min-w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Workplan ID</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Grant</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Donor</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Activity</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Component / output</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Budget line</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Procurement</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Responsible dept</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Responsible staff</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Start date</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">End date</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Budget amount</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Approved for PR</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Activity status</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in workplans %}
+        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2 font-mono" style="color:#323130;">{{ w.workplan_code }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{{ w.grant.code|default:"—" }} {{ w.grant.title|truncatewords:4 }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.donor_display|default:"—" }}</td>
+          <td class="px-4 py-2 font-medium" style="color:#323130;">{{ w.activity|truncatewords:6 }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.component_output|default:"—"|truncatewords:4 }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.budget_line|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.procurement_requirement|default:"—"|truncatewords:4 }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.responsible_department|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.responsible_staff|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.start_date|date:"d/m/Y"|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ w.end_date|date:"d/m/Y"|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{% if w.budget_amount %}{{ w.budget_amount|floatformat:0 }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-2">
+            {% if w.approved_for_pr %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#dff6dd; color:#0b5a0b;">Yes</span>
+            {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs" style="background:#edebe9; color:#605e5c;">No</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                  style="{% if w.activity_status == 'completed' %}background:#dff6dd; color:#0b5a0b;{% elif w.activity_status == 'in_progress' %}background:#fff4ce; color:#7a5c00;{% else %}background:#eaeaea; color:#605e5c;{% endif %}">
+              {{ w.get_activity_status_display }}
+            </span>
+          </td>
+          <td class="px-4 py-2">
+            <span class="inline-flex items-center gap-1 flex-wrap">
+              <a href="#" class="font-medium hover:underline" style="color:#0078D4;">View</a>
+              <span style="color:#c8c6c4;">|</span>
+              <a href="#" class="font-medium hover:underline" style="color:#0078D4;">Edit</a>
+              {% if w.approved_for_pr %}
+              <span style="color:#c8c6c4;">|</span>
+              <a href="{% url 'tenant_portal:grants_pr_create' %}?activity_id={{ w.pk }}" class="font-medium hover:underline" style="color:#0078D4;">PR</a>
+              {% elif can_manage %}
+              <span style="color:#c8c6c4;">|</span>
+              <form method="post" action="" class="inline" onsubmit="return confirm('Approve this activity for raising a PR?');">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="approve_for_pr" />
+                <input type="hidden" name="activity_id" value="{{ w.pk }}" />
+                <button type="submit" class="font-medium hover:underline text-left p-0 border-0 bg-transparent cursor-pointer" style="color:#107C10;">Approve for PR</button>
+              </form>
+              {% endif %}
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="14" class="px-4 py-8 text-center" style="color:#605e5c;">No workplan activities. Use Create workplan to add one.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="px-4 py-2 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ workplans|length }} entries</div>
+</div>
+
+{# PR modal: select approved activity and go to PR create #}
+<div x-ref="raisePRModal" x-show="raisePROpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/30" @click="raisePROpen = false"></div>
+    <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-5" style="border:1px solid #edebe9;">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold" style="color:#323130;">PR</h3>
+        <button type="button" @click="raisePROpen = false" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;"><i data-feather="x" class="w-5 h-5"></i></button>
+      </div>
+      <form method="post" action="">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="raise_pr" />
+        <div class="mb-4">
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Workplan activity (approved for PR)</label>
+          <select name="pr_activity_id" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
+            <option value="">Select activity</option>
+            {% for a in approved_activities_for_pr %}
+            <option value="{{ a.pk }}">{{ a.workplan_code }} — {{ a.activity|truncatewords:5 }}</option>
+            {% endfor %}
+          </select>
+          {% if not approved_activities_for_pr %}
+          <p class="text-xs mt-1" style="color:#605e5c;">No activities approved for PR. Use &quot;Approve for PR&quot; on an activity first.</p>
+          {% endif %}
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Continue to PR</button>
+          <button type="button" @click="raisePROpen = false" class="px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Create workplan modal #}
+<div x-ref="createWorkplanModal" x-show="createWorkplanOpen" x-cloak
+     class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/30" @click="createWorkplanOpen = false"></div>
+    <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style="border:1px solid #edebe9;">
+      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:#edebe9;">
+        <h3 class="text-lg font-semibold" style="color:#323130;">Create workplan</h3>
+        <button type="button" @click="createWorkplanOpen = false" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" action="" class="p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="create_workplan" />
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant <span style="color:#A4262C;">*</span></label>
+          <select name="grant_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">Select grant</option>
+            {% for g in grants %}
+            <option value="{{ g.pk }}">{{ g.code }} — {{ g.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Activity name <span style="color:#A4262C;">*</span></label>
+          <input name="workplan_title" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="e.g. Q1 field activities" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor</label>
+          <select name="donor_id" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">Same as grant</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}">{{ d.code }} — {{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Component / output</label>
+          <input name="workplan_component" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Grant output" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Budget line</label>
+          <input name="workplan_budget_line" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Budget line / category" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Procurement requirement</label>
+          <textarea name="workplan_procurement" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;" placeholder="Description of procurement need"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Responsible department</label>
+            <input name="workplan_department" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Responsible staff</label>
+            <input name="workplan_staff" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Activity owner" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Start date</label>
+            <input name="workplan_start_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">End date</label>
+            <input name="workplan_end_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Budget amount</label>
+          <input name="workplan_budget" type="number" step="0.01" min="0" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="0.00" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Notes</label>
+          <textarea name="workplan_description" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Save workplan</button>
+          <button type="button" @click="createWorkplanOpen = false" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Import workplan modal #}
+<div x-show="importWorkplanOpen" x-cloak
+     class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/30" @click="importWorkplanOpen = false"></div>
+    <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full" style="border:1px solid #edebe9;">
+      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:#edebe9;">
+        <h3 class="text-lg font-semibold" style="color:#323130;">Import workplan</h3>
+        <button type="button" @click="importWorkplanOpen = false" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" action="" enctype="multipart/form-data" class="p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="import_workplan" />
+        <p class="text-sm" style="color:#605e5c;">Upload a CSV or Excel file with columns: Grant (code), Activity, Component/Output, Budget line, Procurement, Responsible department, Responsible staff, Start date, End date, Budget amount. Dates must be within grant period; total activity budgets per grant cannot exceed the grant allocation.</p>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">File <span style="color:#A4262C;">*</span></label>
+          <input type="file" name="workplan_import_file" accept=".csv,.xlsx,.xls" required
+                 class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="{{ workplan_import_template_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+            <i data-feather="download" class="w-4 h-4"></i>
+            Download template
+          </a>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#107C10;">Import</button>
+          <button type="button" @click="importWorkplanOpen = false" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+</div>
+{% endblock %}

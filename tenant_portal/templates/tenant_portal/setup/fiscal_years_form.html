@@ -1,0 +1,57 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title|default:"Fiscal year" }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0 max-w-xl">
+  <div class="mb-4">
+    <h1 class="page-title">{{ page_title|default:"Fiscal year" }}</h1>
+  </div>
+
+  <div class="bg-white border rounded-lg shadow-sm" style="border-color:#edebe9;">
+    <form method="post" class="p-5 space-y-4">
+      {% csrf_token %}
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[13px] font-medium text-[#323130] mb-1">Name<span class="text-[#a4262c]">*</span></label>
+          <input type="text" name="name"
+                 value="{{ fiscal_year.name|default:'' }}"
+                 class="w-full px-3 py-2 rounded border text-sm bg-white"
+                 style="border-color:#d1d5db;"
+                 placeholder="e.g. FY2026" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Start date<span class="text-[#a4262c]">*</span></label>
+            <input type="date" name="start_date"
+                   value="{{ fiscal_year.start_date|date:'Y-m-d' }}"
+                   class="w-full px-3 py-2 rounded border text-sm bg-white"
+                   style="border-color:#d1d5db;" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">End date<span class="text-[#a4262c]">*</span></label>
+            <input type="date" name="end_date"
+                   value="{{ fiscal_year.end_date|date:'Y-m-d' }}"
+                   class="w-full px-3 py-2 rounded border text-sm bg-white"
+                   style="border-color:#d1d5db;" />
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+        <a href="{% url 'tenant_portal:setup_fiscal_years_list' %}"
+           class="px-4 py-2 rounded text-sm font-semibold border"
+           style="border-color:#edebe9; color:#323130;">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          Save fiscal year
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

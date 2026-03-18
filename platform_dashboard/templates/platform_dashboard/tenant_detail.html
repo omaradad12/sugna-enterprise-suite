@@ -74,6 +74,123 @@
         </div>
       </div>
 
+      <div class="dynamics-card overflow-hidden" id="tenant-users">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold text-slate-800">Tenant users</h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              {% if tenant_users_summary.total %}
+                {{ tenant_users_summary.total }} total · {{ tenant_users_summary.active }} active · {{ tenant_users_summary.admins }} admin
+              {% else %}
+                Users stored inside the tenant’s isolated database.
+              {% endif %}
+            </p>
+          </div>
+          <form method="get" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="uper_page" value="{{ user_filters.uper_page }}">
+            <input type="hidden" name="upage" value="1">
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-feather="search" class="w-4 h-4"></i></span>
+              <input name="uq" value="{{ user_filters.uq }}" placeholder="Search email, name, dept..." class="w-64 max-w-[70vw] pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500">
+            </div>
+            <button class="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors">Search</button>
+            {% if user_filters.uq %}
+              <a href="?" class="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">Reset</a>
+            {% endif %}
+          </form>
+        </div>
+
+        {% if tenant_users_error %}
+          <div class="px-5 py-6">
+            <div class="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+              <span class="font-semibold">Cannot load tenant users.</span>
+              <div class="mt-1 text-orange-700">{{ tenant_users_error }}</div>
+            </div>
+          </div>
+        {% else %}
+          {% if tenant_users %}
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left data-table min-w-[900px]">
+                <thead class="border-b border-slate-200 text-slate-600 font-semibold bg-slate-50/95">
+                  <tr>
+                    <th class="px-5 py-3">Email</th>
+                    <th class="px-5 py-3">Name</th>
+                    <th class="px-5 py-3">Department</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3">Role</th>
+                    <th class="px-5 py-3">Last login</th>
+                    <th class="px-5 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  {% for u in tenant_users %}
+                  <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="px-5 py-3 font-mono text-xs text-slate-700">{{ u.email }}</td>
+                    <td class="px-5 py-3 text-slate-900 font-medium">{% if u.full_name %}{{ u.full_name }}{% else %}—{% endif %}</td>
+                    <td class="px-5 py-3 text-slate-700">{% if u.department %}{{ u.department }}{% else %}—{% endif %}</td>
+                    <td class="px-5 py-3">
+                      {% if u.is_active %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-success-50 text-success-700 border border-success-200/60">
+                          <span class="w-2 h-2 rounded-full bg-success-500"></span> Active
+                        </span>
+                      {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200/60">
+                          <span class="w-2 h-2 rounded-full bg-slate-400"></span> Inactive
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-700">{% if u.is_tenant_admin %}Tenant Admin{% else %}User{% endif %}</td>
+                    <td class="px-5 py-3 text-slate-600">{% if u.last_login_at %}{{ u.last_login_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
+                    <td class="px-5 py-3 text-right">
+                      <form method="post" action="{% url 'platform_dashboard:platform_reset_tenant_user_password' %}" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
+                        <input type="hidden" name="email" value="{{ u.email }}">
+                        <input type="hidden" name="next" value="{% url 'platform_dashboard:tenant_detail' tenant.id %}#tenant-users">
+                        <button type="submit" class="px-3 py-1.5 rounded border bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">
+                          Reset password
+                        </button>
+                      </form>
+                      <a href="{% url 'platform_dashboard:platform_set_tenant_user_password' %}?tenant_id={{ tenant.id }}&email={{ u.email|urlencode }}&next={% url 'platform_dashboard:tenant_detail' tenant.id %}#tenant-users"
+                         class="ml-2 px-3 py-1.5 rounded border bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 inline-flex">
+                        Set new password
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            {% if tenant_users_page %}
+            <div class="px-5 py-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm">
+              <div class="text-slate-600">
+                Page {{ tenant_users_page.number }} of {{ tenant_users_page.paginator.num_pages }} · {{ tenant_users_summary.total }} user{{ tenant_users_summary.total|pluralize }}
+              </div>
+              <div class="flex items-center gap-2">
+                {% if tenant_users_page.has_previous %}
+                  <a class="px-3 py-1.5 rounded border bg-white text-slate-700 hover:bg-slate-50"
+                     href="?uq={{ user_filters.uq|urlencode }}&uper_page={{ user_filters.uper_page }}&upage={{ tenant_users_page.previous_page_number }}">Prev</a>
+                {% else %}
+                  <span class="px-3 py-1.5 rounded border bg-slate-50 text-slate-400 cursor-not-allowed">Prev</span>
+                {% endif %}
+                {% if tenant_users_page.has_next %}
+                  <a class="px-3 py-1.5 rounded border bg-white text-slate-700 hover:bg-slate-50"
+                     href="?uq={{ user_filters.uq|urlencode }}&uper_page={{ user_filters.uper_page }}&upage={{ tenant_users_page.next_page_number }}">Next</a>
+                {% else %}
+                  <span class="px-3 py-1.5 rounded border bg-slate-50 text-slate-400 cursor-not-allowed">Next</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="px-5 py-10 text-center text-slate-500 text-sm">
+              No users found{% if user_filters.uq %} for “{{ user_filters.uq }}”{% endif %}.
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+
       <div class="dynamics-card overflow-hidden">
         <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Billing history</h2>
         <div class="px-5 py-8 text-center text-slate-500 text-sm">

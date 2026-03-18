@@ -1,0 +1,98 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Donor Reporting Deadlines | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Donor Reporting Deadlines</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Track report submission deadlines and alerts.</p>
+</div>
+
+{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-4">
+  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
+    <h2 class="font-semibold">Create deadline</h2>
+    <form method="post" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_deadline" />
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
+        <select name="donor_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">Select</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}">{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant</label>
+        <select name="grant_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">Select</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}">{{ g.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Requirement (optional)</label>
+        <select name="requirement_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">—</option>
+          {% for r in requirements %}
+          <option value="{{ r.pk }}">{{ r.donor.name }} — {{ r.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Title</label><input name="title" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Deadline date</label><input name="deadline_date" type="date" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Notes</label><textarea name="notes" rows="2" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;"></textarea></div>
+      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Create</button>
+    </form>
+  </div>
+  <div class="lg:col-span-2 space-y-4">
+{% if overdue %}
+<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+  <h2 class="font-semibold text-red-800">Overdue reports</h2>
+  <ul class="mt-2 space-y-1 text-sm">
+    {% for d in overdue %}
+    <li>{{ d.title }} — {{ d.deadline_date|date:"Y-m-d" }} ({{ d.donor.name|default:d.grant.code|default:"—" }})</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Deadlines</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">Title</th>
+        <th class="px-4 py-2 font-semibold">Donor / Grant</th>
+        <th class="px-4 py-2 font-semibold">Deadline</th>
+        <th class="px-4 py-2 font-semibold">Status</th>
+        <th class="px-4 py-2 font-semibold">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in deadlines %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ d.title }}</td>
+        <td class="px-4 py-2">{{ d.donor.name|default:d.grant.code|default:"—" }}</td>
+        <td class="px-4 py-2">{{ d.deadline_date|date:"Y-m-d" }}</td>
+        <td class="px-4 py-2">{{ d.get_status_display }}</td>
+        <td class="px-4 py-2">
+          {% if d.status == 'pending' %}
+          <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="mark_submitted" /><input type="hidden" name="deadline_id" value="{{ d.pk }}" /><button type="submit" class="text-[#0078d4] font-medium hover:underline">Mark submitted</button></form>
+          {% else %}
+          {{ d.submitted_at|date:"Y-m-d H:i"|default:"—" }}
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="px-4 py-6 text-center text-[#605e5c]">No deadlines.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+  </div>
+</div>
+{% endblock %}

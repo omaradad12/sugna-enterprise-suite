@@ -1,0 +1,46 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Fraud Alerts{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Fraud Alerts</h1>
+    <p class="page-subtitle mt-1">Alerts generated when transactions exceed risk thresholds or control rules are violated.</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">Alerts</div>
+    <div class="erp-section-body overflow-x-auto">
+      {% if alerts %}
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Status</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in alerts %}
+          <tr>
+            <td>{{ a.title }}</td>
+            <td>{{ a.get_alert_type_display }}</td>
+            <td>{{ a.get_severity_display }}</td>
+            <td>{{ a.get_status_display }}</td>
+            <td>{{ a.created_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-12 text-center">
+        <i data-feather="alert-triangle" class="w-12 h-12 mb-3" style="color: #c8c6c4;"></i>
+        <p class="text-[13px]" style="color: #605e5c;">No fraud alerts.</p>
+        <p class="text-[12px] mt-1" style="color: #a19f9d;">Alerts are created automatically when the risk engine flags transactions.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

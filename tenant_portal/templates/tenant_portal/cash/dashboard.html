@@ -1,0 +1,133 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Cash &amp; Bank | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 pb-8" style="background:#faf9f8;">
+  <div class="pt-6 pb-5">
+    <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Cash &amp; Bank</h1>
+    <p class="text-sm text-[#605e5c] mt-1">Module overview: balances, quick actions, and recent activity. Use the sidebar for detailed pages.</p>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-lg border p-5 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="credit-card" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-2xl font-bold text-[#323130]">${{ total_bank_balance|floatformat:2 }}</p>
+        <p class="text-[13px] text-[#605e5c]">Total Bank Balance</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border p-5 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="dollar-sign" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-2xl font-bold text-[#323130]">${{ total_cash_balance|floatformat:2 }}</p>
+        <p class="text-[13px] text-[#605e5c]">Total Cash Balance</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border p-5 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="pocket" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-2xl font-bold text-[#323130]">{{ petty_count }}</p>
+        <p class="text-[13px] text-[#605e5c]">Petty Cash Accounts</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border p-5 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#fef3c7;">
+        <i data-feather="clipboard-check" class="w-6 h-6" style="color:#b45309;"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-2xl font-bold text-[#323130]">{{ pending_recon }}</p>
+        <p class="text-[13px] text-[#605e5c]">Pending Reconciliation</p>
+      </div>
+    </div>
+  </div>
+
+  {% include "tenant_portal/_smart_alerts_module.html" with alert_category="cash_bank" %}
+
+  <!-- Quick actions -->
+  <div class="bg-white rounded-lg border shadow-sm overflow-hidden mb-8" style="border-color:#edebe9;">
+    <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+      <h2 class="text-base font-semibold text-[#323130]">Quick actions</h2>
+      <p class="text-[13px] text-[#605e5c] mt-0.5">Common tasks for cash and bank operations.</p>
+    </div>
+    <div class="p-5 flex flex-wrap gap-3">
+      {% if can_manage %}
+      <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+         style="background:#0078D4;">
+        <i data-feather="plus" class="w-4 h-4"></i>
+        New Bank Account
+      </a>
+      {% endif %}
+      <a href="{% url 'tenant_portal:cash_cash_transfers' %}"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold border"
+         style="border-color:#edebe9; color:#323130; background:#fff;">
+        <i data-feather="repeat" class="w-4 h-4"></i>
+        Cash Transfer
+      </a>
+      <a href="{% url 'tenant_portal:cash_bank_transfers' %}"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold border"
+         style="border-color:#edebe9; color:#323130; background:#fff;">
+        <i data-feather="shuffle" class="w-4 h-4"></i>
+        Bank Transfer
+      </a>
+      <a href="{% url 'tenant_portal:cash_petty_expenses' %}"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold border"
+         style="border-color:#edebe9; color:#323130; background:#fff;">
+        <i data-feather="file-minus" class="w-4 h-4"></i>
+        Petty Cash Expense
+      </a>
+      <a href="{% url 'tenant_portal:cash_bank_recon' %}"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold border"
+         style="border-color:#edebe9; color:#323130; background:#fff;">
+        <i data-feather="clipboard-check" class="w-4 h-4"></i>
+        Start Reconciliation
+      </a>
+    </div>
+  </div>
+
+  <!-- Recent activity -->
+  <div class="bg-white rounded-lg border shadow-sm overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9; background:#faf9f8;">
+      <div>
+        <h2 class="text-base font-semibold text-[#323130]">Recent activity</h2>
+        <p class="text-[13px] text-[#605e5c] mt-0.5">Latest organizational cash transactions (main cashbook).</p>
+      </div>
+      <a href="{% url 'tenant_portal:cash_main_cashbook' %}"
+         class="text-[13px] font-medium text-[#0078D4] hover:underline">View Main Cashbook</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-[13px]" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f3f2f1; border-bottom:1px solid #edebe9;">
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Date</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Reference</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3">Description</th>
+            <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent_activity %}
+          <tr class="hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">
+            <td class="px-5 py-3 text-[#323130]">{{ r.date|date:"d/m/Y" }}</td>
+            <td class="px-5 py-3 text-[#323130] font-medium">{{ r.reference }}</td>
+            <td class="px-5 py-3 text-[#323130]">{{ r.description }}</td>
+            <td class="px-5 py-3 text-right tabular-nums font-medium text-[#323130]">{{ r.amount|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" class="px-5 py-8 text-center text-[#605e5c]">No recent activity.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -4,20 +4,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ tenant.name }} | Sign in</title>
+  <title>{{ tenant_display_name|default:tenant.name }} | Sign in</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#faf9f8' }};">
   <div class="min-h-screen flex items-center justify-center px-4">
     <div class="w-full max-w-md bg-white border rounded-lg shadow-sm p-7" style="border-color: #edebe9;">
       <div class="flex items-center gap-3 mb-6">
-        {% if tenant.brand_logo_url %}
-          <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant.name }}" class="h-10 w-auto object-contain" />
+        {% if org_settings and org_settings.organization_logo %}
+          <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-10 w-auto object-contain" />
+        {% elif tenant.brand_logo_url %}
+          <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-10 w-auto object-contain" />
         {% else %}
           <img src="{% url 'platform_dashboard:logo' %}" alt="Sugna Enterprise Suite" class="h-10 w-auto object-contain" />
         {% endif %}
         <div class="min-w-0">
-          <p class="text-sm font-semibold truncate">{{ tenant.name }}</p>
+          <p class="text-sm font-semibold truncate">{{ tenant_display_name|default:tenant.name }}</p>
           <p class="text-xs text-[#605e5c] truncate">
             {% if tenant.brand_login_subtitle %}
               {{ tenant.brand_login_subtitle }}

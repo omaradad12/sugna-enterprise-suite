@@ -1,0 +1,183 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Receipt Vouchers | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white border rounded-lg shadow-sm p-6 mb-6" style="border-color:#edebe9;">
+  <div class="mb-4 border-b pb-2" style="border-color:#edebe9;">
+    <h1 class="text-2xl font-bold tracking-tight text-center text-[#005a9e]">RECEIPT VOUCHER</h1>
+  </div>
+
+  <form method="post" class="space-y-3"
+      x-data="{
+        formatAmount(e) {
+          const v = parseFloat(e.target.value || 0);
+          if (!isNaN(v)) e.target.value = v.toFixed(2);
+        },
+        syncDonorForProject(e) {
+          const sel = this.$refs.donorSelect;
+          const bankSel = this.$refs.depositAccount;
+          if (!sel) return;
+          const opt = e.target.selectedOptions[0];
+          if (!opt) return;
+          const donorId = opt.dataset.donorId;
+          const bankAccountId = opt.dataset.bankAccountId;
+          if (!donorId) return;
+          Array.from(sel.options).forEach(o => {
+            if (o.dataset && o.dataset.donorId === donorId) {
+              sel.value = o.value;
+            }
+          });
+          if (bankSel) {
+            Array.from(bankSel.options).forEach((o, idx) => {
+              if (idx === 0) { o.hidden = false; return; }
+              o.hidden = !!bankAccountId && (o.value !== bankAccountId);
+            });
+            bankSel.value = bankAccountId || '';
+          }
+        }
+      }">
+    {% csrf_token %}
+
+    <!-- Header -->
+    <div class="erp-section">
+      <div class="erp-section-body">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
+            <input type="text"
+                   value="Auto-generated on post"
+                   readonly
+                   class="w-full px-2 py-1.5 rounded border text-xs bg-[#f3f2f1]"
+                   style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher date</label>
+            <input type="date"
+                   name="voucher_date"
+                   required
+                   class="w-full px-2 py-1.5 rounded border text-xs"
+                   style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
+            <select name="grant_id"
+                    @change="syncDonorForProject($event)"
+                    class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                    style="border-color:#edebe9;">
+              <option value="">—</option>
+              {% for g in grants %}
+              <option value="{{ g.id }}"
+                      data-donor-id="{{ g.donor_id }}"
+                      data-bank-account-id="{% if g.bank_account_id %}{{ g.bank_account_id }}{% endif %}">
+                {{ g.code }} — {{ g.title }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
+            <select name="fund_name"
+                    x-ref="donorSelect"
+                    class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                    style="border-color:#edebe9;">
+              <option value="">Select donor</option>
+              {% for d in donors %}
+              <option value="{{ d.name }}" data-donor-id="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Reference no.</label>
+            <input type="text"
+                   name="reference_no"
+                   class="w-full px-2 py-1.5 rounded border text-xs"
+                   style="border-color:#edebe9;" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Receipt information -->
+    <div class="erp-section mt-3">
+      <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Receipt information</div>
+      <div class="erp-section-body text-sm space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Received from / Donor / Project</label>
+            <input type="text"
+                   name="received_from"
+                   class="w-full px-2 py-1.5 rounded border text-xs bg-[#ecf8ff]"
+                   style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Receipt method</label>
+            <select name="receipt_method"
+                    class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                    style="border-color:#edebe9;">
+              <option value="">Select</option>
+              <option value="bank">Bank</option>
+              <option value="cash">Cash</option>
+              <option value="transfer">Transfer</option>
+              <option value="cheque">Cheque</option>
+              <option value="mobile_money">Mobile money</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Deposit bank account</label>
+            <select name="deposit_account_id"
+                    x-ref="depositAccount"
+                    class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                    style="border-color:#edebe9;">
+              <option value="">Select bank account</option>
+              {% for acc in bank_accounts %}
+              <option value="{{ acc.id }}">{{ acc.bank_name }} — {{ acc.account_number }} ({{ acc.currency.code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Income account</label>
+            <select name="income_account_id"
+                    class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                    style="border-color:#edebe9;">
+              <option value="">Select income account</option>
+              {% for acc in income_accounts %}
+              <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount (USD)</label>
+            <input type="number"
+                   name="amount"
+                   step="0.01"
+                   min="0"
+                   @blur="formatAmount($event)"
+                   class="w-full px-2 py-1.5 rounded border text-xs"
+                   style="border-color:#edebe9;" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Receipt description</label>
+          <input type="text"
+                 name="description"
+                 class="w-full px-2 py-1.5 rounded border text-xs bg-[#ecf8ff]"
+                 style="border-color:#edebe9;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="hidden-print pt-4 flex items-center gap-3 justify-start">
+      <button type="submit" name="action" value="save_draft"
+              class="inline-flex items-center gap-2 px-5 py-2 rounded-md text-xs sm:text-sm font-semibold bg-[#107c10] text-white hover:bg-[#0b5a0b]">
+        <span>Save</span>
+      </button>
+      <button type="submit" name="action" value="post"
+              class="inline-flex items-center gap-2 px-5 py-2 rounded-md text-xs sm:text-sm font-semibold bg-[#0078D4] text-white hover:bg-[#005a9e]">
+        <span>Post</span>
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

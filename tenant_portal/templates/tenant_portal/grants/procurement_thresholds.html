@@ -1,0 +1,77 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Procurement thresholds | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Procurement thresholds</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">Value ranges determine method (Direct Purchase, RFQ, Tender) and whether PO approval is required.</p>
+  </div>
+  <a href="{% url 'tenant_portal:procurement_po_list' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium" style="border-color:#edebe9;">← Purchase orders</a>
+</div>
+
+{% if can_manage %}
+<div class="bg-white border rounded-lg p-6 mb-6 max-w-xl" style="border-color:#edebe9;">
+  <h2 class="font-semibold text-lg mb-4" style="color:#323130;">Add threshold</h2>
+  <form method="post" action="" class="space-y-4">
+    {% csrf_token %}
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Amount from</label>
+        <input type="number" name="amount_min" step="0.01" min="0" value="0" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Amount to (blank = no limit)</label>
+        <input type="number" name="amount_max" step="0.01" min="0" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Optional" />
+      </div>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Method</label>
+      <select name="method" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+        <option value="direct_purchase">Direct Purchase</option>
+        <option value="request_quotation">RFQ</option>
+        <option value="open_tender">Tender</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-2">
+      <input type="checkbox" name="requires_po_approval" id="id_requires" class="rounded" />
+      <label for="id_requires" class="text-sm" style="color:#605e5c;">PO requires approval above limit</label>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">PO approval limit (amount above which approval is required)</label>
+      <input type="number" name="po_approval_limit" step="0.01" min="0" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Optional" />
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Add threshold</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="overflow-auto">
+    <table class="min-w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr>
+          <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Amount from</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Amount to</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Method</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PO approval</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Approval limit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in thresholds %}
+        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2 text-right" style="color:#323130;">{{ t.amount_min|floatformat:2 }}</td>
+          <td class="px-4 py-2 text-right" style="color:#323130;">{{ t.amount_max|floatformat:2|default:"—" }}</td>
+          <td class="px-4 py-2" style="color:#323130;">{{ t.get_method_display }}</td>
+          <td class="px-4 py-2" style="color:#605e5c;">{{ t.requires_po_approval|yesno:"Yes,No" }}</td>
+          <td class="px-4 py-2 text-right" style="color:#323130;">{{ t.po_approval_limit|floatformat:2|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-8 text-center" style="color:#605e5c;">No thresholds. Add one to enforce method and approval by value.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Financial Alerts &amp; Risks | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Financial Alerts &amp; Risks</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Budget overruns, low cash, expiring grants, and other warnings.</p>
+</div>
+
+{% if smart_alerts %}
+<div class="bg-white border rounded-lg p-4 mb-5" style="border-color:#edebe9;">
+  <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Smart Alerts &amp; Warnings</h2>
+  <p class="text-xs text-[#605e5c] mb-3">Click an alert to open the relevant module.</p>
+  <div class="space-y-2">
+    {% for alert in smart_alerts %}
+    <a href="{{ alert.link_url }}" class="flex gap-3 items-start p-3 rounded-lg border-l-4 hover:bg-[#faf9f8]" style="border-color:#edebe9; border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
+      <span class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
+        <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="text-[13px] font-semibold text-[#111827]">{{ alert.title }}</p>
+        <p class="text-[12px] mt-0.5" style="color:#6b7280;">{{ alert.message }}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% include "tenant_portal/finance/_filters_export.html" %}
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
+    <p class="text-xs text-[#605e5c]">Budget Overruns</p>
+    <p class="text-xl font-bold mt-1 text-[#a4262c]">{{ overrun_count }}</p>
+  </div>
+  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
+    <p class="text-xs text-[#605e5c]">Low / Negative Cash</p>
+    <p class="text-xl font-bold mt-1 text-[#a4262c]">{{ low_cash_count }}</p>
+  </div>
+  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
+    <p class="text-xs text-[#605e5c]">Expiring Grants (90 days)</p>
+    <p class="text-xl font-bold mt-1 text-[#ca5010]">{{ expiring_count }}</p>
+  </div>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Alerts</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Type</th>
+          <th class="px-4 py-2 font-semibold">Detail</th>
+          <th class="px-4 py-2 font-semibold text-right">Amount / Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in alerts %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2"><span class="font-medium {% if alert.type == 'overrun' or alert.type == 'low_cash' %}text-[#a4262c]{% else %}text-[#ca5010]{% endif %}">{{ alert.type_label }}</span></td>
+          <td class="px-4 py-2">{{ alert.detail }}</td>
+          <td class="px-4 py-2 text-right">{{ alert.amount|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="px-4 py-6 text-center text-[#605e5c]">No financial alerts.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Complete Grant Agreement | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Complete Grant Agreement</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">
+    Agreement <strong>{{ grant.code }}</strong> was created from tracking {{ tracking.code }}. Set bank account, dates, and activate.
+  </p>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden max-w-3xl" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">
+    Agreement details (post-award)
+  </div>
+  <form method="post" enctype="multipart/form-data" class="p-6 space-y-4">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Bank account <span class="text-red-600">*</span></label>
+        <select name="bank_account_id" required class="w-full px-3 py-2 border rounded text-sm" style="border-color:#edebe9;">
+          <option value="">Select bank account</option>
+          {% for ba in bank_accounts %}
+          <option value="{{ ba.pk }}" {% if grant.bank_account_id == ba.pk %}selected{% endif %}>{{ ba.bank_name }} — {{ ba.account_name }}</option>
+          {% empty %}
+          <option value="">No active bank accounts</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Award amount <span class="text-red-600">*</span></label>
+        <input type="number" name="award_amount" step="0.01" min="0.01" required
+               value="{{ grant.award_amount|floatformat:2 }}"
+               class="w-full px-3 py-2 border rounded text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Signed date</label>
+        <input type="date" name="signed_date" value="{{ grant.signed_date|date:'Y-m-d'|default:'' }}"
+               class="w-full px-3 py-2 border rounded text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Start date <span class="text-red-600">*</span></label>
+        <input type="date" name="start_date" required value="{{ grant.start_date|date:'Y-m-d'|default:'' }}"
+               class="w-full px-3 py-2 border rounded text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">End date</label>
+        <input type="date" name="end_date" value="{{ grant.end_date|date:'Y-m-d'|default:'' }}"
+               class="w-full px-3 py-2 border rounded text-sm" style="border-color:#edebe9;" />
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Reporting rules (summary)</label>
+      <textarea name="reporting_rules" rows="2" class="w-full px-3 py-2 border rounded text-sm resize-y" style="border-color:#edebe9;">{{ grant.reporting_rules|default:'' }}</textarea>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor restrictions (summary)</label>
+      <textarea name="donor_restrictions" rows="2" class="w-full px-3 py-2 border rounded text-sm resize-y" style="border-color:#edebe9;">{{ grant.donor_restrictions|default:'' }}</textarea>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Signed contract document (PDF/file)</label>
+      <input type="file" name="signed_contract_document" class="w-full text-sm" style="border-color:#edebe9;" />
+      {% if grant.signed_contract_document %}<p class="text-xs mt-1 text-[#605e5c]">Current: {{ grant.signed_contract_document.name }}</p>{% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+      <input type="checkbox" name="activate" id="activate" value="1" {% if grant.status == 'active' %}checked{% endif %} class="rounded" />
+      <label for="activate" class="text-sm font-medium">Activate agreement (makes it the official source for funds and reporting)</label>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 pt-4 border-t" style="border-color:#edebe9;">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded" style="background:#0078D4;">
+        <i data-feather="check" class="w-4 h-4"></i> Save agreement
+      </button>
+      <a href="{% url 'tenant_portal:grants_grants' %}" class="px-4 py-2 text-sm font-medium border rounded" style="border-color:#edebe9; color:#605e5c;">Back to Grant Agreements</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

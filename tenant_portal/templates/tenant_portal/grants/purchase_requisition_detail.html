@@ -1,0 +1,276 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}PR {{ pr.pr_number }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  <div>
+    <a href="{% url 'tenant_portal:grants_pr_list' %}" class="text-sm font-medium hover:underline mb-1 inline-block" style="color:#0078D4;">← Purchase requisitions</a>
+    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ pr.pr_number }}</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">{{ pr.item_description|truncatewords:12 }}</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
+          style="{% if pr.status == 'fulfilled' or pr.status == 'approved_by_line_manager' %}background:#dff6dd; color:#0b5a0b;{% elif pr.status == 'pending_line_manager_approval' %}background:#e5f0ff; color:#1d4ed8;{% elif pr.status == 'rejected' or pr.status == 'cancelled' %}background:#fde7e9; color:#a4262c;{% elif pr.status == 'assigned_to_procurement' or pr.status == 'under_procurement_processing' or pr.status == 'po_issued' %}background:#fff4ce; color:#7a5c00;{% else %}background:#eaeaea; color:#605e5c;{% endif %}">
+      {{ pr.get_status_display }}
+    </span>
+  </div>
+</div>
+
+{% if messages %}
+<ul class="mb-4">
+  {% for message in messages %}
+  <li class="py-2 px-4 rounded-lg text-sm {% if message.tags == 'error' %}bg-[#fde7e9] text-[#a4262c]{% else %}bg-[#dff6dd] text-[#0b5a0b]{% endif %}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">PR details</h2>
+      </div>
+      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div><span class="font-semibold" style="color:#605e5c;">PR date</span><br/><span style="color:#323130;">{{ pr.pr_date|date:"d M Y" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Grant</span><br/><span style="color:#323130;">{{ pr.grant.code|default:"—" }} {{ pr.grant.title|truncatewords:4|default:"" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Donor</span><br/><span style="color:#323130;">{{ pr.donor.name|default:"—" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Workplan activity</span><br/><span style="color:#323130;">{{ pr.workplan_activity.workplan_code|default:"—" }} {{ pr.workplan_activity.activity|truncatewords:5 }}</span></div>
+        <div class="sm:col-span-2"><span class="font-semibold" style="color:#605e5c;">Budget line</span><br/><span style="color:#323130;">{{ pr.budget_line|default:"—" }}</span></div>
+        <div class="sm:col-span-2">
+          <span class="font-semibold" style="color:#605e5c;">Line items (activity breakdown)</span>
+          <div class="overflow-x-auto border rounded-lg mt-2" style="border-color:#edebe9;">
+            <table class="min-w-full text-sm">
+              <thead style="background:#f3f2f1;">
+                <tr>
+                  <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">#</th>
+                  <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Item description</th>
+                  <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Qty</th>
+                  <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Unit cost</th>
+                  <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Total</th>
+                  {% if can_edit_lines %}<th class="w-20"></th>{% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for line in pr.lines.all %}
+                <tr class="border-t" style="border-color:#edebe9;">
+                  <td class="px-3 py-2" style="color:#605e5c;">{{ line.line_number }}</td>
+                  <td class="px-3 py-2" style="color:#323130;">{{ line.item_description }}</td>
+                  <td class="px-3 py-2 text-right" style="color:#323130;">{{ line.quantity|floatformat:2 }}</td>
+                  <td class="px-3 py-2 text-right" style="color:#323130;">{{ line.estimated_unit_cost|floatformat:2 }}</td>
+                  <td class="px-3 py-2 text-right font-medium" style="color:#323130;">{{ line.estimated_total_cost|floatformat:2 }}</td>
+                  {% if can_edit_lines %}
+                  <td class="px-2 py-2">
+                    <form method="post" action="" class="inline" onsubmit="return confirm('Remove this line?');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="remove_line" />
+                      <input type="hidden" name="line_id" value="{{ line.pk }}" />
+                      <button type="submit" class="text-xs px-2 py-1 rounded border" style="border-color:#a4262c; color:#a4262c;">Remove</button>
+                    </form>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="{% if can_edit_lines %}6{% else %}5{% endif %}" class="px-3 py-2" style="color:#605e5c;">No lines.</td></tr>
+                {% endfor %}
+              </tbody>
+              <tfoot style="background:#faf9f8; border-top:2px solid #edebe9;">
+                <tr>
+                  <td colspan="4" class="px-3 py-2 text-right font-semibold" style="color:#605e5c;">Total</td>
+                  <td class="px-3 py-2 text-right font-semibold" style="color:#323130;">{{ pr_effective_total|floatformat:2 }}</td>
+                  {% if can_edit_lines %}<td></td>{% endif %}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        {% if can_edit_lines %}
+        <div class="sm:col-span-2">
+          <span class="font-semibold" style="color:#605e5c;">Add line</span>
+          <form method="post" action="" class="mt-2 flex flex-wrap items-end gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_line" />
+            <input type="text" name="new_line_item" placeholder="Item description" required class="px-3 py-2 rounded-lg border text-sm min-w-[180px]" style="border-color:#edebe9;" />
+            <input type="number" name="new_line_qty" step="0.01" min="0.01" value="1" placeholder="Qty" class="px-3 py-2 rounded-lg border text-sm w-20" style="border-color:#edebe9;" />
+            <input type="number" name="new_line_unit_cost" step="0.01" min="0" value="0" placeholder="Unit cost" class="px-3 py-2 rounded-lg border text-sm w-28" style="border-color:#edebe9;" />
+            <input type="text" name="new_line_budget_line" placeholder="Budget line" class="px-3 py-2 rounded-lg border text-sm w-32" style="border-color:#edebe9;" />
+            <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Add line</button>
+          </form>
+        </div>
+        {% endif %}
+        <div><span class="font-semibold" style="color:#605e5c;">Procurement method</span><br/><span style="color:#323130;">{{ pr.get_procurement_method_display|default:"—" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Priority</span><br/><span style="color:#323130;">{{ pr.get_priority_display }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Delivery date</span><br/><span style="color:#323130;">{{ pr.delivery_date|date:"d M Y"|default:"—" }}</span></div>
+        <div class="sm:col-span-2"><span class="font-semibold" style="color:#605e5c;">Justification</span><br/><span style="color:#323130;">{{ pr.justification|default:"—" }}</span></div>
+        <div><span class="font-semibold" style="color:#605e5c;">Requested by</span><br/><span style="color:#323130;">{{ pr.requested_by.full_name|default:pr.requested_by.email|default:"—" }}</span></div>
+        {% if pr.line_manager_approved_by %}
+        <div><span class="font-semibold" style="color:#605e5c;">Approved by (LM)</span><br/><span style="color:#323130;">{{ pr.line_manager_approved_by.full_name|default:pr.line_manager_approved_by.email }} {{ pr.line_manager_approved_at|date:"d/m/Y H:i" }}</span></div>
+        {% endif %}
+        {% if pr.procurement_officer %}
+        <div><span class="font-semibold" style="color:#605e5c;">Procurement officer</span><br/><span style="color:#323130;">{{ pr.procurement_officer.full_name|default:pr.procurement_officer.email }}</span></div>
+        {% endif %}
+        {% if pr.line_manager_rejection_comment %}
+        <div class="sm:col-span-2"><span class="font-semibold" style="color:#a4262c;">Rejection reason</span><br/><span style="color:#323130;">{{ pr.line_manager_rejection_comment }}</span></div>
+        {% endif %}
+        {% if pr.line_manager_return_comment %}
+        <div class="sm:col-span-2"><span class="font-semibold" style="color:#7a5c00;">Return reason</span><br/><span style="color:#323130;">{{ pr.line_manager_return_comment }}</span></div>
+        {% endif %}
+        {% if pr.cancellation_comment %}
+        <div class="sm:col-span-2"><span class="font-semibold" style="color:#605e5c;">Cancellation reason</span><br/><span style="color:#323130;">{{ pr.cancellation_comment }}</span></div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Attachments #}
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Attachments</h2>
+      </div>
+      <div class="p-5">
+        <ul class="space-y-2 text-sm">
+          {% for att in pr.attachments.all %}
+          <li class="flex items-center justify-between gap-2 py-1 border-b last:border-0" style="border-color:#edebe9;">
+            <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="font-medium hover:underline" style="color:#0078D4;">{{ att.original_filename|default:att.file.name }}</a>
+            <span class="text-xs" style="color:#605e5c;">{{ att.uploaded_at|date:"d/m/Y H:i" }}</span>
+            {% if can_edit_lines %}
+            <form method="post" action="" class="inline" onsubmit="return confirm('Remove this attachment?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="remove_attachment" />
+              <input type="hidden" name="attachment_id" value="{{ att.pk }}" />
+              <button type="submit" class="text-xs px-2 py-1 rounded border" style="border-color:#a4262c; color:#a4262c;">Remove</button>
+            </form>
+            {% endif %}
+          </li>
+          {% empty %}
+          <li class="py-2" style="color:#605e5c;">No attachments.</li>
+          {% endfor %}
+        </ul>
+        {% if can_edit_lines %}
+        <form method="post" action="" enctype="multipart/form-data" class="mt-4 flex flex-wrap items-center gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_attachment" />
+          <input type="file" name="attachment_file" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Add attachment</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Audit trail #}
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Audit trail</h2>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead style="background:#f3f2f1;">
+            <tr>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Date / time</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">From → To</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">By</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in status_logs %}
+            <tr class="border-b last:border-0" style="border-color:#edebe9;">
+              <td class="px-4 py-2" style="color:#605e5c;">{{ log.performed_at|date:"d/m/Y H:i" }}</td>
+              <td class="px-4 py-2" style="color:#323130;">{{ log.from_status|default:"—" }} → {{ log.to_status }}</td>
+              <td class="px-4 py-2" style="color:#323130;">{{ log.performed_by.full_name|default:log.performed_by.email|default:"—" }}</td>
+              <td class="px-4 py-2" style="color:#605e5c;">{{ log.comment|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-4 py-6 text-center" style="color:#605e5c;">No status history yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    {# Workflow actions #}
+    <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+        <h2 class="font-semibold text-lg" style="color:#323130;">Actions</h2>
+      </div>
+      <div class="p-5 space-y-2">
+        {% if can_submit %}
+        <form method="post" action="" class="mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="submit" />
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Submit for approval</button>
+        </form>
+        <p class="text-xs" style="color:#605e5c;">Validates: active grant, approved activity, budget line, allocation, PR date within grant period.</p>
+        {% endif %}
+
+        {% if can_approve_reject_return %}
+        <form method="post" action="" class="mb-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="approve" />
+          <input type="text" name="comment" placeholder="Comment (optional)" class="w-full mb-2 px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#107C10;">Approve</button>
+        </form>
+        <form method="post" action="" class="mb-2" onsubmit="return confirm('Reject this PR? Rejection reason is required.');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reject" />
+          <input type="text" name="comment" placeholder="Rejection reason (required)" required class="w-full mb-2 px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#a4262c; color:#a4262c;">Reject</button>
+        </form>
+        <form method="post" action="" class="mb-2" onsubmit="return confirm('Return this PR to requester for correction?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="return" />
+          <input type="text" name="comment" placeholder="Return reason (required)" required class="w-full mb-2 px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#7a5c00; color:#7a5c00;">Return for correction</button>
+        </form>
+        {% endif %}
+
+        {% if can_do_procurement %}
+          {% if pr.status == 'approved_by_line_manager' %}
+          <form method="post" action="" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign_to_procurement" />
+            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#7a5c00;">Assign to procurement</button>
+          </form>
+          {% endif %}
+          {% if pr.status == 'assigned_to_procurement' or pr.status == 'approved_by_line_manager' %}
+          <form method="post" action="" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="under_processing" />
+            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#7a5c00; color:#7a5c00;">Under procurement processing</button>
+          </form>
+          {% endif %}
+          {% if pr.status == 'under_procurement_processing' %}
+          <form method="post" action="" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="po_issued" />
+            <input type="text" name="comment" placeholder="Comment (optional)" class="w-full mb-2 px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#0b5a0b; color:#0b5a0b;">PO issued</button>
+          </form>
+          {% endif %}
+          {% if pr.status == 'po_issued' %}
+          <form method="post" action="" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="fulfilled" />
+            <input type="text" name="comment" placeholder="Comment (optional)" class="w-full mb-2 px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0b5a0b;">Fulfilled</button>
+          </form>
+          {% endif %}
+        {% endif %}
+
+        {% if can_cancel %}
+        <form method="post" action="" class="mt-4 pt-4 border-t" style="border-color:#edebe9;" onsubmit="return confirm('Cancel this PR?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="cancel" />
+          <input type="text" name="comment" placeholder="Cancellation reason (optional)" class="w-full mb-2 px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#a4262c; color:#a4262c;">Cancel PR</button>
+        </form>
+        {% endif %}
+
+        {% if not can_submit and not can_approve_reject_return and not can_do_procurement and not can_cancel %}
+        <p class="text-sm" style="color:#605e5c;">No actions available for this status or your role.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

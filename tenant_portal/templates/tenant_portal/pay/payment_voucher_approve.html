@@ -1,0 +1,110 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Approve Payment Voucher {{ reference }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Approve Payment Voucher</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Review and approve or return this payment voucher for correction.</p>
+</div>
+
+<div class="erp-section mb-4">
+  <div class="erp-section-body">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Voucher no.</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ reference }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Status</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.get_status_display }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Date</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.entry_date|date:"d/m/Y" }}</p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Project / Grant</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">
+          {{ entry.grant.code|default:"—" }}{% if entry.grant %} — {{ entry.grant.title }}{% endif %}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Created by</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">
+          {{ entry.created_by.get_full_name|default:entry.created_by.email|default:"—" }}
+        </p>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-[#605e5c]">Amount</p>
+        <p class="border-b pb-1 font-semibold" style="border-color:#edebe9;">{{ amount }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="erp-section mb-4">
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Lines</div>
+  <div class="erp-section-body">
+    <table class="erp-table text-xs">
+      <thead>
+        <tr>
+          <th>Account code</th>
+          <th>Account name</th>
+          <th>Description</th>
+          <th>Debit</th>
+          <th>Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in lines %}
+        <tr>
+          <td>{{ line.account.code }}</td>
+          <td>{{ line.account.name }}</td>
+          <td>{{ line.description|default:"—" }}</td>
+          <td>{{ line.debit }}</td>
+          <td>{{ line.credit }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form method="post" class="erp-section max-w-2xl">
+  {% csrf_token %}
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Approval decision</div>
+  <div class="erp-section-body space-y-3">
+    <p class="text-xs text-[#605e5c]">
+      To **return for correction** or **reject**, you must enter a comment. Approved vouchers will be posted and locked.
+    </p>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Comment (required for rejection / correction)</label>
+      <textarea name="comment"
+                rows="3"
+                class="w-full text-xs border rounded px-2 py-1"
+                style="border-color:#edebe9;"></textarea>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="submit"
+              name="action"
+              value="approve"
+              class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-[#107c10] text-white hover:bg-[#0b5a0b]">
+        Approve &amp; Post
+      </button>
+      <button type="submit"
+              name="action"
+              value="return"
+              class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-white text-[#b45309] border border-[#edebe9] hover:bg-[#fffbeb]">
+        Return for correction
+      </button>
+      <button type="submit"
+              name="action"
+              value="reject"
+              class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-white text-red-700 border border-[#edebe9] hover:bg-red-50">
+        Reject
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+

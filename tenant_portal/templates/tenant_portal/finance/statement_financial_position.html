@@ -1,0 +1,43 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Statement of Financial Position | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Statement of Financial Position (Balance Sheet)</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">As of {{ filters.period_end|date:"F d, Y" }}.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Assets</div>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;"><th class="px-4 py-2 font-semibold">Account</th><th class="px-4 py-2 font-semibold text-right">Amount</th></tr></thead>
+      <tbody>
+        {% for code, name, bal in assets %}
+        <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
+        {% empty %}
+        <tr><td colspan="2" class="px-4 py-2 text-[#605e5c]">—</td></tr>
+        {% endfor %}
+        <tr class="font-semibold border-t-2" style="border-color:#edebe9;"><td class="px-4 py-2">Total Assets</td><td class="px-4 py-2 text-right">{{ total_assets|floatformat:2 }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Liabilities &amp; Equity</div>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;"><th class="px-4 py-2 font-semibold">Account</th><th class="px-4 py-2 font-semibold text-right">Amount</th></tr></thead>
+      <tbody>
+        {% for code, name, bal in liabilities %}
+        <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
+        {% endfor %}
+        {% for code, name, bal in equity %}
+        <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
+        {% endfor %}
+        <tr class="font-semibold border-t-2" style="border-color:#edebe9;"><td class="px-4 py-2">Total Liabilities &amp; Equity</td><td class="px-4 py-2 text-right">{{ total_liab_equity|floatformat:2 }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

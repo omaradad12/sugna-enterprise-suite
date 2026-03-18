@@ -1,0 +1,49 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Grant Tracking: {{ tracking.code }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl">
+  <div class="flex items-center justify-between gap-4 mb-4">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded flex items-center justify-center text-white" style="background:#0078D4;">
+        <i data-feather="file-text" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-semibold" style="color:#323130;">{{ tracking.code }} — {{ tracking.title }}</h1>
+        <p class="text-sm" style="color:#605E5C;">{{ tracking.get_pipeline_stage_display }}</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'tenant_portal:grants_grant_tracking_edit' tracking.pk %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded" style="background:#0078D4;">Edit</a>
+      <a href="{% url 'tenant_portal:grants_grant_tracking_update_stage' tracking.pk %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded" style="border-color:#EDEBE9;">Update stage</a>
+      {% if tracking.can_convert_to_agreement %}
+      <a href="{% url 'tenant_portal:grants_grant_tracking_convert' tracking.pk %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded" style="background:#107C10;">Convert to agreement</a>
+      {% endif %}
+      {% if tracking.can_delete %}
+      <a href="{% url 'tenant_portal:grants_grant_tracking_delete' tracking.pk %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded" style="color:#A4262C; border:1px solid #A4262C;">Delete</a>
+      {% endif %}
+      <a href="{% url 'tenant_portal:grants_grant_tracking' %}" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded" style="border-color:#EDEBE9;">Back to list</a>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#EDEBE9;">
+    <div class="px-4 py-3 border-b" style="border-color:#EDEBE9; background:#F3F2F1;">
+      <h2 class="text-xs font-semibold uppercase tracking-wider" style="color:#605E5C;">Details</h2>
+    </div>
+    <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 text-sm">
+      <div><dt class="font-semibold" style="color:#605E5C;">Grant name</dt><dd class="mt-1" style="color:#323130;">{{ tracking.title }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Donor</dt><dd class="mt-1" style="color:#323130;">{{ tracking.donor.name }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Pipeline stage</dt><dd class="mt-1" style="color:#323130;">{{ tracking.get_pipeline_stage_display }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Grant type</dt><dd class="mt-1" style="color:#323130;">{{ tracking.get_grant_type_display|default:"—" }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Priority</dt><dd class="mt-1" style="color:#323130;">{{ tracking.get_priority_display|default:"—" }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Grant manager</dt><dd class="mt-1" style="color:#323130;">{% if tracking.grant_manager %}{{ tracking.grant_manager.full_name|default:tracking.grant_manager.email }}{% else %}{{ tracking.grant_owner|default:"—" }}{% endif %}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Submission deadline</dt><dd class="mt-1" style="color:#323130;">{{ tracking.submission_deadline|date:"Y-m-d"|default:"—" }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Date submitted</dt><dd class="mt-1" style="color:#323130;">{{ tracking.date_submitted|date:"Y-m-d"|default:"—" }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Project</dt><dd class="mt-1" style="color:#323130;">{% if tracking.project %}{{ tracking.project.name }}{% else %}{{ tracking.project_name|default:"—" }}{% endif %}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Amount requested</dt><dd class="mt-1" style="color:#323130;">{{ tracking.amount_requested|floatformat:2|default:"—" }}</dd></div>
+      <div><dt class="font-semibold" style="color:#605E5C;">Amount awarded</dt><dd class="mt-1" style="color:#323130;">{{ tracking.amount_awarded|floatformat:2|default:"—" }}</dd></div>
+      <div class="md:col-span-2"><dt class="font-semibold" style="color:#605E5C;">Notes</dt><dd class="mt-1 whitespace-pre-wrap" style="color:#323130;">{{ tracking.notes|default:"—" }}</dd></div>
+    </dl>
+  </div>
+</div>
+{% endblock %}

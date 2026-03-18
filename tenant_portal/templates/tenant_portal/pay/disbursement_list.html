@@ -1,0 +1,188 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Disbursement form | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 pb-8">
+  <!-- Page header -->
+  <div class="pt-2 pb-5">
+    <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Disbursement form</h1>
+    <p class="text-sm text-[#605e5c] mt-1.5 max-w-2xl">Approved payment vouchers ready for disbursement. Open a voucher to verify payment details and mark the transaction as paid once the payment has been executed.</p>
+  </div>
+
+  <!-- Filters row -->
+  <form method="get" class="flex flex-wrap items-end gap-4 mb-6">
+    <div class="min-w-[130px]">
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">From date</label>
+      <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
+             class="w-full px-3 py-2 rounded border text-[13px] text-[#323130]"
+             style="border-color:#edebe9;" />
+    </div>
+    <div class="min-w-[130px]">
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">To date</label>
+      <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
+             class="w-full px-3 py-2 rounded border text-[13px] text-[#323130]"
+             style="border-color:#edebe9;" />
+    </div>
+    <div class="min-w-[180px]">
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">Project / Grant</label>
+      <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]"
+              style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for g in grants %}
+        <option value="{{ g.id }}" {% if selected_grant_id == g.id %}selected{% endif %}>{{ g.code }} — {{ g.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="min-w-[160px]">
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">Payment Method</label>
+      <select name="payment_method" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]"
+              style="border-color:#edebe9;">
+        <option value="">All</option>
+        <option value="cheque" {% if payment_method_filter == 'cheque' %}selected{% endif %}>Cheque</option>
+        <option value="bank_transfer" {% if payment_method_filter == 'bank_transfer' %}selected{% endif %}>Bank Transfer</option>
+        <option value="cash" {% if payment_method_filter == 'cash' %}selected{% endif %}>Cash</option>
+      </select>
+    </div>
+    <button type="submit"
+            class="inline-flex items-center justify-center px-5 py-2 rounded text-[13px] font-semibold text-white h-[34px]"
+            style="background:#0078D4;">
+      Apply Filters
+    </button>
+  </form>
+
+  <!-- KPI cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="file-text" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-[#323130]">{{ kpi_approved_count }}</p>
+        <p class="text-[13px] text-[#605e5c]">Approved Vouchers</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="dollar-sign" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-[#323130]">${{ kpi_total_pending|floatformat:2 }}</p>
+        <p class="text-[13px] text-[#605e5c]">Total Pending Payment</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="dollar-sign" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-[#323130]">${{ kpi_largest|floatformat:2 }}</p>
+        <p class="text-[13px] text-[#605e5c]">Largest Voucher</p>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+        <i data-feather="users" class="w-6 h-6 text-[#0078D4]"></i>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-[#323130]">{{ kpi_projects_count }}</p>
+        <p class="text-[13px] text-[#605e5c]">Projects Involved</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table card -->
+  <div class="bg-white rounded-lg border overflow-hidden shadow-sm" style="border-color:#edebe9;">
+    <!-- Blue header bar with title + search (Dynamics-style) -->
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3" style="background:#0078D4;">
+      <h2 class="text-sm font-bold text-white uppercase tracking-wide" style="letter-spacing:0.02em;">APPROVED VOUCHERS (UNPAID)</h2>
+      <form method="get" class="flex items-center gap-2" id="search-form">
+        <input type="hidden" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" />
+        <input type="hidden" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" />
+        <input type="hidden" name="grant_id" value="{{ filters.grant_id|default:'' }}" />
+        <input type="hidden" name="payment_method" value="{{ payment_method_filter }}" />
+        <div class="relative">
+          <i data-feather="search" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#605e5c]"></i>
+          <input type="text" name="search" value="{{ search_q }}"
+                 placeholder="Search by voucher number or payee"
+                 class="pl-9 pr-3 py-1.5 rounded text-[13px] w-64 min-w-0 border-0"
+                 style="background:#f3f2f1; color:#323130;" />
+        </div>
+      </form>
+    </div>
+
+    {% if vouchers %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-[13px]" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f3f2f1; border-bottom:1px solid #edebe9;">
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Voucher No <i data-feather="chevron-down" class="w-3.5 h-3.5 inline-block text-[#605e5c]"></i></th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Date <i data-feather="chevron-down" class="w-3.5 h-3.5 inline-block text-[#605e5c]"></i></th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Project</th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Payee <i data-feather="chevron-down" class="w-3.5 h-3.5 inline-block text-[#605e5c]"></i></th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Narration</th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Payment Method</th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Amount</th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Donor | Co-Funding</th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 whitespace-nowrap">Total <i data-feather="chevron-down" class="w-3.5 h-3.5 inline-block text-[#605e5c]"></i></th>
+            <th class="text-left font-semibold text-[#323130] px-4 py-2.5 w-32">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vouchers %}
+          <tr class="hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">
+            <td class="px-4 py-2.5">
+              <a href="{% url 'tenant_portal:pay_disbursement_form' v.id %}" class="text-[#0078D4] font-medium hover:underline">{{ v.reference }}</a>
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ v.entry_date|date:"d/m/Y" }}</td>
+            <td class="px-4 py-2.5">
+              {% if v.grant %}
+              <a href="{% url 'tenant_portal:pay_disbursement_form' v.id %}" class="text-[#0078D4] hover:underline">{{ v.grant.title }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ v.payee|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ v.narration|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">
+              <span class="block">{{ v.payment_method|default:"—" }}</span>
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">
+              {% if v.bank_account and v.bank_account != "—" %}
+              <span class="block text-[12px]">{{ v.bank_account }}</span>
+              {% else %}
+              <span class="block text-[12px]">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">
+              <span class="block text-[12px] text-[#605e5c]">{% if v.donor_display %}{{ v.donor_display }}{% else %}$0.00{% endif %}</span>
+              <span class="block text-[12px] text-[#605e5c]">$0.00</span>
+            </td>
+            <td class="px-4 py-2.5 font-semibold text-[#323130]">${{ v.amount|floatformat:2 }}</td>
+            <td class="px-4 py-2.5">
+              <a href="{% url 'tenant_portal:pay_disbursement_form' v.id %}"
+                 class="inline-flex items-center justify-center px-3 py-1.5 rounded text-[12px] font-semibold text-white"
+                 style="background:#0078D4;">
+                Prepare Payment
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
+      <div class="w-14 h-14 rounded-full flex items-center justify-center mb-4" style="background:#f3f2f1;">
+        <i data-feather="file-text" class="w-7 h-7 text-[#605e5c]"></i>
+      </div>
+      <p class="text-[15px] font-semibold text-[#323130] mb-1">No approved unpaid vouchers</p>
+      <p class="text-[13px] text-[#605e5c] max-w-md mb-6">Vouchers appear here only when they are <strong>approved (posted)</strong> and <strong>not yet paid</strong>. Try a wider date range or different filters, or create and approve a payment voucher first.</p>
+      <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+         class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+         style="background:#0078D4;">
+        <i data-feather="credit-card" class="w-4 h-4"></i>
+        Go to Payment vouchers
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

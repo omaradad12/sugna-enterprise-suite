@@ -1,0 +1,59 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Goods Receipt — {{ po.po_number }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{% url 'tenant_portal:procurement_po_detail' po.pk %}" class="text-sm font-medium hover:underline mb-1 inline-block" style="color:#0078D4;">← PO {{ po.po_number }}</a>
+  <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Record Goods Receipt</h1>
+  <p class="text-sm mt-1" style="color:#605e5c;">PO {{ po.po_number }} · {{ po.supplier.name }}</p>
+</div>
+
+<div class="bg-white border rounded-lg p-6 max-w-2xl" style="border-color:#edebe9;">
+  <form method="post" action="">
+    {% csrf_token %}
+    <div class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Receipt date <span style="color:#A4262C;">*</span></label>
+          <input type="date" name="receipt_date" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Quantities received</label>
+        <div class="overflow-x-auto border rounded-lg mt-1" style="border-color:#edebe9;">
+          <table class="min-w-full text-sm">
+            <thead style="background:#f3f2f1;">
+              <tr>
+                <th class="text-left px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Item</th>
+                <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Ordered</th>
+                <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">Already received</th>
+                <th class="text-right px-3 py-2 text-xs font-semibold" style="color:#605e5c;">This receipt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in po.lines.all %}
+              <tr class="border-t" style="border-color:#edebe9;">
+                <td class="px-3 py-2" style="color:#323130;">{{ line.item_description|truncatewords:8 }}</td>
+                <td class="px-3 py-2 text-right" style="color:#323130;">{{ line.quantity|floatformat:2 }}</td>
+                <td class="px-3 py-2 text-right" style="color:#605e5c;">{{ line.received_quantity|floatformat:2 }}</td>
+                <td class="px-3 py-2">
+                  <input type="number" name="qty_line_{{ line.id }}" step="0.01" min="0" value="0" class="w-24 px-2 py-1.5 rounded border text-sm text-right" style="border-color:#edebe9;" />
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Notes</label>
+        <textarea name="notes" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Save goods receipt</button>
+      <a href="{% url 'tenant_portal:procurement_po_detail' po.pk %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

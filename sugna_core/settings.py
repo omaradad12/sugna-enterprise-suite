@@ -21,15 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-change-me'
-)
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY", "django-insecure-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Set DEBUG=false or 0 in production.
+DEBUG = os.environ.get("DEBUG", "true").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+if os.environ.get("CSRF_TRUSTED_ORIGINS"):
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ["CSRF_TRUSTED_ORIGINS"].split(",") if o.strip()]
 
 
 # Application definition
@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     # Platform apps
     'tenants',
     'platform_dashboard',
+    'help_center',
 
     # Tenant-scoped apps (migrated into each tenant DB)
     'tenant_users',
@@ -60,9 +61,10 @@ INSTALLED_APPS = [
     'tenant_finance',
     'tenant_grants',
     'tenant_integrations',
+    'tenant_audit_risk',
 
-    # Domain apps
-    'ai_auditor',
+    # Domain apps (ai_auditor not yet implemented)
+    "diagnostics",
 ]
 
 JAZZMIN_SETTINGS = {
@@ -98,6 +100,8 @@ MIDDLEWARE = [
     'sugna_core.middleware.TenantResolutionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Tenant-scoped RBAC context (permission cache)
+    'tenant_portal.middleware_rbac.RBACContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -114,6 +118,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'tenant_portal.context_processors.org_settings',
+                'tenant_portal.context_processors.smart_alerts',
             ],
         },
     },
@@ -124,39 +130,26 @@ WSGI_APPLICATION = 'sugna_core.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "sugna_enterprise_suite",
-        "USER": "postgres",
-        "PASSWORD": "@@Hooyomacaan143",
-        "HOST": "localhost",
-        "PORT": "5432",
-    },
-    "wardi": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "wardi_db",
-        "USER": "postgres",
-        "PASSWORD": "@@Hooyomacaan143",
-        "HOST": "localhost",
-        "PORT": "5432",
-    },
-    "hurdo": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "hurdo_db",
-        "USER": "postgres",
-        "PASSWORD": "@@Hooyomacaan143",
-        "HOST": "localhost",
-        "PORT": "5432",
-    },
+# Production: set DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT via environment.
+_db_defaults = {
+    "ENGINE": "django.db.backends.postgresql",
+    "NAME": os.environ.get("DB_NAME", "sugna_enterprise_suite"),
+    "USER": os.environ.get("DB_USER", "postgres"),
+    "PASSWORD": os.environ.get("DB_PASSWORD", "@@Hooyomacaan143"),
+    "HOST": os.environ.get("DB_HOST", "localhost"),
+    "PORT": os.environ.get("DB_PORT", "5432"),
 }
+DATABASES = {"default": _db_defaults.copy()}
+# Optional dev tenant DBs (same host/user/password as default)
+if os.environ.get("DB_EXTRA_TENANTS", "true").lower() in ("true", "1", "yes"):
+    for alias, db_name in [("wardi", "wardi_db"), ("hurdo", "hurdo_db")]:
+        DATABASES[alias] = {**_db_defaults.copy(), "NAME": db_name}
 
 # Multi-tenant routing (DB-per-tenant). Add tenant module app labels here as you introduce them.
 TENANT_APP_LABELS = (
     os.environ.get("TENANT_APP_LABELS", "").split(",")
     if os.environ.get("TENANT_APP_LABELS")
-    else ["tenant_users", "rbac", "tenant_finance", "tenant_grants", "tenant_integrations"]
+    else ["tenant_users", "rbac", "tenant_finance", "tenant_grants", "tenant_integrations", "tenant_audit_risk"]
 )
 DATABASE_ROUTERS = ["sugna_core.db_router.TenantDatabaseRouter"]
 
@@ -192,11 +185,28 @@ USE_I18N = True
 USE_TZ = True
 
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
+STATIC_ROOT = os.environ.get("STATIC_ROOT", str(BASE_DIR / "staticfiles"))
 
 # Media files (uploaded assets such as tenant logos)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Audit Screening Upload: temporary storage only (files are deleted after review or TTL)
+# Path separate from permanent document storage; not under MEDIA_ROOT for permanent uploads
+SCREENING_UPLOAD_TEMP_ROOT = os.environ.get(
+    "SCREENING_UPLOAD_TEMP_ROOT",
+    str(BASE_DIR / "tmp" / "audit_screening"),
+)
+# Max age in hours before auto-deletion of temp files (default 48; only applies to files not yet finished)
+SCREENING_UPLOAD_MAX_AGE_HOURS = int(os.environ.get("SCREENING_UPLOAD_MAX_AGE_HOURS", "48"))
+# Max size per file (MB); 0 = no limit (large documents allowed)
+SCREENING_UPLOAD_MAX_FILE_SIZE_MB = int(os.environ.get("SCREENING_UPLOAD_MAX_FILE_SIZE_MB", "0"))
+# Max total size per session (MB); 0 = no limit
+SCREENING_UPLOAD_MAX_SESSION_SIZE_MB = int(os.environ.get("SCREENING_UPLOAD_MAX_SESSION_SIZE_MB", "0"))
+
+# Allow large request bodies for screening uploads (Django default is 2.5 MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(1024 * 1024 * 1024)))  # 1 GB default
 
 # Use BigAutoField across the project (enterprise default)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -204,3 +214,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Platform dashboard: use admin login for auth
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/platform/'
+
+# Diagnostics: automatic mode remediation (set True when running run_diagnostics from cron/Celery)
+DIAGNOSTICS_AUTO_REMEDIATE = os.environ.get("DIAGNOSTICS_AUTO_REMEDIATE", "false").lower() in ("1", "true", "yes")

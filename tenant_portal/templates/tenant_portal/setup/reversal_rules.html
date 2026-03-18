@@ -1,0 +1,298 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Transaction reversal & correction rules | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .dyn-card { border: 1px solid #edebe9; background: #ffffff; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .dyn-card-h { padding: 16px 18px; border-bottom: 1px solid #edebe9; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .dyn-card-title { font-size: 14px; font-weight: 700; color:#201f1e; }
+  .dyn-card-sub { font-size: 12px; color:#605e5c; margin-top: 2px; }
+  .dyn-divider { height:1px; background:#edebe9; }
+  .dyn-help { color:#6b7280; font-size:12px; line-height: 1.4; }
+  /* Row style (checkbox indicator + toggle) */
+  .dyn-row { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding: 14px 18px; }
+  .dyn-row + .dyn-row { border-top: 1px solid #f3f2f1; }
+  .dyn-row-left { display:flex; align-items:flex-start; gap:10px; min-width: 0; }
+  .dyn-ind { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #c8c6c4; background:#ffffff; margin-top: 2px; position: relative; flex: 0 0 auto; }
+  .dyn-ind::after { content:""; position:absolute; inset: 0; margin:auto; width: 8px; height: 4px; border-left:2px solid #ffffff; border-bottom:2px solid #ffffff; transform: rotate(-45deg); top: 4px; left: 3px; opacity: 0; }
+  .dyn-ind.checked { background:#0078d4; border-color:#0078d4; }
+  .dyn-ind.checked::after { opacity: 1; }
+  .dyn-row-title { font-size: 13px; font-weight: 600; color:#201f1e; }
+  .dyn-row-desc { font-size: 12px; color:#6b7280; margin-top: 2px; }
+  .dyn-row:hover { background: #fbfbfb; }
+  /* Toggle */
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex: 0 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#c8c6c4; transition:.15s; border-radius: 999px; }
+  .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; top:3px; background:white; transition:.15s; border-radius:999px; box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+  .switch input:checked + .slider { background:#0078d4; }
+  .switch input:checked + .slider:before { transform: translateX(20px); }
+  .switch input:disabled + .slider { opacity:.55; cursor:not-allowed; }
+  .dyn-input { border:1px solid #d1d5db; border-radius: 8px; padding: 9px 10px; font-size: 13px; width: 100%; background:#fff; }
+  .dyn-input:disabled, .dyn-input[readonly] { background:#f9fafb; color:#6b7280; }
+</style>
+
+<div class="dyn-page w-full mx-auto px-0 md:px-0">
+  <div class="mb-4">
+    <h1 class="page-title">Transaction reversal &amp; correction rules</h1>
+    <p class="text-sm mt-1" style="color:#605e5c;">
+      Define how and when journals can be modified within the approval lifecycle, to ensure full transparency, accountability, and donor compliance.
+    </p>
+  </div>
+
+  <form method="post" class="space-y-5">
+    {% csrf_token %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- Left column: Editing + Deletion -->
+      <div class="space-y-5">
+        <div class="dyn-card">
+          <div class="dyn-card-h">
+            <div class="flex items-start gap-3">
+              <i data-feather="file-text" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+              <div>
+                <div class="dyn-card-title">Editing Policies</div>
+                <div class="dyn-card-sub">Control when and how journals can be modified within the approval lifecycle.</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="allow_edit_before_posting" {% if rule.allow_edit_before_posting %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.allow_edit_before_posting %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Allow editing while journal is in draft or pending approval</div>
+                <div class="dyn-row-desc">Controls what can be edited before posting to the ledger</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="allow_edit_before_posting" {% if rule.allow_edit_before_posting %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.prevent_edit_after_posting %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Lock journals after posting (no edits allowed)</div>
+                <div class="dyn-row-desc">Posted journals must be corrected via reversals</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="prevent_edit_after_posting" {% if rule.prevent_edit_after_posting %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="dyn-card">
+          <div class="dyn-card-h">
+            <div class="flex items-start gap-3">
+              <i data-feather="trash-2" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+              <div>
+                <div class="dyn-card-title">Deletion policies</div>
+                <div class="dyn-card-sub">Control when journals can be physically removed from the ledger.</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="prevent_delete_after_approval" {% if rule.prevent_delete_after_approval %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.allow_delete_before_approval %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Allow deletion while journal is in draft</div>
+                <div class="dyn-row-desc">Draft journals can be removed before approval</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="allow_delete_before_approval" {% if rule.allow_delete_before_approval %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.prevent_delete_after_approval %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Disallow deletion once journal is approved or posted</div>
+                <div class="dyn-row-desc">Preserves audit history and donor compliance</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="prevent_delete_after_approval" {% if rule.prevent_delete_after_approval %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column: Access + Reversal -->
+      <div class="space-y-5">
+        <div class="dyn-card">
+          <div class="dyn-card-h">
+            <div class="flex items-start gap-3">
+              <i data-feather="user" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+              <div>
+                <div class="dyn-card-title">User Activity &amp; Access</div>
+                <div class="dyn-card-sub">Track user logins and access changes</div>
+              </div>
+            </div>
+            <div></div>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.prevent_delete_after_approval %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Disallow deletion once journal is approved or posted</div>
+                <div class="dyn-row-desc">Applies to journals to preserve audit history</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="prevent_delete_after_approval" {% if rule.prevent_delete_after_approval %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-divider"></div>
+          <div class="p-4 space-y-2">
+            <div class="text-[11px] font-semibold uppercase tracking-wide" style="color:#605e5c;">Authorized roles</div>
+            <input type="text"
+                   name="authorized_roles_for_reversal"
+                   value="{{ rule.authorized_roles_for_reversal }}"
+                   class="dyn-input"
+                   placeholder="Finance Manager, Internal Auditor, System Admin"
+                   {% if read_only %}readonly{% endif %}>
+            <p class="dyn-help">Only selected roles can initiate reversal journals.</p>
+          </div>
+        </div>
+
+        <div class="dyn-card">
+          <div class="dyn-card-h">
+            <div class="flex items-start gap-3">
+              <i data-feather="alert-triangle" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+              <div>
+                <div class="dyn-card-title">Reversal policies</div>
+                <div class="dyn-card-sub">Configure who can reverse journals and under which accounting conditions.</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="allow_reversal" {% if rule.allow_reversal %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.require_reason_for_reversal %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Require justification for reversal</div>
+                <div class="dyn-row-desc">Mandatory reason required for reversals</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="require_reason_for_reversal" {% if rule.require_reason_for_reversal %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.prevent_reversal_if_period_closed %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Disallow reversal when accounting period is closed</div>
+                <div class="dyn-row-desc">Blocks reversal entries in closed periods</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="prevent_reversal_if_period_closed" {% if rule.prevent_reversal_if_period_closed %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.require_reversal_approval %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Require approval workflow for reversal journals</div>
+                <div class="dyn-row-desc">Reversals follow the standard approval process</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="require_reversal_approval" {% if rule.require_reversal_approval %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-row">
+            <div class="dyn-row-left">
+              <span class="dyn-ind {% if rule.prevent_cross_period_reversal %}checked{% endif %}"></span>
+              <div class="min-w-0">
+                <div class="dyn-row-title">Restrict reversal across different fiscal periods</div>
+                <div class="dyn-row-desc">Requires authorized override for cross-period reversals</div>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="prevent_cross_period_reversal" {% if rule.prevent_cross_period_reversal %}checked{% endif %} {% if read_only %}disabled{% endif %}>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="dyn-divider"></div>
+          <div class="p-4 space-y-2">
+            <div class="text-[11px] font-semibold uppercase tracking-wide" style="color:#605e5c;">Authorized reversal roles</div>
+            <input type="text"
+                   name="authorized_roles_for_reversal"
+                   value="{{ rule.authorized_roles_for_reversal }}"
+                   class="dyn-input"
+                   {% if read_only %}readonly{% endif %}>
+            <div class="text-[11px] font-semibold uppercase tracking-wide mt-3" style="color:#605e5c;">Authorized cross-period roles</div>
+            <input type="text"
+                   name="authorized_roles_for_cross_period_reversal"
+                   value="{{ rule.authorized_roles_for_cross_period_reversal }}"
+                   class="dyn-input"
+                   {% if read_only %}readonly{% endif %}>
+            <p class="dyn-help">Use comma-separated permission or role codes.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-4 flex justify-between items-center gap-3">
+      <p class="text-xs text-[#605e5c]"></p>
+      {% if not read_only %}
+      <div class="flex gap-3">
+        <a href="{% url 'tenant_portal:setup_home' %}"
+           class="px-4 py-2 rounded text-sm font-semibold border"
+           style="border-color:#edebe9; color:#323130;">
+          Cancel
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Save</span>
+        </button>
+      </div>
+      {% else %}
+      <a href="{% url 'tenant_portal:setup_home' %}"
+         class="px-4 py-2 rounded text-sm font-semibold border"
+         style="border-color:#edebe9; color:#323130;">
+        Back
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+

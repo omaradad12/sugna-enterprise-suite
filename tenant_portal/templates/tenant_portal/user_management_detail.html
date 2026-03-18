@@ -1,0 +1,89 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | User: {{ target_user.email }}{% endblock %}
+{% block content %}
+<style>
+  .user-mgmt-page { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .user-mgmt-hero { background: linear-gradient(135deg, #0078d4 0%, #106ebe 50%, #005a9e 100%); }
+  .user-mgmt-card { transition: box-shadow 0.2s ease; }
+</style>
+<div class="user-mgmt-page max-w-4xl mx-auto pb-10">
+  <div class="user-mgmt-hero rounded-lg overflow-hidden mb-5 text-white">
+    <div class="px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        {% if target_user.profile_photo %}
+        <img src="{{ target_user.profile_photo.url }}" alt="" class="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+        {% else %}
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold" style="background: rgba(255,255,255,0.22);">
+          {{ target_user.email|slice:":1"|upper }}
+        </div>
+        {% endif %}
+        <div>
+          <h1 class="text-lg font-bold tracking-tight">{{ target_user.full_name|default:target_user.email }}</h1>
+          <p class="text-xs opacity-90">{{ target_user.email }}</p>
+        </div>
+      </div>
+      <a href="{% url 'tenant_portal:user_management_edit' target_user.pk %}" class="px-4 py-2 rounded text-sm font-medium text-white border border-white/40 hover:bg-white/10 transition-colors">Edit user</a>
+    </div>
+  </div>
+
+  <div class="rounded-xl border bg-white overflow-hidden mb-6" style="border-color: #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+    <div class="px-5 py-3.5 border-b flex items-center gap-2" style="background: #fafbfc; border-color: #e5e7eb;">
+      <i data-feather="user" class="w-4 h-4" style="color: #0078d4;"></i>
+      <span class="text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Details</span>
+    </div>
+    <div class="p-6">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Full name</dt>
+          <dd style="color: #323130;">{{ target_user.full_name|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Email</dt>
+          <dd style="color: #323130;">{{ target_user.email }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Phone</dt>
+          <dd style="color: #323130;">{{ target_user.phone_number|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Role</dt>
+          <dd style="color: #323130;">{{ role_display }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Department</dt>
+          <dd style="color: #323130;">{{ target_user.department|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Status</dt>
+          <dd>
+            {% if target_user.is_active %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Active</span>
+            {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">Inactive</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color: #605e5c;">Last login</dt>
+          <dd style="color: #323130;">{% if target_user.last_login_at %}{{ target_user.last_login_at|date:"M j, Y H:i" }}{% else %}—{% endif %}</dd>
+        </div>
+      </dl>
+      {% if assigned_grants %}
+      <div class="mt-4 pt-4 border-t" style="border-color: #e5e7eb;">
+        <dt class="text-[11px] font-semibold uppercase tracking-wider mb-2" style="color: #605e5c;">Assigned projects</dt>
+        <dd class="flex flex-wrap gap-2">
+          {% for g in assigned_grants %}
+          <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[#f3f2f1]" style="color: #323130;">{{ g.code }} — {{ g.title|default:g.code }}</span>
+          {% endfor %}
+        </dd>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <a href="{% url 'tenant_portal:user_management' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color: #d1d5db; color: #374151;">Back to user list</a>
+    <a href="{% url 'tenant_portal:user_management_reset_password' target_user.pk %}" class="px-4 py-2 rounded text-sm font-medium" style="background: #0078d4; color: white;">Reset password</a>
+  </div>
+</div>
+{% endblock %}

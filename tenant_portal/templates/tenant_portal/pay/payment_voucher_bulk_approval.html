@@ -1,0 +1,109 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Bulk Payment Voucher Approval | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Bulk Payment Voucher Approval</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">
+    Select pending payment vouchers and approve or return them for correction in bulk.
+    Only authorised approvers can access this screen.
+  </p>
+</div>
+
+<form method="post" class="space-y-3">
+  {% csrf_token %}
+
+  <div class="erp-section">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Pending payment vouchers</div>
+    <div class="erp-section-body overflow-auto">
+      <table class="erp-table text-xs">
+        <thead>
+          <tr>
+            <th style="width:32px;">
+              <input type="checkbox"
+                     class="rounded border-[#edebe9]"
+                     onclick="const cbs = document.querySelectorAll('.pv-select'); cbs.forEach(cb => cb.checked = this.checked);" />
+            </th>
+            <th>Voucher no.</th>
+            <th>Date</th>
+            <th>Project / Grant</th>
+            <th>Amount</th>
+            <th>Created by</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in pending_vouchers %}
+          <tr>
+            <td>
+              <input type="checkbox"
+                     class="pv-select rounded border-[#edebe9]"
+                     name="entry_ids"
+                     value="{{ entry.id }}" />
+            </td>
+            <td>
+              <a href="{% url 'tenant_portal:pay_payment_voucher_approve' entry.id %}"
+                 class="text-[#2563eb] hover:underline">
+                {{ entry.reference|default:"PV-"|add:entry.id }}
+              </a>
+            </td>
+            <td>{{ entry.entry_date|date:"d/m/Y" }}</td>
+            <td>
+              {% if entry.grant %}
+                {{ entry.grant.code }} — {{ entry.grant.title }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ entry.lines.aggregate_total|default:entry.lines.all.0.debit }}</td>
+            <td>{{ entry.created_by.get_full_name|default:entry.created_by.email|default:"—" }}</td>
+            <td>{{ entry.get_status_display }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-xs text-[#605e5c] py-4">
+              No payment vouchers are currently pending approval.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="erp-section max-w-2xl">
+    <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Bulk action</div>
+    <div class="erp-section-body space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Action</label>
+          <select name="bulk_action"
+                  class="w-full text-xs border rounded px-2 py-1.5 bg-white"
+                  style="border-color:#edebe9;">
+            <option value="">Select</option>
+            <option value="approve">Approve &amp; Post</option>
+            <option value="return">Return for correction</option>
+            <option value="reject">Reject</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">
+          Comment (required for return / reject)
+        </label>
+        <textarea name="bulk_comment"
+                  rows="3"
+                  class="w-full text-xs border rounded px-2 py-1"
+                  style="border-color:#edebe9;"></textarea>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#005a9e]">
+          Apply bulk action
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+

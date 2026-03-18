@@ -1,0 +1,7 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Exception Register{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto"><h1 class="page-title mb-4">Exception Register</h1>
+<div class="erp-section"><div class="erp-section-header">Exceptions</div><div class="erp-section-body overflow-x-auto">
+<table class="erp-table"><thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Created</th></tr></thead>
+<tbody>{% for a in alerts %}<tr><td>{{ a.title }}</td><td>{{ a.get_alert_type_display }}</td><td>{{ a.get_status_display }}</td><td>{{ a.created_at|date:"Y-m-d H:i" }}</td></tr>{% empty %}<tr><td colspan="4" class="text-center" style="color:#605e5c;">No exceptions.</td></tr>{% endfor %}</tbody></table></div></div></div>{% endblock %}

@@ -1,0 +1,10 @@
+# Django and extensions
+Django>=6.0,<6.1
+djangorestframework>=3.14,<4.0
+django-jazzmin>=3.0,<4.0
+
+# Database
+psycopg2-binary>=2.9,<3.0
+
+# Production server (optional for local dev)
+gunicorn>=21.0,<23.0

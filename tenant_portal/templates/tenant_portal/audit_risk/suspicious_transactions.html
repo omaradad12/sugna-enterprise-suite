@@ -1,0 +1,44 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Suspicious Transactions{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Suspicious Transactions</h1>
+    <p class="page-subtitle mt-1">Transactions with risk score 31 or above (medium, high, or critical).</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">Assessments (score ≥ 31)</div>
+    <div class="erp-section-body overflow-x-auto">
+      {% if assessments %}
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Score</th>
+            <th>Level</th>
+            <th>Assessed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assessments %}
+          <tr>
+            <td>{{ a.source_type }}#{{ a.source_id }}</td>
+            <td>{{ a.risk_score }}</td>
+            <td>{{ a.get_risk_level_display }}</td>
+            <td>{{ a.assessed_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-12 text-center">
+        <i data-feather="eye" class="w-12 h-12 mb-3" style="color: #c8c6c4;"></i>
+        <p class="text-[13px]" style="color: #605e5c;">No suspicious transactions.</p>
+        <p class="text-[12px] mt-1" style="color: #a19f9d;">Transactions with elevated risk scores will appear here after posting.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

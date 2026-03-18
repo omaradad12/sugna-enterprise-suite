@@ -1,0 +1,148 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Non-vendor Payments | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4" x-data="{ search: '', showMore: false }">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Non-vendor payments</h1>
+      <p class="text-sm mt-1 text-[#605e5c]">Payment vouchers for staff, activities, travel, and operational costs.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
+        <input type="text"
+               x-model="search"
+               placeholder="Search voucher, payee, project, fund..."
+               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
+               style="border-color:#edebe9;" />
+      </div>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-2 shadow-sm" style="border-color:#edebe9;">
+    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
+        <input type="text" name="ref" value="{{ request.GET.ref }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payee name</label>
+        <input type="text" name="payee" value="{{ request.GET.payee }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
+        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
+        <input type="text" name="fund" value="{{ request.GET.fund }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
+          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
+          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
+        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for code, label in status_choices %}
+          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
+        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
+          <i data-feather="filter" class="w-4 h-4"></i>
+          <span>Apply filters</span>
+        </button>
+        <a href="{% url 'tenant_portal:pay_non_vendor_payments' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <span>Reset</span>
+        </a>
+        <button type="button" @click="showMore = !showMore" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <span>More filters</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="mt-3 border-t pt-3 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm" x-show="showMore" x-cloak>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Payment method</label>
+        <input type="text" name="method" value="{{ request.GET.method }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Bank / Cash account</label>
+        <input type="text" name="account" value="{{ request.GET.account }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Created by</label>
+        <input type="text" name="created_by" value="{{ request.GET.created_by }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount from</label>
+          <input type="text" name="amount_from" value="{{ request.GET.amount_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount to</label>
+          <input type="text" name="amount_to" value="{{ request.GET.amount_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="erp-section rounded-lg shadow-sm overflow-hidden mt-3">
+    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
+      <span class="text-sm font-semibold uppercase tracking-wide">Non-vendor payments</span>
+    </div>
+    <div class="erp-section-body overflow-auto p-0">
+      <table class="erp-table text-sm">
+        <thead>
+          <tr>
+            <th class="px-4 py-2.5">Voucher no.</th>
+            <th class="px-4 py-2.5">Date</th>
+            <th class="px-4 py-2.5">Project</th>
+            <th class="px-4 py-2.5">Fund / Donor</th>
+            <th class="px-4 py-2.5 text-right">Amount</th>
+            <th class="px-4 py-2.5">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="hover:bg-[#faf9f8] transition-colors"
+              data-search="{{ r.reference|lower }} {{ r.project|lower }} {{ r.fund|lower }} {{ r.memo|default:''|lower }}"
+              x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
+            <td class="px-4 py-2.5">
+              <a href="{% url 'tenant_portal:pay_payment_voucher_detail' r.id %}" class="text-[#0078D4] font-medium hover:underline">
+                {{ r.reference }}
+              </a>
+            </td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.date|date:"d/m/Y" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ r.fund|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.amount }}</td>
+            <td class="px-4 py-2.5">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                {% if r.status == 'Posted' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+                {{ r.status }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-10 text-center text-sm text-[#605e5c]">No non‑vendor payments found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

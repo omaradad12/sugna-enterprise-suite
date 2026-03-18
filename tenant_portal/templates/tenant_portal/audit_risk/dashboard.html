@@ -1,0 +1,274 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Audit &amp; Risk Dashboard{% endblock %}
+{% block content %}
+<style>
+  .audit-dashboard { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .audit-dashboard .kpi-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .audit-dashboard .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+  .audit-dashboard .kpi-card--alert { border-left: 4px solid #d97706; }
+  .audit-dashboard .kpi-card--risk { border-left: 4px solid #2563eb; }
+  .audit-dashboard .kpi-card--finding { border-left: 4px solid #7c3aed; }
+  .audit-dashboard .kpi-card--positive { border-left: 4px solid #059669; }
+  .audit-dashboard .kpi-card--negative { border-left: 4px solid #dc2626; }
+  .audit-dashboard .chart-bar { background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); border-radius: 4px 4px 0 0; min-height: 8px; transition: width 0.3s ease; }
+  .audit-dashboard .section-card { box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: box-shadow 0.2s ease; }
+  .audit-dashboard .section-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .audit-dashboard .quick-link { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+  .audit-dashboard .quick-link:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,120,212,0.2); }
+  .audit-dashboard-hero,
+  .audit-dashboard-hero h1,
+  .audit-dashboard-hero span,
+  .audit-dashboard-hero i { color: #ffffff !important; }
+  .audit-dashboard-hero i { stroke: #ffffff !important; }
+</style>
+<div class="audit-dashboard max-w-7xl mx-auto pb-10">
+  <!-- Hero header -->
+  <div class="audit-dashboard-hero rounded-xl mb-6 overflow-hidden" style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #3b82f6 100%);">
+    <div class="px-5 sm:px-6 py-4 sm:py-5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(255,255,255,0.18);">
+            <i data-feather="shield" class="w-5 h-5"></i>
+          </div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight">Audit &amp; Risk Dashboard</h1>
+        </div>
+        <div class="flex-shrink-0">
+          <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium" style="background: rgba(255,255,255,0.2);">Audit &amp; Risk</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include "tenant_portal/_smart_alerts_module.html" with alert_category="audit_risk" %}
+
+  <!-- Row 1: Overview KPIs -->
+  <p class="text-xs font-semibold uppercase tracking-wider mb-3 pl-0.5" style="color: #6b7280;">Overview</p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="kpi-card kpi-card--alert rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Fraud alerts</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ fraud_alerts_count }}</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: #fef3c7;"><i data-feather="alert-triangle" class="w-6 h-6" style="color: #d97706;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--risk rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">High-risk transactions</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ high_risk_count }}</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: #dbeafe;"><i data-feather="activity" class="w-6 h-6" style="color: #2563eb;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--risk rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Open investigations</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ open_investigations }}</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: #e0e7ff;"><i data-feather="search" class="w-6 h-6" style="color: #4f46e5;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--alert rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Control violations</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ control_violations }}</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: #fee2e2;"><i data-feather="shield-off" class="w-6 h-6" style="color: #dc2626;"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Findings & financial -->
+  <p class="text-xs font-semibold uppercase tracking-wider mb-3 pl-0.5" style="color: #6b7280;">Findings &amp; impact</p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    <div class="kpi-card kpi-card--finding rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Confirmed findings</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ confirmed_findings_count }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #ede9fe;"><i data-feather="check-circle" class="w-5 h-5" style="color: #7c3aed;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--finding rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Realized findings</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ realized_findings_count }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #ede9fe;"><i data-feather="trending-down" class="w-5 h-5" style="color: #7c3aed;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--negative rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Financial loss</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #dc2626;">{{ financial_loss_total|floatformat:2 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #fee2e2;"><i data-feather="dollar-sign" class="w-5 h-5" style="color: #dc2626;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--positive rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Recovered amount</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #059669;">{{ recovered_total|floatformat:2 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #d1fae5;"><i data-feather="trending-up" class="w-5 h-5" style="color: #059669;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--negative rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Outstanding exposure</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #dc2626;">{{ outstanding_exposure_total|floatformat:2 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #fee2e2;"><i data-feather="alert-circle" class="w-5 h-5" style="color: #dc2626;"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Risk register KPIs -->
+  <p class="text-xs font-semibold uppercase tracking-wider mb-3 pl-0.5" style="color: #6b7280;">Risk register</p>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="kpi-card kpi-card--risk rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Total high-risk</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ risk_register_total }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #dbeafe;"><i data-feather="bar-chart-2" class="w-5 h-5" style="color: #2563eb;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--alert rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Open</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ risk_register_open }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #fef3c7;"><i data-feather="inbox" class="w-5 h-5" style="color: #d97706;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--risk rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Under review</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #111827;">{{ risk_register_under_review }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #e0e7ff;"><i data-feather="eye" class="w-5 h-5" style="color: #4f46e5;"></i></div>
+      </div>
+    </div>
+    <div class="kpi-card kpi-card--positive rounded-xl border bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider mb-1" style="color: #6b7280;">Cleared</p>
+          <p class="text-xl font-bold tabular-nums" style="color: #059669;">{{ risk_register_cleared }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: #d1fae5;"><i data-feather="check" class="w-5 h-5" style="color: #059669;"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-column: Trend + By grant -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="section-card rounded-xl border bg-white overflow-hidden">
+      <div class="px-5 py-4 border-b flex items-center gap-2" style="background: #f8fafc; border-color: #e2e8f0;">
+        <i data-feather="trending-up" class="w-5 h-5" style="color: #64748b;"></i>
+        <span class="font-semibold text-sm" style="color: #334155;">Risk trend (last 30 days)</span>
+      </div>
+      <div class="p-5 min-h-[140px]">
+        {% if trend_data %}
+        <div class="space-y-2">
+          {% for r in trend_data %}
+          <div class="flex items-center gap-3">
+            <span class="text-sm w-24 flex-shrink-0" style="color: #64748b;">{{ r.day }}</span>
+            <div class="flex-1 flex items-center gap-2">
+              <div class="chart-bar flex-shrink-0" style="width: {% widthratio r.count 1 5 %}%; max-width: 100%; height: 20px;"></div>
+              <span class="text-sm font-medium tabular-nums w-8" style="color: #0f172a;">{{ r.count }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="flex flex-col items-center justify-center py-10 text-center">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3" style="background: #f1f5f9;"><i data-feather="trending-up" class="w-8 h-8" style="color: #94a3b8;"></i></div>
+          <p class="text-sm font-medium" style="color: #64748b;">No alerts in the last 30 days</p>
+          <p class="text-xs mt-1" style="color: #94a3b8;">Alert counts will appear here when data is available.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="section-card rounded-xl border bg-white overflow-hidden">
+      <div class="px-5 py-4 border-b flex items-center gap-2" style="background: #f8fafc; border-color: #e2e8f0;">
+        <i data-feather="pie-chart" class="w-5 h-5" style="color: #64748b;"></i>
+        <span class="font-semibold text-sm" style="color: #334155;">Risk by project / grant</span>
+      </div>
+      <div class="p-5 min-h-[140px]">
+        {% if risk_by_grant %}
+        <table class="w-full text-sm">
+          <thead><tr class="border-b" style="border-color: #e2e8f0;"><th class="text-left py-2 font-semibold" style="color: #64748b;">Grant / project</th><th class="text-right py-2 font-semibold" style="color: #64748b;">Count</th></tr></thead>
+          <tbody>
+            {% for r in risk_by_grant %}
+            <tr class="border-b border-dashed" style="border-color: #f1f5f9;"><td class="py-2.5" style="color: #334155;">{{ r.name }}</td><td class="py-2.5 text-right font-medium tabular-nums" style="color: #0f172a;">{{ r.count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="flex flex-col items-center justify-center py-10 text-center">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-3" style="background: #f1f5f9;"><i data-feather="pie-chart" class="w-8 h-8" style="color: #94a3b8;"></i></div>
+          <p class="text-sm font-medium" style="color: #64748b;">No high-risk by grant</p>
+          <p class="text-xs mt-1" style="color: #94a3b8;">Breakdown will appear when high-risk transactions are linked to grants.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly risk trend -->
+  <div class="section-card rounded-xl border bg-white overflow-hidden mb-8">
+    <div class="px-5 py-4 border-b flex items-center gap-2" style="background: #f8fafc; border-color: #e2e8f0;">
+      <i data-feather="bar-chart-2" class="w-5 h-5" style="color: #64748b;"></i>
+      <span class="font-semibold text-sm" style="color: #334155;">Monthly risk trend (high / critical)</span>
+    </div>
+    <div class="p-5 min-h-[100px]">
+      {% if risk_trend_monthly %}
+      <div class="flex flex-wrap gap-x-6 gap-y-4 items-end">
+        {% for r in risk_trend_monthly %}
+        <div class="flex flex-col items-center gap-1">
+          <div class="chart-bar w-12 sm:w-16" style="height: {% if r.count > 0 %}{% widthratio r.count 1 6 %}px{% else %}8px{% endif %}; max-height: 120px;"></div>
+          <span class="text-xs font-medium tabular-nums" style="color: #64748b;">{{ r.count }}</span>
+          <span class="text-xs" style="color: #94a3b8;">{{ r.month }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-8 text-center">
+        <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-2" style="background: #f1f5f9;"><i data-feather="bar-chart-2" class="w-7 h-7" style="color: #94a3b8;"></i></div>
+        <p class="text-sm font-medium" style="color: #64748b;">No high-risk by month</p>
+        <p class="text-xs mt-1" style="color: #94a3b8;">Last 12 months. Data appears when risk assessments are recorded.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Quick links -->
+  <div class="section-card rounded-xl border bg-white overflow-hidden">
+    <div class="px-5 py-4 border-b flex items-center gap-2" style="background: #f8fafc; border-color: #e2e8f0;">
+      <i data-feather="link" class="w-5 h-5" style="color: #64748b;"></i>
+      <span class="font-semibold text-sm" style="color: #334155;">Quick links</span>
+    </div>
+    <div class="p-5 flex flex-wrap gap-3">
+      <a href="{% url 'tenant_portal:audit_risk_fraud_alerts' %}" class="quick-link inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm" style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); color: #fff; border: none;"> <i data-feather="alert-triangle" class="w-4 h-4"></i> Fraud alerts</a>
+      <a href="{% url 'tenant_portal:audit_risk_high_risk' %}" class="quick-link inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white" style="border-color: #e2e8f0; color: #334155;"> <i data-feather="activity" class="w-4 h-4" style="color: #64748b;"></i> High-risk transactions</a>
+      <a href="{% url 'tenant_portal:audit_risk_confirmed_findings' %}" class="quick-link inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white" style="border-color: #e2e8f0; color: #334155;"> <i data-feather="check-circle" class="w-4 h-4" style="color: #64748b;"></i> Confirmed findings</a>
+      <a href="{% url 'tenant_portal:audit_risk_realized_findings' %}" class="quick-link inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white" style="border-color: #e2e8f0; color: #334155;"> <i data-feather="trending-down" class="w-4 h-4" style="color: #64748b;"></i> Realized findings</a>
+      <a href="{% url 'tenant_portal:audit_risk_investigations' %}" class="quick-link inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white" style="border-color: #e2e8f0; color: #334155;"> <i data-feather="search" class="w-4 h-4" style="color: #64748b;"></i> Investigation cases</a>
+      <a href="{% url 'tenant_portal:audit_risk_risk_alerts' %}" class="quick-link inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-white" style="border-color: #e2e8f0; color: #334155;"> <i data-feather="bell" class="w-4 h-4" style="color: #64748b;"></i> Risk alerts register</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

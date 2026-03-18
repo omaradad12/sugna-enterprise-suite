@@ -1,0 +1,46 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Audit Trail | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Audit Trail &amp; Logs</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Track changes to financial transactions: user, date, and modification history.</p>
+</div>
+
+{% if export_csv_url %}
+<div class="mb-4 flex gap-2">
+  <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium" style="border-color:#edebe9;">Export CSV</a>
+  <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium" style="border-color:#edebe9;">Print / PDF</button>
+</div>
+{% endif %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Recent audit log</div>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+        <th class="px-4 py-2 font-semibold">When</th>
+        <th class="px-4 py-2 font-semibold">Action</th>
+        <th class="px-4 py-2 font-semibold">Model</th>
+        <th class="px-4 py-2 font-semibold">Object ID</th>
+        <th class="px-4 py-2 font-semibold">User</th>
+        <th class="px-4 py-2 font-semibold">Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <td class="px-4 py-2">{{ log.changed_at|date:"Y-m-d H:i" }}</td>
+        <td class="px-4 py-2">{{ log.get_action_display }}</td>
+        <td class="px-4 py-2">{{ log.model_name }}</td>
+        <td class="px-4 py-2">{{ log.object_id }}</td>
+        <td class="px-4 py-2">{{ log.username|default:"—" }}</td>
+        <td class="px-4 py-2">{{ log.summary|truncatewords:10 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="px-4 py-6 text-center text-[#605e5c]">No audit log entries yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

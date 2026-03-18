@@ -1,0 +1,96 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Roles & Permissions{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto pb-10">
+  <div class="rounded-lg overflow-hidden mb-5" style="background: linear-gradient(135deg,#0078d4 0%,#106ebe 50%,#005a9e 100%); color:#ffffff;">
+    <div class="px-4 py-2 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style="background: rgba(255,255,255,0.22);">
+          <i data-feather="shield" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight">Roles &amp; Permissions</h1>
+          <p class="text-xs opacity-90">Define role-based access to modules and actions within this organization.</p>
+        </div>
+      </div>
+      <a href="{% url 'tenant_portal:roles_permissions_add' %}"
+         class="px-4 py-2 rounded text-sm font-medium border border-white/60 text-white hover:bg-white/15">
+        New role
+      </a>
+    </div>
+  </div>
+
+  <div class="rounded-lg bg-white border" style="border-color:#edebe9;">
+    <div class="px-5 py-3 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style="background:#faf9f8; border-color:#edebe9;">
+      <div class="flex items-center gap-2">
+        <i data-feather="list" class="w-4 h-4" style="color:#0078d4;"></i>
+        <span class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">Role catalogue</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <form method="get" class="flex items-center gap-2">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color:#605e5c;">Role type</label>
+          <select name="type" onchange="this.form.submit()" class="px-3 py-2 rounded border text-sm" style="border-color:#d1d5db; background:white;">
+            <option value="">All</option>
+            {% for v, lbl in role_type_choices %}
+              <option value="{{ v }}" {% if role_type_filter == v %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <a href="{% url 'tenant_portal:roles_permissions_assign' %}"
+           class="text-xs font-medium" style="color:#0078d4;">
+          Assign roles to users
+        </a>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:#faf9f8; color:#605e5c; text-transform:uppercase; font-size:11px;">
+            <th class="px-4 py-2 text-left">Role name</th>
+            <th class="px-4 py-2 text-left">Type</th>
+            <th class="px-4 py-2 text-left">Description</th>
+            <th class="px-4 py-2 text-left">Permissions</th>
+            <th class="px-4 py-2 text-left">Users</th>
+            <th class="px-4 py-2 text-left w-36">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="border-t" style="border-color:#edebe9;">
+            <td class="px-4 py-2 font-medium">
+              <div class="flex items-center gap-2">
+                <span>{{ row.role.name }}</span>
+                {% if row.role.is_system %}
+                  <span class="px-2 py-0.5 rounded-full text-[10px] border"
+                        style="border-color:#d1d5db; color:#605e5c; background:#faf9f8;">System</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="px-4 py-2 text-xs" style="color:#323130;">
+              {% if row.role.role_type %}{{ row.role.get_role_type_display }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2 text-xs" style="color:#605e5c;">{{ row.role.description|default:"—" }}</td>
+            <td class="px-4 py-2 text-xs" style="color:#323130;">{{ row.perm_count }}</td>
+            <td class="px-4 py-2 text-xs" style="color:#323130;">{{ row.user_count }}</td>
+            <td class="px-4 py-2 text-xs">
+              {% if row.role.is_system %}
+                <span style="color:#605e5c;">Protected</span>
+              {% else %}
+                <a href="{% url 'tenant_portal:roles_permissions_edit' row.role.pk %}" style="color:#0078d4;">Edit</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-sm" style="color:#605e5c;">
+              No roles have been configured yet. Use <strong>New role</strong> to get started.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

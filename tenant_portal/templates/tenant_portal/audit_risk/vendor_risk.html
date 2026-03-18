@@ -1,0 +1,17 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Vendor Risk Monitor{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Vendor Risk Monitor</h1>
+    <p class="page-subtitle mt-1">Vendor-related risk indicators (e.g. new vendor before payment) are included in transaction assessments.</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">Overview</div>
+    <div class="erp-section-body">
+      <p class="text-[13px]" style="color: #605e5c;">When payment vouchers are posted, the engine checks for vendor risk signals such as a supplier created shortly before the payment date. Flagged transactions appear in <strong>Fraud Alerts</strong> and <strong>High Risk Transactions</strong> with the relevant indicators.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

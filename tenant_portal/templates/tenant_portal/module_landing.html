@@ -1,0 +1,11 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ module_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 pb-8" style="background:#faf9f8;">
+  <div class="pt-6 pb-5">
+    <h1 class="text-2xl font-bold text-[#323130] tracking-tight">{{ module_title }}</h1>
+    <p class="text-sm text-[#605e5c] mt-1">{{ module_description }}</p>
+  </div>
+</div>
+{% endblock %}

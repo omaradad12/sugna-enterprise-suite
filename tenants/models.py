@@ -34,7 +34,7 @@ class Tenant(models.Model):
     domain = models.CharField(
         max_length=255,
         unique=True,
-        help_text="Domain or subdomain used to route this tenant, e.g. ngo1.sugna.org",
+        help_text="Domain or subdomain used to route this tenant, e.g. ngo1.sugna.org (no protocol or path).",
     )
     is_active = models.BooleanField(default=True)
     status = models.CharField(

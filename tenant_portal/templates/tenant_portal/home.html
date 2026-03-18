@@ -1,65 +1,110 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ tenant.name }} | Tenant Console</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/feather-icons"></script>
-</head>
-<body class="min-h-screen bg-[#faf9f8] text-[#323130]">
-  <header class="h-14 bg-white border-b flex items-center justify-between px-5" style="border-color:#edebe9;">
-    <div class="flex items-center gap-3 min-w-0">
-      <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-8 w-auto object-contain" />
-      <div class="min-w-0">
-        <p class="text-sm font-semibold truncate">{{ tenant.name }}</p>
-        <p class="text-xs text-[#605e5c] truncate">Tenant Console</p>
-      </div>
-    </div>
-    <div class="flex items-center gap-3">
-      <span class="text-sm text-[#605e5c] hidden sm:inline">{{ tenant_user.email }}</span>
-      <a class="text-sm font-medium text-[#0078D4] hover:underline" href="{% url 'tenant_portal:logout' %}">Sign out</a>
-    </div>
-  </header>
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Financial &amp; Grant Management{% endblock %}
+{% block product_subtitle %}Financial &amp; Grant Management{% endblock %}
 
-  <main class="max-w-6xl mx-auto px-5 py-8">
-    <div class="flex items-start justify-between gap-4 mb-6">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">Welcome back</h1>
-        <p class="text-sm mt-1 text-[#605e5c]">You only see modules you are authorized to access.</p>
-      </div>
-    </div>
+{% block content %}
+  <!-- Simple tenant home header (no tenant console wording) -->
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <h1 class="page-title">Home</h1>
+  </div>
 
-    {% if modules %}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {% for m in modules %}
-          {% if m.key == 'finance' %}
-            {% url 'tenant_portal:finance_home' as module_url %}
-          {% elif m.key == 'grants' %}
-            {% url 'tenant_portal:grants_home' as module_url %}
-          {% elif m.key == 'integrations' %}
-            {% url 'tenant_portal:integrations_home' as module_url %}
-          {% else %}
-            {% url 'tenant_portal:home' as module_url %}
-          {% endif %}
-          <a href="{{ module_url }}" class="block bg-white border rounded-lg p-5 hover:shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background:#eff6fc;">
-              <i data-feather="{{ m.icon }}" class="w-5 h-5" style="color:#0078D4;"></i>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Enabled modules list -->
+    <div class="lg:col-span-2 bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">Enabled modules</h2>
+        {% if modules %}
+          <span class="text-xs text-[#605e5c]">{{ modules|length }} module{{ modules|length|pluralize }}</span>
+        {% endif %}
+      </div>
+      {% if modules %}
+        <div class="divide-y" style="border-color:#edebe9;">
+          {% for m in modules %}
+            <div class="flex items-center justify-between py-2.5 gap-3">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-md flex items-center justify-center" style="background:#eff6fc;">
+                  <i data-feather="{{ m.icon }}" class="w-4 h-4" style="color:#0078D4;"></i>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium truncate">{{ m.name }}</p>
+                  {% if m.key == 'finance_grants' %}
+                    <p class="text-[11px] text-[#605e5c] truncate">Financial &amp; Grant Management</p>
+                  {% elif m.key == 'integrations' %}
+                    <p class="text-[11px] text-[#605e5c] truncate">Connect external ERPs and services</p>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                {% if m.key == 'finance_grants' %}
+                  <a href="{% url 'tenant_portal:finance_home' %}"
+                     class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border text-[#605e5c] hover:bg-[#f3f2f1]"
+                     style="border-color:#edebe9;">
+                    <i data-feather="layout" class="w-3 h-3"></i>
+                    <span>Open dashboard</span>
+                  </a>
+                {% elif m.key == 'integrations' %}
+                  <a href="{% url 'tenant_portal:integrations_home' %}"
+                     class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border text-[#605e5c] hover:bg-[#f3f2f1]"
+                     style="border-color:#edebe9;">
+                    <i data-feather="link" class="w-3 h-3"></i>
+                    <span>Manage integrations</span>
+                  </a>
+                {% else %}
+                  <span class="text-[11px] text-[#a19f9d]">Platform module</span>
+                {% endif %}
+              </div>
             </div>
-            <p class="font-semibold">{{ m.name }}</p>
-            <p class="text-xs mt-1 text-[#605e5c]">Permission: <span class="font-mono">{{ m.perm }}</span></p>
-          </a>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="bg-white border rounded-lg p-6" style="border-color:#edebe9;">
-        <p class="font-semibold">No modules assigned</p>
-        <p class="text-sm mt-1 text-[#605e5c]">Ask a tenant admin to grant you module access.</p>
-      </div>
-    {% endif %}
-  </main>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-[#605e5c]">No modules are currently enabled for this tenant.</p>
+      {% endif %}
+    </div>
 
-  <script>feather.replace();</script>
-</body>
-</html>
+    <!-- Tenant & account summary -->
+    <div class="space-y-5">
+      <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Tenant summary</h2>
+        <dl class="space-y-2 text-sm">
+          <div class="flex items-center justify-between">
+            <dt class="text-[#605e5c]">Tenant name</dt>
+            <dd class="font-medium text-right">{{ tenant_display_name|default:tenant.name }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-[#605e5c]">Status</dt>
+            <dd class="font-medium text-right">{{ tenant.display_status }}</dd>
+          </div>
+          {% if tenant.subscription_expiry %}
+          <div class="flex items-center justify-between">
+            <dt class="text-[#605e5c]">Subscription expiry</dt>
+            <dd class="font-medium text-right">{{ tenant.subscription_expiry }}</dd>
+          </div>
+          {% endif %}
+          <div class="flex items-center justify-between">
+            <dt class="text-[#605e5c]">Enabled modules</dt>
+            <dd class="font-medium text-right">{{ modules|length }}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Quick links</h2>
+        <div class="space-y-2 text-sm">
+          <a href="{% url 'tenant_portal:finance_home' %}" class="flex items-center justify-between px-3 py-2 rounded hover:bg-[#f3f2f1]">
+            <span>Financial &amp; Grant Management dashboard</span>
+            <i data-feather="chevron-right" class="w-4 h-4 text-[#a19f9d]"></i>
+          </a>
+          <a href="{% url 'tenant_portal:integrations_home' %}" class="flex items-center justify-between px-3 py-2 rounded hover:bg-[#f3f2f1]">
+            <span>Integrations overview</span>
+            <i data-feather="chevron-right" class="w-4 h-4 text-[#a19f9d]"></i>
+          </a>
+          <a href="{% url 'tenant_portal:logout' %}" class="flex items-center justify-between px-3 py-2 rounded hover:bg-[#f3f2f1]">
+            <span>Sign out</span>
+            <i data-feather="log-out" class="w-4 h-4 text-[#a19f9d]"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
 

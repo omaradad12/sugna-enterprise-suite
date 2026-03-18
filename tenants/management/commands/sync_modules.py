@@ -10,8 +10,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         baseline = [
-            ("finance", "Finance"),
-            ("grants", "Grant Management"),
+            ("finance_grants", "Financial & Grant Management"),
             ("integrations", "Integrations"),
         ]
         created = 0

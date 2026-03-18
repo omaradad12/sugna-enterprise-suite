@@ -1,0 +1,145 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Audit Screening Upload{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <!-- Page header (Dynamics style) -->
+  <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="page-title">Audit Screening Upload</h1>
+    </div>
+    <div class="flex items-center gap-2 text-[12px]" style="color: #605e5c;">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded" style="background: #f3f2f1; border: 1px solid #edebe9;">
+        <i data-feather="upload-cloud" class="w-3.5 h-3.5" style="color: #0078D4;"></i>
+        <span>Screening</span>
+      </span>
+    </div>
+  </div>
+
+  {% if session %}
+  <!-- Current session (Dynamics card: header strip + body) -->
+  <div class="erp-section mb-6">
+    <div class="erp-section-header">Current screening session</div>
+    <div class="erp-section-body space-y-5">
+      <!-- Session meta strip -->
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]" style="color: #605e5c;">
+        <span class="inline-flex items-center gap-1.5">
+          <i data-feather="clock" class="w-4 h-4" style="color: #8a8886;"></i>
+          Started {{ session.created_at|date:"M d, Y H:i" }}
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <i data-feather="calendar" class="w-4 h-4" style="color: #8a8886;"></i>
+          Unfinished uploads expire {{ session.expires_at|date:"M d, Y H:i" }}
+        </span>
+        <span class="inline-flex items-center gap-1.5" style="color: #107c10;">
+          <i data-feather="file" class="w-4 h-4"></i>
+          {% if max_file_mb > 0 and max_session_mb > 0 %}Max {{ max_session_mb }} MB total, {{ max_file_mb }} MB per file{% else %}Large documents supported; no file size limit{% endif %}
+        </span>
+      </div>
+
+      <!-- Upload area (Fluent-style) -->
+      <div class="rounded border-2 border-dashed p-4 transition-colors" style="border-color: #edebe9; background: #faf9f8;">
+        <form method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="upload">
+          <input type="hidden" name="session_id" value="{{ session.id }}">
+          <div class="flex-1 min-w-[200px]">
+            <label class="block text-[12px] font-medium mb-1.5" style="color: #605e5c;">Add files (or ZIP folder)</label>
+            <input type="file" name="screening_files" multiple accept="*" class="block w-full text-[13px] px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color: #8a8886; color: #323130; background: #ffffff;">
+          </div>
+          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded text-[13px] font-medium transition-colors hover:opacity-90" style="background: #0078D4; color: #ffffff;">
+            <i data-feather="upload-cloud" class="w-4 h-4"></i>
+            Add to session
+          </button>
+        </form>
+      </div>
+
+      {% if files %}
+      <!-- Uploaded files list (Dynamics table style) -->
+      <div>
+        <p class="text-[11px] font-semibold uppercase tracking-wider mb-2" style="color: #605e5c;">Uploaded files (temporary)</p>
+        <div class="rounded border overflow-hidden" style="border-color: #edebe9;">
+          <table class="w-full text-[13px]" style="color: #323130;">
+            <thead>
+              <tr style="background: #f3f2f1;">
+                <th class="text-left px-3 py-2 font-semibold" style="color: #323130;">File name</th>
+                <th class="text-right px-3 py-2 font-semibold" style="color: #323130;">Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in files %}
+              <tr class="border-t" style="border-color: #edebe9;">
+                <td class="px-3 py-2">{{ f.original_filename }}</td>
+                <td class="px-3 py-2 text-right" style="color: #605e5c;">{{ f.file_size|filesizeformat }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <p class="text-[13px]" style="color: #a19f9d;">No files in this session yet. Add files above, then add a summary and click Finish screening when done.</p>
+      {% endif %}
+
+      <!-- Summary and finish (Fluent form style) -->
+      <div class="border-t pt-5" style="border-color: #edebe9;">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="finish_screening">
+          <input type="hidden" name="session_id" value="{{ session.id }}">
+          <div class="grid grid-cols-1 gap-4 mb-5">
+            <div>
+              <label class="block text-[12px] font-medium mb-1.5" style="color: #605e5c;">Screening summary (kept)</label>
+              <textarea name="screening_summary" rows="3" class="w-full px-3 py-2 rounded border text-[13px] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color: #8a8886; color: #323130; background: #ffffff;" placeholder="Brief summary of screening results...">{{ session.screening_summary }}</textarea>
+            </div>
+            <div>
+              <label class="block text-[12px] font-medium mb-1.5" style="color: #605e5c;">Auditor notes (kept)</label>
+              <textarea name="auditor_notes" rows="2" class="w-full px-3 py-2 rounded border text-[13px] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color: #8a8886; color: #323130; background: #ffffff;" placeholder="Notes, risk flags, transaction references...">{{ session.auditor_notes }}</textarea>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded text-[13px] font-medium transition-colors hover:opacity-90" style="background: #107c10; color: #ffffff;">
+              <i data-feather="check" class="w-4 h-4"></i>
+              Finish screening
+            </button>
+            <span class="text-[12px]" style="color: #8a8886;">Saves summary and notes; removes uploaded files from storage.</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <!-- No session: start or continue (Dynamics card) -->
+  <div class="erp-section mb-6">
+    <div class="erp-section-header">Start or continue screening</div>
+    <div class="erp-section-body">
+      <div class="flex flex-wrap items-start gap-4">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="new_session">
+          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded text-[13px] font-medium transition-colors hover:opacity-90" style="background: #0078D4; color: #ffffff;">
+            <i data-feather="plus" class="w-4 h-4"></i>
+            Start new screening session
+          </button>
+        </form>
+      </div>
+      {% if active_sessions %}
+      <div class="mt-5 pt-4 border-t" style="border-color: #edebe9;">
+        <p class="text-[12px] font-medium mb-2" style="color: #605e5c;">Continue an active session</p>
+        <ul class="space-y-1">
+          {% for s in active_sessions %}
+          <li>
+            <a href="?session_id={{ s.id }}" class="inline-flex items-center gap-2 text-[13px] py-1.5 px-2 rounded transition-colors hover:bg-[#f3f2f1]" style="color: #0078D4;">
+              <i data-feather="folder" class="w-4 h-4" style="color: #8a8886;"></i>
+              Session {{ s.id }} — {{ s.created_at|date:"M d, Y H:i" }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

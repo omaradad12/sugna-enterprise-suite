@@ -1,0 +1,7 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | User Activity Log{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto"><h1 class="page-title mb-4">User Activity Log</h1>
+<div class="erp-section"><div class="erp-section-header">Recent activity</div><div class="erp-section-body overflow-x-auto">
+<table class="erp-table"><thead><tr><th>When</th><th>Action</th><th>Model</th><th>User</th><th>Summary</th></tr></thead>
+<tbody>{% for log in logs %}<tr><td>{{ log.changed_at|date:"Y-m-d H:i" }}</td><td>{{ log.get_action_display }}</td><td>{{ log.model_name }}</td><td>{{ log.username }}</td><td>{{ log.summary|truncatewords:10 }}</td></tr>{% empty %}<tr><td colspan="5" class="text-center" style="color:#605e5c;">No activity.</td></tr>{% endfor %}</tbody></table></div></div></div>{% endblock %}

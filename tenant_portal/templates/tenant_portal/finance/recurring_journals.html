@@ -1,0 +1,199 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Recurring Journals | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div x-data="{ openForm: false }">
+<div class="flex items-start justify-between mb-4">
+  <div>
+    <h1 class="page-title">Recurring Journals</h1>
+  </div>
+  <div>
+    <button type="button"
+       @click="openForm = true"
+       class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
+       style="background:#0078D4;">
+      <i data-feather="plus-circle" class="w-4 h-4"></i>
+      Create Recurring Journal
+    </button>
+  </div>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Name</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Reference prefix</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Frequency</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Start date</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Next run</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">End date</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Status</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Lines</th>
+          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rj in recurring_list %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ rj.name }}</td>
+          <td class="px-4 py-2">{{ rj.reference_prefix|default:"—" }}</td>
+          <td class="px-4 py-2">{{ rj.get_frequency_display }}</td>
+          <td class="px-4 py-2">{{ rj.next_run_date|date:"Y-m-d"|default:"—" }}</td>
+          <td class="px-4 py-2">{{ rj.next_run_date|date:"Y-m-d"|default:"—" }}</td>
+          <td class="px-4 py-2">{{ rj.end_date|date:"Y-m-d"|default:"—" }}</td>
+          <td class="px-4 py-2">
+            {% if rj.is_active %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#e7f5e8] text-[#107c10]">Active</span>
+            {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#605e5c]">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2">{{ rj.lines.count }} line(s)</td>
+          <td class="px-4 py-2 text-right">
+            <div class="inline-flex items-center gap-1">
+              <a href="#" class="text-xs text-[#0078D4] hover:underline">View</a>
+              <span class="text-[#a19f9d]">•</span>
+              <a href="#" class="text-xs text-[#0078D4] hover:underline">Edit</a>
+              <span class="text-[#a19f9d]">•</span>
+              <a href="#" class="text-xs text-[#0078D4] hover:underline">
+                {% if rj.is_active %}Deactivate{% else %}Activate{% endif %}
+              </a>
+              <span class="text-[#a19f9d]">•</span>
+              <a href="#" class="text-xs text-[#0078D4] hover:underline">Run now</a>
+              <span class="text-[#a19f9d]">•</span>
+              <a href="#" class="text-xs text-[#a4262c] hover:underline">Delete</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="px-4 py-6 text-center text-[#605e5c]">
+            No recurring journals defined.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Create / Edit Recurring Journal modal (UI only; wire up backend next) -->
+<div x-show="openForm" x-cloak class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div class="px-5 py-3 border-b flex items-center justify-between" style="border-color:#edebe9;">
+      <h2 class="text-base font-semibold text-[#323130]">New recurring journal</h2>
+      <button type="button" @click="openForm = false" class="text-[#605e5c] hover:text-[#323130]">
+        <i data-feather="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <form class="flex-1 flex flex-col min-h-0">
+      <div class="px-5 py-4 space-y-4 overflow-y-auto flex-1 min-h-0">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Template name</label>
+            <input class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                   style="border-color:#edebe9;" placeholder="e.g. Monthly office rent">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Reference prefix</label>
+            <input class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                   style="border-color:#edebe9;" placeholder="e.g. RENT">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Frequency</label>
+            <select class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                    style="border-color:#edebe9;">
+              <option>Monthly</option>
+              <option>Quarterly</option>
+              <option>Yearly</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Start date</label>
+              <input type="date" class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                     style="border-color:#edebe9;">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">End date (optional)</label>
+              <input type="date" class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                     style="border-color:#edebe9;">
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Description</label>
+          <input class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                 style="border-color:#edebe9;" placeholder="Optional description for this template">
+        </div>
+
+        <div class="border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+          <div class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#605e5c]" style="background:#f3f2f1;">
+            Journal lines
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-xs">
+              <thead style="background:#faf9f8;">
+                <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+                  <th class="px-3 py-2 font-semibold">Account</th>
+                  <th class="px-3 py-2 font-semibold">Description</th>
+                  <th class="px-3 py-2 font-semibold text-right">Debit</th>
+                  <th class="px-3 py-2 font-semibold text-right">Credit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for i in "01234" %}
+                <tr class="border-t" style="border-color:#edebe9;">
+                  <td class="px-3 py-1.5">
+                    <select class="w-full px-2 py-1.5 rounded border bg-white text-xs"
+                            style="border-color:#edebe9;">
+                      <option value="">— Select account —</option>
+                      {% for a in accounts %}
+                      <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td class="px-3 py-1.5">
+                    <input class="w-full px-2 py-1.5 rounded border text-xs"
+                           style="border-color:#edebe9;" placeholder="Optional">
+                  </td>
+                  <td class="px-3 py-1.5 text-right">
+                    <input inputmode="decimal"
+                           class="w-full px-2 py-1.5 rounded border text-xs text-right"
+                           style="border-color:#edebe9;" placeholder="0.00">
+                  </td>
+                  <td class="px-3 py-1.5 text-right">
+                    <input inputmode="decimal"
+                           class="w-full px-2 py-1.5 rounded border text-xs text-right"
+                           style="border-color:#edebe9;" placeholder="0.00">
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="px-4 py-2 text-[11px] text-[#605e5c] border-t" style="border-color:#edebe9;">
+            Rules: at least 2 lines, total debit must equal total credit, each line must have either debit or credit.
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-4 border-t flex items-center justify-end gap-3 shrink-0 bg-white" style="border-color:#edebe9;">
+        <button type="button"
+                @click="openForm = false"
+                class="px-4 py-2.5 rounded border text-sm font-medium hover:bg-[#faf9f8]"
+                style="border-color:#edebe9;">
+          Cancel
+        </button>
+        <button type="button"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
+                style="background:#0078D4;">
+          <i data-feather="check" class="w-4 h-4"></i>
+          Save template
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

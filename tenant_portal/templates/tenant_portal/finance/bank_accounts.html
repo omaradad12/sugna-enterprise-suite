@@ -1,0 +1,454 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Bank accounts | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 pb-8" style="background:#faf9f8;" x-data="{ createModalOpen: {{ show_create_modal|yesno:'true,false' }} }">
+  <!-- Page header -->
+  <div class="pt-6 pb-5 flex items-center justify-between gap-3 flex-wrap">
+    <div>
+      <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Bank Accounts</h1>
+      {% if not show_create_only %}
+      <p class="text-sm text-[#605e5c] mt-1">Manage organizational bank accounts used for receipts, payments, transfers, and reconciliation.</p>
+      {% endif %}
+    </div>
+    {% if can_manage and not show_create_only %}
+    <button type="button" @click="createModalOpen = true"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white shrink-0"
+            style="background:#0078D4;">
+      <i data-feather="plus" class="w-4 h-4"></i>
+      New Bank Account
+    </button>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    {% if show_create_only %}
+    <!-- Full-width New bank account card (separate window mode) -->
+    <div class="lg:col-span-8 xl:col-span-6">
+      <div class="bg-white rounded-lg border shadow-sm overflow-hidden" style="border-color:#edebe9;">
+        <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+          <h2 class="text-base font-semibold text-[#323130]">New bank account</h2>
+        </div>
+        <form method="post" class="p-5 {% if not can_manage %}opacity-60 pointer-events-none{% endif %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create" />
+
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Basic information</h3>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Bank name<span class="text-[#a4262c]">*</span></label>
+                  <input name="bank_name" required type="text"
+                         class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d]"
+                         style="border-color:#edebe9;" placeholder="e.g. First National Bank" />
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Account name<span class="text-[#a4262c]">*</span></label>
+                  <input name="account_name" required type="text"
+                         class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d]"
+                         style="border-color:#edebe9;" placeholder="e.g. Main operating account" />
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Account number<span class="text-[#a4262c]">*</span></label>
+                  <input name="account_number" required type="text"
+                         class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] font-mono bg-white placeholder-[#a19f9d]"
+                         style="border-color:#edebe9;" placeholder="e.g. 1234567890" />
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Branch</label>
+                  <input name="branch" type="text"
+                         class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d]"
+                         style="border-color:#edebe9;" placeholder="Branch name or code" />
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Office / location</label>
+                  <input name="office" type="text"
+                         class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d]"
+                         style="border-color:#edebe9;" placeholder="Office or location" />
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Currency<span class="text-[#a4262c]">*</span></label>
+                  <select name="currency_id" required
+                          class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]"
+                          style="border-color:#edebe9;">
+                    <option value="">Select currency</option>
+                    {% for c in currencies %}
+                    <option value="{{ c.pk }}">{{ c.code }} — {{ c.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Description</label>
+                  <textarea name="description" rows="3" placeholder="Optional notes"
+                            class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d] resize-y"
+                            style="border-color:#edebe9;"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t" style="border-color:#edebe9;">
+              <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Accounting setup</h3>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Linked chart of account<span class="text-[#a4262c]">*</span></label>
+                  <select name="account_id" required
+                          class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]"
+                          style="border-color:#edebe9;">
+                    <option value="">Select GL account</option>
+                    {% for a in coa_accounts %}
+                    <option value="{{ a.pk }}">{{ a.code }} — {{ a.name|truncatewords:8 }}</option>
+                    {% endfor %}
+                  </select>
+                  <p class="text-[11px] text-[#605e5c] mt-1.5">Must be an asset-type account in the chart of accounts (e.g. bank).</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[13px] font-medium text-[#323130] mb-1">Opening balance</label>
+                    <input name="opening_balance" type="number" step="0.01" placeholder="0.00"
+                           class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white"
+                           style="border-color:#edebe9;" />
+                  </div>
+                  <div>
+                    <label class="block text-[13px] font-medium text-[#323130] mb-1">As at date</label>
+                    <input name="opening_balance_date" type="date"
+                           class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white"
+                           style="border-color:#edebe9;" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Status</label>
+                  <select name="status" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <p class="text-[11px] text-[#605e5c] mt-1.5">Inactive accounts cannot be used for new transactions.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-4 flex items-center justify-between gap-3" style="border-top:1px solid #edebe9;">
+            <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+               class="text-[13px] font-medium text-[#605e5c] hover:underline">Back to list</a>
+            <button type="submit"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+                    style="background:#0078D4;">
+              <i data-feather="save" class="w-4 h-4"></i>
+              Create bank account
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- KPI summary cards -->
+    <div class="lg:col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+          <i data-feather="briefcase" class="w-6 h-6 text-[#0078D4]"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-[#323130]">{{ kpi_total_count }}</p>
+          <p class="text-[13px] text-[#605e5c]">Total Accounts</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+          <i data-feather="dollar-sign" class="w-6 h-6 text-[#0078D4]"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-[#323130]">${{ kpi_total_balance|floatformat:2 }}</p>
+          <p class="text-[13px] text-[#605e5c]">Total Balance</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#dff6dd;">
+          <i data-feather="check-circle" class="w-6 h-6" style="color:#0b5a0b;"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-[#323130]">{{ kpi_active_count }}</p>
+          <p class="text-[13px] text-[#605e5c]">Active Accounts</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fef3c7;">
+          <i data-feather="x-circle" class="w-6 h-6" style="color:#b45309;"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-bold text-[#323130]">{{ kpi_inactive_count }}</p>
+          <p class="text-[13px] text-[#605e5c]">Inactive Accounts</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- List view: full-width bank accounts list -->
+    <div class="lg:col-span-12">
+      <div class="bg-white rounded-lg border shadow-sm overflow-hidden" style="border-color:#edebe9;">
+        <!-- Filters row -->
+        <form method="get" class="flex flex-wrap items-end gap-3 px-5 py-4 border-b" style="border-color:#edebe9; background:#ffffff;">
+          <div class="min-w-[140px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Bank</label>
+            <input type="text" name="bank_name" value="{{ filters.bank_name }}"
+                   class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d]"
+                   style="border-color:#edebe9;" placeholder="Select bank" />
+          </div>
+          <div class="min-w-[100px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Currency</label>
+            <select name="currency" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+              <option value="">All</option>
+              {% for c in currencies %}
+              <option value="{{ c.code }}" {% if filters.currency == c.code %}selected{% endif %}>{{ c.code }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="min-w-[100px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Status</label>
+            <select name="status" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+              <option value="">All</option>
+              <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+              <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+          </div>
+          <div class="min-w-[160px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">COA Account</label>
+            <select name="account_id" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+              <option value="">All</option>
+              {% for a in coa_accounts %}
+              <option value="{{ a.pk }}" {% if filters.account_id == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.code }} — {{ a.name|truncatewords:3 }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="min-w-[200px] flex-1">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Search</label>
+            <input type="text" name="q" value="{{ filters.q }}"
+                   class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d]"
+                   style="border-color:#edebe9;" placeholder="Search account name or number" />
+          </div>
+          <button type="submit"
+                  class="inline-flex items-center justify-center gap-2 px-5 py-2 rounded text-[13px] font-semibold text-white h-[38px]"
+                  style="background:#0078D4;">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply Filters
+          </button>
+          <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+             class="inline-flex items-center justify-center px-5 py-2 rounded text-[13px] font-semibold h-[38px] border"
+             style="border-color:#edebe9; color:#323130; background:#fff;">
+            Reset
+          </a>
+        </form>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-[13px]" style="border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f3f2f1; border-bottom:1px solid #edebe9;">
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Bank</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Account name</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Account number</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Currency</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">COA Account</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Office / Location</th>
+                <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Current balance</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Status</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 w-28">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              {% with ba=row.obj %}
+              <tr class="hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">
+                <td class="px-5 py-3 text-[#323130]">{{ ba.bank_name }}</td>
+                <td class="px-5 py-3 text-[#323130]">{{ ba.account_name }}</td>
+                <td class="px-5 py-3 text-[#323130] font-mono">{{ ba.account_number }}</td>
+                <td class="px-5 py-3 text-[#323130]">{{ ba.currency.code }}</td>
+                <td class="px-5 py-3 text-[#323130]">{{ ba.account.code }} — {{ ba.account.name|truncatewords:4 }}</td>
+                <td class="px-5 py-3 text-[#323130]">{{ ba.office|default:"—" }}</td>
+                <td class="px-5 py-3 text-[#323130] text-right tabular-nums">
+                  {{ ba.currency.code }} {{ row.current_balance|floatformat:2 }}
+                </td>
+                <td class="px-5 py-3">
+                  {% if ba.is_active %}
+                  <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#dff6dd; color:#0b5a0b;">Active</span>
+                  {% else %}
+                  <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#fef3c7; color:#b45309;">Inactive</span>
+                  {% endif %}
+                </td>
+                <td class="px-5 py-3">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <a href="{% url 'tenant_portal:finance_account_ledger' %}?account_id={{ ba.account_id }}"
+                       class="inline-flex items-center gap-1 text-[#0078D4] hover:underline text-[12px] font-medium"
+                       title="View transactions">
+                      <i data-feather="eye" class="w-4 h-4"></i>
+                    </a>
+                    {% if can_manage %}
+                    <form method="post" class="inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="toggle_active" />
+                      <input type="hidden" name="bank_account_id" value="{{ ba.pk }}" />
+                      <button type="submit" class="text-[12px] font-medium text-[#0078D4] hover:underline">
+                        {% if ba.is_active %}Deactivate{% else %}Activate{% endif %}
+                      </button>
+                    </form>
+                    {% if not row.has_transactions %}
+                    <form method="post" class="inline" onsubmit="return confirm('Delete this bank account? This cannot be undone.');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete" />
+                      <input type="hidden" name="bank_account_id" value="{{ ba.pk }}" />
+                      <button type="submit" class="text-[12px] font-medium text-[#a4262c] hover:underline">Delete</button>
+                    </form>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-[11px] text-[#a19f9d]">Read-only</span>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endwith %}
+              {% empty %}
+              <tr>
+                <td colspan="9" class="px-5 py-16 text-center">
+                  <div class="flex flex-col items-center justify-center">
+                    <div class="w-14 h-14 rounded-full flex items-center justify-center mb-3" style="background:#f3f2f1;">
+                      <i data-feather="credit-card" class="w-7 h-7 text-[#605e5c]"></i>
+                    </div>
+                    <p class="text-[15px] font-semibold text-[#323130]">No bank accounts yet.</p>
+                    <p class="text-[13px] text-[#605e5c] mt-1 max-w-sm">Use the New bank account button above to create one.</p>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not show_create_only and can_manage %}
+  <!-- New Bank Account modal (same page, no navigation) -->
+  <div x-show="createModalOpen" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4"
+       style="background:rgba(0,0,0,0.4);"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+    <div @click.self="createModalOpen = false" class="absolute inset-0"></div>
+    <div class="relative bg-white rounded-lg border shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+         style="border-color:#edebe9;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <div class="sticky top-0 bg-white px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9;">
+        <h2 class="text-lg font-semibold text-[#323130]">Bank Accounts — New bank account</h2>
+        <button type="button" @click="createModalOpen = false" class="p-1 rounded hover:bg-[#f3f2f1] text-[#605e5c]">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" action="{% url 'tenant_portal:cash_bank_accounts' %}" class="p-5">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create" />
+        <div class="space-y-4">
+          <div>
+            <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Basic information</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Bank name<span class="text-[#a4262c]">*</span></label>
+                <input name="bank_name" required type="text" value="{{ create_form_data.bank_name|default:'' }}"
+                       class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;"
+                       placeholder="e.g. First National Bank" />
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Account name<span class="text-[#a4262c]">*</span></label>
+                <input name="account_name" required type="text" value="{{ create_form_data.account_name|default:'' }}"
+                       class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;"
+                       placeholder="e.g. Main operating account" />
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Account number<span class="text-[#a4262c]">*</span></label>
+                <input name="account_number" required type="text" value="{{ create_form_data.account_number|default:'' }}"
+                       class="w-full px-3 py-2 rounded border text-[13px] font-mono bg-white" style="border-color:#edebe9;"
+                       placeholder="e.g. 1234567890" />
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Branch</label>
+                <input name="branch" type="text" value="{{ create_form_data.branch|default:'' }}"
+                       class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;"
+                       placeholder="Branch name or code" />
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Office / location</label>
+                <input name="office" type="text" value="{{ create_form_data.office|default:'' }}"
+                       class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;"
+                       placeholder="Office or location" />
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Currency<span class="text-[#a4262c]">*</span></label>
+                <select name="currency_id" required class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+                  <option value="">Select currency</option>
+                  {% for c in currencies %}
+                  <option value="{{ c.pk }}" {% if create_form_data.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Description</label>
+                <textarea name="description" rows="2" class="w-full px-3 py-2 rounded border text-[13px] bg-white resize-y" style="border-color:#edebe9;" placeholder="Optional notes">{{ create_form_data.description|default:'' }}</textarea>
+              </div>
+            </div>
+          </div>
+          <div class="pt-4 border-t" style="border-color:#edebe9;">
+            <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Accounting setup</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Linked chart of account<span class="text-[#a4262c]">*</span></label>
+                <select name="account_id" required class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+                  <option value="">Select GL account</option>
+                  {% for a in coa_accounts %}
+                  <option value="{{ a.pk }}" {% if create_form_data.account_id == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.code }} — {{ a.name|truncatewords:8 }}</option>
+                  {% endfor %}
+                </select>
+                <p class="text-[11px] text-[#605e5c] mt-1">Must be an asset-type account.</p>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Opening balance</label>
+                  <input name="opening_balance" type="number" step="0.01" value="{{ create_form_data.opening_balance|default:'' }}"
+                         class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;" placeholder="0.00" />
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">As at date</label>
+                  <input name="opening_balance_date" type="date" value="{{ create_form_data.opening_balance_date|default:'' }}"
+                         class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Status</label>
+                <select name="status" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+                  <option value="active" {% if create_form_data.status != 'inactive' %}selected{% endif %}>Active</option>
+                  <option value="inactive" {% if create_form_data.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-6 pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+          <button type="button" @click="createModalOpen = false"
+                  class="px-4 py-2 rounded text-[13px] font-semibold border" style="border-color:#edebe9; color:#323130;">Cancel</button>
+          <button type="submit"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+                  style="background:#0078D4;">
+            <i data-feather="plus" class="w-4 h-4"></i>
+            Create bank account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

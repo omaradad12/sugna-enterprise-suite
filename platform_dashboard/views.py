@@ -31,8 +31,8 @@ def logo_view(request):
         return HttpResponse(f.read(), content_type="image/png")
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def dashboard_view(request):
     """Platform Admin dashboard with KPIs, charts, and activity sections."""
     now = timezone.now()
@@ -203,8 +203,8 @@ def _tenant_summary_stats():
     }
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def module_list_view(request):
     """List all modules with counts."""
     modules = (
@@ -215,8 +215,8 @@ def module_list_view(request):
     return render(request, "platform_dashboard/module_list.html", {"modules": modules})
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def module_workplace_preview_view(request):
     """
     Let platform admin choose a module + tenant and open that tenant's module dashboard.
@@ -248,6 +248,8 @@ def module_workplace_preview_view(request):
             "finance": "/t/finance/",
             "grants": "/t/grants/",
             "integrations": "/t/integrations/",
+            # Audit & Risk workplace (tenant portal) lives under /t/audit-risk/
+            "audit_risk": "/t/audit-risk/",
         }
         path = module_path_map.get(module.code, "/t/")
 
@@ -264,8 +266,8 @@ def module_workplace_preview_view(request):
     return render(request, "platform_dashboard/module_workplace_preview.html", context)
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def tenant_list_view(request):
     """Tenant directory with filters, pagination, sorting, and bulk actions."""
     # Bulk action POST
@@ -403,8 +405,8 @@ def _export_tenants_csv(queryset):
     return response
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def tenant_register_view(request):
     """Tenant registration form (GET) and create tenant (POST). Maps form fields to Tenant where applicable."""
     modules = Module.objects.filter(is_active=True).order_by("code")
@@ -515,25 +517,358 @@ def tenant_register_view(request):
     return render(request, "platform_dashboard/tenant_register.html", {"modules": modules})
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def tenant_detail_view(request, pk):
     """Tenant profile: organization, domain, modules, subscription, billing placeholder, usage, audit placeholder."""
     tenant = get_object_or_404(Tenant.objects.prefetch_related("modules"), pk=pk)
     # Placeholder data for billing and audit until those apps exist
     billing_history = []
     audit_logs = []
+    # Tenant users (loaded from tenant isolated DB)
+    tenant_users = []
+    tenant_users_page = None
+    tenant_users_error = ""
+    tenant_users_summary = {"total": 0, "active": 0, "admins": 0}
+    user_q = (request.GET.get("uq") or "").strip()
+    user_page_num = max(1, int(request.GET.get("upage", 1) or 1))
+    user_per_page = max(10, min(100, int(request.GET.get("uper_page", 25) or 25)))
+    try:
+        from tenants.db import ensure_tenant_db_configured
+
+        alias = ensure_tenant_db_configured(tenant)
+        if alias == "default" and tenant.db_name:
+            # alias not registered but db_name exists; still proceed (ensure_tenant_db_configured should register)
+            pass
+        if not tenant.db_name:
+            tenant_users_error = "Tenant database is not provisioned yet (db_name is empty)."
+        else:
+            from django.db.models import Q
+            from tenant_users.models import TenantUser
+
+            qs = TenantUser.objects.using(alias).all().order_by("email")
+            if user_q:
+                qs = qs.filter(
+                    Q(email__icontains=user_q)
+                    | Q(full_name__icontains=user_q)
+                    | Q(department__icontains=user_q)
+                    | Q(position__icontains=user_q)
+                )
+            tenant_users_summary["total"] = qs.count()
+            tenant_users_summary["active"] = qs.filter(is_active=True).count()
+            tenant_users_summary["admins"] = qs.filter(is_tenant_admin=True).count()
+            paginator = Paginator(qs, user_per_page)
+            tenant_users_page = paginator.get_page(user_page_num)
+            tenant_users = tenant_users_page.object_list
+    except Exception as exc:
+        tenant_users_error = str(exc)[:200]
     context = {
         "tenant": tenant,
         "billing_history": billing_history,
         "audit_logs": audit_logs,
+        "tenant_users": tenant_users,
+        "tenant_users_page": tenant_users_page,
+        "tenant_users_error": tenant_users_error,
+        "tenant_users_summary": tenant_users_summary,
+        "user_filters": {"uq": user_q, "upage": user_page_num, "uper_page": user_per_page},
     }
     return render(request, "platform_dashboard/tenant_detail.html", context)
 
 
-@login_required
-@staff_member_required
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def platform_users_view(request):
+    """
+    Platform-wide tenant users directory.
+
+    Shows users stored in tenant databases, scoped to tenants subscribed to a selected module.
+    """
+    from django.db.models import Q
+    from tenants.db import ensure_tenant_db_configured
+
+    modules = Module.objects.filter(is_active=True).order_by("code")
+    module_id = (request.GET.get("module_id") or "").strip()
+    tenant_id = (request.GET.get("tenant_id") or "").strip()
+    q = (request.GET.get("q") or "").strip()
+
+    page_num = max(1, int(request.GET.get("page", 1) or 1))
+    per_page = max(10, min(100, int(request.GET.get("per_page", 25) or 25)))
+
+    selected_module = None
+    if module_id.isdigit():
+        selected_module = modules.filter(pk=int(module_id)).first()
+    if not selected_module and modules.exists():
+        selected_module = modules.first()
+        module_id = str(selected_module.id)
+
+    tenant_qs = Tenant.objects.prefetch_related("modules").all().order_by("name")
+    if selected_module:
+        tenant_qs = tenant_qs.filter(modules__id=selected_module.id)
+    tenant_qs = tenant_qs.filter(db_name__isnull=False).exclude(db_name="")
+    if tenant_id.isdigit():
+        tenant_qs = tenant_qs.filter(pk=int(tenant_id))
+    tenants = list(tenant_qs[:500])
+
+    rows = []
+    errors = []
+    total_scanned_tenants = 0
+    total_users_scanned = 0
+
+    try:
+        from tenant_users.models import TenantUser
+    except Exception as exc:
+        return render(
+            request,
+            "platform_dashboard/platform_users.html",
+            {
+                "modules": modules,
+                "selected_module": selected_module,
+                "tenants": tenants,
+                "page": None,
+                "rows": [],
+                "errors": [f"TenantUser model import failed: {str(exc)[:200]}"],
+                "filters": {"module_id": module_id, "tenant_id": tenant_id, "q": q, "per_page": per_page},
+                "summary": {"tenants": 0, "users": 0, "returned": 0},
+            },
+        )
+
+    for t in tenants:
+        total_scanned_tenants += 1
+        try:
+            alias = ensure_tenant_db_configured(t)
+            qs = TenantUser.objects.using(alias).all()
+            if q:
+                qs = qs.filter(
+                    Q(email__icontains=q)
+                    | Q(full_name__icontains=q)
+                    | Q(department__icontains=q)
+                    | Q(position__icontains=q)
+                )
+            qs = qs.order_by("email")[:2000]  # safety cap per tenant
+            for u in qs:
+                rows.append(
+                    {
+                        "tenant_id": t.id,
+                        "tenant_name": t.name,
+                        "tenant_slug": t.slug,
+                        "email": u.email,
+                        "full_name": u.full_name,
+                        "department": u.department,
+                        "position": u.position,
+                        "is_active": u.is_active,
+                        "is_admin": u.is_tenant_admin,
+                        "last_login_at": u.last_login_at,
+                    }
+                )
+            total_users_scanned += qs.count() if q else 0
+        except Exception as exc:
+            errors.append(f"{t.slug}: {str(exc)[:200]}")
+
+    # Default ordering: tenant then email
+    rows.sort(key=lambda r: (r["tenant_name"] or "", r["email"] or ""))
+
+    paginator = Paginator(rows, per_page)
+    page = paginator.get_page(page_num)
+
+    context = {
+        "modules": modules,
+        "selected_module": selected_module,
+        "tenants": tenants,
+        "rows": page.object_list,
+        "page": page,
+        "errors": errors,
+        "filters": {"module_id": module_id, "tenant_id": tenant_id, "q": q, "per_page": per_page},
+        "summary": {"tenants": total_scanned_tenants, "users": len(rows), "returned": len(page.object_list)},
+    }
+    return render(request, "platform_dashboard/platform_users.html", context)
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def platform_reset_tenant_user_password_view(request):
+    """Platform Admin: reset a tenant user's password inside the tenant DB."""
+    if request.method != "POST":
+        return redirect("platform_dashboard:platform_users")
+
+    from secrets import token_urlsafe
+    from tenants.db import ensure_tenant_db_configured
+
+    tenant_id = (request.POST.get("tenant_id") or "").strip()
+    email = (request.POST.get("email") or "").strip().lower()
+    next_url = (request.POST.get("next") or "").strip() or request.META.get("HTTP_REFERER") or ""
+
+    if not tenant_id.isdigit() or not email:
+        messages.error(request, "Missing tenant or email.")
+        return redirect(next_url or "platform_dashboard:platform_users")
+
+    tenant = Tenant.objects.filter(pk=int(tenant_id)).first()
+    if not tenant:
+        messages.error(request, "Tenant not found.")
+        return redirect(next_url or "platform_dashboard:platform_users")
+    if not tenant.db_name:
+        messages.error(request, f"Tenant '{tenant.slug}' database is not provisioned.")
+        return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+
+    try:
+        from tenant_users.models import TenantUser
+
+        alias = ensure_tenant_db_configured(tenant)
+        user = TenantUser.objects.using(alias).filter(email=email).first()
+        if not user:
+            messages.error(request, f"No user '{email}' found in tenant '{tenant.slug}'.")
+            return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+
+        temp_password = token_urlsafe(10)  # ~14 chars; URL-safe
+        user.set_password(temp_password)
+        user.save(using=alias, update_fields=["password_hash"])
+
+        messages.success(
+            request,
+            f"Temporary password set for {email} in {tenant.name}: {temp_password}",
+        )
+    except Exception as exc:
+        messages.error(request, f"Password reset failed: {str(exc)[:200]}")
+
+    return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def platform_set_tenant_user_password_view(request):
+    """Platform Admin: set an explicit password for a tenant user inside the tenant DB."""
+    from tenants.db import ensure_tenant_db_configured
+
+    tenant_id = (request.GET.get("tenant_id") or request.POST.get("tenant_id") or "").strip()
+    email = (request.GET.get("email") or request.POST.get("email") or "").strip().lower()
+    next_url = (request.GET.get("next") or request.POST.get("next") or "").strip() or request.META.get("HTTP_REFERER") or ""
+
+    if not tenant_id.isdigit() or not email:
+        messages.error(request, "Missing tenant or email.")
+        return redirect(next_url or "platform_dashboard:platform_users")
+
+    tenant = Tenant.objects.filter(pk=int(tenant_id)).first()
+    if not tenant:
+        messages.error(request, "Tenant not found.")
+        return redirect(next_url or "platform_dashboard:platform_users")
+    if not tenant.db_name:
+        messages.error(request, f"Tenant '{tenant.slug}' database is not provisioned.")
+        return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+
+    try:
+        from tenant_users.models import TenantUser
+
+        alias = ensure_tenant_db_configured(tenant)
+        user = TenantUser.objects.using(alias).filter(email=email).first()
+        if not user:
+            messages.error(request, f"No user '{email}' found in tenant '{tenant.slug}'.")
+            return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+
+        if request.method == "POST":
+            new_password = (request.POST.get("new_password") or "").strip()
+            confirm = (request.POST.get("confirm_password") or "").strip()
+            if len(new_password) < 8:
+                messages.error(request, "Password must be at least 8 characters.")
+            elif new_password != confirm:
+                messages.error(request, "Password and confirmation do not match.")
+            else:
+                user.set_password(new_password)
+                user.save(using=alias, update_fields=["password_hash"])
+                messages.success(request, f"Password updated for {email} in {tenant.name}.")
+                return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+    except Exception as exc:
+        messages.error(request, f"Set password failed: {str(exc)[:200]}")
+        return redirect(next_url or "platform_dashboard:tenant_detail", pk=tenant.id)
+
+    return render(
+        request,
+        "platform_dashboard/set_tenant_user_password.html",
+        {"tenant": tenant, "email": email, "next": next_url},
+    )
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def module_list_view(request):
     """Module list in platform design."""
     modules = Module.objects.annotate(tenant_count=Count("tenants")).order_by("code")
     return render(request, "platform_dashboard/module_list.html", {"modules": modules})
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def diagnostics_view(request):
+    """Self-healing diagnostics: incidents, check runs, health summary, run scan form."""
+    from diagnostics.models import Incident, DiagnosticCheckRun, DiagnosticReport
+
+    incidents = Incident.objects.all().order_by("-created_at")[:50]
+    check_runs = DiagnosticCheckRun.objects.all().order_by("-created_at")[:30]
+    reports = DiagnosticReport.objects.all().order_by("-created_at")[:20]
+    open_incidents = Incident.objects.filter(status__in=(Incident.Status.OPEN, Incident.Status.INVESTIGATING)).count()
+    failed_runs = DiagnosticCheckRun.objects.filter(status=DiagnosticCheckRun.Status.FAILURE).count()
+    tenants = Tenant.objects.filter(db_name__isnull=False).exclude(db_name="").order_by("name")
+
+    return render(
+        request,
+        "platform_dashboard/diagnostics.html",
+        {
+            "incidents": incidents,
+            "check_runs": check_runs,
+            "reports": reports,
+            "open_incidents": open_incidents,
+            "failed_runs": failed_runs,
+            "tenants": tenants,
+        },
+    )
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def diagnostics_run_scan_view(request):
+    """POST: run manual scan (scope, tenant_id, apply_fixes), redirect to report detail."""
+    from diagnostics.services.scan_orchestrator import run_manual_scan
+
+    if request.method != "POST":
+        return redirect("platform_dashboard:diagnostics")
+    scope = (request.POST.get("scope") or "platform").strip().lower()
+    if scope not in ("platform", "tenant", "database", "api", "service"):
+        messages.error(request, "Invalid scope.")
+        return redirect("platform_dashboard:diagnostics")
+    tenant_id = request.POST.get("tenant_id")
+    if tenant_id:
+        try:
+            tenant_id = int(tenant_id)
+        except (TypeError, ValueError):
+            tenant_id = None
+    if scope == "tenant" and not tenant_id:
+        messages.error(request, "Select a tenant for tenant scope.")
+        return redirect("platform_dashboard:diagnostics")
+    service = (request.POST.get("service") or "").strip() or None
+    if scope == "service" and not service:
+        service = "cache"
+    apply_fixes = request.POST.get("apply_fixes") in ("1", "on", "true", "yes")
+    try:
+        report = run_manual_scan(scope=scope, tenant_id=tenant_id, service=service, apply_fixes=apply_fixes)
+        messages.success(request, f"Scan completed. Report #{report.id}.")
+        return redirect("platform_dashboard:diagnostics_report", report_id=report.id)
+    except Exception as e:
+        messages.error(request, str(e)[:200])
+        return redirect("platform_dashboard:diagnostics")
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def diagnostics_report_view(request, report_id):
+    """Diagnostic report detail: runs, findings, incidents."""
+    from diagnostics.models import DiagnosticReport, Finding
+
+    report = get_object_or_404(
+        DiagnosticReport.objects.prefetch_related("check_runs__findings", "incidents__remediation_logs"),
+        pk=report_id,
+    )
+    run_ids = [r.id for r in report.check_runs.all()]
+    report_findings = list(Finding.objects.filter(run_id__in=run_ids).order_by("-severity", "-created_at")) if run_ids else []
+    return render(
+        request,
+        "platform_dashboard/diagnostics_report.html",
+        {"report": report, "report_findings": report_findings},
+    )

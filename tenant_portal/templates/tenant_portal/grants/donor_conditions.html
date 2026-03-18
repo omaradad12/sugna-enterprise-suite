@@ -1,0 +1,50 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Donor Conditions &amp; Restrictions | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Donor Conditions &amp; Restrictions</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Record donor restrictions (budget lines, procurement, reporting) and apply to grants.</p>
+</div>
+
+{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-4">
+  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
+    <h2 class="font-semibold">Add restriction</h2>
+    <form method="post" class="mt-4 space-y-3">
+      {% csrf_token %}
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label><select name="donor_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">{% for d in donors %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}</select></div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant (optional)</label><select name="grant_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;"><option value="">— None —</option>{% for g in grants %}<option value="{{ g.pk }}">{{ g.code }}</option>{% endfor %}</select></div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Type</label><select name="restriction_type" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">{% for value, label in restriction_types.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Description</label><textarea name="description" required rows="3" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;"></textarea></div>
+      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Save</button>
+    </form>
+  </div>
+  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Restrictions</div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Donor</th>
+          <th class="px-4 py-2 font-semibold">Grant</th>
+          <th class="px-4 py-2 font-semibold">Type</th>
+          <th class="px-4 py-2 font-semibold">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in restrictions %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ r.donor.name }}</td>
+          <td class="px-4 py-2">{{ r.grant.code|default:"—" }}</td>
+          <td class="px-4 py-2">{{ r.get_restriction_type_display }}</td>
+          <td class="px-4 py-2">{{ r.description|truncatewords:8 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No restrictions.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

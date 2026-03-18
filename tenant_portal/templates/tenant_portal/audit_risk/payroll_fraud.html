@@ -1,0 +1,17 @@
+{% extends "tenant_portal/_layout_audit_risk.html" %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Payroll Fraud Check{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" style="color: #323130;">
+  <div class="mb-6">
+    <h1 class="page-title">Payroll Fraud Check</h1>
+    <p class="page-subtitle mt-1">Payroll module not yet integrated. When available, payroll batches will be screened here.</p>
+  </div>
+  <div class="erp-section" style="margin-bottom: 0;">
+    <div class="erp-section-header">Status</div>
+    <div class="erp-section-body">
+      <p class="text-[13px]" style="color: #605e5c;">Once the payroll module is connected, this page will list payroll-specific fraud checks (e.g. duplicate employees, unusual amounts, timing). Results will also feed into the main <strong>Fraud Alerts</strong> and <strong>Risk Overview</strong> dashboard.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

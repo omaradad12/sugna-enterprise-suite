@@ -1,0 +1,45 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Statement of Activities (Income &amp; Expenditure) | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Statement of Activities (Income &amp; Expenditure)</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">For period {{ filters.period_start|date:"M d, Y" }} — {{ filters.period_end|date:"M d, Y" }}.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants %}
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Income</div>
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;"><th class="px-4 py-2 font-semibold">Account</th><th class="px-4 py-2 font-semibold text-right">Amount</th></tr></thead>
+    <tbody>
+      {% for code, name, bal in income %}
+      <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
+      {% empty %}
+      <tr><td colspan="2" class="px-4 py-2 text-[#605e5c]">—</td></tr>
+      {% endfor %}
+      <tr class="font-semibold border-t" style="border-color:#edebe9;"><td class="px-4 py-2">Total Income</td><td class="px-4 py-2 text-right">{{ total_income|floatformat:2 }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden mt-4" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Expenditure</div>
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;"><th class="px-4 py-2 font-semibold">Account</th><th class="px-4 py-2 font-semibold text-right">Amount</th></tr></thead>
+    <tbody>
+      {% for code, name, bal in expense %}
+      <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
+      {% empty %}
+      <tr><td colspan="2" class="px-4 py-2 text-[#605e5c]">—</td></tr>
+      {% endfor %}
+      <tr class="font-semibold border-t" style="border-color:#edebe9;"><td class="px-4 py-2">Total Expenditure</td><td class="px-4 py-2 text-right">{{ total_expense|floatformat:2 }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-4 p-4 rounded-lg font-semibold" style="background:#faf9f8; border:1px solid #edebe9;">
+  Surplus / (Deficit): {{ surplus|floatformat:2 }}
+</div>
+{% endblock %}

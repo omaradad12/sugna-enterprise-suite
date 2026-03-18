@@ -1,0 +1,46 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Expense Trend | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Expense Trend</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Monthly or quarterly expense analysis.</p>
+</div>
+
+{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors %}
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
+    <p class="text-xs text-[#605e5c]">Total Expenses (Period)</p>
+    <p class="text-xl font-bold mt-1">{{ total_expenses|floatformat:2 }}</p>
+  </div>
+  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
+    <p class="text-xs text-[#605e5c]">Average per Month</p>
+    <p class="text-xl font-bold mt-1">{{ avg_per_month|floatformat:2 }}</p>
+  </div>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Expenses by Month</div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">Month</th>
+          <th class="px-4 py-2 font-semibold text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in monthly_rows %}
+        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          <td class="px-4 py-2">{{ row.month|date:"F Y" }}</td>
+          <td class="px-4 py-2 text-right font-medium">{{ row.total|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="2" class="px-4 py-6 text-center text-[#605e5c]">No expense data for the selected period.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Main Cashbook | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 pb-8" style="background:#faf9f8;">
+  <div class="pt-6 pb-5">
+    <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Main Cashbook</h1>
+    <p class="text-sm text-[#605e5c] mt-1">Organizational cash transactions not linked to donor-funded projects. Entries link to the Chart of Accounts and follow double-entry accounting.</p>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg border shadow-sm p-4 mb-6" style="border-color:#edebe9;">
+    <form method="get" class="flex flex-wrap items-end gap-4">
+      <div class="min-w-[130px]">
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">From date</label>
+        <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
+               class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;" />
+      </div>
+      <div class="min-w-[130px]">
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">To date</label>
+        <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
+               class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;" />
+      </div>
+      <div class="min-w-[160px]">
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Office</label>
+        <select name="office" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+          <option value="">All</option>
+          {% for o in offices %}
+          <option value="{{ o }}" {% if filters.office == o %}selected{% endif %}>{{ o }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="min-w-[160px]">
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Transaction type</label>
+        <select name="transaction_type" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+          <option value="">All</option>
+          <option value="payment" {% if filters.transaction_type == 'payment' %}selected{% endif %}>Payment (PV)</option>
+          <option value="receipt" {% if filters.transaction_type == 'receipt' %}selected{% endif %}>Receipt (RV)</option>
+          <option value="journal" {% if filters.transaction_type == 'journal' %}selected{% endif %}>Journal (JV)</option>
+          <option value="other" {% if filters.transaction_type == 'other' %}selected{% endif %}>Other</option>
+        </select>
+      </div>
+      <button type="submit"
+              class="inline-flex items-center justify-center gap-2 px-5 py-2 rounded text-[13px] font-semibold text-white"
+              style="background:#0078D4;">
+        <i data-feather="filter" class="w-4 h-4"></i>
+        Apply filters
+      </button>
+    </form>
+  </div>
+
+  <!-- Transaction table -->
+  <div class="bg-white rounded-lg border shadow-sm overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+      <h2 class="text-base font-semibold text-[#323130]">Cashbook entries</h2>
+      <p class="text-[13px] text-[#605e5c] mt-0.5">Running balance is calculated automatically from debit and credit.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-[13px]" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f3f2f1; border-bottom:1px solid #edebe9;">
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Date</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Reference Number</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3">Description</th>
+            <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Debit</th>
+            <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Credit</th>
+            <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Balance</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Office</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Entered By</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">
+            <td class="px-5 py-3 text-[#323130]">{{ r.date|date:"d/m/Y" }}</td>
+            <td class="px-5 py-3 text-[#323130] font-medium">{{ r.reference }}</td>
+            <td class="px-5 py-3 text-[#323130]">{{ r.description }}</td>
+            <td class="px-5 py-3 text-right tabular-nums text-[#323130]">{% if r.debit %}{{ r.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="px-5 py-3 text-right tabular-nums text-[#323130]">{% if r.credit %}{{ r.credit|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="px-5 py-3 text-right tabular-nums font-medium text-[#323130]">{{ r.balance|floatformat:2 }}</td>
+            <td class="px-5 py-3 text-[#323130]">{{ r.office }}</td>
+            <td class="px-5 py-3 text-[#323130]">{{ r.entered_by }}</td>
+            <td class="px-5 py-3">
+              <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold"
+                    style="{% if r.status == 'Posted' %}background:#dff6dd; color:#0b5a0b;{% else %}background:#fef3c7; color:#b45309;{% endif %}">
+                {{ r.status }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="px-5 py-16 text-center">
+              <div class="flex flex-col items-center justify-center">
+                <div class="w-14 h-14 rounded-full flex items-center justify-center mb-3" style="background:#f3f2f1;">
+                  <i data-feather="book-open" class="w-7 h-7 text-[#605e5c]"></i>
+                </div>
+                <p class="text-[15px] font-semibold text-[#323130]">No cashbook entries</p>
+                <p class="text-[13px] text-[#605e5c] mt-1 max-w-sm">No organizational cash transactions (without grant) in this period. Try a wider date range or different filters.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

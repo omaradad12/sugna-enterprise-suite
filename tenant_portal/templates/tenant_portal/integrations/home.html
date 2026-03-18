@@ -1,5 +1,5 @@
 {% extends "tenant_portal/_layout.html" %}
-{% block title %}{{ tenant.name }} | Integrations{% endblock %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Integrations{% endblock %}
 {% block product_subtitle %}Integrations{% endblock %}
 
 {% block content %}

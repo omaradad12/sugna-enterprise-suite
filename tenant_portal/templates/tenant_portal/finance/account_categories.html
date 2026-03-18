@@ -1,0 +1,174 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Account Categories | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="w-full mx-auto px-0 md:px-0" x-data="{ createModalOpen: false }">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h1 class="page-title">Account Categories</h1>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm" style="border-color:#edebe9;">
+    <div class="px-5 py-3.5 border-b flex items-center justify-between gap-3" style="border-color:#edebe9; background:#faf9f8;">
+      <div class="flex flex-col">
+        <p class="text-[13px] font-semibold text-[#323130]">Categories</p>
+        <p class="text-[11px] text-[#605e5c] hidden sm:block">
+          Standard NGO account categories grouped by financial statement section.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white shadow-sm"
+                style="background:#0078D4;"
+                @click="createModalOpen = true">
+          <i data-feather="plus" class="w-4 h-4"></i>
+          <span>Create Category</span>
+        </button>
+        <button type="button"
+                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+                style="border-color:#cfd0d4; color:#323130; background:#ffffff;"
+                onclick="document.getElementById('import-category-input')?.click();">
+          <i data-feather="upload" class="w-4 h-4"></i>
+          <span>Import Categories</span>
+        </button>
+        <a href="?export=1"
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+           style="border-color:#cfd0d4; color:#323130; background:#ffffff;">
+          <i data-feather="download" class="w-4 h-4"></i>
+          <span>Export Categories</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="overflow-auto">
+      <table class="min-w-full text-sm">
+        <thead style="background:#f3f2f1;">
+          <tr>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Code</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Name</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Statement Type</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Status</th>
+            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categories %}
+          <tr class="border-b last:border-0" style="border-color:#edebe9;">
+            <td class="px-5 py-3 font-mono">{{ c.code }}</td>
+            <td class="px-5 py-3">{{ c.name }}</td>
+            <td class="px-5 py-3">{{ c.get_statement_type_display|default:"—" }}</td>
+            <td class="px-5 py-3">
+              {% if c.status == 'inactive' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                      style="background:#edebe9; color:#605e5c;">Inactive</span>
+              {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                      style="background:#dff6dd; color:#0b5a0b;">Active</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_status" />
+                <input type="hidden" name="category_id" value="{{ c.pk }}" />
+                <button type="submit" class="text-xs font-medium text-[#0078d4] hover:underline">
+                  {% if c.status == 'inactive' %}Enable{% else %}Disable{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td class="px-5 py-6 text-[#605e5c]" colspan="5">No categories yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Hidden import form (CSV) -->
+  <form id="import-category-form" method="post" enctype="multipart/form-data" class="hidden">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="import" />
+    <input id="import-category-input" type="file" name="file"
+           accept=".csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+           onchange="if(this.files.length){document.getElementById('import-category-form').submit();}" />
+  </form>
+
+  <!-- Create Category modal -->
+  <div x-show="createModalOpen" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center p-4"
+       style="background:rgba(0,0,0,0.4);"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0">
+    <div @click.self="createModalOpen = false" class="absolute inset-0"></div>
+    <div class="relative bg-white rounded-lg border shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+         style="border-color:#edebe9;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <div class="sticky top-0 bg-white px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9;">
+        <h2 class="text-lg font-semibold text-[#323130]">Account Categories — New category</h2>
+        <button type="button" @click="createModalOpen = false" class="p-1 rounded hover:bg-[#f3f2f1] text-[#605e5c]">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" action="{% url 'tenant_portal:finance_account_categories' %}" class="p-5 space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Code<span class="text-[#a4262c]">*</span></label>
+            <input name="code" required type="text"
+                   class="w-full px-3 py-2 rounded border text-[13px] font-mono bg-white"
+                   style="border-color:#edebe9;"
+                   placeholder="e.g. CASH" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Name<span class="text-[#a4262c]">*</span></label>
+            <input name="name" required type="text"
+                   class="w-full px-3 py-2 rounded border text-[13px] bg-white"
+                   style="border-color:#edebe9;"
+                   placeholder="e.g. Cash" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Statement Type<span class="text-[#a4262c]">*</span></label>
+            <select name="statement_type" required
+                    class="w-full px-3 py-2 rounded border bg-white text-[13px]"
+                    style="border-color:#edebe9;">
+              <option value="">Select statement type</option>
+              {% for value, label in statement_types.choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Status</label>
+            <select name="status"
+                    class="w-full px-3 py-2 rounded border bg-white text-[13px]"
+                    style="border-color:#edebe9;">
+              <option value="active" selected>Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-6 pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+          <button type="button" @click="createModalOpen = false"
+                  class="px-4 py-2 rounded text-[13px] font-semibold border"
+                  style="border-color:#edebe9; color:#323130;">Cancel</button>
+          <button type="submit"
+                  class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+                  style="background:#0078D4;">
+            <i data-feather="plus" class="w-4 h-4"></i>
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
