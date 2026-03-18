@@ -665,7 +665,7 @@ class FiscalYear(models.Model):
         ordering = ["-start_date"]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(start_date__lt=models.F("end_date")),
+                condition=models.Q(start_date__lt=models.F("end_date")),
                 name="fiscalyear_start_before_end",
             ),
         ]
@@ -733,7 +733,7 @@ class FiscalPeriod(models.Model):
         unique_together = ("fiscal_year", "period_number")
         constraints = [
             models.CheckConstraint(
-                check=models.Q(start_date__lt=models.F("end_date")),
+                condition=models.Q(start_date__lt=models.F("end_date")),
                 name="fiscalperiod_start_before_end",
             ),
         ]

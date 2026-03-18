@@ -31,6 +31,22 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "*").split("
 if os.environ.get("CSRF_TRUSTED_ORIGINS"):
     CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ["CSRF_TRUSTED_ORIGINS"].split(",") if o.strip()]
 
+# Production security hardening
+# These should generally be enabled when DEBUG=false and the app is behind a TLS-terminating reverse proxy.
+if not DEBUG:
+    # Trust the proxy's TLS information (e.g. Nginx/Caddy: X-Forwarded-Proto: https)
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Ensure cookies are only sent over HTTPS
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Enforce HTTPS + HSTS (configurable via env for safer rollout)
+    SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "true").lower() in ("true", "1", "yes")
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "true").lower() in ("true", "1", "yes")
+    SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() in ("true", "1", "yes")
+
 
 # Application definition
 
@@ -141,7 +157,8 @@ _db_defaults = {
 }
 DATABASES = {"default": _db_defaults.copy()}
 # Optional dev tenant DBs (same host/user/password as default)
-if os.environ.get("DB_EXTRA_TENANTS", "true").lower() in ("true", "1", "yes"):
+_db_extra_tenants_default = "true" if DEBUG else "false"
+if os.environ.get("DB_EXTRA_TENANTS", _db_extra_tenants_default).lower() in ("true", "1", "yes"):
     for alias, db_name in [("wardi", "wardi_db"), ("hurdo", "hurdo_db")]:
         DATABASES[alias] = {**_db_defaults.copy(), "NAME": db_name}
 

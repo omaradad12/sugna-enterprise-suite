@@ -66,34 +66,30 @@ Production must use **DEBUG=false** and environment variables for **SECRET_KEY**
 
 1. **Create production env file**
 
-   ```bash
-   cp .env.prod .env
+   Create a file named `.env.prod` in the project directory (do not commit it). Use the following as a starting point, then replace the example secrets with your own generated values before deploying:
+
+   ```env
+   DJANGO_SECRET_KEY=bNMXD6t0OJSuUSe5E4pF1zFzYHFfLEC4C9CrCOn5KoN_xljhBB-CFncRcW4769QpVqCWVasNs_684SiSso8rWw
+   DEBUG=false
+   ALLOWED_HOSTS=46.224.112.206
+
+   DB_NAME=sugna_enterprise_suite
+   DB_USER=postgres
+   DB_PASSWORD=ZWszwq5xYn_iEXcDXJRhV-CaDEzl5Go0
+   DB_HOST=db
+   DB_PORT=5432
+
+   # Recommended for production (unless you explicitly want the extra dev tenant DBs)
+   DB_EXTRA_TENANTS=false
+
+   # Optional: HTTPS origins for CSRF (comma-separated)
+   # CSRF_TRUSTED_ORIGINS=https://46.224.112.206
    ```
-
-   Edit `.env` and set **real** values:
-
-   - **DJANGO_SECRET_KEY** (or **SECRET_KEY**) – long random string, e.g.  
-     `python -c "import secrets; print(secrets.token_urlsafe(50))"`
-   - **DEBUG** – must be `false` (or `0`)
-   - **ALLOWED_HOSTS** – your domain(s), comma-separated (e.g. `app.example.com,www.app.example.com`)
-   - **DB_PASSWORD** – strong PostgreSQL password
-   - **DB_HOST** – keep `db` when using docker-compose
-
-   Optionally set **CSRF_TRUSTED_ORIGINS** (comma-separated HTTPS origins) and **DB_EXTRA_TENANTS=false** if you don’t use the extra dev tenant DBs.
 
 2. **Build and start (production)**
 
-   Using the production override:
-
    ```bash
-   docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml build
-   docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml up -d
-   ```
-
-   Or, with `.env` already in place:
-
-   ```bash
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    ```
 
 3. **Migrations**
@@ -125,13 +121,11 @@ Production must use **DEBUG=false** and environment variables for **SECRET_KEY**
 ## 3. Switching between environments
 
 - **Development → Production (Docker)**  
-  - Copy production env: `cp .env.prod .env`  
-  - Edit `.env` with real secrets and domains.  
+  - Create `.env.prod` on the server (do not commit it) and set real secrets/domains.  
   - Run with prod override:  
-    `docker compose --env-file .env -f docker-compose.yml -f docker-compose.prod.yml up -d`
+    `docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d`
 
 - **Production → Development (Docker)**  
-  - Copy dev env: `cp .env.dev .env` (or use `.env.dev` directly).  
   - Run with dev override:  
     `docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d`
 

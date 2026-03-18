@@ -9,6 +9,5 @@ db.sqlite3
 .env.*
 !.env.example
 !.env.dev
-!.env.prod
 media/
 staticfiles/

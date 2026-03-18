@@ -99,10 +99,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='fiscalperiod',
-            constraint=models.CheckConstraint(check=models.Q(('start_date__lt', models.F('end_date'))), name='fiscalperiod_start_before_end'),
+            constraint=models.CheckConstraint(condition=models.Q(('start_date__lt', models.F('end_date'))), name='fiscalperiod_start_before_end'),
         ),
         migrations.AddConstraint(
             model_name='fiscalyear',
-            constraint=models.CheckConstraint(check=models.Q(('start_date__lt', models.F('end_date'))), name='fiscalyear_start_before_end'),
+            constraint=models.CheckConstraint(condition=models.Q(('start_date__lt', models.F('end_date'))), name='fiscalyear_start_before_end'),
         ),
     ]
