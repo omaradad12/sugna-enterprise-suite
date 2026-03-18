@@ -3,6 +3,17 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 
+def _tenant_check_constraint(*, q, name: str) -> models.CheckConstraint:
+    """
+    Django 6 renamed CheckConstraint's keyword argument from `check` to `condition`.
+    This helper keeps the exact constraint logic while remaining compatible.
+    """
+    try:
+        return models.CheckConstraint(condition=q, name=name)
+    except TypeError:
+        return models.CheckConstraint(check=q, name=name)
+
+
 def ensure_default_currencies(using: str | None = None) -> None:
     """
     Ensure that a minimal set of base currencies exist for a tenant.
@@ -664,8 +675,8 @@ class FiscalYear(models.Model):
     class Meta:
         ordering = ["-start_date"]
         constraints = [
-            models.CheckConstraint(
-                condition=models.Q(start_date__lt=models.F("end_date")),
+            _tenant_check_constraint(
+                q=models.Q(start_date__lt=models.F("end_date")),
                 name="fiscalyear_start_before_end",
             ),
         ]
@@ -732,8 +743,8 @@ class FiscalPeriod(models.Model):
         ordering = ["fiscal_year", "period_number"]
         unique_together = ("fiscal_year", "period_number")
         constraints = [
-            models.CheckConstraint(
-                condition=models.Q(start_date__lt=models.F("end_date")),
+            _tenant_check_constraint(
+                q=models.Q(start_date__lt=models.F("end_date")),
                 name="fiscalperiod_start_before_end",
             ),
         ]

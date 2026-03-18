@@ -4,6 +4,17 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def _tenant_check_constraint(q, name: str) -> models.CheckConstraint:
+    """
+    Django 6 renamed CheckConstraint's keyword argument from `check` to `condition`.
+    This helper keeps the exact constraint logic while remaining compatible.
+    """
+    try:
+        return models.CheckConstraint(condition=q, name=name)
+    except TypeError:
+        return models.CheckConstraint(check=q, name=name)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -99,10 +110,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='fiscalperiod',
-            constraint=models.CheckConstraint(condition=models.Q(('start_date__lt', models.F('end_date'))), name='fiscalperiod_start_before_end'),
+            constraint=_tenant_check_constraint(models.Q(('start_date__lt', models.F('end_date'))), name='fiscalperiod_start_before_end'),
         ),
         migrations.AddConstraint(
             model_name='fiscalyear',
-            constraint=models.CheckConstraint(condition=models.Q(('start_date__lt', models.F('end_date'))), name='fiscalyear_start_before_end'),
+            constraint=_tenant_check_constraint(models.Q(('start_date__lt', models.F('end_date'))), name='fiscalyear_start_before_end'),
         ),
     ]
