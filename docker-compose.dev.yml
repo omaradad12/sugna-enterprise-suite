@@ -1,8 +1,27 @@
-# Development override: use .env.dev for the web service.
-# Run: docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Development override (local Docker development)
+# Uses:
+#   docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
 services:
   web:
     env_file: .env.dev
-    # Optional: use runserver instead of gunicorn for dev (uncomment to use)
-    # command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      # Preserve your current local workflow: mount source code for quick iteration.
+      - .:/app
+      # Reuse original volume names so existing local DB/admin user remains intact.
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+
+  db:
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+  static_volume:
+  media_volume:
+

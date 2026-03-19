@@ -1,9 +1,11 @@
 # Sugna Enterprise Suite - Django + PostgreSQL
-# Usage: see DEPLOY.md
 #
-# Development: docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d
-# Production:  docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
-# Or copy .env.dev or .env.prod to .env and run: docker compose up -d
+# This file is environment-agnostic.
+# Use:
+#   Development:
+#     docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#   Production:
+#     docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 services:
   db:
@@ -11,9 +13,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-sugna_enterprise_suite}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in --env-file (.env.dev / .env.prod)}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-sugna_enterprise_suite}"]
       interval: 5s
@@ -22,22 +22,11 @@ services:
 
   web:
     build: .
-    command: gunicorn --bind 0.0.0.0:8000 --workers 3 --threads 2 sugna_core.wsgi:application
-    env_file: .env
+    command: gunicorn -c config/gunicorn/gunicorn_conf.py sugna_core.wsgi:application
     environment:
       DB_HOST: db
       DB_PORT: "5432"
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8000:8000"
 
-volumes:
-  pgdata:
-  static_volume:
-  media_volume:

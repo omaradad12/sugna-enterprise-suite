@@ -19,5 +19,5 @@ COPY . .
 
 EXPOSE 8000
 
-# Default: run gunicorn (override for migrate/collectstatic in compose)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "sugna_core.wsgi:application"]
+# Default: run gunicorn (compose can override if needed)
+CMD ["gunicorn", "-c", "config/gunicorn/gunicorn_conf.py", "sugna_core.wsgi:application"]

@@ -5,9 +5,10 @@ from django.utils.translation import gettext_lazy as _
 
 def _tenant_check_constraint(*, q, name: str) -> models.CheckConstraint:
     """
-    CheckConstraint uses `condition` (Django 4.1+). Logic unchanged.
+    Helper to create a CheckConstraint that is compatible with the
+    Django version in use. Older Django versions expect `check=`.
     """
-    return models.CheckConstraint(condition=q, name=name)
+    return models.CheckConstraint(check=q, name=name)
 
 
 def ensure_default_currencies(using: str | None = None) -> None:
@@ -739,12 +740,11 @@ class FiscalPeriod(models.Model):
         ordering = ["fiscal_year", "period_number"]
         unique_together = ("fiscal_year", "period_number")
         constraints = [
-            _tenant_check_constraint(
-                q=models.Q(start_date__lt=models.F("end_date")),
-                name="fiscalperiod_start_before_end",
-            ),
-        ]
-
+    _tenant_check_constraint(
+        q=models.Q(start_date__lt=models.F("end_date")),
+        name="fiscalperiod_start_before_end",
+    ),
+]
     def __str__(self) -> str:
         return f"{self.fiscal_year.name} P{self.period_number}"
 
