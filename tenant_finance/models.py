@@ -5,13 +5,9 @@ from django.utils.translation import gettext_lazy as _
 
 def _tenant_check_constraint(*, q, name: str) -> models.CheckConstraint:
     """
-    Django 6 renamed CheckConstraint's keyword argument from `check` to `condition`.
-    This helper keeps the exact constraint logic while remaining compatible.
+    CheckConstraint uses `condition` (Django 4.1+). Logic unchanged.
     """
-    try:
-        return models.CheckConstraint(condition=q, name=name)
-    except TypeError:
-        return models.CheckConstraint(check=q, name=name)
+    return models.CheckConstraint(condition=q, name=name)
 
 
 def ensure_default_currencies(using: str | None = None) -> None:
