@@ -5,10 +5,13 @@ from django.utils.translation import gettext_lazy as _
 
 def _tenant_check_constraint(*, q, name: str) -> models.CheckConstraint:
     """
-    Helper to create a CheckConstraint that is compatible with the
-    Django version in use. Older Django versions expect `check=`.
+    Compatibility helper for mixed Django versions.
+    Some versions use `condition=`, others use `check=`.
     """
-    return models.CheckConstraint(check=q, name=name)
+    try:
+        return models.CheckConstraint(condition=q, name=name)
+    except TypeError:
+        return models.CheckConstraint(check=q, name=name)
 
 
 def ensure_default_currencies(using: str | None = None) -> None:
@@ -1582,7 +1585,11 @@ class PostingRule(models.Model):
         INACTIVE = "inactive", "Inactive"
 
     name = models.CharField(max_length=120)
-    transaction_type = models.CharField(max_length=40, choices=TransactionType.choices)
+    transaction_type = models.CharField(
+        max_length=40,
+        choices=TransactionType.choices,
+        default=TransactionType.RECEIPT,
+    )
     priority = models.PositiveSmallIntegerField(
         default=100,
         help_text="Lower numbers are evaluated first (higher precedence).",

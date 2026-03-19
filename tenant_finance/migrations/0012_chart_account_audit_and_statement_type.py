@@ -6,10 +6,13 @@ from django.db import migrations, models
 
 def _tenant_check_constraint(q, name: str) -> models.CheckConstraint:
     """
-    Helper wrapper so this migration works on older Django versions
-    where CheckConstraint expects `check=` instead of `condition=`.
+    Compatibility helper for mixed Django versions.
+    Some versions use `condition=`, others use `check=`.
     """
-    return models.CheckConstraint(check=q, name=name)
+    try:
+        return models.CheckConstraint(condition=q, name=name)
+    except TypeError:
+        return models.CheckConstraint(check=q, name=name)
 
 
 class Migration(migrations.Migration):
