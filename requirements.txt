@@ -9,5 +9,8 @@ psycopg2-binary>=2.9,<3.0
 # Crypto used by tenant_integrations secret encryption
 cryptography>=46.0.5,<47.0.0
 
+# Image processing used by tenants branding (from PIL import Image)
+Pillow
+
 # Production server (optional for local dev)
 gunicorn>=21.0,<23.0
