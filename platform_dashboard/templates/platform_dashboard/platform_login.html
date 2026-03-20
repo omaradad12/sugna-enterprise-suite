@@ -52,13 +52,13 @@
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block text-xs font-semibold text-slate-600" for="id_password">Password</label>
-                  <span
-                    class="text-xs text-slate-400 select-none"
-                    style="cursor: not-allowed; pointer-events: none;"
-                    aria-disabled="true"
-                  >
-                    Forgot password? (inactive)
-                  </span>
+                <a
+                  href="/platform/password-reset/"
+                  class="text-xs text-slate-400 select-none underline"
+                  style="pointer-events: auto;"
+                >
+                  Forgot password?
+                </a>
               </div>
               <input
                 id="id_password"
