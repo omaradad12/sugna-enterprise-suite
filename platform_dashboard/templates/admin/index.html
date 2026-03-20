@@ -16,25 +16,33 @@
 {% block content %}
     <div class="col-12 mb-4">
         <div class="jazzy-erp-kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-label">{% trans "Total Tenants" %}</div>
-                <div class="kpi-value tabular-nums" id="kpi_total_tenants">-</div>
-                <div class="kpi-meta" id="kpi_total_tenants_meta">Loading...</div>
+            <div class="card kpi-card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="kpi-label">{% trans "Total Tenants" %}</div>
+                    <div class="kpi-value tabular-nums" id="kpi_total_tenants">-</div>
+                    <div class="kpi-meta" id="kpi_total_tenants_meta">Loading...</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">{% trans "Active Users" %}</div>
-                <div class="kpi-value tabular-nums" id="kpi_active_users">-</div>
-                <div class="kpi-meta" id="kpi_active_users_meta">Loading...</div>
+            <div class="card kpi-card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="kpi-label">{% trans "Active Users" %}</div>
+                    <div class="kpi-value tabular-nums" id="kpi_active_users">-</div>
+                    <div class="kpi-meta" id="kpi_active_users_meta">Loading...</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">{% trans "Open Tickets" %}</div>
-                <div class="kpi-value tabular-nums" id="kpi_open_tickets">-</div>
-                <div class="kpi-meta" id="kpi_open_tickets_meta">Loading...</div>
+            <div class="card kpi-card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="kpi-label">{% trans "Open Tickets" %}</div>
+                    <div class="kpi-value tabular-nums" id="kpi_open_tickets">-</div>
+                    <div class="kpi-meta" id="kpi_open_tickets_meta">Loading...</div>
+                </div>
             </div>
-            <div class="kpi-card">
-                <div class="kpi-label">{% trans "System Health" %}</div>
-                <div class="kpi-value tabular-nums" id="kpi_system_health">-</div>
-                <div class="kpi-meta" id="kpi_system_health_meta">Checking...</div>
+            <div class="card kpi-card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="kpi-label">{% trans "System Health" %}</div>
+                    <div class="kpi-value tabular-nums" id="kpi_system_health">-</div>
+                    <div class="kpi-meta" id="kpi_system_health_meta">Checking...</div>
+                </div>
             </div>
         </div>
 
@@ -80,8 +88,9 @@
                             </div>
                             <div class="card-body">
                                 <div class="jazzy-erp-module-grid">
-                                    {% for model in app.models %}
-                                        <div class="jazzy-erp-module-card">
+                            {% for model in app.models %}
+                                        <div class="card jazzy-erp-module-card">
+                                            <div class="card-body p-3">
                                             <div class="jazzy-erp-module-top">
                                                 <div class="jazzy-erp-module-icon">
                                                     <i class="{{ model.icon }}"></i>
@@ -118,6 +127,7 @@
                                                         </a>
                                                     {% endif %}
                                                 {% endif %}
+                                            </div>
                                             </div>
                                         </div>
                                     {% empty %}

@@ -179,8 +179,12 @@ body.login-page {
 }
 
 #jazzy-sidebar {
-    background: #f7f8fb !important;
-    border-right: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff !important;
+    border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+.app-sidebar {
+    background: #ffffff !important;
 }
 
 #jazzy-sidebar .nav-header {
@@ -231,17 +235,21 @@ body.login-page {
 
 .jazzy-erp-kpi-grid .kpi-card {
     background: #ffffff;
-    border: 1px solid rgba(15, 23, 42, 0.10);
-    border-radius: 18px;
-    padding: 18px 18px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    overflow: hidden;
 }
 
 .jazzy-erp-kpi-grid .kpi-card:hover {
     transform: translateY(-1px);
     border-color: rgba(0, 120, 212, 0.28);
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+}
+
+.jazzy-erp-kpi-grid .kpi-card .card-body {
+    padding: 16px 16px !important;
 }
 
 .jazzy-erp-kpi-grid .kpi-label {
@@ -376,9 +384,13 @@ body.login-page {
 .jazzy-erp-module-card {
     border: 1px solid rgba(15, 23, 42, 0.10);
     border-radius: 16px;
-    padding: 12px 12px;
+    padding: 0;
     background: #ffffff;
     transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jazzy-erp-module-card > .card-body {
+    padding: 16px !important;
 }
 
 .jazzy-erp-module-card:hover {
