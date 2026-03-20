@@ -26,6 +26,9 @@ from . import views
 urlpatterns = [
     path("", RedirectView.as_view(url="/platform/", permanent=False)),
     path("platform/login/", auth_views.LoginView.as_view(template_name="platform_dashboard/platform_login.html"), name="platform_login"),
+    # Reuse the platform login UI for Django admin login as well, so the
+    # look-and-feel is identical across "Admin" and "Platform".
+    path("admin/login/", auth_views.LoginView.as_view(template_name="platform_dashboard/platform_login.html"), name="admin_login"),
     path(
         "platform/password-reset/",
         auth_views.PasswordResetView.as_view(

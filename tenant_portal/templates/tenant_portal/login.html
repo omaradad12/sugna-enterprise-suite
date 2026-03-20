@@ -80,7 +80,9 @@
           <div>
             <div class="flex items-center justify-between mb-1">
               <label class="block text-xs font-semibold text-[#605e5c]">Password</label>
-              <a href="/platform/password-reset/" class="text-xs underline" style="color: {{ tenant.brand_primary_color|default:'#0078D4' }};">Forgot password?</a>
+              <span class="text-xs" style="color: rgba(31, 41, 55, 0.45); cursor: not-allowed;">
+                Forgot password? (inactive)
+              </span>
             </div>
             <input name="password" type="password" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#d1d5db;" placeholder="••••••••" />
           </div>

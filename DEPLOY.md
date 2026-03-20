@@ -92,6 +92,14 @@ Production must use **DEBUG=false** and environment variables for **SECRET_KEY**
    docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    ```
 
+   **PostgreSQL must stay running.** If the `db` container stops, Django will return **500** on almost every page (sessions and auth use the default database). The compose files set `restart: unless-stopped` on `db` and `web` so the database comes back after a server reboot. After deploy, confirm all three services are up:
+
+   ```bash
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml ps
+   ```
+
+   If `db` is not `Up`, start it: `docker compose ... up -d db`, then restart `web`.
+
 3. **Migrations**
 
    ```bash

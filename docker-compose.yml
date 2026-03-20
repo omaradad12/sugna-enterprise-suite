@@ -10,6 +10,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-sugna_enterprise_suite}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -22,6 +23,7 @@ services:
 
   web:
     build: .
+    restart: unless-stopped
     command: gunicorn -c config/gunicorn/gunicorn_conf.py sugna_core.wsgi:application
     environment:
       DB_HOST: db

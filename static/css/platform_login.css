@@ -7,6 +7,13 @@
   --text: #1f2937;
 }
 
+:root {
+  --brand-blue: #0078d4;
+  --brand-blue-dark: #0b63ce;
+  --page-bg: #f3f2f1;
+  --text: #1f2937;
+}
+
 body {
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   margin: 0;

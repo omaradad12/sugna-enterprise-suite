@@ -14,6 +14,7 @@ services:
     restart: unless-stopped
     build:
       context: /root/sugna-enterprise-suite
+    restart: unless-stopped
     command: gunicorn -c config/gunicorn/gunicorn_conf.py sugna_core.wsgi:application
     depends_on:
       db:
