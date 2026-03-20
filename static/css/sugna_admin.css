@@ -159,14 +159,516 @@ body.login-page {
 }
 
 .main-sidebar {
-    background-color: #0f172a;
+    /* Softer enterprise tone instead of heavy dark admin */
+    background-color: #f7f8fb;
 }
 
-.sidebar .nav-link.active,
-.sidebar .nav-link:hover {
-    background-color: #111827;
+/* Sidebar: premium control-center feel */
+#jazzy-sidebar,
+.main-sidebar {
+    color: #111827;
 }
 
+#jazzy-sidebar .sidebar-brand,
+#jazzy-sidebar .brand-text,
+#jazzy-sidebar .user-panel .info a,
+#jazzy-sidebar .user-panel .info span,
+#jazzy-sidebar .nav-header,
+#jazzy-sidebar .nav-link p {
+    color: #374151 !important;
+}
+
+#jazzy-sidebar {
+    background: #f7f8fb !important;
+    border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+#jazzy-sidebar .nav-header {
+    padding: 14px 16px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #6b7280 !important;
+}
+
+#jazzy-sidebar .nav-link {
+    border-left: 4px solid transparent;
+    border-radius: 14px;
+    margin: 2px 10px;
+    padding: 10px 12px;
+    color: #374151 !important;
+    transition: background-color 0.15s ease, border-left-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#jazzy-sidebar .nav-link .nav-icon {
+    color: #6b7280 !important;
+}
+
+#jazzy-sidebar .nav-link:hover {
+    background-color: rgba(0, 120, 212, 0.06) !important;
+    border-left-color: rgba(0, 120, 212, 0.45);
+    box-shadow: 0 8px 20px rgba(0, 120, 212, 0.08);
+}
+
+#jazzy-sidebar .nav-link.active {
+    background-color: rgba(0, 120, 212, 0.10) !important;
+    border-left-color: #0078d4 !important;
+}
+
+/* Content background */
 .content-wrapper {
-    background-color: #f3f4f6;
+    background-color: #f5f6fb;
 }
+
+/* ---- Premium ERP Admin UI (KPI, Modules cards, Alerts) ---- */
+
+.jazzy-erp-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.jazzy-erp-kpi-grid .kpi-card {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 18px;
+    padding: 18px 18px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.jazzy-erp-kpi-grid .kpi-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(0, 120, 212, 0.28);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+}
+
+.jazzy-erp-kpi-grid .kpi-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+}
+
+.jazzy-erp-kpi-grid .kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+}
+
+.jazzy-erp-kpi-grid .kpi-meta {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 8px;
+    min-height: 16px;
+}
+
+.jazzy-erp-quick-actions,
+.jazzy-erp-quick-actions .quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.jazzy-erp-quick-actions .quick-actions-title,
+.jazzy-erp-quick-actions .quick-actions .quick-actions-title {
+    font-weight: 700;
+}
+
+.jazzy-erp-quick-actions .quick-actions-title {
+    margin-bottom: 8px;
+}
+
+.jazzy-erp-quick-actions .quick-actions-title,
+.jazzy-erp-quick-actions .quick-actions-title + .quick-actions {
+    margin-top: 0;
+}
+
+.jazzy-erp-quick-actions .quick-actions {
+    margin-top: 0;
+}
+
+.jazzy-erp-quick-actions .quick-actions-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #6b7280;
+}
+
+.jazzy-erp-btn-outline {
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.14) !important;
+    color: #111827 !important;
+    border-radius: 14px !important;
+    padding: 10px 14px !important;
+    font-weight: 700 !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.jazzy-erp-btn-outline:hover {
+    border-color: rgba(0, 120, 212, 0.35) !important;
+    background: rgba(0, 120, 212, 0.06);
+    box-shadow: 0 10px 24px rgba(0, 120, 212, 0.10);
+    transform: translateY(-1px);
+}
+
+.jazzy-erp-btn-primary {
+    border-radius: 14px !important;
+    padding: 10px 14px !important;
+    font-weight: 800 !important;
+    background: linear-gradient(135deg, #0078d4 0%, #0b63ce 100%) !important;
+    border: 1px solid #0078d4 !important;
+}
+
+.jazzy-erp-btn-primary:hover {
+    filter: brightness(1.03);
+}
+
+.jazzy-erp-modules-card {
+    border-radius: 18px !important;
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.jazzy-erp-modules-card .card-header {
+    background: #ffffff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 16px 16px;
+}
+
+.jazzy-erp-modules-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    background: rgba(0, 120, 212, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+}
+
+.jazzy-erp-subtle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.jazzy-erp-count {
+    font-size: 12px;
+    font-weight: 800;
+    color: #0078d4;
+    background: rgba(0, 120, 212, 0.08);
+    border-radius: 999px;
+    padding: 8px 10px;
+    border: 1px solid rgba(0, 120, 212, 0.18);
+}
+
+.jazzy-erp-module-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.jazzy-erp-module-card {
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 16px;
+    padding: 12px 12px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jazzy-erp-module-card:hover {
+    border-color: rgba(0, 120, 212, 0.28);
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.jazzy-erp-module-top {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.jazzy-erp-module-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 16px;
+    background: rgba(0, 120, 212, 0.08);
+    color: #0078d4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.jazzy-erp-module-title {
+    font-weight: 900;
+    color: #111827;
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.jazzy-erp-module-desc {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+    line-height: 1.25;
+}
+
+.jazzy-erp-module-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.jazzy-erp-alerts-card {
+    border-radius: 18px !important;
+}
+
+.jazzy-erp-alerts-card .card-header {
+    background: #ffffff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.jazzy-erp-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 900;
+    color: #0078d4;
+    background: rgba(0, 120, 212, 0.08);
+    border: 1px solid rgba(0, 120, 212, 0.18);
+    padding: 6px 10px;
+    border-radius: 999px;
+    min-width: 92px;
+}
+
+.jazzy-erp-alert-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.jazzy-erp-alert-item:last-child {
+    border-bottom: none;
+}
+
+.jazzy-erp-alert-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-top: 6px;
+}
+
+.jazzy-erp-dot-success {
+    background: #16a34a;
+}
+
+.jazzy-erp-dot-warn {
+    background: #f59e0b;
+}
+
+.jazzy-erp-dot-error {
+    background: #dc2626;
+}
+
+.jazzy-erp-alert-title {
+    font-weight: 800;
+    color: #111827;
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.jazzy-erp-alert-meta {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.25;
+}
+
+/* ---- Changelist (tables + search) ---- */
+
+#changelist {
+    background: transparent;
+}
+
+#changelist table {
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    width: 100%;
+}
+
+#changelist thead th {
+    background: #f8fafc;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    color: #374151;
+    font-weight: 800;
+    font-size: 12px;
+    padding: 14px 12px;
+}
+
+#changelist tbody td {
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    padding: 14px 12px;
+    vertical-align: middle;
+    color: #111827;
+    font-size: 13px;
+}
+
+#changelist tbody tr:hover td {
+    background: rgba(0, 120, 212, 0.06);
+}
+
+#changelist .change-list-actions .btn,
+#changelist .object-tools .btn,
+#changelist .actions .btn {
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+}
+
+#changelist .change-list-actions {
+    margin-top: 6px;
+}
+
+/* Make row action links feel "button-like" */
+#changelist .btn-group .btn {
+    border-radius: 14px !important;
+}
+
+/* Batch action select + submit alignment */
+#changelist .action-form select,
+#changelist .action-form input[type="submit"],
+#changelist .action-form button {
+    border-radius: 14px !important;
+}
+
+/* Search bar & filters */
+#changelist-search,
+#change-list-filters {
+    background: transparent;
+}
+
+#changelist-search input#searchbar,
+form#changelist-search input {
+    border-radius: 14px !important;
+    border: 1px solid rgba(15, 23, 42, 0.14) !important;
+    padding: 10px 12px !important;
+    box-shadow: none !important;
+}
+
+#changelist-search input#searchbar:focus,
+form#changelist-search input:focus {
+    border-color: rgba(0, 120, 212, 0.45) !important;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12) !important;
+}
+
+#changelist-search button,
+#change-list-filters button {
+    border-radius: 14px !important;
+    font-weight: 800 !important;
+}
+
+/* ---- Forms (fieldset cards + inputs) ---- */
+
+.jazzy-erp-fieldset-card {
+    border-radius: 18px !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    background: #ffffff;
+}
+
+.jazzy-erp-fieldset-header {
+    background: linear-gradient(180deg, rgba(0, 120, 212, 0.07) 0%, rgba(255, 255, 255, 0) 100%);
+    border-bottom: 1px solid rgba(0, 120, 212, 0.18) !important;
+}
+
+.jazzy-erp-fieldset-body {
+    padding: 18px 18px !important;
+}
+
+.jazzy-erp-form-label {
+    font-size: 12px;
+    font-weight: 800;
+    color: #374151;
+    padding-top: 10px;
+    padding-bottom: 6px;
+}
+
+.jazzy-erp-field-box {
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 14px;
+    padding: 8px 10px;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+.jazzy-erp-field-box .form-control,
+.jazzy-erp-field-box select,
+.jazzy-erp-field-box textarea {
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 13px;
+    width: 100%;
+    display: block;
+    line-height: 1.35;
+}
+
+.jazzy-erp-field-box .form-control:focus,
+.jazzy-erp-field-box select:focus,
+.jazzy-erp-field-box textarea:focus {
+    outline: none !important;
+}
+
+.submit-row .btn-primary,
+.submit-row .btn-primary:hover {
+    background: linear-gradient(135deg, #0078d4 0%, #0b63ce 100%) !important;
+    border-color: #0078d4 !important;
+    box-shadow: 0 10px 24px rgba(0, 120, 212, 0.20) !important;
+    border-radius: 14px !important;
+    padding: 10px 16px !important;
+    font-weight: 900 !important;
+}
+
+/* Recent actions timeline polish (AdminLTE timeline markup) */
+.timeline-modern .timeline-item,
+.card #recent-actions-module .timeline-item,
+.card .timeline-item {
+    border-radius: 14px;
+}
+
+.card .timeline .timeline-item .time {
+    color: #6b7280;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 991px) {
+    .jazzy-erp-module-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .jazzy-erp-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575px) {
+    .jazzy-erp-module-grid {
+        grid-template-columns: 1fr;
+    }
+    .jazzy-erp-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
