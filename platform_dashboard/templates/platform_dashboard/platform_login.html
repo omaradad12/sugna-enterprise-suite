@@ -1,76 +1,73 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Sugna Platform Login</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
-          },
-          colors: {
-            primary: {
-              500: '#0078D4',
-              600: '#106EBE',
-            },
-          },
-        },
-      },
-    };
-  </script>
-</head>
-<body class="min-h-screen bg-slate-100 flex items-center justify-center font-sans">
-  <div class="w-full max-w-md px-4">
-    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
-      <div class="px-8 pt-7 pb-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-        <div class="text-lg font-semibold tracking-wide">Sugna Enterprise Suite</div>
-        <div class="text-xs opacity-90 mt-1">Platform Administration</div>
-      </div>
-      <div class="px-8 pt-6 pb-7">
-        {% if form.errors %}
-          <div class="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
-            Invalid username or password.
-          </div>
-        {% endif %}
-        <form method="post" action="">
-          {% csrf_token %}
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Username</label>
+  <head>
+    <meta charset="UTF-8">
+    <title>Sugna Platform Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/platform_login.css' %}">
+  </head>
+  <body>
+    <div class="ps-login-page">
+      <main class="ps-login-right">
+        <div class="ps-login-card" role="region" aria-label="Platform sign in" style="max-width: 520px;">
+            <div class="ps-login-card-header">
+              <div class="ps-login-card-mark" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 28 28" fill="none">
+                  <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+                  <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+                  <rect x="3.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+                  <rect x="14.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+                </svg>
+              </div>
+              <div>
+                <div class="ps-login-card-title">Platform Sign In</div>
+                <div class="ps-login-card-subtitle">Use your platform credentials</div>
+              </div>
+            </div>
+
+            {% if form.errors %}
+              <div class="ps-login-alert" role="alert">
+                Invalid username or password.
+              </div>
+            {% endif %}
+
+            <form method="post" action="" class="ps-login-form">
+              {% csrf_token %}
+
+              <label class="ps-login-label" for="id_username">Username</label>
               <input
+                id="id_username"
                 type="text"
                 name="{{ form.username.html_name }}"
                 value="{{ form.username.value|default_if_none:'' }}"
                 autocomplete="username"
                 required
-                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-slate-50"
+                class="ps-login-input"
               >
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Password</label>
+
+              <label class="ps-login-label" for="id_password">Password</label>
               <input
+                id="id_password"
                 type="password"
                 name="{{ form.password.html_name }}"
                 autocomplete="current-password"
                 required
-                class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-slate-50"
+                class="ps-login-input"
               >
+
+              <div class="ps-login-forgot">
+                <a href="/platform/password-reset/">Forgot password?</a>
+              </div>
+
+              <button type="submit" class="ps-login-button">Sign in</button>
+            </form>
+
+            <div class="ps-login-footnote">
+              Sugna Enterprise Suite • Tenant data remains isolated per workspace database.
             </div>
           </div>
-          <button
-            type="submit"
-            class="mt-5 w-full inline-flex items-center justify-center rounded-md bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium py-2.5 shadow-md transition-colors"
-          >
-            Log in
-          </button>
-        </form>
-      </div>
+      </main>
     </div>
-  </div>
-</body>
+  </body>
 </html>

@@ -39,6 +39,15 @@ class TenantResolutionMiddleware:
         from tenants.db import ensure_tenant_db_configured
         from sugna_core.tenant_context import set_current_tenant
 
+        # Control-plane and other non-tenant routes (e.g. /platform/, /admin/, /api/...)
+        # should not depend on tenant resolution or tenant DB provisioning.
+        # Tenant-aware routes are under `/t/`.
+        path = (request.path or "").rstrip("/")
+        if not path.startswith("/t/") and path != "/t":
+            request.tenant = None
+            set_current_tenant(None)
+            return self.get_response(request)
+
         host = (request.get_host() or "").split(":")[0].lower().strip()
 
         tenant = None

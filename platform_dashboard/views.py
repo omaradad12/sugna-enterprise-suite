@@ -10,23 +10,34 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
-from django.core.management import call_command
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
+from django.db import utils as db_utils
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
 
 from tenants.branding import extract_brand_colors
+from tenants.db import ensure_tenant_db_configured
 from tenants.models import Module, Tenant
+from tenants.services.onboarding import run_full_tenant_provisioning
+from tenants.services.tenant_modules import replace_tenant_modules
 
 
 def logo_view(request):
     """Serve the Sugna logo image so it loads regardless of static files config."""
     logo_path = Path(settings.BASE_DIR) / "platform_dashboard" / "static" / "platform_dashboard" / "images" / "sugna-logo.png"
     if not logo_path.exists():
-        return HttpResponse(status=404)
+        # Fallback: the repo may not ship the PNG asset. Return an inline SVG so
+        # templates using `{% url 'platform_dashboard:logo' %}` never show a broken image.
+        svg = """<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none">
+  <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+  <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+  <rect x="3.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+  <rect x="14.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+</svg>"""
+        return HttpResponse(svg, content_type="image/svg+xml")
     with open(logo_path, "rb") as f:
         return HttpResponse(f.read(), content_type="image/png")
 
@@ -94,12 +105,18 @@ def dashboard_view(request):
         revenue_data = [0, 0, 0, 0, 0, 0]
 
     # Module subscription (per-module tenant count)
-    module_stats = list(
-        Module.objects.filter(is_active=True)
-        .annotate(tenant_count=Count("tenants"))
-        .values_list("name", "tenant_count")
-        .order_by("-tenant_count")[:8]
-    )
+    # This can fail with ProgrammingError if tenant ↔ module join tables
+    # haven't been migrated in the current environment yet.
+    module_stats = []
+    try:
+        module_stats = list(
+            Module.objects.filter(is_active=True)
+            .annotate(tenant_count=Count("tenants"))
+            .values_list("name", "tenant_count")
+            .order_by("-tenant_count")[:8]
+        )
+    except db_utils.DatabaseError:
+        module_stats = []
     module_labels = [m[0] for m in module_stats]
     module_data = [m[1] for m in module_stats]
 
@@ -447,7 +464,7 @@ def tenant_register_view(request):
                 )
                 module_ids = request.POST.getlist("selected_modules")
                 if module_ids:
-                    tenant.modules.set(Module.objects.filter(pk__in=module_ids))
+                    replace_tenant_modules(tenant, list(Module.objects.filter(pk__in=module_ids)))
                 # Handle branding fields (colors) and logo upload
                 logo_file = request.FILES.get("logo")
                 if logo_file:
@@ -479,39 +496,41 @@ def tenant_register_view(request):
 
                 tenant.save()
 
-                # Auto-provision isolated Postgres database for this tenant (DB-per-tenant).
-                try:
-                    db_name = f"sugna_{tenant.slug}"
-                    db_user = f"sugna_{tenant.slug}_user"
-                    db_password = token_urlsafe(16)
+                # DB-per-tenant: provision PostgreSQL, migrate, seed defaults, bootstrap RBAC (service layer).
+                admin_email = (request.POST.get("admin_email") or request.POST.get("contact_email") or "").strip()
+                admin_full_name = (
+                    request.POST.get("admin_full_name") or request.POST.get("contact_full_name") or ""
+                ).strip() or name
+                setup_method = (request.POST.get("setup_method") or "invite").strip()
+                admin_password = (request.POST.get("admin_temporary_password") or "").strip()
+                auto_gen_pw = setup_method != "password" or not admin_password
 
-                    call_command(
-                        "provision_tenant_db",
-                        tenant=tenant.slug,
-                        db_name=db_name,
-                        db_user=db_user,
-                        db_password=db_password,
-                        db_host="",
-                        db_port="",
-                    )
-                    call_command("migrate_tenant", tenant=tenant.slug)
-                    messages.success(
-                        request,
-                        f"Tenant «{name}» created with isolated database «{db_name}».",
-                    )
-                except Exception as exc:
+                onboard = run_full_tenant_provisioning(
+                    tenant,
+                    admin_email=admin_email or None,
+                    admin_password=admin_password or None,
+                    admin_full_name=admin_full_name,
+                    auto_generate_admin_password=auto_gen_pw,
+                )
+                if onboard.ok:
+                    messages.success(request, onboard.message)
+                    if onboard.generated_admin_password:
+                        messages.warning(
+                            request,
+                            "Tenant admin temporary password (copy securely; not shown again): "
+                            f"{onboard.generated_admin_password}",
+                        )
+                    if action == "create_send_link":
+                        messages.info(
+                            request,
+                            f"Tenant «{name}» is active. Send setup link to {admin_email or 'the admin'} when email is configured.",
+                        )
+                else:
                     messages.error(
                         request,
-                        f"Tenant «{name}» was created, but database provisioning failed: {exc}",
+                        f"Tenant «{name}» was saved, but automated provisioning failed: {onboard.message}",
                     )
 
-                if action == "create_send_link":
-                    messages.success(
-                        request,
-                        f"Tenant «{name}» created. Setup link can be sent when email is configured.",
-                    )
-                else:
-                    messages.success(request, f"Tenant «{name}» created successfully.")
                 return redirect("platform_dashboard:tenant_detail", pk=tenant.pk)
         return redirect("platform_dashboard:tenant_register")
     return render(request, "platform_dashboard/tenant_register.html", {"modules": modules})

@@ -25,6 +25,7 @@ class Command(BaseCommand):
 
         ensure_tenant_db_configured(tenant)
         alias = tenant_db_alias(tenant)
+        self.stdout.write(f"Using tenant DB alias '{alias}' for slug '{tenant.slug}'.")
 
         from tenant_users.models import TenantUser
         from rbac.models import Permission, Role, RolePermission, UserRole

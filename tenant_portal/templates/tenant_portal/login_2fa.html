@@ -16,7 +16,15 @@
         {% elif tenant.brand_logo_url %}
           <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-10 w-auto object-contain" />
         {% else %}
-          <img src="{% url 'platform_dashboard:logo' %}" alt="Sugna Enterprise Suite" class="h-10 w-auto object-contain" />
+          <div class="h-10 w-10 bg-white/90 rounded-md flex items-center justify-center">
+            <!-- Inline logo mark -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 28 28" fill="none">
+              <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+              <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+              <rect x="3.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+              <rect x="14.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+            </svg>
+          </div>
         {% endif %}
         <div class="min-w-0">
           <p class="text-sm font-semibold truncate">{{ tenant_display_name|default:tenant.name }}</p>

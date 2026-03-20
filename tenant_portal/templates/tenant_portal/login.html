@@ -7,68 +7,92 @@
   <title>{{ tenant_display_name|default:tenant.name }} | Sign in</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#faf9f8' }};">
-  <div class="min-h-screen flex items-center justify-center px-4">
-    <div class="w-full max-w-md bg-white border rounded-lg shadow-sm p-7" style="border-color: #edebe9;">
-      <div class="flex items-center gap-3 mb-6">
+<body class="min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#f3f4f6' }};">
+  <div class="min-h-screen grid lg:grid-cols-[1.1fr_0.9fr]">
+    <section class="hidden lg:flex items-center justify-center px-12 py-16 text-white"
+             style="background: linear-gradient(140deg, #0f172a 0%, {{ tenant.brand_primary_color|default:'#0078D4' }} 100%);">
+      <div class="max-w-md">
         {% if org_settings and org_settings.organization_logo %}
-          <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-10 w-auto object-contain" />
+          <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-14 w-auto object-contain mb-6 bg-white/90 rounded-md px-3 py-2" />
         {% elif tenant.brand_logo_url %}
-          <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-10 w-auto object-contain" />
+          <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-14 w-auto object-contain mb-6 bg-white/90 rounded-md px-3 py-2" />
         {% else %}
-          <img src="{% url 'platform_dashboard:logo' %}" alt="Sugna Enterprise Suite" class="h-10 w-auto object-contain" />
+          <div class="h-14 w-14 mb-6 bg-white/90 rounded-md flex items-center justify-center">
+            <!-- Inline logo mark -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+              <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+              <rect x="3.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
+              <rect x="14.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
+            </svg>
+          </div>
         {% endif %}
-        <div class="min-w-0">
-          <p class="text-sm font-semibold truncate">{{ tenant_display_name|default:tenant.name }}</p>
-          <p class="text-xs text-[#605e5c] truncate">
-            {% if tenant.brand_login_subtitle %}
-              {{ tenant.brand_login_subtitle }}
-            {% else %}
-              Sugna Enterprise Suite
-            {% endif %}
-          </p>
-        </div>
+        <h1 class="text-3xl font-semibold leading-tight">{{ tenant_display_name|default:tenant.name }}</h1>
+        <p class="mt-4 text-sm text-white/90">
+          {% if tenant.brand_login_subtitle %}
+            {{ tenant.brand_login_subtitle }}
+          {% else %}
+            Enterprise tenant portal for finance, grant management, and controls.
+          {% endif %}
+        </p>
       </div>
-
-      <h1 class="text-xl font-semibold">
-        {% if tenant.brand_login_title %}{{ tenant.brand_login_title }}{% else %}Sign in{% endif %}
-      </h1>
-      <p class="text-sm mt-1 text-[#605e5c]">
-        {% if tenant.brand_login_subtitle %}
-          {{ tenant.brand_login_subtitle }}
-        {% else %}
-          Use your tenant account to access authorized modules.
-        {% endif %}
-      </p>
-
-      {% if messages %}
-        <div class="mt-4 space-y-2">
-          {% for message in messages %}
-            <div class="text-sm px-3 py-2 rounded border" style="border-color:#fde7e9; background:#fde7e9; color:#a4262c;">
-              {{ message }}
+    </section>
+    <section class="flex items-center justify-center p-6 sm:p-8">
+      <div class="w-full max-w-md bg-white border rounded-2xl shadow-xl p-7" style="border-color: #e5e7eb;">
+        <div class="flex items-center gap-3 mb-6">
+          {% if org_settings and org_settings.organization_logo %}
+            <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-11 w-auto object-contain" />
+          {% elif tenant.brand_logo_url %}
+            <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-11 w-auto object-contain" />
+          {% else %}
+            <div class="h-11 w-11 bg-white/10 rounded-md flex items-center justify-center">
+              <!-- Inline logo mark -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 28 28" fill="none">
+                <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(255,255,255,0.95)"/>
+                <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(255,255,255,0.85)"/>
+                <rect x="3.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(255,255,255,0.85)"/>
+                <rect x="14.5" y="14.5" width="10" height="10" rx="2.2" fill="rgba(255,255,255,0.95)"/>
+              </svg>
             </div>
-          {% endfor %}
+          {% endif %}
+          <div class="min-w-0">
+            <p class="text-base font-semibold truncate">{{ tenant_display_name|default:tenant.name }}</p>
+            <p class="text-xs text-[#605e5c] truncate">Tenant Sign In</p>
+          </div>
         </div>
-      {% endif %}
 
-      <form method="post" class="mt-6 space-y-4">
-        {% csrf_token %}
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Email</label>
-          <input name="email" type="email" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="admin@tenant.com" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Password</label>
-          <input name="password" type="password" required class="w-full px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#edebe9;" placeholder="••••••••" />
-        </div>
-        <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium shadow-sm hover:shadow transition-all"
-                style="background: {{ tenant.brand_primary_color|default:'#0078D4' }};">
-          Sign in
-        </button>
-      </form>
+        {% if messages %}
+          <div class="mt-2 mb-4 space-y-2">
+            {% for message in messages %}
+              <div class="text-sm px-3 py-2 rounded border" style="border-color:#fde7e9; background:#fde7e9; color:#a4262c;">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
 
-      <p class="text-xs mt-6 text-[#a19f9d]">This environment is tenant-isolated (DB-per-tenant). Unauthorized access is prohibited.</p>
-    </div>
+        <form method="post" class="space-y-4">
+          {% csrf_token %}
+          <div>
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Email</label>
+            <input name="email" type="email" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#d1d5db;" placeholder="admin@tenant.com" />
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-semibold text-[#605e5c]">Password</label>
+              <a href="/platform/password-reset/" class="text-xs underline" style="color: {{ tenant.brand_primary_color|default:'#0078D4' }};">Forgot password?</a>
+            </div>
+            <input name="password" type="password" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#d1d5db;" placeholder="••••••••" />
+          </div>
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium shadow-sm hover:shadow transition-all"
+                  style="background: {{ tenant.brand_primary_color|default:'#0078D4' }};">
+            Sign in
+          </button>
+        </form>
+
+        <p class="text-xs mt-6 text-[#a19f9d]">Tenant-isolated environment. Unauthorized access is prohibited.</p>
+      </div>
+    </section>
   </div>
 </body>
 </html>

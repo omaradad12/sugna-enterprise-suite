@@ -26,6 +26,34 @@ from . import views
 urlpatterns = [
     path("", RedirectView.as_view(url="/platform/", permanent=False)),
     path("platform/login/", auth_views.LoginView.as_view(template_name="platform_dashboard/platform_login.html"), name="platform_login"),
+    path(
+        "platform/password-reset/",
+        auth_views.PasswordResetView.as_view(
+            template_name="platform_dashboard/password_reset_form.html",
+            email_template_name="platform_dashboard/password_reset_email.txt",
+            subject_template_name="platform_dashboard/password_reset_subject.txt",
+            success_url="/platform/password-reset/done/",
+        ),
+        name="password_reset",
+    ),
+    path(
+        "platform/password-reset/done/",
+        auth_views.PasswordResetDoneView.as_view(template_name="platform_dashboard/password_reset_done.html"),
+        name="password_reset_done",
+    ),
+    path(
+        "platform/reset/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="platform_dashboard/password_reset_confirm.html",
+            success_url="/platform/reset/done/",
+        ),
+        name="password_reset_confirm",
+    ),
+    path(
+        "platform/reset/done/",
+        auth_views.PasswordResetCompleteView.as_view(template_name="platform_dashboard/password_reset_complete.html"),
+        name="password_reset_complete",
+    ),
     path("admin/logout/", views.admin_logout_view, name="admin_logout"),
     path("platform/logout/", views.platform_logout_view, name="platform_logout"),
     path("admin/", admin.site.urls),
