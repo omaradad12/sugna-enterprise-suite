@@ -3,69 +3,268 @@
 {% block title %}{% trans "Donor compliance monitoring" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-[1400px] mx-auto w-full pb-10">
-  <div class="mb-5">
-    <h1 class="text-2xl font-bold tracking-tight text-[#201f1e]">{% trans "Donor compliance monitoring" %}</h1>
-    <p class="text-sm mt-1 text-[#605e5c] max-w-3xl leading-relaxed">
-      {% trans "Read-focused view of active donor restrictions with grant spend context. Manage restrictions on" %}
-      <a href="{% url 'tenant_portal:grants_donor_conditions' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Donor Conditions & Restrictions" %}</a>.
-    </p>
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dynamics-dc-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-dc-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-dc-page .dynamics-dc-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-dc-page .dynamics-dc-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-dc-page .dynamics-dc-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-dc-page .dynamics-dc-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .dynamics-dc-page .dynamics-dc-panel-h span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-dc-page .dynamics-dc-panel-meta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+  }
+  .dynamics-dc-page .dynamics-dc-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-dc-page .dynamics-dc-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .dynamics-dc-page .dynamics-dc-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .dynamics-dc-page .dynamics-dc-grid thead th.text-right {
+    text-align: right;
+  }
+  .dynamics-dc-page .dynamics-dc-grid tbody td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-dc-page .dynamics-dc-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-dc-page .dynamics-dc-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-dc-page .dynamics-dc-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    letter-spacing: 0.02em;
+  }
+  .dynamics-dc-page .dynamics-dc-badge--ok { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .dynamics-dc-page .dynamics-dc-badge--warn { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-dc-page .dynamics-dc-badge--breach { background: #fde7e9; color: #a4262c; border-color: #f1bbbc; }
+  .dynamics-dc-page .dynamics-dc-badge--na { background: #f3f2f1; color: #605e5c; border-color: #c8c6c4; }
+  .dynamics-dc-page .dynamics-dc-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+  }
+  .dynamics-dc-page .dynamics-dc-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-dc-page .dynamics-dc-code {
+    font-family: "Segoe UI", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .dynamics-dc-page .dynamics-dc-empty {
+    text-align: center;
+    padding: 3rem 1.5rem 3.25rem;
+    color: #605e5c;
+  }
+  .dynamics-dc-page .dynamics-dc-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-dc-page .dynamics-dc-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-dc-page .dynamics-dc-empty-sub {
+    font-size: 13px;
+    max-width: 26rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  @media print {
+    .dynamics-dc-page .hidden-print,
+    .dynamics-dc-page .dynamics-dc-toolbar,
+    .dynamics-dc-page .dynamics-filter-pane {
+      display: none !important;
+    }
+    .dynamics-dc-page .dynamics-dc-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-dc-page .dynamics-dc-panel {
+      box-shadow: none !important;
+    }
+  }
+</style>
+
+<div class="dynamics-financial-report dynamics-dc-page max-w-[1680px] mx-auto w-full pb-10">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Compliance & reporting" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Donor compliance monitoring" %}</h1>
+  </header>
+
+  <div class="dynamics-dc-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Export' %}">
+    <span>{% trans "Export" %}</span>
+    {% if export_csv_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> {% trans "CSV" %}</a>{% endif %}
+    {% if export_xlsx_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>{% endif %}
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
   </div>
 
-  {% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+  {% trans "View filters" as dc_filter_title %}
+  {% trans "Period, donor, and grant — then Apply." as dc_filter_hint %}
+  {% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants hide_export_row=1 use_dynamics=True filter_title=dc_filter_title filter_hint=dc_filter_hint %}
 
-  <div class="bg-white border rounded-lg overflow-hidden shadow-sm" style="border-color:#edebe9;">
-    <div class="px-4 py-3 border-b font-semibold text-[#201f1e] flex flex-wrap justify-between gap-2 items-center" style="border-color:#edebe9; background:#faf9f8;">
+  <div class="dynamics-dc-panel">
+    <div class="dynamics-dc-panel-h">
       <span>{% trans "Restrictions & spend context" %}</span>
-      <span class="text-xs font-medium text-[#605e5c]">{{ compliance_rows|length }} {% trans "rows" %}</span>
+      <span class="dynamics-dc-panel-meta">{{ compliance_rows|length }} {% trans "rows" %} · {{ filters.period_start|date:"Y-m-d" }} → {{ filters.period_end|date:"Y-m-d" }}</span>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+    <div class="dynamics-dc-grid-wrap">
+      <table class="dynamics-dc-grid">
         <thead>
-          <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Code" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Donor" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Grant" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Category" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Type" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Compliance" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Status" %}</th>
-            <th class="px-3 py-2.5 font-semibold min-w-[120px]">{% trans "Grant expense (posted)" %}</th>
-            <th class="px-3 py-2.5 font-semibold min-w-[140px]">{% trans "Description" %}</th>
-            <th class="px-3 py-2.5 font-semibold whitespace-nowrap">{% trans "Detail" %}</th>
+          <tr>
+            <th>{% trans "Code" %}</th>
+            <th>{% trans "Donor" %}</th>
+            <th>{% trans "Grant" %}</th>
+            <th>{% trans "Category" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Compliance" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th class="text-right">{% trans "Grant expense" %}</th>
+            <th class="text-right">{% trans "Allowed" %}</th>
+            <th class="text-right">{% trans "Util %" %}</th>
+            <th class="text-right">{% trans "Variance" %}</th>
+            <th>{% trans "Description" %}</th>
+            <th>{% trans "Detail" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for row in compliance_rows %}
-          {% with r=row.restriction %}
-          <tr class="border-b hover:bg-[#faf9f8] {% if r.compliance_level == 'mandatory' and r.status == 'active' %}bg-red-50/30{% endif %}" style="border-color:#edebe9;">
-            <td class="px-3 py-2 font-mono text-xs font-semibold text-[#0078d4]">{{ r.restriction_code|default:"—" }}</td>
-            <td class="px-3 py-2">{{ r.donor.name }}</td>
-            <td class="px-3 py-2">{{ r.grant.code|default:"—" }}</td>
-            <td class="px-3 py-2 text-[#605e5c]">{{ r.get_category_display }}</td>
-            <td class="px-3 py-2">{{ r.get_restriction_type_display }}</td>
-            <td class="px-3 py-2">
-              {% if r.compliance_level == 'mandatory' %}<span class="text-xs font-bold text-[#a4262c]">{% trans "Mandatory" %}</span>
-              {% elif r.compliance_level == 'recommended' %}<span class="text-xs font-semibold text-[#ca5010]">{% trans "Recommended" %}</span>
-              {% else %}<span class="text-xs text-[#605e5c]">{% trans "Informational" %}</span>{% endif %}
+          {% with r=row.restriction ev=row.eval %}
+          <tr>
+            <td class="dynamics-dc-code">{{ r.restriction_code|default:"—" }}</td>
+            <td>{{ r.donor.name }}</td>
+            <td>{{ r.grant.code|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ r.get_category_display }}</td>
+            <td>{{ r.get_restriction_type_display }}</td>
+            <td>
+              {% if ev.css == 'green' %}
+              <span class="dynamics-dc-badge dynamics-dc-badge--ok">{{ ev.label }}</span>
+              {% elif ev.css == 'yellow' %}
+              <span class="dynamics-dc-badge dynamics-dc-badge--warn">{{ ev.label }}</span>
+              {% elif ev.css == 'red' %}
+              <span class="dynamics-dc-badge dynamics-dc-badge--breach">{{ ev.label }}</span>
+              {% else %}
+              <span class="dynamics-dc-badge dynamics-dc-badge--na">{{ ev.label }}</span>
+              {% endif %}
             </td>
-            <td class="px-3 py-2">
+            <td>
               {% if r.status == 'active' %}<span class="text-xs font-semibold text-[#107c10]">{{ r.get_status_display }}</span>
               {% elif r.status == 'draft' %}<span class="text-xs text-[#0078d4]">{{ r.get_status_display }}</span>
               {% elif r.status == 'expired' %}<span class="text-xs text-[#ca5010]">{{ r.get_status_display }}</span>
               {% else %}<span class="text-xs text-[#605e5c]">{{ r.get_status_display }}</span>{% endif %}
             </td>
-            <td class="px-3 py-2 tabular-nums text-[#323130]">
-              {% if row.grant_spend is not None %}{{ row.grant_spend|floatformat:2 }}{% else %}—{% endif %}
-            </td>
-            <td class="px-3 py-2 text-[#323130]">{{ r.description|truncatewords:14 }}</td>
-            <td class="px-3 py-2">
-              <a href="{% url 'tenant_portal:grants_donor_condition_detail' r.pk %}" class="text-xs font-semibold text-[#0078d4] no-underline hover:underline">{% trans "View" %}</a>
+            <td class="text-right tabular-nums font-medium">{{ ev.grant_expense|floatformat:2 }}</td>
+            <td class="text-right tabular-nums">{% if ev.allowed_budget is not None %}{{ ev.allowed_budget|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{% if ev.utilization_pct is not None %}{{ ev.utilization_pct|floatformat:1 }}%{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{% if ev.variance is not None %}{{ ev.variance|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="text-[13px] max-w-[200px]">{{ r.description|truncatewords:10 }}</td>
+            <td class="whitespace-nowrap">
+              <a href="{% url 'tenant_portal:grants_donor_condition_detail' r.pk %}?period_start={{ filters.period_start|date:'Y-m-d' }}&period_end={{ filters.period_end|date:'Y-m-d' }}" class="dynamics-dc-link">{% trans "View" %}</a>
             </td>
           </tr>
           {% endwith %}
           {% empty %}
-          <tr><td colspan="10" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No restrictions recorded." %}</td></tr>
+          <tr>
+            <td colspan="13" class="p-0 border-0">
+              <div class="dynamics-dc-empty">
+                <div class="dynamics-dc-empty-icon" aria-hidden="true"><i data-feather="shield" class="w-6 h-6"></i></div>
+                <p class="dynamics-dc-empty-title">{% trans "No active restrictions match your filters" %}</p>
+                <p class="dynamics-dc-empty-sub">{% trans "Widen the period, clear donor or grant filters, add active restrictions, or run the demo seed command to load sample rows." %}</p>
+              </div>
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>

@@ -1,48 +1,266 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Donor Reporting Requirements | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Donor reporting requirements" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Donor Reporting Requirements</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Define reporting templates and formats per donor.</p>
-</div>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title=_("Donor reporting requirements") report_subtitle=_("Templates and formats per donor") official_report_period_line=official_report_period_line %}
 
-{% include "tenant_portal/grants/_filters_export.html" with donors=donors %}
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dynamics-drr-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-drr-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-drr-page .dynamics-drr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-drr-page .dynamics-drr-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-drr-page .dynamics-drr-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+    height: 100%;
+  }
+  .dynamics-drr-page .dynamics-drr-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-drr-page .dynamics-drr-panel-body {
+    padding: 1rem 1.1rem 1.2rem;
+  }
+  .dynamics-drr-page .dynamics-drr-form-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #323130;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-drr-page .dynamics-drr-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-drr-page .dynamics-drr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .dynamics-drr-page .dynamics-drr-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .dynamics-drr-page .dynamics-drr-grid tbody td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-drr-page .dynamics-drr-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-drr-page .dynamics-drr-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-drr-page .dynamics-drr-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    border: 1px solid #a7e0a5;
+    background: #dff6dd;
+    color: #107c10;
+  }
+  .dynamics-drr-page .dynamics-drr-empty {
+    text-align: center;
+    padding: 2.5rem 1.25rem 2.75rem;
+    color: #605e5c;
+  }
+  .dynamics-drr-page .dynamics-drr-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-drr-page .dynamics-drr-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-drr-page .dynamics-drr-empty-sub {
+    font-size: 13px;
+    max-width: 26rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  .dynamics-drr-page .dynamics-drr-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  @media (min-width: 1024px) {
+    .dynamics-drr-page .dynamics-drr-layout {
+      grid-template-columns: minmax(280px, 340px) 1fr;
+      align-items: start;
+    }
+  }
+  @media print {
+    .dynamics-drr-page .hidden-print,
+    .dynamics-drr-page .dynamics-drr-toolbar,
+    .dynamics-drr-page .dynamics-filter-pane,
+    .dynamics-drr-page .dynamics-drr-panel:first-of-type {
+      display: none !important;
+    }
+    .dynamics-drr-page .dynamics-drr-layout {
+      display: block !important;
+    }
+    .dynamics-drr-page .dynamics-drr-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-drr-page .dynamics-drr-panel {
+      box-shadow: none !important;
+    }
+  }
+</style>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-4">
-  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
-    <h2 class="font-semibold">New requirement</h2>
-    <form method="post" class="mt-4 space-y-3">
-      {% csrf_token %}
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label><select name="donor_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">{% for d in donors %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}</select></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Name</label><input name="name" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Format / description</label><input name="format_description" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Frequency</label><select name="frequency" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">{% for value, label in frequencies.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
-      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Add</button>
-    </form>
+<div class="dynamics-financial-report dynamics-drr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Compliance & reporting" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Donor reporting requirements" %}</h1>
+    <p class="dynamics-hero-subtitle">{% trans "Define reporting templates per donor for deadlines and grant reporting workflows. Exports use your official organization header." %}</p>
+  </header>
+
+  <div class="dynamics-drr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Export' %}">
+    <span>{% trans "Export" %}</span>
+    {% if export_csv_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> {% trans "CSV" %}</a>{% endif %}
+    {% if export_xlsx_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>{% endif %}
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
   </div>
-  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
-    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Requirements</div>
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">Donor</th>
-          <th class="px-4 py-2 font-semibold">Name</th>
-          <th class="px-4 py-2 font-semibold">Frequency</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in requirements %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ r.donor.name }}</td>
-          <td class="px-4 py-2">{{ r.name }}</td>
-          <td class="px-4 py-2">{{ r.get_frequency_display|default:"—" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="3" class="px-4 py-6 text-center text-[#605e5c]">No requirements.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+
+  {% trans "View filters" as drr_filter_title %}
+  {% trans "Donor and period — refine the list, then Apply." as drr_filter_hint %}
+  {% include "tenant_portal/grants/_filters_export.html" with donors=donors hide_export_row=1 use_dynamics=True filter_title=drr_filter_title filter_hint=drr_filter_hint %}
+
+  <div class="dynamics-drr-layout">
+    <div class="dynamics-drr-panel hidden-print">
+      <div class="dynamics-drr-panel-h">{% trans "New requirement" %}</div>
+      <div class="dynamics-drr-panel-body">
+        <form method="post" class="space-y-3">
+          {% csrf_token %}
+          <div>
+            <label class="dynamics-drr-form-label" for="drr-donor">{% trans "Donor" %}</label>
+            <select id="drr-donor" name="donor_id" required class="dynamics-input w-full">
+              {% for d in donors %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="dynamics-drr-form-label" for="drr-name">{% trans "Name" %}</label>
+            <input id="drr-name" name="name" required class="dynamics-input w-full" autocomplete="off" />
+          </div>
+          <div>
+            <label class="dynamics-drr-form-label" for="drr-format">{% trans "Format / description" %}</label>
+            <input id="drr-format" name="format_description" class="dynamics-input w-full" autocomplete="off" />
+          </div>
+          <div>
+            <label class="dynamics-drr-form-label" for="drr-frequency">{% trans "Frequency" %}</label>
+            <select id="drr-frequency" name="frequency" class="dynamics-select w-full">
+              {% for value, label in frequencies.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="dynamics-btn-primary w-full justify-center">{% trans "Add requirement" %}</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="dynamics-drr-panel">
+      <div class="dynamics-drr-panel-h" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;">
+        <span>{% trans "Requirements" %}</span>
+        <span class="text-[12px] font-semibold normal-case tracking-normal text-[#605e5c]">{{ requirements|length }} {% trans "rows" %} · {{ filters.period_start|date:"Y-m-d" }} → {{ filters.period_end|date:"Y-m-d" }}</span>
+      </div>
+      <div class="dynamics-drr-grid-wrap">
+        <table class="dynamics-drr-grid">
+          <thead>
+            <tr>
+              <th>{% trans "Donor" %}</th>
+              <th>{% trans "Name" %}</th>
+              <th>{% trans "Frequency" %}</th>
+              <th>{% trans "Format" %}</th>
+              <th>{% trans "Status" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in requirements %}
+            <tr>
+              <td class="font-medium">{{ r.donor.name }}</td>
+              <td>{{ r.name }}</td>
+              <td>{{ r.get_frequency_display|default:"—" }}</td>
+              <td class="text-[#605e5c] max-w-[220px]">{{ r.format_description|truncatewords:8|default:"—" }}</td>
+              <td><span class="dynamics-drr-badge">{% trans "Active" %}</span></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="p-0 border-0">
+                <div class="dynamics-drr-empty">
+                  <div class="dynamics-drr-empty-icon" aria-hidden="true"><i data-feather="clipboard" class="w-6 h-6"></i></div>
+                  <p class="dynamics-drr-empty-title">{% trans "No requirements for this filter" %}</p>
+                  <p class="dynamics-drr-empty-sub">{% trans "Clear the donor filter or add a new requirement using the form on the left." %}</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

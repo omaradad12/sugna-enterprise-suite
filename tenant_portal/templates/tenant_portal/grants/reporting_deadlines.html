@@ -2,327 +2,458 @@
 {% block title %}Donor Reporting Deadlines | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
 <style>
-  .rd-dyn-root { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #323130; }
-  .rd-dyn-cmdbar {
-    background: #f3f2f1;
-    border: 1px solid #edebe9;
-    border-radius: 2px;
-    padding: 0.5rem 0.75rem;
-    margin-bottom: 0.75rem;
+  .dynamics-rd-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  /* Layout’s main h1 rule uses !important; keep Fluent hero typography */
+  .dynamics-rd-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-rd-page .dynamics-rd-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
   }
-  .rd-dyn-cmdbar .rd-cmd {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.65rem;
-    font-size: 12px;
-    font-weight: 600;
-    color: #323130;
-    background: #fff;
-    border: 1px solid #8a8886;
-    border-radius: 2px;
-    text-decoration: none;
-  }
-  .rd-dyn-cmdbar .rd-cmd:hover { background: #edebe9; border-color: #605e5c; }
-  .rd-dyn-pgtitle { font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
-  .rd-dyn-sub { font-size: 12px; color: #605e5c; margin-top: 0.25rem; }
-  .rd-dyn-panel { background: #fff; border: 1px solid #edebe9; border-radius: 2px; }
-  .rd-dyn-panel-h {
-    padding: 0.5rem 0.75rem;
-    font-size: 12px;
-    font-weight: 600;
+  .dynamics-rd-page .dynamics-rd-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: #faf9f8;
-    border-bottom: 1px solid #edebe9;
-    color: #323130;
+    color: #605e5c;
+    margin-right: 0.35rem;
   }
-  .rd-dyn-grid { width: 100%; font-size: 12px; border-collapse: collapse; }
-  .rd-dyn-grid th {
-    text-align: left;
-    padding: 0.4rem 0.5rem;
-    font-weight: 600;
-    color: #323130;
-    background: #f3f2f1;
-    border-bottom: 1px solid #edebe9;
-    white-space: nowrap;
+  .dynamics-rd-page .dynamics-rd-msg {
+    border-radius: 4px;
+    border: 1px solid #edebe9;
+    padding: 0.75rem 1rem;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.04);
   }
-  .rd-dyn-grid td {
-    padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid #edebe9;
-    vertical-align: top;
+  .dynamics-rd-page .dynamics-rd-msg strong {
+    font-weight: 700;
+    color: #201f1e;
   }
-  .rd-dyn-grid tbody tr:hover { background: #faf9f8; }
-  .rd-badge {
-    display: inline-block;
+  .dynamics-rd-page .dynamics-rd-msg--info {
+    border-left: 4px solid #0078d4;
+    background: linear-gradient(90deg, #f5f9ff 0%, #fafdff 100%);
+  }
+  .dynamics-rd-page .dynamics-rd-msg--warn {
+    border-left: 4px solid #ffb900;
+    background: linear-gradient(90deg, #fffbf0 0%, #fffef9 100%);
+  }
+  .dynamics-rd-page .dynamics-rd-msg--err {
+    border-left: 4px solid #d13438;
+    background: linear-gradient(90deg, #fdf3f4 0%, #fffbfb 100%);
+  }
+  .dynamics-rd-page .dynamics-rd-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-rd-page .dynamics-rd-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-rd-page .dynamics-rd-panel-body {
+    padding: 1rem 1.1rem 1.2rem;
+  }
+  .dynamics-rd-page .dynamics-rd-form-hint {
+    font-size: 11px;
+    color: #605e5c;
+    line-height: 1.4;
+    margin-top: 0.15rem;
+  }
+  .dynamics-rd-page .dynamics-rd-form-label {
     font-size: 11px;
     font-weight: 600;
-    padding: 0.1rem 0.45rem;
+    color: #323130;
+    letter-spacing: 0.02em;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-rd-page .dynamics-rd-sticky {
+    position: sticky;
+    top: 0.75rem;
+  }
+  .dynamics-rd-page .dynamics-rd-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-rd-page .dynamics-rd-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  .dynamics-rd-page .dynamics-rd-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.75rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .dynamics-rd-page .dynamics-rd-grid tbody td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-rd-page .dynamics-rd-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-rd-page .dynamics-rd-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-rd-page .dynamics-rd-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
     border-radius: 2px;
     border: 1px solid transparent;
+    letter-spacing: 0.02em;
   }
-  .rd-badge-upcoming { background: #f3f2f1; color: #323130; border-color: #c8c6c4; }
-  .rd-badge-due { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
-  .rd-badge-overdue { background: #fde7e9; color: #a4262c; border-color: #f1bbbc; }
-  .rd-badge-submitted { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
-  .rd-msgbar {
-    border-left: 4px solid #0078d4;
-    background: #f3f9fd;
-    border: 1px solid #edebe9;
-    border-left-width: 4px;
-    padding: 0.5rem 0.75rem;
+  .dynamics-rd-page .dynamics-rd-badge--upcoming { background: #f3f2f1; color: #323130; border-color: #c8c6c4; }
+  .dynamics-rd-page .dynamics-rd-badge--due { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-rd-page .dynamics-rd-badge--overdue { background: #fde7e9; color: #a4262c; border-color: #f1bbbc; }
+  .dynamics-rd-page .dynamics-rd-badge--submitted { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .dynamics-rd-page .dynamics-rd-empty {
+    text-align: center;
+    padding: 3rem 1.5rem 3.25rem;
+    color: #605e5c;
+  }
+  .dynamics-rd-page .dynamics-rd-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-rd-page .dynamics-rd-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-rd-page .dynamics-rd-empty-sub {
+    font-size: 13px;
+    max-width: 22rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  .dynamics-rd-page .dynamics-rd-link-action {
     font-size: 12px;
-    margin-bottom: 0.75rem;
-    border-radius: 2px;
+    font-weight: 600;
+    color: #0078d4;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
   }
-  .rd-msgbar-warn { border-left-color: #ffb900; background: #fff9f0; }
-  .rd-msgbar-err { border-left-color: #d13438; background: #fdf3f4; }
-  .rd-form-label { font-size: 11px; font-weight: 600; color: #605e5c; display: block; margin-bottom: 0.2rem; }
-  .rd-form-ctl {
-    width: 100%;
-    font-size: 12px;
-    padding: 0.35rem 0.5rem;
-    border: 1px solid #8a8886;
-    border-radius: 2px;
-    background: #fff;
+  .dynamics-rd-page .dynamics-rd-link-action:hover {
+    color: #106ebe;
+    text-decoration: underline;
   }
-  .rd-form-ctl:focus { outline: 2px solid #0078d4; outline-offset: -1px; }
+  .dynamics-rd-page .dynamics-rd-input-compact {
+    font-size: 12px !important;
+    min-height: 28px !important;
+    padding: 0.2rem 0.45rem !important;
+    max-width: 10rem;
+  }
   @media print {
-    .hidden-print, .rd-dyn-cmdbar { display: none !important; }
+    .dynamics-rd-page .hidden-print,
+    .dynamics-rd-page .dynamics-rd-toolbar,
+    .dynamics-rd-page .dynamics-filter-pane {
+      display: none !important;
+    }
+    .dynamics-rd-page .dynamics-rd-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-rd-page .dynamics-rd-panel {
+      box-shadow: none !important;
+    }
   }
 </style>
 
-<div class="rd-dyn-root mb-4">
-  <h1 class="rd-dyn-pgtitle">Donor Reporting Deadlines</h1>
-  <p class="rd-dyn-sub">Track submission deadlines, ownership, and reminder milestones (30 / 14 / 7 / 3 days).</p>
-</div>
+<div class="dynamics-financial-report dynamics-rd-page">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="Page summary">
+    <p class="dynamics-hero-org">Funds &amp; donors · Compliance &amp; reporting</p>
+    <h1 class="dynamics-hero-title">Donor reporting deadlines</h1>
+    <p class="dynamics-hero-subtitle">Track submission dates, ownership, and reminder milestones (30 / 14 / 7 / 3 days before due).</p>
+  </header>
 
-{% if reminder_alerts %}
-<div class="rd-msgbar rd-msgbar-warn hidden-print">
-  <strong>Reminder alerts (today)</strong>
-  <ul class="mt-1.5 ml-4 list-disc space-y-0.5">
-    {% for a in reminder_alerts %}
-    <li>
-      <span class="font-semibold">{{ a.milestone }}-day</span> before deadline:
-      {{ a.deadline.title }} — due {{ a.deadline.deadline_date|date:"Y-m-d" }}
-      {% if a.deadline.donor %}({{ a.deadline.donor.name }}){% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
+  {% if reminder_alerts %}
+  <div class="dynamics-rd-msg dynamics-rd-msg--warn hidden-print" role="status">
+    <strong>Reminder alerts (today)</strong>
+    <ul class="mt-2 ml-5 list-disc space-y-1 text-[13px]">
+      {% for a in reminder_alerts %}
+      <li>
+        <span class="font-semibold text-[#201f1e]">{{ a.milestone }}-day</span> before deadline:
+        {{ a.deadline.title }} — due {{ a.deadline.deadline_date|date:"Y-m-d" }}
+        {% if a.deadline.donor %}<span class="text-[#605e5c]">({{ a.deadline.donor.name }})</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
-{% if overdue %}
-<div class="rd-msgbar rd-msgbar-err hidden-print">
-  <strong>Overdue (not submitted)</strong>
-  <ul class="mt-1.5 ml-4 list-disc space-y-0.5">
-    {% for d in overdue %}
-    <li>{{ d.title }} — {{ d.deadline_date|date:"Y-m-d" }} ({{ d.donor.name|default:d.grant.code|default:"—" }})</li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
+  {% if overdue %}
+  <div class="dynamics-rd-msg dynamics-rd-msg--err hidden-print" role="alert">
+    <strong>Overdue (not submitted)</strong>
+    <ul class="mt-2 ml-5 list-disc space-y-1 text-[13px]">
+      {% for d in overdue %}
+      <li>{{ d.title }} — {{ d.deadline_date|date:"Y-m-d" }} ({{ d.donor.name|default:d.grant.code|default:"—" }})</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
-<div class="rd-dyn-cmdbar hidden-print">
-  <span class="text-xs font-semibold text-[#605e5c] mr-1">EXPORT</span>
-  {% if export_csv_url %}<a class="rd-cmd" href="{{ export_csv_url }}">CSV</a>{% endif %}
-  {% if export_xlsx_url %}<a class="rd-cmd" href="{{ export_xlsx_url }}">Excel</a>{% endif %}
-  {% if export_pdf_url %}<a class="rd-cmd" href="{{ export_pdf_url }}">PDF</a>{% endif %}
-  <button type="button" class="rd-cmd" onclick="window.print()">Print</button>
-</div>
-
-{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants projects=projects deadline_status_choices=deadline_status_choices hide_export_row=1 %}
-
-<div class="grid grid-cols-1 xl:grid-cols-12 gap-3">
-  <div class="rd-dyn-panel xl:col-span-3 hidden-print">
-    <div class="rd-dyn-panel-h">New deadline</div>
-    <div class="p-3">
-      <form method="post" class="space-y-2.5">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="create_deadline" />
-        <div>
-          <label class="rd-form-label">Donor</label>
-          <select name="donor_id" required class="rd-form-ctl">
-            <option value="">Select</option>
-            {% for d in donors %}
-            <option value="{{ d.pk }}">{{ d.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="rd-form-label">Grant</label>
-          <select name="grant_id" class="rd-form-ctl">
-            <option value="">—</option>
-            {% for g in grants %}
-            <option value="{{ g.pk }}">{{ g.code }}{% if g.project %} ({{ g.project.code }}){% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="rd-form-label">Project</label>
-          <select name="project_id" class="rd-form-ctl">
-            <option value="">—</option>
-            {% for p in projects %}
-            <option value="{{ p.pk }}">{{ p.code }} — {{ p.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <p class="text-[11px] text-[#605e5c]">Provide at least one of Grant or Project.</p>
-        <div>
-          <label class="rd-form-label">Requirement (optional)</label>
-          <select name="requirement_id" class="rd-form-ctl">
-            <option value="">—</option>
-            {% for r in requirements %}
-            <option value="{{ r.pk }}">{{ r.donor.name }} — {{ r.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="rd-form-label">Title</label>
-          <input name="title" required class="rd-form-ctl" maxlength="200" />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="rd-form-label">Period from</label>
-            <input name="reporting_period_from" type="date" class="rd-form-ctl" />
-          </div>
-          <div>
-            <label class="rd-form-label">Period to</label>
-            <input name="reporting_period_to" type="date" class="rd-form-ctl" />
-          </div>
-        </div>
-        <div>
-          <label class="rd-form-label">Deadline date</label>
-          <input name="deadline_date" type="date" required class="rd-form-ctl" />
-        </div>
-        <div>
-          <label class="rd-form-label">Submitted date (optional)</label>
-          <input name="submitted_date" type="date" class="rd-form-ctl" />
-          <p class="text-[11px] text-[#605e5c] mt-0.5">If set, the deadline is created as already submitted.</p>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="rd-form-label">Responsible</label>
-            <select name="responsible_user_id" class="rd-form-ctl">
-              <option value="">—</option>
-              {% for u in tenant_users %}
-              <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div>
-            <label class="rd-form-label">Reviewer</label>
-            <select name="reviewer_user_id" class="rd-form-ctl">
-              <option value="">—</option>
-              {% for u in tenant_users %}
-              <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="rd-form-label">Priority</label>
-            <select name="priority" class="rd-form-ctl">
-              {% for value, label in priority_choices %}
-              <option value="{{ value }}" {% if value == 'normal' %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div>
-            <label class="rd-form-label">Due window (days)</label>
-            <select name="reminder_days_before" class="rd-form-ctl">
-              {% for n in reminder_presets %}
-              <option value="{{ n }}" {% if n == 7 %}selected{% endif %}>{{ n }} days</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="rd-form-label">Notes</label>
-          <textarea name="notes" rows="2" class="rd-form-ctl"></textarea>
-        </div>
-        <button type="submit" class="rd-cmd w-full justify-center text-white border-0" style="background:#0078d4;">Create</button>
-      </form>
-    </div>
+  <div class="dynamics-rd-toolbar hidden-print" role="toolbar" aria-label="Export">
+    <span>Export</span>
+    {% if export_csv_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> CSV</a>{% endif %}
+    {% if export_xlsx_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> Excel</a>{% endif %}
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> PDF</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> Print</button>
   </div>
 
-  <div class="xl:col-span-9 min-w-0">
-    <div class="rd-dyn-panel overflow-x-auto">
-      <div class="rd-dyn-panel-h">Deadlines</div>
-      <table class="rd-dyn-grid">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Donor</th>
-            <th>Grant</th>
-            <th>Project</th>
-            <th>Period</th>
-            <th>Deadline</th>
-            <th>Days left</th>
-            <th>Status</th>
-            <th>Responsible</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for d in deadlines %}
-          <tr>
-            <td class="font-medium">{{ d.title }}</td>
-            <td>{% if d.donor %}{{ d.donor.name }}{% else %}—{% endif %}</td>
-            <td>{% if d.grant %}{{ d.grant.code }}{% else %}—{% endif %}</td>
-            <td>{% with ep=d.effective_project %}{% if ep %}{{ ep.code }}{% else %}—{% endif %}{% endwith %}</td>
-            <td class="whitespace-nowrap">
-              {% if d.reporting_period_from or d.reporting_period_to %}
-                {{ d.reporting_period_from|date:"Y-m-d"|default:"—" }} → {{ d.reporting_period_to|date:"Y-m-d"|default:"—" }}
-              {% else %}—{% endif %}
-            </td>
-            <td class="whitespace-nowrap">{{ d.deadline_date|date:"Y-m-d" }}</td>
-            <td class="text-right whitespace-nowrap">
-              {% if d.remaining_days is not None %}
-                {{ d.remaining_days }}
-              {% else %}—{% endif %}
-            </td>
-            <td>
-              {% if d.deadline_status_code == 'submitted' %}
-                <span class="rd-badge rd-badge-submitted">Submitted</span>
-              {% elif d.deadline_status_code == 'overdue' %}
-                <span class="rd-badge rd-badge-overdue">Overdue</span>
-              {% elif d.deadline_status_code == 'due' %}
-                <span class="rd-badge rd-badge-due">Due</span>
-              {% else %}
-                <span class="rd-badge rd-badge-upcoming">Upcoming</span>
-              {% endif %}
-            </td>
-            <td>{% if d.responsible_user %}{{ d.responsible_user.full_name|default:d.responsible_user.email }}{% else %}—{% endif %}</td>
-            <td class="whitespace-nowrap">
-              {% if d.status != 'submitted' and not d.submitted_at %}
-              <form method="post" class="inline-flex flex-col gap-1">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="mark_submitted" />
-                <input type="hidden" name="deadline_id" value="{{ d.pk }}" />
-                <input type="date" name="submitted_date" value="{{ today|date:'Y-m-d' }}" class="rd-form-ctl text-[11px] py-0.5 max-w-[9.5rem]" />
-                <button type="submit" class="text-[#0078d4] font-semibold hover:underline text-left text-[11px]">Mark submitted</button>
-              </form>
-              {% else %}
-                <span class="text-[#605e5c]">{{ d.submitted_date|date:"Y-m-d"|default:"—" }}</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="10" class="text-center py-6 text-[#605e5c]">No deadlines in this range.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  {% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants projects=projects deadline_status_choices=deadline_status_choices hide_export_row=1 use_dynamics=True filter_title="View filters" filter_hint="Narrow by reporting period, donor, grant, project, or status — then apply." %}
+
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-5">
+    <div class="dynamics-rd-panel xl:col-span-4 hidden-print xl:self-start dynamics-rd-sticky">
+      <div class="dynamics-rd-panel-h">New deadline</div>
+      <div class="dynamics-rd-panel-body">
+        <form method="post" class="space-y-3">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_deadline" />
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-donor">Donor</label>
+            <select id="rd-donor" name="donor_id" required class="dynamics-select w-full">
+              <option value="">Select donor</option>
+              {% for d in donors %}
+              <option value="{{ d.pk }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-grant">Grant</label>
+            <select id="rd-grant" name="grant_id" class="dynamics-select w-full">
+              <option value="">—</option>
+              {% for g in grants %}
+              <option value="{{ g.pk }}">{{ g.code }}{% if g.project %} ({{ g.project.code }}){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-project">Project</label>
+            <select id="rd-project" name="project_id" class="dynamics-select w-full">
+              <option value="">—</option>
+              {% for p in projects %}
+              <option value="{{ p.pk }}">{{ p.code }} — {{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <p class="dynamics-rd-form-hint">Provide at least one of grant or project when linking to an award.</p>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-req">Requirement <span class="font-normal text-[#8a8886]">(optional)</span></label>
+            <select id="rd-req" name="requirement_id" class="dynamics-select w-full">
+              <option value="">—</option>
+              {% for r in requirements %}
+              <option value="{{ r.pk }}">{{ r.donor.name }} — {{ r.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-title">Title</label>
+            <input id="rd-title" name="title" required class="dynamics-input w-full" maxlength="200" placeholder="e.g. Q4 narrative report" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="dynamics-rd-form-label" for="rd-pfrom">Period from</label>
+              <input id="rd-pfrom" name="reporting_period_from" type="date" class="dynamics-input w-full" />
+            </div>
+            <div>
+              <label class="dynamics-rd-form-label" for="rd-pto">Period to</label>
+              <input id="rd-pto" name="reporting_period_to" type="date" class="dynamics-input w-full" />
+            </div>
+          </div>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-deadline">Deadline date</label>
+            <input id="rd-deadline" name="deadline_date" type="date" required class="dynamics-input w-full" />
+          </div>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-submitted">Submitted date <span class="font-normal text-[#8a8886]">(optional)</span></label>
+            <input id="rd-submitted" name="submitted_date" type="date" class="dynamics-input w-full" />
+            <p class="dynamics-rd-form-hint">If set, the deadline is stored as already submitted.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="dynamics-rd-form-label" for="rd-resp">Responsible</label>
+              <select id="rd-resp" name="responsible_user_id" class="dynamics-select w-full">
+                <option value="">—</option>
+                {% for u in tenant_users %}
+                <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="dynamics-rd-form-label" for="rd-rev">Reviewer</label>
+              <select id="rd-rev" name="reviewer_user_id" class="dynamics-select w-full">
+                <option value="">—</option>
+                {% for u in tenant_users %}
+                <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="dynamics-rd-form-label" for="rd-prio">Priority</label>
+              <select id="rd-prio" name="priority" class="dynamics-select w-full">
+                {% for value, label in priority_choices %}
+                <option value="{{ value }}" {% if value == 'normal' %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="dynamics-rd-form-label" for="rd-remind">Reminder window</label>
+              <select id="rd-remind" name="reminder_days_before" class="dynamics-select w-full">
+                {% for n in reminder_presets %}
+                <option value="{{ n }}" {% if n == 7 %}selected{% endif %}>{{ n }} days before</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="dynamics-rd-form-label" for="rd-notes">Notes</label>
+            <textarea id="rd-notes" name="notes" rows="2" class="dynamics-input w-full min-h-[4rem]"></textarea>
+          </div>
+          <button type="submit" class="dynamics-btn-primary w-full">
+            <i data-feather="plus-circle" class="w-4 h-4"></i>
+            Create deadline
+          </button>
+        </form>
+      </div>
     </div>
-    {% if deadlines|length >= 500 %}
-    <p class="text-[11px] text-[#605e5c] mt-2">Showing up to 500 rows. Narrow the date range or filters to see specific items.</p>
-    {% endif %}
+
+    <div class="xl:col-span-8 min-w-0">
+      <div class="dynamics-rd-panel">
+        <div class="dynamics-rd-panel-h">Deadlines</div>
+        <div class="dynamics-rd-grid-wrap">
+          <table class="dynamics-rd-grid">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Donor</th>
+                <th>Grant</th>
+                <th>Project</th>
+                <th>Period</th>
+                <th>Deadline</th>
+                <th class="text-right">Days left</th>
+                <th>Status</th>
+                <th>Responsible</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in deadlines %}
+              <tr>
+                <td class="font-semibold text-[#201f1e]">{{ d.title }}</td>
+                <td>{% if d.donor %}{{ d.donor.name }}{% else %}—{% endif %}</td>
+                <td>{% if d.grant %}{{ d.grant.code }}{% else %}—{% endif %}</td>
+                <td>{% with ep=d.effective_project %}{% if ep %}{{ ep.code }}{% else %}—{% endif %}{% endwith %}</td>
+                <td class="whitespace-nowrap text-[13px]">
+                  {% if d.reporting_period_from or d.reporting_period_to %}
+                    {{ d.reporting_period_from|date:"Y-m-d"|default:"—" }} → {{ d.reporting_period_to|date:"Y-m-d"|default:"—" }}
+                  {% else %}—{% endif %}
+                </td>
+                <td class="whitespace-nowrap font-medium">{{ d.deadline_date|date:"Y-m-d" }}</td>
+                <td class="text-right whitespace-nowrap tabular-nums">
+                  {% if d.remaining_days is not None %}
+                    {{ d.remaining_days }}
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if d.deadline_status_code == 'submitted' %}
+                    <span class="dynamics-rd-badge dynamics-rd-badge--submitted">Submitted</span>
+                  {% elif d.deadline_status_code == 'overdue' %}
+                    <span class="dynamics-rd-badge dynamics-rd-badge--overdue">Overdue</span>
+                  {% elif d.deadline_status_code == 'due' %}
+                    <span class="dynamics-rd-badge dynamics-rd-badge--due">Due</span>
+                  {% else %}
+                    <span class="dynamics-rd-badge dynamics-rd-badge--upcoming">Upcoming</span>
+                  {% endif %}
+                </td>
+                <td class="text-[13px]">{% if d.responsible_user %}{{ d.responsible_user.full_name|default:d.responsible_user.email }}{% else %}—{% endif %}</td>
+                <td class="whitespace-nowrap">
+                  {% if d.status != 'submitted' and not d.submitted_at %}
+                  <form method="post" class="inline-flex flex-col gap-1.5 items-stretch">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="mark_submitted" />
+                    <input type="hidden" name="deadline_id" value="{{ d.pk }}" />
+                    <input type="date" name="submitted_date" value="{{ today|date:'Y-m-d' }}" class="dynamics-input dynamics-rd-input-compact w-full" />
+                    <button type="submit" class="dynamics-rd-link-action text-left">Mark submitted</button>
+                  </form>
+                  {% else %}
+                    <span class="text-[#605e5c] text-[13px]">{{ d.submitted_date|date:"Y-m-d"|default:"—" }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="10" class="p-0 border-0">
+                  <div class="dynamics-rd-empty">
+                    <div class="dynamics-rd-empty-icon" aria-hidden="true"><i data-feather="calendar" class="w-6 h-6"></i></div>
+                    <p class="dynamics-rd-empty-title">No deadlines in this range</p>
+                    <p class="dynamics-rd-empty-sub">Widen the date window, clear filters, or add a new deadline using the form on the left.</p>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if deadlines|length >= 500 %}
+      <p class="text-[12px] text-[#605e5c] mt-3 px-1">Showing up to 500 rows. Narrow the date range or filters to find specific items.</p>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

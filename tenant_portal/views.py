@@ -488,6 +488,7 @@ def tenant_home_view(request: HttpRequest) -> HttpResponse:
 def finance_home_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal
 
+    from django.conf import settings
     from django.db.models import Sum
     from django.db.models.functions import TruncMonth
     from django.utils import timezone
@@ -495,8 +496,27 @@ def finance_home_view(request: HttpRequest) -> HttpResponse:
 
     from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
     from tenant_grants.models import BudgetLine, Grant, GrantApproval
+    from tenant_portal.migration_checks import ensure_journalline_project_budget_schema
 
     tenant_db = request.tenant_db
+
+    if not ensure_journalline_project_budget_schema(
+        tenant_db, auto_migrate=getattr(settings, "TENANT_AUTO_MIGRATE", False)
+    ):
+        return render(
+            request,
+            "tenant_portal/finance/tenant_migration_required.html",
+            {
+                "tenant": request.tenant,
+                "tenant_user": request.tenant_user,
+                "tenant_db": tenant_db,
+                "migration_label": "tenant_finance.0044_journalline_project_budget_workplan",
+                "active_submenu": "dashboard",
+                "active_item": "dashboard_overview",
+                "show_account_category_seed": False,
+            },
+            status=503,
+        )
 
     # Date range: current calendar month (dashboard KPI window).
     today = timezone.now().date()
@@ -9120,12 +9140,34 @@ def _get_donor_restriction_or_404(restriction_id: int, tenant_db: str, tenant_us
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_donor_condition_detail_view(request: HttpRequest, restriction_id: int) -> HttpResponse:
     from tenant_grants.restrictions import sync_donor_restriction_expiry
+    from tenant_grants.services.donor_compliance_engine import (
+        evaluate_restriction,
+        grant_ids_for_restriction,
+        related_expense_lines,
+    )
 
     tenant_db = request.tenant_db
     sync_donor_restriction_expiry(tenant_db)
     r = _get_donor_restriction_or_404(restriction_id, tenant_db, request.tenant_user)
     can_manage_restrictions = user_has_permission(
         request.tenant_user, "grants:donor_restrictions.manage", using=tenant_db
+    )
+    f = _parse_grants_filters(request)
+    compliance_eval = evaluate_restriction(
+        r,
+        tenant_db=tenant_db,
+        period_start=f["period_start"],
+        period_end=f["period_end"],
+    )
+    gids = grant_ids_for_restriction(r, tenant_db)
+    compliance_lines = list(
+        related_expense_lines(
+            tenant_db,
+            gids,
+            f["period_start"],
+            f["period_end"],
+            limit=200,
+        )
     )
     return render(
         request,
@@ -9137,6 +9179,9 @@ def grants_donor_condition_detail_view(request: HttpRequest, restriction_id: int
             "can_manage_restrictions": can_manage_restrictions,
             "active_submenu": "funds",
             "active_item": "funds_donor_conditions",
+            "compliance_filters": f,
+            "compliance_eval": compliance_eval,
+            "compliance_lines": compliance_lines,
         },
     )
 
@@ -11871,40 +11916,28 @@ def grants_reporting_requirements_view(request: HttpRequest) -> HttpResponse:
             "export_csv_url": _grants_export_urls(request)["csv"],
             "export_xlsx_url": _grants_export_urls(request)["xlsx"],
             "export_pdf_url": _grants_export_urls(request)["pdf"],
+            "official_report_period_line": f"Period: {f['period_start']} — {f['period_end']}",
         },
     )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_grant_financial_reports_view(request: HttpRequest) -> HttpResponse:
-    from decimal import Decimal
-    from django.db.models import Sum
     from tenant_grants.models import Grant
-    from tenant_finance.models import ChartAccount, JournalLine
+    from tenant_grants.services.grant_financial_reports import build_grant_financial_report_rows
 
     tenant_db = request.tenant_db
     f = _parse_grants_filters(request)
-    grants_qs = Grant.objects.using(tenant_db).select_related("donor").order_by("code")
+    grants_for_dropdown = Grant.objects.using(tenant_db).select_related("donor").order_by("code")
     if f["donor_id"]:
-        grants_qs = grants_qs.filter(donor_id=f["donor_id"])
-    if f["grant_id"]:
-        grants_qs = grants_qs.filter(pk=f["grant_id"])
-    budget_by_grant = {}
-    for g in grants_qs:
-        budget_total = g.budget_lines.using(tenant_db).aggregate(t=Sum("amount")).get("t") or Decimal("0")
-        budget_by_grant[g.id] = budget_total
-    spend_by_grant = {
-        r["entry__grant_id"]: r["total"] or Decimal("0")
-        for r in JournalLine.objects.using(tenant_db)
-        .filter(account__type=ChartAccount.Type.EXPENSE, entry__grant_id__isnull=False)
-        .values("entry__grant_id")
-        .annotate(total=Sum("debit"))
-    }
-    rows = []
-    for g in grants_qs:
-        budget = budget_by_grant.get(g.id, Decimal("0"))
-        spent = spend_by_grant.get(g.id, Decimal("0"))
-        rows.append({"grant": g, "budget": budget, "spent": spent, "remaining": budget - spent})
+        grants_for_dropdown = grants_for_dropdown.filter(donor_id=f["donor_id"])
+    rows = build_grant_financial_report_rows(
+        tenant_db,
+        period_start=f["period_start"],
+        period_end=f["period_end"],
+        donor_id=f["donor_id"] or None,
+        grant_id=f["grant_id"] or None,
+    )
     donors = __import__("tenant_grants.models", fromlist=["Donor"]).Donor.objects.using(tenant_db).order_by("name")
     if request.GET.get("format"):
         export_rows = [
@@ -11935,7 +11968,7 @@ def grants_grant_financial_reports_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
-            "grants": grants_qs,
+            "grants": grants_for_dropdown,
             "donors": donors,
             "filters": f,
             "active_submenu": "funds",
@@ -11950,68 +11983,72 @@ def grants_grant_financial_reports_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_donor_compliance_view(request: HttpRequest) -> HttpResponse:
+    from django.db.models import Q
+
     from tenant_grants.models import DonorRestriction, Grant
-    from decimal import Decimal
-    from django.db.models import Sum
-    from tenant_finance.models import ChartAccount, JournalLine
+    from tenant_grants.services.donor_compliance_engine import evaluate_restriction
 
     tenant_db = request.tenant_db
     f = _parse_grants_filters(request)
+    period_start = f["period_start"]
+    period_end = f["period_end"]
+
     restrictions = (
         DonorRestriction.objects.using(tenant_db)
         .select_related("donor", "grant", "funding_source", "project")
+        .filter(status=DonorRestriction.Status.ACTIVE)
         .order_by("donor__name", "restriction_code")
     )
     if f["donor_id"]:
         restrictions = restrictions.filter(donor_id=f["donor_id"])
     if f["grant_id"]:
-        restrictions = restrictions.filter(grant_id=f["grant_id"])
-    restrictions = list(restrictions[:200])
-    spend_by_grant = {
-        r["entry__grant_id"]: r["total"] or Decimal("0")
-        for r in JournalLine.objects.using(tenant_db)
-        .filter(account__type=ChartAccount.Type.EXPENSE, entry__grant_id__isnull=False)
-        .values("entry__grant_id")
-        .annotate(total=Sum("debit"))
-    }
-    compliance_rows = [
-        {
-            "restriction": rest,
-            "grant_spend": spend_by_grant.get(rest.grant_id) if rest.grant_id else None,
-        }
-        for rest in restrictions
-    ]
+        g = Grant.objects.using(tenant_db).filter(pk=f["grant_id"]).values("donor_id").first()
+        if g:
+            restrictions = restrictions.filter(
+                Q(grant_id=f["grant_id"])
+                | Q(
+                    applies_scope=DonorRestriction.AppliesScope.DONOR_WIDE,
+                    donor_id=g["donor_id"],
+                )
+            )
+        else:
+            restrictions = restrictions.filter(grant_id=f["grant_id"])
+    restrictions = list(restrictions[:500])
+
+    compliance_rows = []
+    for rest in restrictions:
+        ev = evaluate_restriction(
+            rest, tenant_db=tenant_db, period_start=period_start, period_end=period_end
+        )
+        compliance_rows.append({"restriction": rest, "eval": ev})
+
     donors = list(_active_donors_queryset(tenant_db))
     grants = Grant.objects.using(tenant_db).order_by("code")
     if request.GET.get("format"):
-        rows = [
-            [
-                row["restriction"].restriction_code or "",
-                row["restriction"].donor.name if row["restriction"].donor else "",
-                (row["restriction"].grant.code if row["restriction"].grant else ""),
-                (
-                    row["restriction"].funding_source.name
-                    if row["restriction"].funding_source_id
-                    else ""
-                ),
-                row["restriction"].get_category_display(),
-                row["restriction"].get_restriction_type_display(),
-                row["restriction"].get_compliance_level_display(),
-                row["restriction"].get_status_display(),
-                (
-                    row["restriction"].effective_start.isoformat()
-                    if row["restriction"].effective_start
-                    else ""
-                ),
-                (
-                    row["restriction"].effective_end.isoformat()
-                    if row["restriction"].effective_end
-                    else ""
-                ),
-                row["restriction"].description,
-            ]
-            for row in compliance_rows
-        ]
+        rows = []
+        for row in compliance_rows:
+            r = row["restriction"]
+            ev = row["eval"]
+            rows.append(
+                [
+                    r.restriction_code or "",
+                    r.donor.name if r.donor else "",
+                    r.grant.code if r.grant else "",
+                    r.get_category_display(),
+                    r.get_restriction_type_display(),
+                    ev.label,
+                    r.get_status_display(),
+                    f"{ev.grant_expense:.2f}",
+                    (
+                        f"{ev.allowed_budget:.2f}"
+                        if ev.allowed_budget is not None
+                        else ""
+                    ),
+                    (f"{ev.utilization_pct:.2f}" if ev.utilization_pct is not None else ""),
+                    (f"{ev.variance:.2f}" if ev.variance is not None else ""),
+                    r.description,
+                ]
+            )
         resp = _export_table_response(
             export_format=request.GET.get("format") or "",
             filename_base="donor_compliance",
@@ -12020,16 +12057,19 @@ def grants_donor_compliance_view(request: HttpRequest) -> HttpResponse:
                 "Code",
                 "Donor",
                 "Grant",
-                "Funding source",
                 "Category",
-                "Restriction type",
-                "Compliance",
-                "Status",
-                "Effective start",
-                "Effective end",
+                "Type",
+                "Compliance result",
+                "Restriction status",
+                "Grant expense (posted)",
+                "Allowed budget",
+                "Utilization %",
+                "Variance (spend - allowed)",
                 "Description",
             ],
             rows=rows,
+            request=request,
+            include_official_header=True,
         )
         if resp:
             return resp
@@ -12040,7 +12080,6 @@ def grants_donor_compliance_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "compliance_rows": compliance_rows,
-            "spend_by_grant": spend_by_grant,
             "donors": donors,
             "grants": grants,
             "filters": f,

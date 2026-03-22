@@ -1,4 +1,129 @@
-{% comment %}Pass: filters, donors (optional), grants (optional), export_csv_url/export_xlsx_url/export_pdf_url (optional).{% endcomment %}
+{% comment %}
+Pass: filters, donors (optional), grants (optional), projects (optional), export_csv_url/export_xlsx_url/export_pdf_url (optional).
+Optional: use_dynamics — Fluent / Dynamics filter pane (requires tenant_portal/finance/_dynamics_financial_report_styles.html on the page).
+Optional: filter_title, filter_hint — header strings for the dynamics pane.
+Optional: hide_export_row — hide export links inside this partial (e.g. when exports live in a page toolbar).
+{% endcomment %}
+{% if use_dynamics %}
+<div class="dynamics-filter-pane hidden-print mb-4">
+  <div class="dynamics-filter-head">
+    <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+    <span class="dynamics-filter-head-title">{% if filter_title %}{{ filter_title }}{% else %}Filters{% endif %}</span>
+    <span class="dynamics-filter-head-hint">{% if filter_hint %}{{ filter_hint }}{% else %}Adjust criteria and apply{% endif %}</span>
+  </div>
+  <form method="get" action="" class="dynamics-filter-grid">
+    <div class="dynamics-filter-field">
+      <label for="gf-period-start">From <span class="dynamics-label-muted">(start)</span></label>
+      <input id="gf-period-start" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="dynamics-input w-full min-w-[140px]" />
+    </div>
+    <div class="dynamics-filter-field">
+      <label for="gf-period-end">To <span class="dynamics-label-muted">(end)</span></label>
+      <input id="gf-period-end" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="dynamics-input w-full min-w-[140px]" />
+    </div>
+    {% if donors %}
+    <div class="dynamics-filter-field">
+      <label for="gf-donor">Donor</label>
+      <select id="gf-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
+        <option value="">All donors</option>
+        {% for d in donors %}
+        <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if grants %}
+    <div class="dynamics-filter-field">
+      <label for="gf-grant">Grant</label>
+      <select id="gf-grant" name="grant_id" class="dynamics-select w-full min-w-[200px]">
+        <option value="">All grants</option>
+        {% for g in grants %}
+        <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if projects %}
+    <div class="dynamics-filter-field">
+      <label for="gf-project">Project</label>
+      <select id="gf-project" name="project_id" class="dynamics-select w-full min-w-[220px]">
+        <option value="">All projects</option>
+        {% for p in projects %}
+        <option value="{{ p.pk }}" {% if filters.project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if deadline_status_choices %}
+    <div class="dynamics-filter-field">
+      <label for="gf-deadline-status">Status</label>
+      <select id="gf-deadline-status" name="deadline_status" class="dynamics-select w-full min-w-[160px]">
+        <option value="">All statuses</option>
+        {% for value, label in deadline_status_choices %}
+        <option value="{{ value }}" {% if filters.deadline_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if pipeline_stages %}
+    <div class="dynamics-filter-field">
+      <label for="gf-pipeline">Pipeline stage</label>
+      <select id="gf-pipeline" name="pipeline_stage" class="dynamics-select w-full min-w-[200px]">
+        <option value="">All stages</option>
+        {% for value, label in pipeline_stages.choices %}
+        <option value="{{ value }}" {% if filters.pipeline_stage == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if trackings %}
+    <div class="dynamics-filter-field">
+      <label for="gf-tracking">Tracking</label>
+      <select id="gf-tracking" name="tracking_id" class="dynamics-select w-full min-w-[200px]">
+        <option value="">All</option>
+        {% for t in trackings %}
+        <option value="{{ t.pk }}" {% if filters.tracking_id == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+      <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+      <button type="submit" class="dynamics-btn-primary">
+        <i data-feather="check" class="w-4 h-4"></i>
+        Apply
+      </button>
+    </div>
+  </form>
+  {% if not hide_export_row %}
+  {% if export_csv_url or export_xlsx_url or export_pdf_url %}
+  <div class="dynamics-filter-actions">
+    {% if export_csv_url %}
+    <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+      <i data-feather="file-text" class="w-4 h-4"></i>
+      Export CSV
+    </a>
+    {% endif %}
+    {% if export_xlsx_url %}
+    <a href="{{ export_xlsx_url }}" class="dynamics-btn-secondary no-underline">
+      <i data-feather="download" class="w-4 h-4"></i>
+      Export Excel
+    </a>
+    {% endif %}
+    {% if export_pdf_url %}
+    <a href="{{ export_pdf_url }}" class="dynamics-btn-secondary no-underline">
+      <i data-feather="file" class="w-4 h-4"></i>
+      Export PDF
+    </a>
+    {% endif %}
+    <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+      <i data-feather="printer" class="w-4 h-4"></i>
+      Print
+    </button>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% else %}
 <div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
   <form method="get" action="" class="flex flex-wrap items-end gap-3">
     <div class="flex flex-wrap items-center gap-2">
@@ -94,3 +219,4 @@
   {% endif %}
   {% endif %}
 </div>
+{% endif %}

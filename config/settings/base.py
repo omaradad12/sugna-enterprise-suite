@@ -222,3 +222,6 @@ DIAGNOSTICS_AUTO_REMEDIATE = os.environ.get("DIAGNOSTICS_AUTO_REMEDIATE", "false
     "yes",
 )
 
+# Tenant HTTP auto-migrate (see tenant_portal.migration_checks). Overridden in dev.py / prod.py.
+TENANT_AUTO_MIGRATE = False
+

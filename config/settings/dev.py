@@ -14,6 +14,15 @@ from .base import build_databases
 
 DEBUG = os.environ.get("DEBUG", "true").lower() in ("true", "1", "yes")
 
+# Auto-run migrate on tenant DB when views detect missing migrations (same idea as sugna_core.settings).
+_tam = os.environ.get("TENANT_AUTO_MIGRATE", "").strip().lower()
+if _tam in ("true", "1", "yes"):
+    TENANT_AUTO_MIGRATE = True
+elif _tam in ("false", "0", "no"):
+    TENANT_AUTO_MIGRATE = False
+else:
+    TENANT_AUTO_MIGRATE = DEBUG
+
 SECRET_KEY = (
     os.environ.get("DJANGO_SECRET_KEY")
     or os.environ.get("SECRET_KEY")

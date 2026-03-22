@@ -869,15 +869,20 @@ class JournalEntry(models.Model):
 def get_grant_posted_expense_total(grant_id, using: str):
     """Total posted expense (debits to expense accounts) for this grant. Used to enforce grant budget."""
     from decimal import Decimal
-    from django.db.models import Sum
+    from django.db.models import BigIntegerField, F, Sum
+    from django.db.models.functions import Coalesce
 
     return (
         JournalLine.objects.using(using)
         .filter(
-            entry__grant_id=grant_id,
             entry__status=JournalEntry.Status.POSTED,
             account__type=ChartAccount.Type.EXPENSE,
+            debit__gt=0,
         )
+        .annotate(
+            eff_grant_id=Coalesce(F("grant_id"), F("entry__grant_id"), output_field=BigIntegerField()),
+        )
+        .filter(eff_grant_id=grant_id)
         .aggregate(t=Sum("debit"))
         .get("t")
         or Decimal("0")
@@ -935,6 +940,19 @@ class JournalLine(models.Model):
 
     def __str__(self) -> str:
         return f"{self.account.code} D{self.debit} C{self.credit}"
+
+
+class JournalEntryLine(JournalLine):
+    """Proxy name for GL lines (journal entry lines), including payment-voucher–posted expenses."""
+
+    class Meta:
+        proxy = True
+        verbose_name = _("Journal entry line")
+        verbose_name_plural = _("Journal entry lines")
+
+
+# Payment vouchers post into the same journal line table; use this alias in reporting code when needed.
+PaymentLine = JournalEntryLine
 
 
 class PaymentRegister(models.Model):

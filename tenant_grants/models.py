@@ -2109,3 +2109,21 @@ class BudgetTemplateLine(models.Model):
 
     def __str__(self) -> str:
         return f"{self.template.name}: {self.category}"
+
+
+class GrantBudget(Grant):
+    """Proxy for grant-as-budget-envelope reporting; budget amounts live on GrantBudgetLine / BudgetLine."""
+
+    class Meta:
+        proxy = True
+        verbose_name = _("Grant budget")
+        verbose_name_plural = _("Grant budgets")
+
+
+class GrantBudgetLine(BudgetLine):
+    """Proxy for grant budget line rows (same table as BudgetLine)."""
+
+    class Meta:
+        proxy = True
+        verbose_name = _("Grant budget line")
+        verbose_name_plural = _("Grant budget lines")

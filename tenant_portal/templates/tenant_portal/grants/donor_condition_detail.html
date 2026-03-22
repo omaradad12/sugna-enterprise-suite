@@ -8,8 +8,87 @@
   <nav class="text-xs text-[#605e5c] mb-3">
     <a href="{% url 'tenant_portal:grants_donor_conditions' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Donor Conditions & Restrictions" %}</a>
     <span class="mx-1">/</span>
+    <a href="{% url 'tenant_portal:grants_donor_compliance' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Compliance monitoring" %}</a>
+    <span class="mx-1">/</span>
     <span>{{ restriction.restriction_code|default:restriction.pk }}</span>
   </nav>
+
+  <div class="bg-white border rounded-lg p-4 shadow-sm mb-6" style="border-color:#edebe9;">
+    <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3">{% trans "Compliance evaluation" %} ({{ compliance_filters.period_start|date:"Y-m-d" }} → {{ compliance_filters.period_end|date:"Y-m-d" }})</h2>
+    <form method="get" action="" class="flex flex-wrap items-end gap-3 mb-4">
+      <div>
+        <label class="block text-xs font-medium text-[#605e5c] mb-1">{% trans "From" %}</label>
+        <input type="date" name="period_start" value="{{ compliance_filters.period_start|date:'Y-m-d' }}" class="rounded border px-2 py-1.5 text-sm" style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-[#605e5c] mb-1">{% trans "To" %}</label>
+        <input type="date" name="period_end" value="{{ compliance_filters.period_end|date:'Y-m-d' }}" class="rounded border px-2 py-1.5 text-sm" style="border-color:#edebe9;" />
+      </div>
+      <button type="submit" class="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium text-white" style="background:#0078D4;">{% trans "Apply period" %}</button>
+    </form>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-3">
+      <div class="rounded border p-3" style="border-color:#edebe9;">
+        <div class="text-[11px] font-semibold text-[#605e5c] uppercase">{% trans "Result" %}</div>
+        <div class="mt-1 font-bold text-[#201f1e]">
+          {% if compliance_eval.css == 'green' %}<span class="text-[#107c10]">{{ compliance_eval.label }}</span>
+          {% elif compliance_eval.css == 'yellow' %}<span class="text-[#8a6116]">{{ compliance_eval.label }}</span>
+          {% elif compliance_eval.css == 'red' %}<span class="text-[#a4262c]">{{ compliance_eval.label }}</span>
+          {% else %}<span class="text-[#605e5c]">{{ compliance_eval.label }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="rounded border p-3" style="border-color:#edebe9;">
+        <div class="text-[11px] font-semibold text-[#605e5c] uppercase">{% trans "Posted expense" %}</div>
+        <div class="mt-1 font-semibold tabular-nums">{{ compliance_eval.grant_expense|floatformat:2 }}</div>
+      </div>
+      <div class="rounded border p-3" style="border-color:#edebe9;">
+        <div class="text-[11px] font-semibold text-[#605e5c] uppercase">{% trans "Allowed budget" %}</div>
+        <div class="mt-1 font-semibold tabular-nums">{% if compliance_eval.allowed_budget is not None %}{{ compliance_eval.allowed_budget|floatformat:2 }}{% else %}—{% endif %}</div>
+      </div>
+      <div class="rounded border p-3" style="border-color:#edebe9;">
+        <div class="text-[11px] font-semibold text-[#605e5c] uppercase">{% trans "Util % / variance" %}</div>
+        <div class="mt-1 font-semibold tabular-nums">
+          {% if compliance_eval.utilization_pct is not None %}{{ compliance_eval.utilization_pct|floatformat:1 }}%{% else %}—{% endif %}
+          {% if compliance_eval.variance is not None %} · Δ {{ compliance_eval.variance|floatformat:2 }}{% endif %}
+        </div>
+      </div>
+    </div>
+    <p class="text-sm text-[#323130] m-0 leading-relaxed">{{ compliance_eval.explanation }}</p>
+    {% if compliance_eval.max_line_in_period %}
+    <p class="text-xs text-[#605e5c] mt-2 m-0">{% trans "Largest expense line in period" %}: <span class="font-semibold text-[#323130]">{{ compliance_eval.max_line_in_period|floatformat:2 }}</span></p>
+    {% endif %}
+
+    <h3 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] mt-6 mb-2">{% trans "Related posted expense lines" %}</h3>
+    {% if compliance_lines %}
+    <div class="overflow-x-auto border rounded" style="border-color:#edebe9;">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="bg-[#faf9f8] text-left text-[#605e5c]">
+            <th class="px-2 py-2 font-semibold">{% trans "Date" %}</th>
+            <th class="px-2 py-2 font-semibold">{% trans "Reference" %}</th>
+            <th class="px-2 py-2 font-semibold">{% trans "Grant" %}</th>
+            <th class="px-2 py-2 font-semibold">{% trans "Account" %}</th>
+            <th class="px-2 py-2 font-semibold text-right">{% trans "Debit" %}</th>
+            <th class="px-2 py-2 font-semibold">{% trans "Memo" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in compliance_lines %}
+          <tr class="border-t" style="border-color:#edebe9;">
+            <td class="px-2 py-1.5 whitespace-nowrap">{{ line.entry.entry_date|date:"Y-m-d" }}</td>
+            <td class="px-2 py-1.5 font-mono">{{ line.entry.reference|default:line.entry.pk }}</td>
+            <td class="px-2 py-1.5">{{ line.entry.grant.code|default:"—" }}</td>
+            <td class="px-2 py-1.5">{{ line.account.code }}</td>
+            <td class="px-2 py-1.5 text-right tabular-nums font-medium">{{ line.debit|floatformat:2 }}</td>
+            <td class="px-2 py-1.5 text-[#605e5c]">{{ line.description|truncatewords:8 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-[#605e5c] m-0">{% trans "No matching posted expense lines in this period." %}</p>
+    {% endif %}
+  </div>
   <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-[#201f1e] m-0">{{ restriction.get_restriction_type_display }}</h1>

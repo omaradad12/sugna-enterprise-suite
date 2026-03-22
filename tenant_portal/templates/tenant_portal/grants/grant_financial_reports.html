@@ -1,41 +1,243 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Grant financial reports | Grants{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Grant financial reports" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Grant financial reports" report_subtitle="Budget, spent, and remaining by grant" official_report_period_line=official_report_period_line %}
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title=_("Grant financial reports") report_subtitle=_("Budget, spent, and remaining by grant") official_report_period_line=official_report_period_line %}
 
-<div class="mb-4 hidden-print">
-  <h1 class="text-2xl font-bold tracking-tight">Grant financial reports</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">On-screen summary. Full legal name and logo appear in CSV, Excel, PDF, and print.</p>
-</div>
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dynamics-gfr-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-meta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th.text-right {
+    text-align: right;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-gfr-page .dynamics-gfr-code {
+    font-family: "Segoe UI", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    letter-spacing: 0.02em;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge--ok { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .dynamics-gfr-page .dynamics-gfr-badge--warn { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-gfr-page .dynamics-gfr-badge--breach { background: #fde7e9; color: #a4262c; border-color: #f1bbbc; }
+  .dynamics-gfr-page .dynamics-gfr-empty {
+    text-align: center;
+    padding: 3rem 1.5rem 3.25rem;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-sub {
+    font-size: 13px;
+    max-width: 28rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  @media print {
+    .dynamics-gfr-page .hidden-print,
+    .dynamics-gfr-page .dynamics-gfr-toolbar,
+    .dynamics-gfr-page .dynamics-filter-pane {
+      display: none !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-panel {
+      box-shadow: none !important;
+    }
+  }
+</style>
 
-{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+<div class="dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Compliance & reporting" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Grant financial reports" %}</h1>
+    <p class="dynamics-hero-subtitle">{% trans "Budget, spend in period, and remaining — exports and print use your official organization header." %}</p>
+  </header>
 
-<div class="bg-white border rounded-lg overflow-hidden print-area erp-section" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Grant financial summary</div>
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-        <th class="px-4 py-2 font-semibold">Grant</th>
-        <th class="px-4 py-2 font-semibold">Donor</th>
-        <th class="px-4 py-2 font-semibold text-right">Budget</th>
-        <th class="px-4 py-2 font-semibold text-right">Spent</th>
-        <th class="px-4 py-2 font-semibold text-right">Remaining</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-        <td class="px-4 py-2">{{ row.grant.code }} — {{ row.grant.title|truncatewords:4 }}</td>
-        <td class="px-4 py-2">{{ row.grant.donor.name }}</td>
-        <td class="px-4 py-2 text-right">{{ row.budget|floatformat:2 }}</td>
-        <td class="px-4 py-2 text-right">{{ row.spent|floatformat:2 }}</td>
-        <td class="px-4 py-2 text-right font-medium">{{ row.remaining|floatformat:2 }}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="5" class="px-4 py-6 text-center text-[#605e5c]">No data.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="dynamics-gfr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Export' %}">
+    <span>{% trans "Export" %}</span>
+    {% if export_csv_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> {% trans "CSV" %}</a>{% endif %}
+    {% if export_xlsx_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>{% endif %}
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
+  </div>
+
+  {% trans "View filters" as gfr_filter_title %}
+  {% trans "Period, donor, and grant — then Apply." as gfr_filter_hint %}
+  {% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants hide_export_row=1 use_dynamics=True filter_title=gfr_filter_title filter_hint=gfr_filter_hint %}
+
+  <div class="dynamics-gfr-panel">
+    <div class="dynamics-gfr-panel-h">
+      <span>{% trans "Grant financial summary" %}</span>
+      <span class="dynamics-gfr-panel-meta">{{ rows|length }} {% trans "rows" %} · {{ filters.period_start|date:"Y-m-d" }} → {{ filters.period_end|date:"Y-m-d" }}</span>
+    </div>
+    <div class="dynamics-gfr-grid-wrap">
+      <table class="dynamics-gfr-grid">
+        <thead>
+          <tr>
+            <th>{% trans "Grant" %}</th>
+            <th>{% trans "Donor" %}</th>
+            <th class="text-right">{% trans "Budget" %}</th>
+            <th class="text-right">{% trans "Spent" %}</th>
+            <th class="text-right">{% trans "Remaining" %}</th>
+            <th>{% trans "Status" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td><span class="dynamics-gfr-code">{{ row.grant.code }}</span> — {{ row.grant.title|truncatewords:6 }}</td>
+            <td>{{ row.grant.donor.name }}</td>
+            <td class="text-right tabular-nums font-medium">{{ row.budget|floatformat:2 }}</td>
+            <td class="text-right tabular-nums">{{ row.spent|floatformat:2 }}</td>
+            <td class="text-right tabular-nums font-semibold">{{ row.remaining|floatformat:2 }}</td>
+            <td class="whitespace-nowrap">
+              {% if row.remaining < 0 %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--breach">{% trans "Over budget" %}</span>
+              {% elif row.budget > 0 and row.spent > 0 and row.remaining > 0 %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{% trans "Within budget" %}</span>
+              {% elif row.budget > 0 and row.spent > 0 %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--warn">{% trans "Fully utilized" %}</span>
+              {% else %}
+              <span class="text-xs text-[#8a8886]">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="p-0 border-0">
+              <div class="dynamics-gfr-empty">
+                <div class="dynamics-gfr-empty-icon" aria-hidden="true"><i data-feather="pie-chart" class="w-6 h-6"></i></div>
+                <p class="dynamics-gfr-empty-title">{% trans "No grants match your filters" %}</p>
+                <p class="dynamics-gfr-empty-sub">{% trans "Widen the period, clear donor or grant filters, or add active grants with budget lines and posted expenses in range." %}</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

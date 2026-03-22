@@ -23,6 +23,12 @@ TENANT_GRANTS_REPORTING_DEADLINE_0028 = (
     "0028_reporting_deadline_enterprise",
 )
 
+# JournalLine.project_budget_line / workplan_activity (NGO activity-based budgeting)
+TENANT_FINANCE_JOURNALLINE_0044 = (
+    "tenant_finance",
+    "0044_journalline_project_budget_workplan",
+)
+
 
 def migration_applied(using: str, app_label: str, migration_name: str) -> bool:
     """True if django_migrations records this migration on the given DB alias."""
@@ -39,6 +45,10 @@ def tenant_finance_account_categories_ready(using: str) -> bool:
 
 def tenant_grants_reporting_deadlines_ready(using: str) -> bool:
     return migration_applied(using, *TENANT_GRANTS_REPORTING_DEADLINE_0028)
+
+
+def tenant_finance_journalline_project_budget_ready(using: str) -> bool:
+    return migration_applied(using, *TENANT_FINANCE_JOURNALLINE_0044)
 
 
 def apply_all_migrations_for_alias(using: str) -> bool:
@@ -82,4 +92,17 @@ def ensure_reporting_deadline_schema(using: str, *, auto_migrate: bool) -> bool:
     if auto_migrate:
         apply_all_migrations_for_alias(using)
         return tenant_grants_reporting_deadlines_ready(using)
+    return False
+
+
+def ensure_journalline_project_budget_schema(using: str, *, auto_migrate: bool) -> bool:
+    """
+    Return True if JournalLine has project_budget_line / workplan_activity columns.
+    If auto_migrate and not ready, run migrate on `using` once and re-check.
+    """
+    if tenant_finance_journalline_project_budget_ready(using):
+        return True
+    if auto_migrate:
+        apply_all_migrations_for_alias(using)
+        return tenant_finance_journalline_project_budget_ready(using)
     return False

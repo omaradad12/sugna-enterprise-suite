@@ -14,6 +14,9 @@ from .base import build_databases
 
 DEBUG = False
 
+# Only enable request-time tenant migrate in production if explicitly set (normally use migrate_all_tenants).
+_tam_prod = os.environ.get("TENANT_AUTO_MIGRATE", "").strip().lower()
+TENANT_AUTO_MIGRATE = _tam_prod in ("true", "1", "yes")
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
