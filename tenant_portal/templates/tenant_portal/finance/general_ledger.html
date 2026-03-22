@@ -1,198 +1,595 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}General Ledger | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "General ledger" %} | Finance{% endblock %}
 
 {% block content %}
-{# Period / Project / Donor filters + Export / Print (Dynamics-style filter bar) #}
-{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors export_csv_url=export_csv_url %}
+<style>
+  /* Screen: full-width fixed table — minimal horizontal scroll on typical viewports */
+  .gl-ledger-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  @media (min-width: 1100px) {
+    .gl-ledger-scroll {
+      overflow-x: visible;
+    }
+  }
+  .gl-ledger-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+  }
+  .gl-ledger-table tbody tr.gl-data-row:hover {
+    background: #f3f2f1;
+  }
+  .gl-ledger-table tbody tr.gl-data-row:hover td {
+    background: transparent;
+  }
+  .gl-journal-link {
+    color: #0078d4;
+    text-decoration: none;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .gl-journal-link:hover {
+    text-decoration: underline;
+    color: #106ebe;
+  }
+  /* Column shares — Date/Journal/Account compact; Description widest */
+  .gl-ledger-table col.gl-col-w-1 { width: 7%; }
+  .gl-ledger-table col.gl-col-w-2 { width: 7%; }
+  .gl-ledger-table col.gl-col-w-3 { width: 11%; }
+  .gl-ledger-table col.gl-col-w-4 { width: 8%; }
+  .gl-ledger-table col.gl-col-w-5 { width: 7%; }
+  .gl-ledger-table col.gl-col-w-6 { width: 7%; }
+  .gl-ledger-table col.gl-col-w-7 { width: 26%; }
+  .gl-ledger-table col.gl-col-w-8 { width: 8%; }
+  .gl-ledger-table col.gl-col-w-9 { width: 8%; }
+  .gl-ledger-table col.gl-col-w-10 { width: 8%; }
+  .gl-ledger-table col.gl-col-w-11 { width: 9%; }
+  .gl-col-desc {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    vertical-align: top;
+    line-height: 1.35;
+  }
+  .gl-ledger-table th.gl-col-num,
+  .gl-ledger-table td.gl-col-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
 
-{# Extended filters row: Account, Budget Line (ERP-style) #}
-<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
-  <form method="get" action="" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs md:items-end">
-    <div>
-      <label class="block font-semibold mb-1 text-[#605e5c] uppercase tracking-wide text-[11px]">Account</label>
-      <select name="account_id"
-              class="w-full rounded border px-2 py-1.5 text-sm bg-white min-w-[200px]"
-              style="border-color:#edebe9;">
-        <option value="">All accounts</option>
-        {% for a in accounts %}
-        <option value="{{ a.id }}" {% if selected_account_id == a.id|stringformat:'s' %}selected{% endif %}>
-          {{ a.code }} — {{ a.name }}
-        </option>
-        {% endfor %}
-      </select>
+  /* A4 portrait — General Ledger print/PDF (minimal borders, Sugna ERP) */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 12mm 10mm 14mm 10mm;
+    }
+    .flex.flex-1.min-h-0 > div:last-child {
+      padding: 0 !important;
+    }
+    .gl-print-root .erp-section.print-area,
+    .gl-print-root .print-area {
+      padding: 0 !important;
+      overflow: visible !important;
+    }
+    .gl-print-root .gl-ledger-section,
+    .gl-print-root .erp-section-body {
+      overflow: visible !important;
+    }
+    .gl-print-root .gl-ledger-section {
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+    .gl-ledger-table .gl-journal-link {
+      color: #201f1e !important;
+      text-decoration: none !important;
+      font-weight: 600;
+    }
+    .gl-print-header {
+      text-align: center;
+      margin-bottom: 0.4rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid #e1dfdd;
+      page-break-after: avoid;
+    }
+    .gl-print-header .gl-print-logo {
+      max-height: 42px;
+      width: auto;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+    .gl-print-header .gl-print-legal {
+      font-size: 13px;
+      font-weight: 600;
+      color: #201f1e;
+      margin-top: 0.25rem;
+      letter-spacing: 0.02em;
+      line-height: 1.25;
+    }
+    .gl-print-header .gl-print-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #323130;
+      margin-top: 0.45rem;
+      line-height: 1.25;
+    }
+    .gl-print-header .gl-print-subtitle {
+      font-size: 10px;
+      font-weight: 500;
+      color: #605e5c;
+      margin-top: 0.2rem;
+      line-height: 1.35;
+      letter-spacing: 0.01em;
+      text-transform: none;
+    }
+    .gl-print-header .gl-print-meta-block {
+      margin-top: 0.45rem;
+      font-size: 10px;
+      color: #605e5c;
+      line-height: 1.5;
+      text-align: center;
+    }
+    .gl-print-header .gl-print-meta-line {
+      display: block;
+      margin-top: 0.22rem;
+    }
+    .gl-print-header .gl-print-meta-line:first-child {
+      margin-top: 0;
+    }
+    .gl-print-header .gl-print-meta-line.gl-print-meta-printed {
+      margin-top: 0.5rem;
+    }
+    .gl-print-header .gl-print-address {
+      font-size: 10px !important;
+      margin-top: 0.2rem !important;
+      line-height: 1.3 !important;
+      max-width: 100% !important;
+    }
+    .gl-print-root > .erp-section.print-area {
+      margin-top: 0.15rem !important;
+    }
+    .gl-col-wrap {
+      max-width: none !important;
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+    }
+    .gl-ledger-scroll {
+      overflow: visible !important;
+      max-width: 100% !important;
+    }
+    .gl-ledger-table {
+      min-width: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      table-layout: auto !important;
+      border-collapse: collapse;
+      font-size: 7.5px !important;
+      border: none !important;
+    }
+    /* Light horizontal rules only — no vertical column borders */
+    .gl-ledger-table th.gl-th,
+    .gl-ledger-table td {
+      border-left: none !important;
+      border-right: none !important;
+      border-top: none !important;
+      border-bottom: 1px solid #e8e6e3 !important;
+    }
+    .gl-ledger-table thead th.gl-th {
+      background: #ecebe9 !important;
+      color: #201f1e !important;
+      border-bottom: 1px solid #d2d0ce !important;
+      font-size: 10px !important;
+      font-weight: 600;
+      padding: 5px 4px !important;
+      white-space: nowrap !important;
+      word-wrap: normal !important;
+      overflow-wrap: normal !important;
+      line-height: 1.1;
+      vertical-align: bottom;
+    }
+    .gl-ledger-table td {
+      padding: 2px 3px !important;
+      vertical-align: top;
+      font-size: 7.5px !important;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+    .gl-ledger-table tbody tr.gl-ledger-account-row td {
+      background: #f8f8f7 !important;
+      color: #201f1e !important;
+      border-bottom: 1px solid #e0dedb !important;
+      font-weight: 600 !important;
+    }
+    .gl-ledger-table tbody tr.gl-ledger-grand-total td {
+      background: #faf9f8 !important;
+      color: #323130 !important;
+      border-top: 1px solid #d2d0ce !important;
+      border-bottom: 1px solid #d2d0ce !important;
+      font-weight: 700 !important;
+    }
+    .gl-ledger-table tbody tr.gl-ledger-grand-total .gl-print-gt-debit {
+      color: #a4262c !important;
+    }
+    .gl-ledger-table tbody tr.gl-ledger-grand-total .gl-print-gt-credit {
+      color: #107c10 !important;
+    }
+    .gl-ledger-table tbody tr.gl-ledger-grand-total .gl-print-gt-balance {
+      color: #201f1e !important;
+    }
+    .gl-ledger-table td.gl-col-desc {
+      white-space: normal !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      max-width: none !important;
+      width: auto !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+    .gl-ledger-table th.gl-col-num,
+    .gl-ledger-table td.gl-col-num {
+      text-align: right !important;
+      font-variant-numeric: tabular-nums !important;
+    }
+    .gl-ledger-table .tabular-nums {
+      font-size: 7.5px !important;
+    }
+    col.gl-col-posted-col {
+      visibility: collapse;
+      width: 0 !important;
+      max-width: 0 !important;
+    }
+    th.gl-col-posted,
+    td.gl-col-posted {
+      display: none !important;
+    }
+    /* Portrait: min-widths; description absorbs remainder */
+    .gl-ledger-table col.gl-col-w-1 { width: 5%; min-width: 16mm; }
+    .gl-ledger-table col.gl-col-w-2 { width: 6%; min-width: 18mm; }
+    .gl-ledger-table col.gl-col-w-3 { width: 10%; min-width: 22mm; }
+    .gl-ledger-table col.gl-col-w-4 { width: 7%; min-width: 18mm; }
+    .gl-ledger-table col.gl-col-w-5 { width: 6%; min-width: 16mm; }
+    .gl-ledger-table col.gl-col-w-6 { width: 6%; min-width: 16mm; }
+    .gl-ledger-table col.gl-col-w-7 { width: auto; min-width: 20%; }
+    .gl-ledger-table col.gl-col-w-8 { width: 8%; min-width: 17mm; }
+    .gl-ledger-table col.gl-col-w-9 { width: 8%; min-width: 17mm; }
+    .gl-ledger-table col.gl-col-w-10 { width: 8%; min-width: 17mm; }
+    .gl-ledger-table col.gl-col-w-11 { width: 0%; }
+
+    .gl-reconciliation-print {
+      margin-top: 0.65rem;
+      padding: 0.5rem 6mm 0 2mm;
+      border-top: 1px solid #e3e1de;
+      page-break-inside: avoid;
+      overflow: visible !important;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .gl-recon-summary-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #323130;
+      margin-bottom: 0.45rem;
+    }
+    .gl-recon-summary-table {
+      margin-left: auto;
+      margin-right: 0;
+      width: auto;
+      min-width: 280px;
+      max-width: 100%;
+      table-layout: auto;
+      border-collapse: collapse;
+    }
+    .gl-recon-summary-table td {
+      padding: 4px 0 4px 8px;
+      font-size: 9px;
+      line-height: 1.35;
+      vertical-align: baseline;
+    }
+    .gl-recon-summary-table td.gl-recon-label {
+      text-align: right;
+      color: #605e5c;
+      font-weight: 600;
+      padding-right: 10px;
+      white-space: nowrap;
+    }
+    .gl-recon-summary-table td.gl-recon-label.gl-recon-sub {
+      color: #8a8886;
+      font-weight: 500;
+      font-size: 8.5px;
+      padding-right: 10px;
+    }
+    .gl-recon-summary-table td.gl-recon-amt {
+      text-align: right;
+      font-weight: 600;
+      color: #201f1e;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      padding-right: 2mm !important;
+      padding-left: 12px !important;
+      min-width: 11em;
+    }
+    .gl-recon-summary-table td.gl-recon-amt.gl-recon-sub-amt {
+      font-weight: 500;
+      color: #323130;
+      font-size: 8.5px;
+    }
+    .gl-recon-summary-table tr.gl-recon-subtotal td.gl-recon-label,
+    .gl-recon-summary-table tr.gl-recon-subtotal td.gl-recon-amt {
+      font-weight: 700;
+      color: #323130;
+      padding-top: 5px;
+    }
+    .gl-recon-summary-table tr.gl-recon-closing-row td {
+      border-top: 1px solid #e1dfdd;
+      padding-top: 7px;
+      margin-top: 2px;
+    }
+    .gl-recon-summary-table tr.gl-recon-closing-row td.gl-recon-amt {
+      font-weight: 700;
+    }
+  }
+</style>
+
+<div class="gl-print-root">
+{# Screen: filters only (export actions hidden when printing via .hidden-print) #}
+<div class="bg-white border rounded-lg p-3 mb-3 hidden-print shadow-sm" style="border-color:#edebe9;">
+  <form method="get" action="" class="space-y-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-2 text-[13px]">
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "From" %}</label>
+        <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
+               class="w-full rounded border px-2 py-1.5 bg-white text-sm" style="border-color:#edebe9;">
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "To" %}</label>
+        <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
+               class="w-full rounded border px-2 py-1.5 bg-white text-sm" style="border-color:#edebe9;">
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Account" %}</label>
+        <select name="account_id" class="w-full rounded border px-2 py-1.5 text-sm bg-white min-w-0" style="border-color:#edebe9;">
+          <option value="">{% trans "All accounts" %}</option>
+          {% for a in accounts %}
+          <option value="{{ a.id }}" {% if selected_account_id == a.id|stringformat:'s' %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Project" %}</label>
+        <select name="project_id" class="w-full rounded border px-2 py-1.5 text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">{% trans "All" %}</option>
+          {% for p in projects %}
+          <option value="{{ p.pk }}" {% if filters.project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:5 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Grant" %}</label>
+        <select name="grant_id" class="w-full rounded border px-2 py-1.5 text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">{% trans "All" %}</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Donor" %}</label>
+        <select name="donor_id" class="w-full rounded border px-2 py-1.5 text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">{% trans "All" %}</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Source type" %}</label>
+        <select name="source_type" class="w-full rounded border px-2 py-1.5 text-sm bg-white" style="border-color:#edebe9;">
+          <option value="">{% trans "All" %}</option>
+          {% for val, label in source_type_choices %}
+          <option value="{{ val }}" {% if filters.source_type == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Journal no." %}</label>
+        <input type="text" name="journal_no" value="{{ filters.journal_no }}"
+               placeholder="{% trans 'Reference or document no.' %}"
+               class="w-full rounded border px-2 py-1.5 text-sm bg-white" style="border-color:#edebe9;">
+      </div>
+      <div>
+        <label class="block font-semibold mb-0.5 text-[#605e5c] uppercase tracking-wide text-[11px]">{% trans "Activity" %}</label>
+        <input type="text" name="budget_line" value="{{ filters.budget_line }}"
+               placeholder="{% trans 'Grant budget activity' %}"
+               class="w-full rounded border px-2 py-1.5 text-sm bg-white" style="border-color:#edebe9;">
+      </div>
     </div>
-    <div>
-      <label class="block font-semibold mb-1 text-[#605e5c] uppercase tracking-wide text-[11px]">Budget Line</label>
-      <input type="text"
-             name="budget_line"
-             value="{{ filters.budget_line }}"
-             class="w-full rounded border px-2 py-1.5 text-sm bg-white"
-             style="border-color:#edebe9;"
-             placeholder="Code or description" />
-    </div>
-    <div class="md:col-span-2 flex flex-wrap gap-2 md:justify-end mt-2 md:mt-0">
-      <button type="submit"
-              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium"
-              style="border:1px solid #edebe9; background:#ffffff; color:#323130;">
-        <i data-feather="sliders" class="w-4 h-4"></i>
-        Apply filters
+    <div class="flex flex-wrap items-center gap-2 pt-2 border-t" style="border-color:#edebe9;">
+      <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">
+        <i data-feather="filter" class="w-4 h-4"></i>
+        {% trans "Apply" %}
       </button>
-      <a href="."
-         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium hover:bg-[#faf9f8]"
-         style="border-color:#edebe9;">
-        Reset
+      <a href="." class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">{% trans "Reset" %}</a>
+      {% if export_csv_url %}
+      <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[#faf9f8] ml-auto sm:ml-0" style="border-color:#edebe9;">
+        <i data-feather="download" class="w-4 h-4"></i>
+        {% trans "Export Excel" %}
       </a>
+      {% endif %}
+      <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <i data-feather="printer" class="w-4 h-4"></i>
+        {% trans "Print / PDF" %}
+      </button>
     </div>
   </form>
 </div>
 
-{# Header with logo above title + centered organization, report name, and project/donor/period strip (screen + print) #}
-<div class="mb-4 print:mb-2">
-  <div class="h-[2px] w-full mb-3" style="background:#f4b41a;"></div>
-  <div class="text-center leading-tight mb-1">
-    <div class="flex justify-center mb-1">
-      {% if tenant.brand_logo_url %}
-      <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-12 w-auto object-contain" />
-      {% elif org_settings and org_settings.report_logo %}
-      <img src="{{ org_settings.report_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-14 w-auto object-contain" />
-      {% elif org_settings and org_settings.organization_logo %}
-      <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-14 w-auto object-contain" />
-      {% else %}
-      <img src="{% url 'platform_dashboard:logo' %}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-12 w-auto object-contain" />
-      {% endif %}
-    </div>
-    <div class="text-sm font-semibold text-[#323130] uppercase tracking-wide">
-      {{ org_settings.organization_name|default:tenant_display_name|default:tenant.name }}
-    </div>
-    <div class="text-[11px] text-[#605e5c]">
-      {% if org_settings and org_settings.organization_address %}
-        {{ org_settings.organization_address }}
-      {% endif %}
-    </div>
+{# Print / PDF only: letterhead (not shown on screen) #}
+<div class="print-only gl-print-header">
+  <div class="flex justify-center">
+    {% if tenant.brand_logo_url %}
+    <img src="{{ tenant.brand_logo_url }}" alt="" class="gl-print-logo object-contain" />
+    {% elif org_settings and org_settings.report_logo %}
+    <img src="{{ org_settings.report_logo.url }}" alt="" class="gl-print-logo object-contain" />
+    {% elif org_settings and org_settings.organization_logo %}
+    <img src="{{ org_settings.organization_logo.url }}" alt="" class="gl-print-logo object-contain" />
+    {% else %}
+    <img src="{% url 'platform_dashboard:logo' %}" alt="" class="gl-print-logo object-contain" />
+    {% endif %}
   </div>
-  <div class="text-center mt-2 mb-2">
-    <h1 class="text-[15px] font-semibold text-[#323130] tracking-wide uppercase">General Ledger</h1>
+  <div class="gl-print-legal">
+    {% if org_settings and org_settings.organization_name %}
+      {{ org_settings.organization_name }}
+    {% else %}
+      {{ tenant_display_name|default:tenant.name }}
+    {% endif %}
   </div>
-  <div class="flex flex-wrap items-center justify-between text-[11px] text-[#605e5c] border-y py-1"
-       style="border-color:#edebe9;">
-    <div class="leading-tight">
-      <span class="font-semibold">Project:</span>
-      {% if selected_grant %}
-        {{ selected_grant.code }} – {{ selected_grant.title|truncatewords:6 }}
-      {% else %}
-        All projects
-      {% endif %}
-      {% if selected_donor %}
-        <span class="mx-1">|</span>
-        <span class="font-semibold">Donor:</span> {{ selected_donor.name }}
-      {% elif filters.donor_id %}
-        <span class="mx-1">|</span>
-        <span class="font-semibold">Donor:</span> Filtered donor
-      {% endif %}
-    </div>
-    <div class="leading-tight text-right">
-      <span class="font-semibold">Period:</span>
-      {{ filters.period_start|date:"d/m/Y" }} – {{ filters.period_end|date:"d/m/Y" }}
-      <span class="mx-1 hidden-print">|</span>
-      <span class="hidden-print">Printed on: {% now "d/m/Y H:i" %}</span>
-    </div>
+  {% if org_settings and org_settings.address %}
+  <div class="gl-print-address text-[11px] text-[#605e5c] mt-1 max-w-[520px] mx-auto leading-snug">{{ org_settings.address }}</div>
+  {% endif %}
+  <div class="gl-print-title">{% trans "General ledger" %}</div>
+  <div class="gl-print-subtitle">{% trans "Detailed ledger of posted financial transactions." %}</div>
+  <div class="gl-print-meta-block">
+    <span class="gl-print-meta-line"><strong>{% trans "Report period" %}:</strong> {{ filters.period_start|date:"d/m/Y" }} – {{ filters.period_end|date:"d/m/Y" }}</span>
+    <span class="gl-print-meta-line"><strong>{% trans "Grant" %}:</strong> {% if selected_grant %}{{ selected_grant.title }}{% else %}{% trans "All grants" %}{% endif %}</span>
+    <span class="gl-print-meta-line"><strong>{% trans "Donor" %}:</strong> {% if selected_donor %}{{ selected_donor.name }}{% elif selected_grant and selected_grant.donor %}{{ selected_grant.donor.name }}{% else %}{% trans "All donors" %}{% endif %}</span>
+    <span class="gl-print-meta-line gl-print-meta-printed"><strong>{% trans "Printed" %}:</strong> {% now "d/m/Y H:i" %}</span>
   </div>
-  <div class="h-[2px] w-full mt-2" style="background:#f4b41a;"></div>
 </div>
 
-{# Ledger table in Microsoft Dynamics–style card (screen + print) #}
-<div class="erp-section print-area w-full" style="background:#ffffff;">
-  <div class="erp-section-body overflow-x-auto" style="background:#ffffff;">
-    <table class="erp-table">
+{# Ledger table: visible on screen and when printing; compact title row on screen #}
+<div class="erp-section print-area gl-ledger-section w-full bg-white border rounded-lg overflow-hidden shadow-sm" style="border-color:#edebe9;">
+  <div class="px-3 py-1.5 border-b flex justify-between items-center text-[12px] hidden-print" style="border-color:#edebe9; background:#faf9f8;">
+    <span class="font-semibold text-[#323130]">{% trans "General ledger" %}</span>
+    <span class="text-[#605e5c]">{{ row_count }} {% trans "lines" %}</span>
+  </div>
+  <div class="erp-section-body overflow-x-auto gl-ledger-scroll">
+    <table class="erp-table gl-ledger-table w-full text-[12px]">
+      <colgroup>
+        <col class="gl-col-w-1" />
+        <col class="gl-col-w-2" />
+        <col class="gl-col-w-3" />
+        <col class="gl-col-w-4" />
+        <col class="gl-col-w-5" />
+        <col class="gl-col-w-6" />
+        <col class="gl-col-w-7" />
+        <col class="gl-col-w-8" />
+        <col class="gl-col-w-9" />
+        <col class="gl-col-w-10" />
+        <col class="gl-col-w-11 gl-col-posted-col" />
+      </colgroup>
       <thead>
-        <tr style="background:#201f1f; color:#ffffff;">
-          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Date</th>
-          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">PV No</th>
-          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Account Code</th>
-          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Budget Line</th>
-          <th class="text-center uppercase text-xs" style="background:#201f1f; color:#ffffff;">Description</th>
-          <th class="text-right uppercase text-xs" style="background:#201f1f; color:#ffffff;">Debit</th>
-          <th class="text-right uppercase text-xs" style="background:#201f1f; color:#ffffff;">Credit</th>
-          <th class="text-right uppercase text-xs" style="background:#201f1f; color:#ffffff;">Balance</th>
+        <tr style="background:#201f1f; color:#fff;">
+          <th class="gl-th text-left uppercase text-[11px] px-1.5 py-2">{% trans "Date" %}</th>
+          <th class="gl-th text-left uppercase text-[11px] px-1.5 py-2">{% trans "Journal" %}</th>
+          <th class="gl-th text-left uppercase text-[11px] px-1.5 py-2">{% trans "Account" %}</th>
+          <th class="gl-th text-left uppercase text-[11px] px-1.5 py-2">{% trans "Grant" %}</th>
+          <th class="gl-th text-left uppercase text-[11px] px-1.5 py-2">{% trans "Donor" %}</th>
+          <th class="gl-th text-left uppercase text-[11px] px-1.5 py-2">{% trans "Activity" %}</th>
+          <th class="gl-th gl-col-desc text-left uppercase text-[11px] px-1.5 py-2">{% trans "Description" %}</th>
+          <th class="gl-th gl-col-num text-right uppercase text-[11px] px-1.5 py-2">{% trans "Debit" %}</th>
+          <th class="gl-th gl-col-num text-right uppercase text-[11px] px-1.5 py-2">{% trans "Credit" %}</th>
+          <th class="gl-th gl-col-num text-right uppercase text-[11px] px-1.5 py-2">{% trans "Balance" %}</th>
+          <th class="gl-th gl-col-posted hidden-print text-left uppercase text-[11px] px-1.5 py-2">{% trans "Posted by" %}</th>
         </tr>
       </thead>
       <tbody>
-        {% if groups %}
-          {# Opening balance row before transactions #}
-          {% if opening_balance is not None %}
-          <tr style="background:#fef6e7; font-weight:600;">
-            <td>{{ filters.period_start|date:"d/m/Y" }}</td>
-            <td></td>
-            <td></td>
-            <td class="text-xs text-[#605e5c]">—</td>
-            <td>Opening balance</td>
-            <td style="text-align:right; color:#a4262c;">0.00</td>
-            <td style="text-align:right; color:#107c10;">0.00</td>
-            <td style="text-align:right; font-weight:700;">{{ opening_balance|floatformat:2 }}</td>
-          </tr>
-          {% endif %}
-
-          {% for g in groups %}
-          <tr>
-            <td colspan="8" style="background:#f3f2f1; font-weight:600; color:#323130;">
-              {{ g.category }}
-            </td>
-          </tr>
-          {% for row in g.rows %}
-          <tr>
-            <td>{{ row.date|date:"d/m/Y" }}</td>
-            <td>{{ row.reference }}</td>
-            <td>{{ row.account_code }}</td>
-            <td class="text-xs text-[#605e5c]">{{ row.budget_category }}</td>
-            <td>{{ row.memo|truncatewords:10 }}</td>
-            <td style="text-align:right; color:#a4262c;">{{ row.debit|floatformat:2 }}</td>
-            <td style="text-align:right; color:#107c10;">{{ row.credit|floatformat:2 }}</td>
-            <td style="text-align:right; font-weight:600;">{{ row.running_balance|floatformat:2 }}</td>
-          </tr>
+        {% if account_sections %}
+          {% for item in account_sections %}
+            {% if item.type == 'header' %}
+            <tr class="gl-ledger-account-row hidden-print" style="background:#e8f4fc; color:#004578;">
+              <td colspan="11" class="font-bold px-3 py-2 text-[13px]">
+                {% trans "Account" %}: {{ item.code }} — {{ item.name }}
+              </td>
+            </tr>
+            {% else %}
+            <tr class="gl-data-row border-b transition-colors duration-100" style="border-color:#edebe9;">
+              <td class="px-1.5 py-1.5 whitespace-nowrap text-[11px]">{{ item.gl_date|date:"d/m/Y" }}</td>
+              <td class="px-1.5 py-1.5 text-[11px]">
+                <a href="{% url 'tenant_portal:finance_journal_detail' item.entry_id %}" class="gl-journal-link">{{ item.journal_number }}</a>
+              </td>
+              <td class="px-1.5 py-1.5 gl-col-wrap text-[11px]" title="{{ item.account_label }}">{{ item.account_label }}</td>
+              <td class="px-1.5 py-1.5 gl-col-wrap text-[11px]" title="{{ item.grant }}">{{ item.grant }}</td>
+              <td class="px-1.5 py-1.5 gl-col-wrap text-[11px]" title="{{ item.donor }}">{{ item.donor }}</td>
+              <td class="px-1.5 py-1.5 text-[#605e5c] gl-col-wrap text-[11px]">{{ item.activity }}</td>
+              <td class="px-1.5 py-1.5 gl-col-desc text-[11px] text-[#323130]">{{ item.memo }}</td>
+              <td class="gl-col-num px-1.5 py-1.5 text-right tabular-nums text-[11px]" style="color:#a4262c;">{% if item.debit %}{{ item.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+              <td class="gl-col-num px-1.5 py-1.5 text-right tabular-nums text-[11px]" style="color:#107c10;">{% if item.credit %}{{ item.credit|floatformat:2 }}{% else %}—{% endif %}</td>
+              <td class="gl-col-num px-1.5 py-1.5 text-right font-semibold tabular-nums text-[11px]">{{ item.running_balance|floatformat:2 }}</td>
+              <td class="gl-col-posted hidden-print px-1.5 py-1.5 text-[#605e5c] text-[11px]">{{ item.posted_by }}</td>
+            </tr>
+            {% endif %}
           {% endfor %}
-          {% endfor %}
-          <tr style="background:#1b4f9c; color:#ffffff; font-weight:600; border-top:1px solid #102a6b;">
-            <td colspan="5" style="text-align:right;">Grand Total</td>
-            <td style="text-align:right; color:#ffb3b3; background:#1b4f9c;">{{ grand_total_debit|floatformat:2 }}</td>
-            <td style="text-align:right; color:#c6f6d5; background:#1b4f9c;">{{ grand_total_credit|floatformat:2 }}</td>
-            <td style="text-align:right; font-weight:700; background:#1b4f9c;">
-              {{ closing_balance|floatformat:2 }}
-            </td>
+          <tr class="gl-total-row gl-ledger-grand-total" style="background:#1b4f9c; color:#fff; font-weight:600;">
+            <td colspan="7" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
+            <td class="gl-col-num gl-print-gt-debit text-right px-2 py-2" style="color:#ffb3b3;">{{ grand_total_debit|floatformat:2 }}</td>
+            <td class="gl-col-num gl-print-gt-credit text-right px-2 py-2" style="color:#c6f6d5;">{{ grand_total_credit|floatformat:2 }}</td>
+            <td class="gl-col-num gl-print-gt-balance text-right px-2 py-2 font-bold">{{ closing_balance|floatformat:2 }}</td>
+            <td class="gl-col-posted hidden-print"></td>
           </tr>
         {% else %}
-        <tr><td colspan="8" style="padding:16px; text-align:center; color:#605e5c;">No transactions in the selected period.</td></tr>
+          <tr>
+            <td colspan="11" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No posted lines match the selected filters." %}</td>
+          </tr>
         {% endif %}
       </tbody>
     </table>
   </div>
+  {# Print / PDF only: cash & bank reconciliation (same filters & posted lines as ledger) #}
+  <div class="print-only gl-reconciliation-print pb-3">
+    <div class="gl-recon-summary-title">{% trans "Reconciliation summary" %}</div>
+    <table class="gl-recon-summary-table" role="presentation">
+      <tbody>
+        <tr>
+          <td class="gl-recon-label gl-recon-sub" colspan="2" style="text-align:left;padding-left:0;">{% trans "Receipts (debits on cash & bank)" %}</td>
+        </tr>
+        <tr>
+          <td class="gl-recon-label gl-recon-sub">{% trans "Receipt vouchers" %}</td>
+          <td class="gl-recon-amt gl-recon-sub-amt">{{ gl_recon_rv_debits|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td class="gl-recon-label gl-recon-sub">{% trans "Other debits" %}</td>
+          <td class="gl-recon-amt gl-recon-sub-amt">{{ gl_recon_other_debits|floatformat:2 }}</td>
+        </tr>
+        <tr class="gl-recon-subtotal">
+          <td class="gl-recon-label">{% trans "Total receipts" %}</td>
+          <td class="gl-recon-amt">{{ gl_recon_receipts|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td class="gl-recon-label gl-recon-sub" colspan="2" style="text-align:left;padding-left:0;padding-top:6px;">{% trans "Payments (credits on cash & bank)" %}</td>
+        </tr>
+        <tr>
+          <td class="gl-recon-label gl-recon-sub">{% trans "Payment vouchers" %}</td>
+          <td class="gl-recon-amt gl-recon-sub-amt">{{ gl_recon_pv_credits|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td class="gl-recon-label gl-recon-sub">{% trans "Other credits" %}</td>
+          <td class="gl-recon-amt gl-recon-sub-amt">{{ gl_recon_other_credits|floatformat:2 }}</td>
+        </tr>
+        <tr class="gl-recon-subtotal">
+          <td class="gl-recon-label">{% trans "Total payments" %}</td>
+          <td class="gl-recon-amt">{{ gl_recon_payments|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td class="gl-recon-label" style="padding-top:8px;">{% trans "Net movement" %}</td>
+          <td class="gl-recon-amt" style="padding-top:8px;">{{ gl_recon_net|floatformat:2 }}</td>
+        </tr>
+        <tr class="gl-recon-closing-row">
+          <td class="gl-recon-label">{% trans "Closing balance" %}</td>
+          <td class="gl-recon-amt">{{ gl_recon_closing|floatformat:2 }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
-
-{# Footer totals section with large ERP-style summary cards #}
-<div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 print:bg-transparent print:border-0">
-  <div class="rounded-lg border shadow-sm px-4 py-3 bg-white"
-       style="border-color:#edebe9;">
-    <div class="text-[11px] uppercase tracking-wide text-[#605e5c] mb-1">Total Income</div>
-    <div class="text-[20px] font-semibold text-[#107c10]">
-      {{ grand_total_credit|floatformat:2 }}
-    </div>
-  </div>
-  <div class="rounded-lg border shadow-sm px-4 py-3 bg-white"
-       style="border-color:#edebe9;">
-    <div class="text-[11px] uppercase tracking-wide text-[#605e5c] mb-1">Total Expenditure</div>
-    <div class="text-[20px] font-semibold text-[#a4262c]">
-      {{ grand_total_debit|floatformat:2 }}
-    </div>
-  </div>
-  <div class="rounded-lg border shadow-sm px-4 py-3 bg-white"
-       style="border-color:#edebe9;">
-    <div class="text-[11px] uppercase tracking-wide text-[#605e5c] mb-1">Balance</div>
-    <div class="text-[20px] font-semibold text-[#005a9e]">
-      {{ closing_balance|floatformat:2 }}
-    </div>
-  </div>
 </div>
 {% endblock %}

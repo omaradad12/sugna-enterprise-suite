@@ -1,0 +1,201 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Governance Center" %} | {% trans "Finance" %}{% endblock %}
+
+{% block content %}
+<style>
+  /* Scoped refinements — aligns with Finance / Audit Trail Dynamics styling */
+  .gvc-kpi-tile {
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .gvc-kpi-tile:hover {
+    border-color: #0078d4;
+    background: #fafdff;
+    box-shadow: 0 1.6px 3.6px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 120, 212, 0.06);
+  }
+  .gvc-kpi-tile:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+  }
+  .gvc-nav-tile {
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+  .gvc-nav-tile:hover {
+    border-color: #0078d4;
+    background: #faf9f8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+  .gvc-nav-tile:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+  }
+  .gvc-nav-tile .gvc-nav-icon {
+    background: #f3f2f1;
+    color: #0078d4;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .gvc-nav-tile:hover .gvc-nav-icon {
+    background: #deecf9;
+    color: #005a9e;
+  }
+</style>
+
+<div class="max-w-[1240px] mx-auto pb-8 text-[#323130]" style="font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;">
+
+  <div class="mb-5">
+    <h1 class="!text-2xl !font-bold !tracking-tight text-[#323130]">{% trans "Governance Center" %}</h1>
+    <p class="text-sm mt-1.5 text-[#605e5c] max-w-2xl leading-relaxed">{% trans "Control approvals, permissions, audit trail, and compliance documentation." %}</p>
+  </div>
+
+  <div class="mb-5 flex flex-wrap gap-2">
+    <a href="{% url 'tenant_portal:finance_journal_approval' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Journal approvals" %}</a>
+    <a href="{% url 'tenant_portal:finance_audit_trail' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Audit trail" %}</a>
+    <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Workflow setup" %}</a>
+    <a href="{% url 'tenant_portal:audit_risk_compliance' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Compliance" %}</a>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "At a glance" %}</div>
+    <div class="p-4">
+      <p class="text-xs text-[#605e5c] mb-4 -mt-1">{% trans "Approvals, workflows, and monitoring signals — click a metric to open the related workspace." %}</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {% for k in gov_kpis %}
+        <a href="{{ k.href }}" class="gvc-kpi-tile block no-underline text-inherit p-4 min-h-[5.5rem]">
+          <span class="block text-xl sm:text-2xl font-semibold text-[#323130] tabular-nums tracking-tight">{{ k.value }}</span>
+          <span class="block text-[11px] font-semibold uppercase tracking-wide text-[#605e5c] mt-2 leading-snug">{{ k.label }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Approval control" %}</div>
+    <div class="p-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="check-square" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Approval workflows" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Configure document types, stages, and routing rules." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+        <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="user-check" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Authorization levels" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Posting permissions and signing limits by role." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+        <a href="{% url 'tenant_portal:finance_journal_approval' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group sm:col-span-2 lg:col-span-1">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="users" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Maker-checker approval" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Journal submission, review, and approval queue." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Audit & monitoring" %}</div>
+    <div class="p-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a href="{% url 'tenant_portal:finance_audit_trail' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="shield" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Audit trail" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Financial change history with export options." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+        <a href="{% url 'tenant_portal:audit_risk_compliance' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="clipboard" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Compliance logs" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Control compliance register and monitoring workspace." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Document management" %}</div>
+    <div class="p-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <a href="{% url 'tenant_portal:audit_risk_evidence' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="paperclip" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Document attachments" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Evidence vault and investigation file store." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+        <a href="{% url 'tenant_portal:audit_risk_findings' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="file-text" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Supporting documents" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Findings, working papers, and audit documentation." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Recent approval activity" %}</div>
+    {% if gov_recent_activity %}
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+          <th class="px-4 py-2 font-semibold">{% trans "When" %}</th>
+          <th class="px-4 py-2 font-semibold">{% trans "User" %}</th>
+          <th class="px-4 py-2 font-semibold">{% trans "Summary" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in gov_recent_activity %}
+        <tr class="border-b hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">
+          <td class="px-4 py-2 text-[#605e5c] whitespace-nowrap">{{ row.when_display }}</td>
+          <td class="px-4 py-2 text-[#323130]">{{ row.user }}</td>
+          <td class="px-4 py-2 text-[#323130]">{{ row.summary }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="px-4 py-6 text-center text-sm text-[#605e5c]">{% trans "No recent approval-related audit entries match the current filter." %}</p>
+    {% endif %}
+    <div class="px-4 py-3 border-t text-sm" style="border-color:#edebe9; background:#faf9f8;">
+      <a href="{% url 'tenant_portal:finance_audit_trail' %}" class="font-semibold text-[#0078d4] hover:underline">{% trans "Open full audit trail" %}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

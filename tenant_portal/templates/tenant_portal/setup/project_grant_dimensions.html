@@ -188,6 +188,22 @@
     background: #f3f2f1;
     color: #605e5c;
   }
+  .dyn-badge-hold {
+    background: #fff4ce;
+    color: #8a6d1a;
+  }
+  .dyn-badge-completed {
+    background: #deecf9;
+    color: #004578;
+  }
+  .dyn-badge-closed {
+    background: #e8e8e8;
+    color: #323130;
+  }
+  .dyn-pill-muted {
+    background: #f3f2f1;
+    color: #323130;
+  }
 
   /* Pagination & helpers */
   .dyn-pagination {
@@ -258,22 +274,47 @@
 <div class="dyn-section">
   <div class="dyn-section-title">
     <span>1. Projects</span>
-    {% if can_manage %}
-    <a href="{% url 'tenant_portal:setup_project_dimension_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> Add project</a>
-    {% endif %}
+    <span style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <a href="{% url 'tenant_portal:grants_projects_list' %}" class="dyn-link" style="font-weight:600;">Full project list</a>
+      {% if can_manage %}
+      <a href="{% url 'tenant_portal:setup_project_dimension_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> Add project</a>
+      {% endif %}
+    </span>
   </div>
   <div class="dyn-section-body">
     <form method="get" class="dyn-toolbar">
       <input type="hidden" name="page_grant" value="{{ request.GET.page_grant|default:'1' }}" />
       <input type="hidden" name="page_map" value="{{ request.GET.page_map|default:'1' }}" />
+      <input type="hidden" name="q_grant" value="{{ filter_q_grant }}" />
+      <input type="hidden" name="status_grant" value="{{ filter_status_grant }}" />
       <input type="text" name="q_proj" value="{{ filter_q_proj }}" placeholder="Search code, name…" />
+      <select name="donor_id">
+        <option value="">All donors</option>
+        {% for d in donors_for_project_filter %}
+        <option value="{{ d.pk }}" {% if filter_donor_id == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
       <select name="status_proj">
         <option value="">All statuses</option>
+        <option value="draft" {% if filter_status_proj == 'draft' %}selected{% endif %}>Draft</option>
         <option value="planning" {% if filter_status_proj == 'planning' %}selected{% endif %}>Planning</option>
         <option value="active" {% if filter_status_proj == 'active' %}selected{% endif %}>Active</option>
         <option value="on_hold" {% if filter_status_proj == 'on_hold' %}selected{% endif %}>On hold</option>
         <option value="closed" {% if filter_status_proj == 'closed' %}selected{% endif %}>Closed</option>
         <option value="completed" {% if filter_status_proj == 'completed' %}selected{% endif %}>Completed</option>
+      </select>
+      <input type="text" name="program" value="{{ filter_program }}" placeholder="Program…" />
+      <input type="text" name="location" value="{{ filter_location }}" placeholder="Location…" />
+      <input type="date" name="start_after" value="{{ filter_start_after }}" title="Start on or after" />
+      <input type="date" name="end_before" value="{{ filter_end_before }}" title="Effective end by" />
+      <select name="sort_proj">
+        <option value="code" {% if filter_sort_proj == 'code' %}selected{% endif %}>Sort: Code</option>
+        <option value="name" {% if filter_sort_proj == 'name' %}selected{% endif %}>Title</option>
+        <option value="donor" {% if filter_sort_proj == 'donor' %}selected{% endif %}>Donor</option>
+        <option value="start" {% if filter_sort_proj == 'start' %}selected{% endif %}>Start</option>
+        <option value="end" {% if filter_sort_proj == 'end' %}selected{% endif %}>End (eff.)</option>
+        <option value="status" {% if filter_sort_proj == 'status' %}selected{% endif %}>Status</option>
+        <option value="updated" {% if filter_sort_proj == 'updated' %}selected{% endif %}>Updated</option>
       </select>
       <button type="submit" class="dyn-btn-primary">Filter</button>
       <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="dyn-btn-secondary">Clear</a>
@@ -285,10 +326,18 @@
             <th>Code</th>
             <th>Project Name</th>
             <th>Donor</th>
-            <th>Project Manager</th>
-            <th>Start Date</th>
-            <th>End Date</th>
+            <th>Manager</th>
+            <th>Location</th>
+            <th>Program</th>
+            <th>Start</th>
+            <th>End (eff.)</th>
+            <th>Benef.</th>
+            <th>Budget</th>
+            <th>Spent</th>
+            <th>Remaining</th>
             <th>Status</th>
+            <th>Phase</th>
+            <th>Updated</th>
             {% if can_manage %}<th style="width:100px;">Actions</th>{% endif %}
           </tr>
         </thead>
@@ -305,13 +354,21 @@
                 —
               {% endif %}
             </td>
+            <td>{{ p.location|default:"—" }}</td>
+            <td>{{ p.program_sector|default:"—" }}</td>
             <td>{{ p.start_date|date:"Y-m-d"|default:"—" }}</td>
-            <td>{{ p.end_date|date:"Y-m-d"|default:"—" }}</td>
+            <td>{% if p.effective_end %}{{ p.effective_end|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td>{{ p.total_beneficiaries }}</td>
+            <td>{{ p.fin.total_budget|floatformat:2 }}</td>
+            <td>{{ p.fin.total_spent|floatformat:2 }}</td>
+            <td><span class="dyn-pill {% if p.fin.remaining < 0 %}dyn-pill-red{% elif p.fin.remaining == 0 %}dyn-pill-orange{% else %}dyn-pill-green{% endif %}">{{ p.fin.remaining|floatformat:2 }}</span></td>
             <td>
-              <span class="{% if p.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">
+              <span class="{% if p.status == 'active' %}dyn-badge-active{% elif p.status == 'on_hold' %}dyn-badge-hold{% elif p.status == 'completed' %}dyn-badge-completed{% elif p.status == 'closed' %}dyn-badge-closed{% else %}dyn-badge-inactive{% endif %}">
                 {{ p.get_status_display }}
               </span>
             </td>
+            <td>{{ p.calendar_phase_label|default:"—" }}</td>
+            <td style="white-space:nowrap;">{{ p.updated_at|date:"Y-m-d H:i" }}</td>
             {% if can_manage %}
             <td>
               <a href="{% url 'tenant_portal:setup_project_dimension_edit' p.pk %}" class="dyn-link">Edit</a>
@@ -321,7 +378,7 @@
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="{% if can_manage %}8{% else %}7{% endif %}" class="dyn-empty">No projects found.</td></tr>
+          <tr><td colspan="{% if can_manage %}17{% else %}16{% endif %}" class="dyn-empty">No projects found.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -354,6 +411,12 @@
       <input type="hidden" name="page_map" value="{{ request.GET.page_map|default:'1' }}" />
       <input type="hidden" name="q_proj" value="{{ filter_q_proj }}" />
       <input type="hidden" name="status_proj" value="{{ filter_status_proj }}" />
+      <input type="hidden" name="donor_id" value="{{ filter_donor_id }}" />
+      <input type="hidden" name="program" value="{{ filter_program }}" />
+      <input type="hidden" name="location" value="{{ filter_location }}" />
+      <input type="hidden" name="start_after" value="{{ filter_start_after }}" />
+      <input type="hidden" name="end_before" value="{{ filter_end_before }}" />
+      <input type="hidden" name="sort_proj" value="{{ filter_sort_proj }}" />
       <input type="text" name="q_grant" value="{{ filter_q_grant }}" placeholder="Search code, name, donor…" />
       <select name="status_grant">
         <option value="">All statuses</option>
@@ -438,6 +501,12 @@
       <input type="hidden" name="page_grant" value="{{ request.GET.page_grant|default:'1' }}" />
       <input type="hidden" name="q_proj" value="{{ filter_q_proj }}" />
       <input type="hidden" name="status_proj" value="{{ filter_status_proj }}" />
+      <input type="hidden" name="donor_id" value="{{ filter_donor_id }}" />
+      <input type="hidden" name="program" value="{{ filter_program }}" />
+      <input type="hidden" name="location" value="{{ filter_location }}" />
+      <input type="hidden" name="start_after" value="{{ filter_start_after }}" />
+      <input type="hidden" name="end_before" value="{{ filter_end_before }}" />
+      <input type="hidden" name="sort_proj" value="{{ filter_sort_proj }}" />
       <input type="hidden" name="q_grant" value="{{ filter_q_grant }}" />
       <input type="hidden" name="status_grant" value="{{ filter_status_grant }}" />
       <button type="submit" class="dyn-btn-primary">Refresh</button>

@@ -27,6 +27,17 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or os.environ.get("SECRET_KEY",
 # Set DEBUG=false or 0 in production.
 DEBUG = os.environ.get("DEBUG", "true").lower() in ("true", "1", "yes")
 
+# Auto-run `migrate` on a tenant DB when code detects missing migrations (e.g. new columns).
+# Defaults ON when DEBUG=true so local dev works without `migrate_tenant` after model changes.
+# In production set DEBUG=false and keep TENANT_AUTO_MIGRATE unset or false.
+_tam = os.environ.get("TENANT_AUTO_MIGRATE", "").strip().lower()
+if _tam in ("true", "1", "yes"):
+    TENANT_AUTO_MIGRATE = True
+elif _tam in ("false", "0", "no"):
+    TENANT_AUTO_MIGRATE = False
+else:
+    TENANT_AUTO_MIGRATE = DEBUG
+
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "*").split(",") if h.strip()]
 if os.environ.get("CSRF_TRUSTED_ORIGINS"):
     CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ["CSRF_TRUSTED_ORIGINS"].split(",") if o.strip()]

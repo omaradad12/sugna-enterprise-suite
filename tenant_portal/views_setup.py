@@ -663,20 +663,67 @@ def setup_cost_centers_delete_view(request: HttpRequest, pk: int) -> HttpRespons
 
 
 # ----- Project / Grant dimensions -----
+PROJECTS_LIST_PAGE_SIZE = 25
+
+
 def _project_dimensions_queryset(tenant_db: str, request: HttpRequest):
+    from datetime import datetime
+
+    from django.db.models.functions import Coalesce
+
     from tenant_grants.models import Project
 
-    qs = (
-        Project.objects.using(tenant_db)
-        .select_related("donor", "project_manager")
-        .order_by("code")
-    )
-    q = (request.GET.get("q_proj") or "").strip()
+    qs = Project.objects.using(tenant_db).select_related("donor", "project_manager", "currency")
+    qs = qs.annotate(effective_end=Coalesce("revised_end_date", "original_end_date", "end_date"))
+
+    q = (request.GET.get("q_proj") or request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q))
-    status = (request.GET.get("status_proj") or "").strip()
+    status = (request.GET.get("status_proj") or request.GET.get("status") or "").strip()
     if status:
         qs = qs.filter(status=status)
+    donor_id = (request.GET.get("donor_id") or "").strip()
+    if donor_id.isdigit():
+        qs = qs.filter(donor_id=int(donor_id))
+    prog = (request.GET.get("program") or "").strip()
+    if prog:
+        qs = qs.filter(program_sector__icontains=prog)
+    loc = (request.GET.get("location") or "").strip()
+    if loc:
+        qs = qs.filter(location__icontains=loc)
+    start_after = (request.GET.get("start_after") or "").strip()
+    if start_after:
+        try:
+            sa = datetime.strptime(start_after, "%Y-%m-%d").date()
+            qs = qs.filter(Q(start_date__isnull=True) | Q(start_date__gte=sa))
+        except ValueError:
+            pass
+    end_before = (request.GET.get("end_before") or "").strip()
+    if end_before:
+        try:
+            eb = datetime.strptime(end_before, "%Y-%m-%d").date()
+            qs = qs.filter(effective_end__lte=eb, effective_end__isnull=False)
+        except ValueError:
+            pass
+
+    sort = (request.GET.get("sort_proj") or request.GET.get("sort") or "code").strip()
+    order_map = {
+        "code": "code",
+        "-code": "-code",
+        "name": "name",
+        "-name": "-name",
+        "start": "start_date",
+        "-start": "-start_date",
+        "end": "effective_end",
+        "-end": "-effective_end",
+        "status": "status",
+        "-status": "-status",
+        "donor": "donor__name",
+        "-donor": "-donor__name",
+        "updated": "-updated_at",
+        "-updated": "updated_at",
+    }
+    qs = qs.order_by(order_map.get(sort, "code"))
     return qs
 
 
@@ -737,8 +784,23 @@ def setup_grant_dimensions_list_view(request: HttpRequest) -> HttpResponse:
     ctx["grants_page"] = grants_page
     ctx["mapping_page"] = paginator_map.get_page(page_map)
 
+    from tenant_grants.services.project_financials import attach_project_financials
+
+    attach_project_financials(list(projects_page.object_list), tenant_db)
+
     ctx["filter_q_proj"] = request.GET.get("q_proj", "")
     ctx["filter_status_proj"] = request.GET.get("status_proj", "")
+    ctx["filter_donor_id"] = request.GET.get("donor_id", "")
+    ctx["filter_program"] = request.GET.get("program", "")
+    ctx["filter_location"] = request.GET.get("location", "")
+    ctx["filter_sort_proj"] = request.GET.get("sort_proj", "") or request.GET.get("sort", "code")
+    ctx["filter_start_after"] = request.GET.get("start_after", "")
+    ctx["filter_end_before"] = request.GET.get("end_before", "")
+    from tenant_grants.models import Donor
+
+    ctx["donors_for_project_filter"] = (
+        Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
+    )
     ctx["filter_q_grant"] = request.GET.get("q_grant", "")
     ctx["filter_status_grant"] = request.GET.get("status_grant", "")
 
@@ -788,6 +850,133 @@ def setup_grant_dimensions_list_view(request: HttpRequest) -> HttpResponse:
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def projects_list_view(request: HttpRequest) -> HttpResponse:
+    import csv
+    from io import StringIO
+
+    from django.db.models import Count
+    from django.http import HttpResponse
+
+    from tenant_grants.models import Donor, Project
+    from tenant_grants.services.project_financials import attach_project_financials
+
+    tenant_db = request.tenant_db
+
+    if (request.GET.get("export") or "").strip().lower() == "csv":
+        projects_qs = list(_project_dimensions_queryset(tenant_db, request))
+        attach_project_financials(projects_qs, tenant_db)
+        buf = StringIO()
+        buf.write("\ufeff")
+        w = csv.writer(buf)
+        w.writerow(
+            [
+                "Code",
+                "Title",
+                "Donor",
+                "Manager",
+                "Location",
+                "Program",
+                "Start date",
+                "End date (effective)",
+                "Beneficiaries",
+                "Funding type",
+                "Currency",
+                "Grants",
+                "Budget",
+                "Spent",
+                "Remaining",
+                "Status",
+                "Calendar phase",
+                "Updated at",
+            ]
+        )
+        for p in projects_qs:
+            fin = getattr(p, "fin", {}) or {}
+            donor = p.donor.name if p.donor_id else ""
+            mgr = ""
+            if p.project_manager_id:
+                u = p.project_manager
+                mgr = (u.get_full_name() or u.email or "").strip()
+            ccy = ""
+            if p.currency_id:
+                ccy = p.currency.code
+            elif fin.get("primary_currency"):
+                ccy = fin["primary_currency"].code
+            w.writerow(
+                [
+                    p.code,
+                    p.name,
+                    donor,
+                    mgr,
+                    p.location or "",
+                    p.program_sector or "",
+                    p.start_date.isoformat() if p.start_date else "",
+                    p.effective_end.isoformat() if getattr(p, "effective_end", None) else "",
+                    p.total_beneficiaries,
+                    p.get_funding_type_display() if p.funding_type else "",
+                    ccy,
+                    fin.get("grant_count", 0),
+                    fin.get("total_budget", ""),
+                    fin.get("total_spent", ""),
+                    fin.get("remaining", ""),
+                    p.get_status_display(),
+                    p.calendar_phase_label() or "",
+                    p.updated_at.isoformat() if p.updated_at else "",
+                ]
+            )
+        resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
+        resp["Content-Disposition"] = 'attachment; filename="project_list.csv"'
+        return resp
+
+    ctx = _setup_context(request)
+    ctx["active_submenu"] = "funds"
+    ctx["active_item"] = "funds_projects_list"
+    ctx["page_title"] = "Project list"
+
+    projects_qs = _project_dimensions_queryset(tenant_db, request)
+    paginator = Paginator(projects_qs, PROJECTS_LIST_PAGE_SIZE)
+    page_num = request.GET.get("page") or request.GET.get("page_proj") or "1"
+    projects_page = paginator.get_page(page_num)
+    attach_project_financials(list(projects_page.object_list), tenant_db)
+
+    status_rows = Project.objects.using(tenant_db).values("status").annotate(c=Count("id"))
+    ctx["projects_page"] = projects_page
+    status_counts = {row["status"]: row["c"] for row in status_rows}
+    ctx["project_status_counts"] = status_counts
+    ctx["projects_total_count"] = Project.objects.using(tenant_db).count()
+    ctx["status_summary_rows"] = [
+        {"value": val, "label": str(label), "count": status_counts.get(val, 0)}
+        for val, label in Project.Status.choices
+    ]
+
+    ctx["filter_q"] = request.GET.get("q") or request.GET.get("q_proj") or ""
+    ctx["filter_status"] = request.GET.get("status") or request.GET.get("status_proj") or ""
+    ctx["filter_donor_id"] = request.GET.get("donor_id", "")
+    ctx["filter_program"] = request.GET.get("program", "")
+    ctx["filter_location"] = request.GET.get("location", "")
+    ctx["filter_start_after"] = request.GET.get("start_after", "")
+    ctx["filter_end_before"] = request.GET.get("end_before", "")
+    ctx["filter_sort"] = request.GET.get("sort") or request.GET.get("sort_proj") or "code"
+    ctx["donors_for_project_filter"] = (
+        Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
+    )
+    ctx["project_status_choices"] = Project.Status.choices
+
+    get = request.GET.copy()
+    for key in ("page", "page_proj", "export"):
+        if key in get:
+            get.pop(key)
+    ctx["base_query"] = get.urlencode()
+    export_get = request.GET.copy()
+    for key in ("page", "page_proj", "export"):
+        export_get.pop(key, None)
+    export_get["export"] = "csv"
+    ctx["projects_export_query"] = export_get.urlencode()
+
+    return render(request, "tenant_portal/grants/projects_list.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_grant_dimensions_add_view(request: HttpRequest) -> HttpResponse:
     ctx = _setup_context(request)
     ctx["active_item"] = "setup_project_grant_dims"
@@ -808,6 +997,146 @@ def setup_grant_dimensions_delete_view(request: HttpRequest, pk: int) -> HttpRes
     return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
 
+def _save_project_from_post(
+    *,
+    tenant_db: str,
+    post,
+    existing=None,
+) -> tuple[list[str], object | None]:
+    """Parse POST into a Project, full_clean, save. Returns (errors, saved_instance_or_none)."""
+    from datetime import datetime
+
+    from tenant_finance.models import Currency
+    from tenant_grants.models import Donor, Project
+    from tenant_users.models import TenantUser
+
+    errors: list[str] = []
+    code = (post.get("code") or "").strip()
+    name = (post.get("name") or "").strip()
+    donor_id = (post.get("donor_id") or "").strip()
+    pm_id = (post.get("project_manager_id") or "").strip()
+    currency_id = (post.get("currency_id") or "").strip()
+    location = (post.get("location") or "").strip()
+    program_sector = (post.get("program_sector") or "").strip()
+    funding_type = (post.get("funding_type") or "").strip()
+    status = (post.get("status") or "").strip() or Project.Status.PLANNING
+    start_date = (post.get("start_date") or "").strip() or None
+    end_date = (post.get("end_date") or "").strip() or None
+    original_end_date = (post.get("original_end_date") or "").strip() or None
+    revised_end_date = (post.get("revised_end_date") or "").strip() or None
+    tb_raw = (post.get("total_beneficiaries") or "").strip()
+
+    if not code:
+        errors.append("Project code is required.")
+    if not name:
+        errors.append("Project name is required.")
+    valid_status = {c[0] for c in Project.Status.choices}
+    if status not in valid_status:
+        errors.append("Invalid status.")
+
+    if tb_raw:
+        try:
+            tb = int(tb_raw)
+            if tb < 0:
+                errors.append("Beneficiaries cannot be negative.")
+        except ValueError:
+            errors.append("Total beneficiaries must be a whole number.")
+            tb = 0
+    else:
+        tb = 0 if not existing else existing.total_beneficiaries
+
+    def _parse_date(label: str, raw: str | None):
+        if not raw:
+            return None, None
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date(), None
+        except ValueError:
+            return None, f"Invalid {label}. Use YYYY-MM-DD."
+
+    sd, e = _parse_date("start date", start_date)
+    if e:
+        errors.append(e)
+    ed, e = _parse_date("end date", end_date)
+    if e:
+        errors.append(e)
+    oed, e = _parse_date("original end date", original_end_date)
+    if e:
+        errors.append(e)
+    red, e = _parse_date("revised end date", revised_end_date)
+    if e:
+        errors.append(e)
+
+    if existing is None:
+        if code and Project.objects.using(tenant_db).filter(code__iexact=code).exists():
+            errors.append("A project with this code already exists.")
+    elif code and Project.objects.using(tenant_db).filter(code__iexact=code).exclude(pk=existing.pk).exists():
+        errors.append("A project with this code already exists.")
+
+    if errors:
+        return errors, None
+
+    donor = Donor.objects.using(tenant_db).filter(pk=int(donor_id)).first() if donor_id.isdigit() else None
+    pm = TenantUser.objects.using(tenant_db).filter(pk=int(pm_id)).first() if pm_id.isdigit() else None
+    currency = (
+        Currency.objects.using(tenant_db).filter(pk=int(currency_id)).first() if currency_id.isdigit() else None
+    )
+
+    if existing is not None:
+        obj = existing
+        obj.code = code
+        obj.name = name
+    else:
+        obj = Project(code=code, name=name)
+
+    obj.donor = donor
+    obj.project_manager = pm
+    obj.currency = currency
+    obj.location = location
+    obj.program_sector = program_sector
+    obj.funding_type = funding_type
+    obj.status = status
+    obj.is_active = status == Project.Status.ACTIVE
+    obj.start_date = sd
+    obj.end_date = ed
+    if "original_end_date" in post:
+        obj.original_end_date = oed
+    if "revised_end_date" in post:
+        obj.revised_end_date = red
+
+    obj.total_beneficiaries = tb
+
+    try:
+        obj.full_clean()
+    except ValidationError as exc:
+        for _f, msgs in exc.error_dict.items():
+            errors.extend(str(m) for m in msgs)
+        if exc.error_list:
+            errors.extend(str(m) for m in exc.error_list)
+        return errors, None
+
+    obj.save(using=tenant_db)
+    return [], obj
+
+
+def _project_dimension_form_context(tenant_db: str, ctx: dict, project=None) -> dict:
+    from tenant_finance.models import Currency
+    from tenant_grants.models import Donor, Project
+    from tenant_users.models import TenantUser
+
+    ctx["donors"] = list(
+        Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
+    )
+    ctx["users"] = list(TenantUser.objects.using(tenant_db).filter(is_active=True).order_by("email"))
+    ctx["currencies"] = list(
+        Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code")
+    )
+    ctx["project_statuses"] = Project.Status.choices
+    ctx["funding_types"] = Project.FundingType.choices
+    ctx["project"] = project
+    ctx["projects_list_url"] = reverse("tenant_portal:grants_projects_list")
+    return ctx
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_project_dimension_add_view(request: HttpRequest) -> HttpResponse:
     tenant_db = request.tenant_db
@@ -815,57 +1144,19 @@ def setup_project_dimension_add_view(request: HttpRequest) -> HttpResponse:
     ctx["active_item"] = "setup_project_grant_dims"
     if not ctx["can_manage"]:
         messages.error(request, "You do not have permission to add projects.")
-        return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
-
-    from tenant_grants.models import Donor, Project
+        return redirect(reverse("tenant_portal:grants_projects_list"))
 
     if request.method == "POST":
-        code = (request.POST.get("code") or "").strip()
-        name = (request.POST.get("name") or "").strip()
-        donor_id = (request.POST.get("donor_id") or "").strip()
-        start_date = (request.POST.get("start_date") or "").strip() or None
-        end_date = (request.POST.get("end_date") or "").strip() or None
-        is_active = request.POST.get("is_active") == "1"
-        errors = []
-        if not code:
-            errors.append("Project code is required.")
-        if not name:
-            errors.append("Project name is required.")
-        if code and Project.objects.using(tenant_db).filter(code__iexact=code).exists():
-            errors.append("A project with this code already exists.")
-        if not errors and start_date and end_date:
-            from datetime import datetime
-
-            try:
-                sd = datetime.strptime(start_date, "%Y-%m-%d").date()
-                ed = datetime.strptime(end_date, "%Y-%m-%d").date()
-                if sd > ed:
-                    errors.append("End date must be on or after start date.")
-            except ValueError:
-                errors.append("Invalid date format. Use YYYY-MM-DD.")
-        if errors:
-            for e in errors:
+        errs, _saved = _save_project_from_post(tenant_db=tenant_db, post=request.POST, existing=None)
+        if errs:
+            for e in errs:
                 messages.error(request, e)
         else:
-            from datetime import datetime
-
-            donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first() if donor_id else None
-            sd = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-            ed = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
-            Project.objects.using(tenant_db).create(
-                code=code,
-                name=name,
-                donor=donor,
-                start_date=sd,
-                end_date=ed,
-                is_active=is_active,
-            )
             messages.success(request, "Project created.")
-            return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+            return redirect(reverse("tenant_portal:grants_projects_list"))
 
-    donors = list(Donor.objects.using(tenant_db).filter(status="active").order_by("name"))
-    ctx["donors"] = donors
-    ctx["form_title"] = "Add Project Dimension"
+    _project_dimension_form_context(tenant_db, ctx, project=None)
+    ctx["form_title"] = "Add project"
     return render(request, "tenant_portal/setup/project_dimension_form.html", ctx)
 
 
@@ -876,57 +1167,23 @@ def setup_project_dimension_edit_view(request: HttpRequest, pk: int) -> HttpResp
     ctx["active_item"] = "setup_project_grant_dims"
     if not ctx["can_manage"]:
         messages.error(request, "You do not have permission to edit projects.")
-        return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+        return redirect(reverse("tenant_portal:grants_projects_list"))
 
-    from tenant_grants.models import Donor, Project
+    from tenant_grants.models import Project
 
     obj = get_object_or_404(Project.objects.using(tenant_db), pk=pk)
-    ctx["project"] = obj
 
     if request.method == "POST":
-        code = (request.POST.get("code") or "").strip()
-        name = (request.POST.get("name") or "").strip()
-        donor_id = (request.POST.get("donor_id") or "").strip()
-        start_date = (request.POST.get("start_date") or "").strip() or None
-        end_date = (request.POST.get("end_date") or "").strip() or None
-        is_active = request.POST.get("is_active") == "1"
-        errors = []
-        if not code:
-            errors.append("Project code is required.")
-        if not name:
-            errors.append("Project name is required.")
-        if code and Project.objects.using(tenant_db).filter(code__iexact=code).exclude(pk=pk).exists():
-            errors.append("A project with this code already exists.")
-        if not errors and start_date and end_date:
-            from datetime import datetime
-
-            try:
-                sd = datetime.strptime(start_date, "%Y-%m-%d").date()
-                ed = datetime.strptime(end_date, "%Y-%m-%d").date()
-                if sd > ed:
-                    errors.append("End date must be on or after start date.")
-            except ValueError:
-                errors.append("Invalid date format. Use YYYY-MM-DD.")
-        if errors:
-            for e in errors:
+        errs, _saved = _save_project_from_post(tenant_db=tenant_db, post=request.POST, existing=obj)
+        if errs:
+            for e in errs:
                 messages.error(request, e)
         else:
-            from datetime import datetime
-
-            donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first() if donor_id else None
-            obj.code = code
-            obj.name = name
-            obj.donor = donor
-            obj.start_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
-            obj.end_date = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else None
-            obj.is_active = is_active
-            obj.save(using=tenant_db)
             messages.success(request, "Project updated.")
-            return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+            return redirect(reverse("tenant_portal:grants_projects_list"))
 
-    donors = list(Donor.objects.using(tenant_db).filter(status="active").order_by("name"))
-    ctx["donors"] = donors
-    ctx["form_title"] = "Edit Project Dimension"
+    _project_dimension_form_context(tenant_db, ctx, project=obj)
+    ctx["form_title"] = "Edit project"
     return render(request, "tenant_portal/setup/project_dimension_form.html", ctx)
 
 
@@ -936,7 +1193,7 @@ def setup_project_dimension_delete_view(request: HttpRequest, pk: int) -> HttpRe
     ctx = _setup_context(request)
     if not ctx["can_manage"]:
         messages.error(request, "You do not have permission to delete projects.")
-        return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+        return redirect(reverse("tenant_portal:grants_projects_list"))
 
     from tenant_finance.models import ProjectDimensionMapping
     from tenant_grants.models import Grant, Project
@@ -945,15 +1202,15 @@ def setup_project_dimension_delete_view(request: HttpRequest, pk: int) -> HttpRe
     if request.method == "POST":
         if Grant.objects.using(tenant_db).filter(project_id=pk).exists():
             messages.error(request, "Cannot delete: grants are linked to this project. Unlink or delete them first.")
-            return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+            return redirect(reverse("tenant_portal:grants_projects_list"))
         ProjectDimensionMapping.objects.using(tenant_db).filter(project_id=pk).delete()
         obj.delete(using=tenant_db)
         messages.success(request, "Project deleted.")
-        return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+        return redirect(reverse("tenant_portal:grants_projects_list"))
 
     ctx["object"] = obj
     ctx["object_label"] = f"Project {obj.code} — {obj.name}"
-    ctx["cancel_url"] = reverse("tenant_portal:setup_grant_dimensions_list")
+    ctx["cancel_url"] = reverse("tenant_portal:grants_projects_list")
     ctx["delete_url"] = reverse("tenant_portal:setup_project_dimension_delete", args=[pk])
     return render(request, "tenant_portal/setup/confirm_delete.html", ctx)
 
@@ -1694,7 +1951,7 @@ def setup_exchange_rates_edit_view(request: HttpRequest, pk: int) -> HttpRespons
         .order_by("code")
     )
 
-    # Prevent editing rates in closed fiscal periods
+    # Prevent editing rates in closed accounting periods
     closed_period = None
     if rate_obj.effective_date:
         closed_period = (
@@ -1799,7 +2056,7 @@ def setup_exchange_rates_delete_view(request: HttpRequest, pk: int) -> HttpRespo
 
     obj = get_object_or_404(ExchangeRate.objects.using(tenant_db), pk=pk)
 
-    # Do not allow deleting rates in closed fiscal periods
+    # Do not allow deleting rates in closed accounting periods
     closed_period = None
     if obj.effective_date:
         closed_period = (
@@ -1816,7 +2073,7 @@ def setup_exchange_rates_delete_view(request: HttpRequest, pk: int) -> HttpRespo
         if closed_period:
             messages.error(
                 request,
-                "Exchange rates for closed fiscal periods cannot be deleted.",
+                "Exchange rates for closed accounting periods cannot be deleted.",
             )
             return redirect(reverse("tenant_portal:setup_exchange_rates_list"))
         entry_label = f"{obj.currency.code}/{obj.base_currency.code} on {obj.effective_date}"

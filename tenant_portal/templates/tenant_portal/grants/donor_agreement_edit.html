@@ -1,0 +1,162 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Edit" %} {{ agreement.agreement_code }} | {% trans "Donor Agreements" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-[800px] mx-auto w-full pb-10" style="font-family:'Segoe UI',-apple-system,sans-serif;color:#323130;">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+  <div class="mb-5">
+    <nav class="text-xs text-[#605e5c] mb-2">
+      <a href="{% url 'tenant_portal:grants_donor_agreements' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Donor Agreements" %}</a>
+      <span class="mx-1">/</span>
+      <a href="{% url 'tenant_portal:grants_donor_agreement_detail' agreement.pk %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{{ agreement.agreement_code }}</a>
+      <span class="mx-1">/</span>
+      <span>{% trans "Edit" %}</span>
+    </nav>
+    <h1 class="text-2xl font-bold tracking-tight text-[#201f1e] m-0">{% trans "Edit agreement" %}</h1>
+    <p class="text-sm text-[#605e5c] mt-1.5 m-0">{% trans "Update terms, links, and files. Changes apply immediately after save." %}</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="bg-white border rounded-lg p-5 sm:p-6 space-y-4 shadow-sm" style="border-color:#edebe9;">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="dynamics-filter-field">
+        <label>{% trans "Agreement code" %}</label>
+        <input class="dynamics-input w-full bg-[#f3f2f1]" value="{{ agreement.agreement_code }}" readonly />
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Status" %}</label>
+        <select name="status" class="dynamics-select w-full bg-white">
+          <option value="draft" {% if agreement.status == 'draft' %}selected{% endif %}>{% trans "Draft" %}</option>
+          <option value="active" {% if agreement.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+          <option value="expired" {% if agreement.status == 'expired' %}selected{% endif %}>{% trans "Expired" %}</option>
+          <option value="closed" {% if agreement.status == 'closed' %}selected{% endif %}>{% trans "Closed" %}</option>
+        </select>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Donor" %} *</label>
+        <select name="donor_id" required class="dynamics-select w-full bg-white">
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if d.pk == agreement.donor_id %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Title" %} *</label>
+        <input name="title" required class="dynamics-input w-full" value="{{ agreement.title }}" maxlength="200" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Agreement type" %}</label>
+        <select name="agreement_type" class="dynamics-select w-full bg-white">
+          <option value="grant" {% if agreement.agreement_type == 'grant' %}selected{% endif %}>{% trans "Grant agreement" %}</option>
+          <option value="framework" {% if agreement.agreement_type == 'framework' %}selected{% endif %}>{% trans "Framework agreement" %}</option>
+          <option value="partnership" {% if agreement.agreement_type == 'partnership' %}selected{% endif %}>{% trans "Partnership agreement" %}</option>
+          <option value="contribution" {% if agreement.agreement_type == 'contribution' %}selected{% endif %}>{% trans "Contribution agreement" %}</option>
+          <option value="mou" {% if agreement.agreement_type == 'mou' %}selected{% endif %}>{% trans "Memorandum of understanding" %}</option>
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Reference number" %}</label>
+        <input name="reference_number" class="dynamics-input w-full" value="{{ agreement.reference_number }}" maxlength="120" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Funding source" %}</label>
+        <select name="funding_source_id" class="dynamics-select w-full bg-white">
+          <option value="">—</option>
+          {% for fs in funding_sources %}
+          <option value="{{ fs.pk }}" {% if agreement.funding_source_id == fs.pk %}selected{% endif %}>{{ fs.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Currency" %}</label>
+        <select name="currency_id" class="dynamics-select w-full bg-white">
+          <option value="">—</option>
+          {% for c in currencies %}
+          <option value="{{ c.pk }}" {% if agreement.currency_id == c.pk %}selected{% endif %}>{{ c.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Funding limit" %}</label>
+        <input name="funding_limit" class="dynamics-input w-full" value="{{ agreement.funding_limit|default:'' }}" />
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Payment terms summary" %}</label>
+        <textarea name="payment_terms_summary" class="dynamics-input w-full" rows="2" style="min-height:3rem;">{{ agreement.payment_terms_summary }}</textarea>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Installment notes" %}</label>
+        <textarea name="installment_notes" class="dynamics-input w-full" rows="2" style="min-height:3rem;">{{ agreement.installment_notes }}</textarea>
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Signed date" %}</label>
+        <input name="signed_date" type="date" class="dynamics-input w-full" value="{% if agreement.signed_date %}{{ agreement.signed_date|date:'Y-m-d' }}{% endif %}" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Start date" %}</label>
+        <input name="start_date" type="date" class="dynamics-input w-full" value="{% if agreement.start_date %}{{ agreement.start_date|date:'Y-m-d' }}{% endif %}" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "End date" %}</label>
+        <input name="end_date" type="date" class="dynamics-input w-full" value="{% if agreement.end_date %}{{ agreement.end_date|date:'Y-m-d' }}{% endif %}" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label>{% trans "Reporting frequency" %}</label>
+        <select name="reporting_frequency" class="dynamics-select w-full bg-white">
+          <option value="">—</option>
+          <option value="monthly" {% if agreement.reporting_frequency == 'monthly' %}selected{% endif %}>{% trans "Monthly" %}</option>
+          <option value="quarterly" {% if agreement.reporting_frequency == 'quarterly' %}selected{% endif %}>{% trans "Quarterly" %}</option>
+          <option value="annually" {% if agreement.reporting_frequency == 'annually' %}selected{% endif %}>{% trans "Annually" %}</option>
+        </select>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2 flex flex-wrap gap-3">
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_financial_reporting" value="1" {% if agreement.compliance_financial_reporting %}checked{% endif %} /> {% trans "Financial reporting" %}</label>
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_narrative_reporting" value="1" {% if agreement.compliance_narrative_reporting %}checked{% endif %} /> {% trans "Narrative reporting" %}</label>
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_audit_required" value="1" {% if agreement.compliance_audit_required %}checked{% endif %} /> {% trans "Audit required" %}</label>
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_special_conditions" value="1" {% if agreement.compliance_special_conditions %}checked{% endif %} /> {% trans "Special conditions" %}</label>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="restricted_funding" value="1" {% if agreement.restricted_funding %}checked{% endif %} /> {% trans "Restricted funding" %}</label>
+        <textarea name="restriction_summary" class="dynamics-input w-full mt-1" rows="2">{{ agreement.restriction_summary }}</textarea>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2 flex gap-4">
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="allow_multiple_grants" value="1" {% if agreement.allow_multiple_grants %}checked{% endif %} /> {% trans "Allow multiple grants" %}</label>
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="allow_multiple_projects" value="1" {% if agreement.allow_multiple_projects %}checked{% endif %} /> {% trans "Allow multiple projects" %}</label>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Linked grants" %}</label>
+        <select name="grant_ids" multiple class="dynamics-input w-full" size="6">
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if g.pk in selected_grant_ids %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Linked projects" %}</label>
+        <select name="project_ids" multiple class="dynamics-input w-full" size="5">
+          {% for p in projects %}
+          <option value="{{ p.pk }}" {% if p.pk in selected_project_ids %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:4 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Replace signed file" %}</label>
+        <input type="file" name="agreement_file" class="dynamics-input w-full py-2" />
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Terms summary" %}</label>
+        <textarea name="terms_summary" class="dynamics-input w-full" rows="3">{{ agreement.terms_summary }}</textarea>
+      </div>
+      <div class="dynamics-filter-field sm:col-span-2">
+        <label>{% trans "Internal notes" %}</label>
+        <textarea name="internal_notes" class="dynamics-input w-full" rows="2">{{ agreement.internal_notes }}</textarea>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-2 pt-4 border-t" style="border-color:#edebe9;">
+      <button type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold text-white border-0 cursor-pointer" style="background:#0078D4;">{% trans "Save changes" %}</button>
+      <a href="{% url 'tenant_portal:grants_donor_agreement_detail' agreement.pk %}" class="inline-flex items-center px-4 py-2.5 rounded-md border text-sm font-semibold no-underline self-center hover:bg-[#faf9f8]" style="border-color:#edebe9;color:#323130;">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

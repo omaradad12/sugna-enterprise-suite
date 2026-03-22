@@ -1,158 +1,440 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Donor Register | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Donor Register" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div x-data="{}" class="contents">
-<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Donor Register</h1>
-  </div>
-  {% if can_manage %}
-  <div class="flex items-center gap-2">
-    <button type="button" @click="$refs.newDonorModal.classList.remove('hidden')"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow"
-            style="background:#0078D4;">
-      <i data-feather="plus" class="w-4 h-4"></i>
-      Create Donor
-    </button>
-  </div>
-  {% endif %}
-</div>
+<div class="dynamics-financial-report dr-root max-w-[1400px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dr-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .dr-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .dr-hero {
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+  }
+  .dr-hero-card {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .dr-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+  }
+  .dr-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
+  .dr-breadcrumb a:hover { text-decoration: underline; }
+  .dr-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .dr-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .dr-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (max-width: 900px) {
+    .dr-kpi-grid { grid-template-columns: 1fr; }
+  }
+  .dr-kpi-card {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-top: 3px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1rem 1.15rem;
+  }
+  .dr-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #605e5c;
+  }
+  .dr-kpi-value {
+    margin-top: 0.35rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #201f1e;
+    line-height: 1.2;
+  }
+  .dr-kpi-hint {
+    margin-top: 0.35rem;
+    font-size: 11px;
+    color: #8a8886;
+    line-height: 1.35;
+  }
+  .dr-search-wrap { position: relative; }
+  .dr-search-wrap .dr-search-icon {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .dr-search-wrap .dynamics-input { padding-left: 2.25rem; width: 100%; min-width: 0; }
+  .dr-filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem 1.25rem;
+  }
+  .dr-filter-grid .dr-field-grow {
+    flex: 1 1 220px;
+    min-width: 200px;
+  }
+  .dr-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .dr-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+  }
+  .dr-panel-head-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dr-panel-meta {
+    font-size: 11px;
+    color: #605e5c;
+    font-weight: 600;
+  }
+  .dr-table-wrap { overflow-x: auto; }
+  .dr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .dr-table thead th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .dr-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .dr-table tbody tr:hover td { background: #f3f9fd; }
+  .dr-table tbody tr:last-child td { border-bottom: none; }
+  .dr-code { font-family: ui-monospace, monospace; font-weight: 600; color: #0078d4; font-size: 12px; }
+  .dr-num { font-variant-numeric: tabular-nums; font-weight: 600; color: #201f1e; }
+  .dr-grant-link { color: #0078d4; font-weight: 700; text-decoration: none; }
+  .dr-grant-link:hover { text-decoration: underline; }
+  .dr-empty {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .dr-footer {
+    padding: 0.65rem 1rem;
+    border-top: 1px solid #edebe9;
+    font-size: 11px;
+    color: #605e5c;
+    font-weight: 600;
+    background: #faf9f8;
+  }
+  .dynamics-filter-pane .dr-toolbar-actions {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #e1dfdd;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  .dr-modal-accent {
+    border-left: 4px solid #0078d4;
+  }
+</style>
 
-{# Search and filter bar #}
-<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
-  <form method="get" action="" class="flex flex-wrap items-end gap-3">
-    <div class="flex-1 min-w-[200px]">
-      <label for="donor-search" class="sr-only">Search</label>
-      <div class="relative">
-        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:#605e5c;">
-          <i data-feather="search" class="w-4 h-4"></i>
-        </span>
-        <input id="donor-search" name="q" type="search" value="{{ filters.q|default:'' }}"
-               placeholder="Search by code, name, contact, country..."
-               class="w-full pl-10 pr-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+  <div class="dr-hero hidden-print">
+    <div class="dr-hero-card">
+      <nav class="dr-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+        <a href="{% url 'tenant_portal:grants_home' %}">{% trans "Funds & Donors" %}</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span>{% trans "Donor Register" %}</span>
+      </nav>
+      <h1 class="dr-title">{% trans "Donor Register" %}</h1>
+    </div>
+    {% if can_manage %}
+    <div class="flex items-start sm:items-center sm:pt-2">
+      <button type="button" @click="$refs.newDonorModal.classList.remove('hidden')" class="dynamics-btn-primary whitespace-nowrap">
+        <i data-feather="plus" class="w-4 h-4"></i>
+        {% trans "Create donor" %}
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="dynamics-filter-pane hidden-print">
+    <div class="dynamics-filter-head">
+      <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Search and refine the donor list" %}</span>
+    </div>
+    <form method="get" action="" id="dr-filter-form">
+      <div class="dr-filter-grid">
+        <div class="dynamics-filter-field dr-field-grow">
+          <label for="donor-search">{% trans "Search" %}</label>
+          <div class="dr-search-wrap">
+            <span class="dr-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
+            <input id="donor-search" name="q" type="search" value="{{ filters.q|default:'' }}"
+                   placeholder="{% trans 'Code, name, contact, country…' %}"
+                   class="dynamics-input" autocomplete="off" />
+          </div>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="dr-donor-type">{% trans "Type" %}</label>
+          <select id="dr-donor-type" name="donor_type" class="dynamics-select min-w-[140px]">
+            <option value="">{% trans "All" %}</option>
+            {% for value, label in donor_types.choices %}
+            <option value="{{ value }}" {% if filters.donor_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="dr-donor-category">{% trans "Category" %}</label>
+          <select id="dr-donor-category" name="donor_category" class="dynamics-select min-w-[140px]">
+            <option value="">{% trans "All" %}</option>
+            {% for value, label in donor_categories.choices %}
+            <option value="{{ value }}" {% if filters.donor_category == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="dr-status">{% trans "Status" %}</label>
+          <select id="dr-status" name="status" class="dynamics-select min-w-[120px]">
+            <option value="">{% trans "All" %}</option>
+            {% for value, label in donor_statuses.choices %}
+            <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="text-xs font-medium" style="color:#605e5c;">Type</label>
-      <select name="donor_type" class="rounded-lg border px-3 py-2 text-sm min-w-[140px] bg-white" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for value, label in donor_types.choices %}
-        <option value="{{ value }}" {% if filters.donor_type == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="text-xs font-medium" style="color:#605e5c;">Category</label>
-      <select name="donor_category" class="rounded-lg border px-3 py-2 text-sm min-w-[140px] bg-white" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for value, label in donor_categories.choices %}
-        <option value="{{ value }}" {% if filters.donor_category == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="text-xs font-medium" style="color:#605e5c;">Status</label>
-      <select name="status" class="rounded-lg border px-3 py-2 text-sm min-w-[120px] bg-white" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for value, label in donor_statuses.choices %}
-        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
-  </form>
-  <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
-    <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export CSV</a>
-    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export Excel</a>
-    <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export PDF</a>
-    <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Print</button>
+      <div class="dr-toolbar-actions">
+        <div class="dynamics-filter-inline-actions" style="flex-wrap:wrap;">
+          <button type="submit" class="dynamics-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            {% trans "Apply filters" %}
+          </button>
+          <a href="{% url 'tenant_portal:grants_donor_register' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+          <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+            <i data-feather="file-text" class="w-4 h-4"></i>
+            {% trans "Export CSV" %}
+          </a>
+          <a href="{{ export_xlsx_url }}" class="dynamics-btn-secondary no-underline">
+            <i data-feather="download" class="w-4 h-4"></i>
+            {% trans "Export Excel" %}
+          </a>
+          <a href="{{ export_pdf_url }}" class="dynamics-btn-secondary no-underline">
+            <i data-feather="file" class="w-4 h-4"></i>
+            {% trans "Export PDF" %}
+          </a>
+          <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+            <i data-feather="printer" class="w-4 h-4"></i>
+            {% trans "Print" %}
+          </button>
+        </div>
+      </div>
+    </form>
   </div>
-</div>
 
-{# Donors table #}
-<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
-  <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
-    <h2 class="font-semibold text-lg" style="color:#323130;">Donors</h2>
+  <div class="dr-kpi-grid hidden-print">
+    <div class="dr-kpi-card">
+      <div class="dr-kpi-label">{% trans "Donors (this view)" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.total_shown }}</div>
+      <div class="dr-kpi-hint">{% trans "Rows matching current filters" %}</div>
+    </div>
+    <div class="dr-kpi-card">
+      <div class="dr-kpi-label">{% trans "Active (this view)" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.active_shown }}</div>
+      <div class="dr-kpi-hint">{% trans "Status = active in the grid below" %}</div>
+    </div>
+    <div class="dr-kpi-card">
+      <div class="dr-kpi-label">{% trans "Grants linked" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.grants_linked }}</div>
+      <div class="dr-kpi-hint">{% trans "Sum of grant counts in this view" %}</div>
+    </div>
   </div>
-  <div class="overflow-auto">
-    <table class="min-w-full text-sm">
-      <thead style="background:#f3f2f1;">
-        <tr>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Code</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Donor Name</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Short Name</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Type</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Category</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Contact</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Country</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Currency</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Grants</th>
+
+  <div class="dr-panel print-area erp-section hidden-print">
+    <div class="dr-panel-head">
+      <span class="dr-panel-head-title">
+        <i data-feather="list" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+        {% trans "Donors" %}
+      </span>
+      <span class="dr-panel-meta">{{ donor_register_kpi.total_shown }} {% trans "rows" %}</span>
+    </div>
+    <div class="dr-table-wrap">
+      <table class="dr-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Code" %}</th>
+            <th scope="col">{% trans "Donor name" %}</th>
+            <th scope="col">{% trans "Short name" %}</th>
+            <th scope="col">{% trans "Type" %}</th>
+            <th scope="col">{% trans "Category" %}</th>
+            <th scope="col">{% trans "Contact" %}</th>
+            <th scope="col">{% trans "Country" %}</th>
+            <th scope="col">{% trans "Currency" %}</th>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Grants" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in donors %}
+          <tr class="dynamics-data-row">
+            <td class="dr-code">{{ d.code }}</td>
+            <td class="font-semibold text-[#201f1e]">{{ d.name }}</td>
+            <td class="text-[#605e5c]">{{ d.short_name|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ d.get_donor_type_display|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ d.get_donor_category_display|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ d.contact_person|default:d.email|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ d.country|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ d.preferred_currency|default:"—" }}</td>
+            <td>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold"
+                    style="{% if d.status == 'active' %}background:#dff6dd;color:#0b5a0b;{% elif d.status == 'archived' %}background:#fde7e9;color:#a4262c;{% else %}background:#fff4ce;color:#7a5c00;{% endif %}">
+                {{ d.get_status_display }}
+              </span>
+            </td>
+            <td class="dr-num">
+              {% if d.grants_count %}
+              <a class="dr-grant-link" href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ d.pk }}">{{ d.grants_count }}</a>
+              {% else %}
+              0
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td class="dr-empty" colspan="10">
+              {% trans "No donors match the filters." %}
+              {% if can_manage %} {% trans "Create one to get started." %}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dr-footer">
+      {% if donors_truncated %}
+        {% blocktrans with n=donor_register_kpi.total_shown %}Showing first {{ n }} rows (list capped). Refine filters to narrow results.{% endblocktrans %}
+      {% else %}
+        {% blocktrans count total=donor_register_kpi.total_shown %}Showing {{ total }} entry{% plural %}Showing {{ total }} entries{% endblocktrans %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Printable table (no chrome) #}
+  <div class="print-only">
+    <p class="text-sm font-bold text-[#201f1e] mb-2">{% trans "Donor Register" %}</p>
+    <table class="w-full text-xs border-collapse" style="border:1px solid #e1dfdd;">
+      <thead>
+        <tr style="background:#f3f2f1;">
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Code" %}</th>
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Donor name" %}</th>
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Status" %}</th>
+          <th class="text-right p-2 border-b" style="border-color:#e1dfdd;">{% trans "Grants" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for d in donors %}
-        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-5 py-3 font-mono" style="color:#323130;">{{ d.code }}</td>
-          <td class="px-5 py-3 font-medium" style="color:#323130;">{{ d.name }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ d.short_name|default:"—" }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ d.get_donor_type_display|default:"—" }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ d.get_donor_category_display|default:"—" }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ d.contact_person|default:d.email|default:"—" }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ d.country|default:"—" }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ d.preferred_currency|default:"—" }}</td>
-          <td class="px-5 py-3">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                  style="{% if d.status == 'active' %}background:#dff6dd; color:#0b5a0b;{% elif d.status == 'archived' %}background:#fde7e9; color:#a4262c;{% else %}background:#fff4ce; color:#7a5c00;{% endif %}">
-              {{ d.get_status_display }}
-            </span>
-          </td>
-          <td class="px-5 py-3 font-medium" style="color:#323130;">{{ d.grants_count|default:0 }}</td>
-        </tr>
-        {% empty %}
         <tr>
-          <td colspan="10" class="px-5 py-8 text-center" style="color:#605e5c;">No donors match the filters. {% if can_manage %}Create one to get started.{% endif %}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.code }}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.name }}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.get_status_display }}</td>
+          <td class="p-2 border-b text-right" style="border-color:#edebe9;">{{ d.grants_count|default:0 }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  <div class="px-5 py-3 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ donors|length }} of {{ donors|length }} entries</div>
 </div>
 
-{# New Donor modal #}
 {% if can_manage %}
 <div x-ref="newDonorModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
   <div class="flex min-h-full items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/30" @click="$refs.newDonorModal.classList.add('hidden')"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" style="border:1px solid #edebe9;">
+    <div class="relative bg-white rounded shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto dr-modal-accent" style="border:1px solid #edebe9;">
       <div class="flex items-center justify-between px-5 py-4 border-b sticky top-0 bg-white z-10" style="border-color:#edebe9;">
-        <h3 class="text-lg font-semibold" style="color:#323130;">New Donor</h3>
-        <button type="button" @click="$refs.newDonorModal.classList.add('hidden')" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
+        <h3 class="text-lg font-semibold text-[#201f1e]">{% trans "New donor" %}</h3>
+        <button type="button" @click="$refs.newDonorModal.classList.add('hidden')" class="p-1 rounded hover:bg-[#f3f2f1] text-[#605e5c]">
           <i data-feather="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <form method="post" class="p-5 space-y-4">
+      <form method="post" class="p-5 space-y-4" style="font-family:'Segoe UI',sans-serif;">
         {% csrf_token %}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Code <span style="color:#A4262C;">*</span></label>
-            <input name="code" required class="w-full px-3 py-2 rounded-lg border text-sm uppercase" style="border-color:#edebe9;" placeholder="DONOR-001" maxlength="50" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Donor code" %} <span class="text-[#A4262C]">*</span></label>
+            <input name="code" required class="dynamics-input w-full uppercase" placeholder="DONOR-001" maxlength="50" />
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Name <span style="color:#A4262C;">*</span></label>
-            <input name="name" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Full donor name" maxlength="200" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Donor name" %} <span class="text-[#A4262C]">*</span></label>
+            <input name="name" required class="dynamics-input w-full" placeholder="{% trans 'Full donor name' %}" maxlength="200" />
           </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Short Name</label>
-            <input name="short_name" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Abbreviation" maxlength="80" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Short name" %}</label>
+            <input name="short_name" class="dynamics-input w-full" placeholder="{% trans 'Abbreviation' %}" maxlength="80" />
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Status</label>
-            <select name="status" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Status" %}</label>
+            <select name="status" class="dynamics-select w-full bg-white">
               {% for value, label in donor_statuses.choices %}
               <option value="{{ value }}" {% if value == 'active' %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
@@ -161,8 +443,8 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Type</label>
-            <select name="donor_type" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Donor type" %}</label>
+            <select name="donor_type" class="dynamics-select w-full bg-white">
               <option value="">—</option>
               {% for value, label in donor_types.choices %}
               <option value="{{ value }}">{{ label }}</option>
@@ -170,8 +452,8 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor Category</label>
-            <select name="donor_category" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Donor category" %}</label>
+            <select name="donor_category" class="dynamics-select w-full bg-white">
               <option value="">—</option>
               {% for value, label in donor_categories.choices %}
               <option value="{{ value }}">{{ label }}</option>
@@ -181,42 +463,42 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Contact Person</label>
-            <input name="contact_person" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" maxlength="120" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Contact person" %}</label>
+            <input name="contact_person" class="dynamics-input w-full" maxlength="120" />
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Email</label>
-            <input name="email" type="email" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Email" %}</label>
+            <input name="email" type="email" class="dynamics-input w-full" />
           </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Phone</label>
-            <input name="phone" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" maxlength="50" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Phone" %}</label>
+            <input name="phone" class="dynamics-input w-full" maxlength="50" />
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Country</label>
-            <input name="country" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" maxlength="100" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Country" %}</label>
+            <input name="country" class="dynamics-input w-full" maxlength="100" />
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Address</label>
-          <textarea name="address" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Address" %}</label>
+          <textarea name="address" rows="2" class="dynamics-input w-full resize-y" style="min-height:4rem;"></textarea>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Website</label>
-            <input name="website" type="url" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="https://" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Website" %}</label>
+            <input name="website" type="url" class="dynamics-input w-full" placeholder="https://" />
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Preferred Currency</label>
-            <input name="preferred_currency" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="e.g. USD, EUR" maxlength="10" />
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Preferred currency" %}</label>
+            <input name="preferred_currency" class="dynamics-input w-full" placeholder="USD" maxlength="10" />
           </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Default Restriction Type</label>
-            <select name="default_restriction_type" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Default restriction type" %}</label>
+            <select name="default_restriction_type" class="dynamics-select w-full bg-white">
               <option value="">—</option>
               {% for value, label in restriction_types.choices %}
               <option value="{{ value }}">{{ label }}</option>
@@ -224,8 +506,8 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Default Reporting Frequency</label>
-            <select name="default_reporting_frequency" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Default reporting frequency" %}</label>
+            <select name="default_reporting_frequency" class="dynamics-select w-full bg-white">
               <option value="">—</option>
               {% for value, label in reporting_frequencies.choices %}
               <option value="{{ value }}">{{ label }}</option>
@@ -234,14 +516,14 @@
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Notes</label>
-          <textarea name="notes" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Notes" %}</label>
+          <textarea name="notes" rows="2" class="dynamics-input w-full resize-y" style="min-height:4rem;"></textarea>
         </div>
         <div class="flex gap-2 pt-2">
-          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">
-            <i data-feather="save" class="w-4 h-4"></i> Save Donor
+          <button type="submit" class="dynamics-btn-primary">
+            <i data-feather="save" class="w-4 h-4"></i> {% trans "Save donor" %}
           </button>
-          <button type="button" @click="$refs.newDonorModal.classList.add('hidden')" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+          <button type="button" @click="$refs.newDonorModal.classList.add('hidden')" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
         </div>
       </form>
     </div>

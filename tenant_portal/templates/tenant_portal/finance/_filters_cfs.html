@@ -1,0 +1,127 @@
+{% load i18n %}
+{% comment %}
+Cash flow statement: same filter chrome as balance sheet / income & expenditure.
+Primary row ends with Apply filters, Export Excel, Print / PDF (blue outline).
+Extra exports (CSV when XLSX exists, PDF) on a compact second row.
+Context: filters, grants, donors, projects, currencies, dimensions, grant_donor_map,
+export_csv_url, export_xlsx_url, export_pdf_url.
+{% endcomment %}
+<div class="dynamics-filter-pane hidden-print cfs-report-wrap">
+  <div class="dynamics-filter-head">
+    <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
+    <span class="dynamics-filter-head-hint">{% trans "Refine the statement of cash flows" %}</span>
+  </div>
+  <form method="get" action="" id="cfs-filter-form">
+    <div class="dynamics-filter-grid">
+      <div class="dynamics-filter-field">
+        <label for="cfs-from">{% trans "From date" %}</label>
+        <input id="cfs-from" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="dynamics-input min-w-[140px]" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="cfs-to">{% trans "To date" %}</label>
+        <input id="cfs-to" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="dynamics-input min-w-[140px]" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="cfs-grant">{% trans "Grant" %}</label>
+        <select id="cfs-grant" name="grant_id" class="dynamics-select min-w-[200px] max-w-[320px]">
+          <option value="">{% trans "All grants" %}</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:6 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="cfs-project">{% trans "Project" %}</label>
+        <select id="cfs-project" name="project_id" class="dynamics-select min-w-[200px] max-w-[320px]">
+          <option value="">{% trans "All projects" %}</option>
+          {% for p in projects %}
+          <option value="{{ p.pk }}" {% if filters.project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:5 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="cfs-donor">{% trans "Donor" %} <span class="dynamics-label-muted">{% trans "(optional)" %}</span></label>
+        <select id="cfs-donor" name="donor_id" class="dynamics-select min-w-[200px] max-w-[280px]">
+          <option value="">—</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="cfs-currency">{% trans "Currency" %}</label>
+        <select id="cfs-currency" name="currency_id" class="dynamics-select min-w-[140px]">
+          <option value="">{% trans "All" %}</option>
+          {% for c in currencies %}
+          <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}{% if c.name %} — {{ c.name|truncatewords:3 }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="cfs-dimension">{% trans "Fund" %} <span class="dynamics-label-muted">{% trans "dimension" %}</span></label>
+        <select id="cfs-dimension" name="dimension_id" class="dynamics-select min-w-[200px] max-w-[320px]">
+          <option value="">{% trans "All" %}</option>
+          {% for dim in dimensions %}
+          <option value="{{ dim.pk }}" {% if filters.dimension_id == dim.pk|stringformat:'s' %}selected{% endif %}>{{ dim.dimension_code }} — {{ dim.dimension_name|truncatewords:4 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field dynamics-filter-field--actions">
+        <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+        <div class="dynamics-filter-inline-actions">
+          <button type="submit" class="dynamics-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            {% trans "Apply filters" %}
+          </button>
+          {% if export_xlsx_url %}
+          <a href="{{ export_xlsx_url }}" class="dynamics-btn-secondary no-underline">
+            <i data-feather="download" class="w-4 h-4"></i>
+            {% trans "Export Excel" %}
+          </a>
+          {% elif export_csv_url %}
+          <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+            <i data-feather="download" class="w-4 h-4"></i>
+            {% trans "Export Excel" %}
+          </a>
+          {% endif %}
+          <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+            <i data-feather="printer" class="w-4 h-4"></i>
+            {% trans "Print / PDF" %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+  {{ grant_donor_map|json_script:"cfs-grant-donor-map" }}
+  <script>
+  (function () {
+    var grantSel = document.getElementById("cfs-grant");
+    var donorSel = document.getElementById("cfs-donor");
+    var el = document.getElementById("cfs-grant-donor-map");
+    if (!grantSel || !donorSel || !el) return;
+    var map = {};
+    try { map = JSON.parse(el.textContent || "{}"); } catch (e) {}
+    grantSel.addEventListener("change", function () {
+      var gid = grantSel.value;
+      if (gid && map[gid]) donorSel.value = map[gid];
+      else donorSel.value = "";
+    });
+  })();
+  </script>
+  {% if export_pdf_url or export_csv_url and export_xlsx_url %}
+  <div class="dynamics-filter-actions dynamics-filter-actions--compact">
+    {% if export_csv_url and export_xlsx_url %}
+    <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+      <i data-feather="download" class="w-4 h-4"></i>
+      {% trans "Export CSV" %}
+    </a>
+    {% endif %}
+    {% if export_pdf_url %}
+    <a href="{{ export_pdf_url }}" class="dynamics-btn-secondary no-underline" target="_blank" rel="noopener">
+      <i data-feather="file" class="w-4 h-4"></i>
+      {% trans "Export PDF" %}
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

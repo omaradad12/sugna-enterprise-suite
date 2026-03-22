@@ -78,7 +78,7 @@ class Currency(models.Model):
 
 
 class AccountCategory(models.Model):
-    """Account groups for financial statement presentation."""
+    """Account groups for financial statement presentation (enterprise chart-of-accounts grouping)."""
 
     class Status(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -89,9 +89,43 @@ class AccountCategory(models.Model):
         INCOME_EXPENDITURE = "income_expenditure", "Income & Expenditure"
         CASH_FLOW = "cash_flow", "Cash Flow"
 
+    class CategoryType(models.TextChoices):
+        ASSET = "asset", _("Asset")
+        LIABILITY = "liability", _("Liability")
+        EQUITY = "equity", _("Equity")
+        INCOME = "income", _("Income")
+        EXPENSE = "expense", _("Expense")
+
+    class NormalBalance(models.TextChoices):
+        DEBIT = "debit", _("Debit")
+        CREDIT = "credit", _("Credit")
+
     code = models.CharField(max_length=20)
     name = models.CharField(max_length=100)
     statement_type = models.CharField(max_length=30, choices=StatementType.choices, blank=True)
+    category_type = models.CharField(
+        max_length=20,
+        choices=CategoryType.choices,
+        help_text=_("Account class; must align with statement type (Balance Sheet vs Income & Expenditure)."),
+    )
+    normal_balance = models.CharField(
+        max_length=10,
+        choices=NormalBalance.choices,
+        help_text=_("Debit for Assets & Expenses; Credit for Liabilities, Equity, and Income."),
+    )
+    parent_category = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="child_categories",
+    )
+    is_system = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=_("Protected NGO default categories; critical fields cannot be edited."),
+    )
+    description = models.TextField(blank=True)
     display_order = models.PositiveSmallIntegerField(default=0)
     status = models.CharField(
         max_length=20,
@@ -106,6 +140,133 @@ class AccountCategory(models.Model):
 
     def __str__(self) -> str:
         return f"{self.code} — {self.name}"
+
+    def _default_normal_balance_for_type(self) -> str:
+        if self.category_type in (self.CategoryType.ASSET, self.CategoryType.EXPENSE):
+            return self.NormalBalance.DEBIT
+        return self.NormalBalance.CREDIT
+
+    def get_usage_count(self, using: str | None = None) -> int:
+        db = using or getattr(self._state, "db", None) or "default"
+        return self.accounts.using(db).count()
+
+    def clean(self) -> None:
+        errors: dict = {}
+        db = getattr(self._state, "db", None) or "default"
+
+        if not (self.code or "").strip():
+            errors["code"] = _("Code is required.")
+        if not (self.name or "").strip():
+            errors["name"] = _("Name is required.")
+        if not self.statement_type:
+            errors["statement_type"] = _("Statement type is required.")
+        if not self.category_type:
+            errors["category_type"] = _("Category class is required.")
+
+        # Normal balance must match accounting convention for the class
+        if self.category_type:
+            expected_nb = self._default_normal_balance_for_type()
+            if not self.normal_balance:
+                self.normal_balance = expected_nb
+            elif self.normal_balance != expected_nb:
+                errors["normal_balance"] = _(
+                    "Normal balance must be Debit for Assets and Expenses, and Credit for Liabilities, Equity, and Income."
+                )
+
+        # category_type <-> statement_type
+        st = self.statement_type or ""
+        ct = self.category_type or ""
+        if st and ct:
+            if st == self.StatementType.BALANCE_SHEET:
+                if ct not in (self.CategoryType.ASSET, self.CategoryType.LIABILITY, self.CategoryType.EQUITY):
+                    errors["category_type"] = _(
+                        "Balance Sheet categories must be Asset, Liability, or Equity."
+                    )
+            elif st == self.StatementType.INCOME_EXPENDITURE:
+                if ct not in (self.CategoryType.INCOME, self.CategoryType.EXPENSE):
+                    errors["category_type"] = _(
+                        "Income & Expenditure categories must be Income or Expense."
+                    )
+            elif st == self.StatementType.CASH_FLOW:
+                if ct != self.CategoryType.ASSET:
+                    errors["category_type"] = _("Cash Flow categories must use the Asset class (e.g. cash).")
+
+        # Parent: same statement section; no self-reference; no cycles
+        if self.parent_category_id:
+            if self.parent_category_id == self.pk:
+                errors["parent_category"] = _("A category cannot be its own parent.")
+            else:
+                parent = self.parent_category
+                if parent and (parent.statement_type or "") != (self.statement_type or ""):
+                    errors["parent_category"] = _("Parent must use the same statement type.")
+                walk_id = self.parent_category_id
+                seen = set()
+                while walk_id:
+                    if self.pk and walk_id == self.pk:
+                        errors["parent_category"] = _("Circular parent hierarchy is not allowed.")
+                        break
+                    if walk_id in seen:
+                        errors["parent_category"] = _("Circular parent hierarchy is not allowed.")
+                        break
+                    seen.add(walk_id)
+                    walk_id = (
+                        AccountCategory.objects.using(db)
+                        .filter(pk=walk_id)
+                        .values_list("parent_category_id", flat=True)
+                        .first()
+                    )
+
+        old = None
+        if self.pk:
+            old = (
+                AccountCategory.objects.using(db)
+                .filter(pk=self.pk)
+                .only(
+                    "code",
+                    "category_type",
+                    "statement_type",
+                    "normal_balance",
+                    "is_system",
+                    "parent_category_id",
+                )
+                .first()
+            )
+
+        if old and old.accounts.exists():
+            if self.category_type != old.category_type:
+                errors["category_type"] = _("Cannot change category class while accounts reference this category.")
+            if (self.code or "").strip() != (old.code or "").strip():
+                errors["code"] = _("Cannot change code while accounts reference this category.")
+            if (self.statement_type or "") != (old.statement_type or ""):
+                errors["statement_type"] = _("Cannot change statement type while accounts reference this category.")
+            if self.normal_balance != old.normal_balance:
+                errors["normal_balance"] = _("Cannot change normal balance while accounts reference this category.")
+            if self.parent_category_id != old.parent_category_id:
+                errors["parent_category"] = _("Cannot change parent while accounts reference this category.")
+
+        if old and old.is_system:
+            for fname in ("code", "category_type", "statement_type", "normal_balance"):
+                if getattr(self, fname) != getattr(old, fname):
+                    errors[fname] = _("System categories cannot change this field.")
+            if not self.is_system:
+                errors["is_system"] = _("Cannot remove protection from a system category.")
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs) -> None:
+        skip_validation = kwargs.pop("skip_validation", False)
+        if not skip_validation:
+            self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.is_system:
+            raise ValidationError(_("System categories cannot be deleted."))
+        db = kwargs.get("using") or getattr(self._state, "db", None) or "default"
+        if self.accounts.using(db).exists():
+            raise ValidationError(_("Cannot delete a category that is assigned to one or more accounts."))
+        return super().delete(*args, **kwargs)
 
 
 class ChartAccount(models.Model):
@@ -239,6 +400,10 @@ class ChartAccount(models.Model):
                     "Category statement type must match account type (Balance Sheet vs Income & Expenditure)."
                 )
 
+        if self.category and getattr(self.category, "category_type", None):
+            if self.type != self.category.category_type:
+                errors["category"] = _("Account type must match the category's account class (Asset, Liability, Equity, Income, or Expense).")
+
         if self.category and self.category.status == AccountCategory.Status.INACTIVE:
             errors["category"] = _("Account category is inactive.")
 
@@ -308,6 +473,24 @@ class JournalEntry(models.Model):
     approved_by = models.ForeignKey(
         "tenant_users.TenantUser", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_("When the journal was approved (pending approval → approved)."),
+    )
+    submitted_by = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="journal_entries_submitted",
+        help_text=_("User who submitted the journal for approval."),
+    )
+    submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_("When the journal was submitted for approval (draft → pending approval)."),
+    )
     # Disbursement: paid/unpaid and audit
     class PaymentStatus(models.TextChoices):
         UNPAID = "unpaid", "Unpaid"
@@ -342,9 +525,91 @@ class JournalEntry(models.Model):
         help_text="Origin of journal (manual, transaction, reversal, opening_balance, etc.)",
     )
     journal_type = models.CharField(
-        max_length=30,
+        max_length=40,
         blank=True,
-        help_text="Adjustment, accrual, correction, opening_balance, reversal, etc. For manual journals.",
+        db_index=True,
+        help_text="Manual: adjustment, accrual, correction, opening_balance, reversal. "
+        "System: payment_voucher, receipt_voucher, cash_transfer, bank_transfer, fund_transfer, transaction.",
+    )
+
+    class AdjustmentType(models.TextChoices):
+        """NGO adjusting journal classification (manual adjusting entries)."""
+
+        ACCRUAL = "accrual", _("Accrual")
+        PREPAYMENT_ADJUSTMENT = "prepayment_adjustment", _("Prepayment adjustment")
+        RECLASSIFICATION = "reclassification", _("Reclassification")
+        CORRECTION = "correction", _("Correction")
+        DEPRECIATION = "depreciation", _("Depreciation")
+        PROVISION = "provision", _("Provision")
+        YEAR_END_ADJUSTMENT = "year_end_adjustment", _("Year-end adjustment")
+        AUDIT_ADJUSTMENT = "audit_adjustment", _("Audit adjustment")
+        OTHER = "other", _("Other")
+
+    posting_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("GL posting date (determines fiscal year and accounting period for posting). Defaults to journal date when omitted."),
+    )
+    adjustment_type = models.CharField(
+        max_length=40,
+        choices=AdjustmentType.choices,
+        blank=True,
+        db_index=True,
+    )
+    donor = models.ForeignKey(
+        "tenant_grants.Donor",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="journal_entries",
+    )
+
+    class SourceType(models.TextChoices):
+        """Master document / posting origin for GL journals (ERP register)."""
+
+        MANUAL = "manual", _("Manual journal")
+        PAYMENT_VOUCHER = "payment_voucher", _("Payment voucher")
+        RECEIPT_VOUCHER = "receipt_voucher", _("Receipt voucher")
+        CASH_TRANSFER = "cash_transfer", _("Cash transfer")
+        BANK_TRANSFER = "bank_transfer", _("Bank transfer")
+        FUND_TRANSFER = "fund_transfer", _("Fund transfer")
+        INTER_FUND_TRANSFER = "inter_fund_transfer", _("Inter-fund transfer")
+        POSTING_ENGINE = "posting_engine", _("Posting rule / engine")
+        REVERSAL = "reversal", _("Reversal")
+        OPENING_BALANCE = "opening_balance", _("Opening balance")
+        OTHER = "other", _("Other")
+
+    source_type = models.CharField(
+        max_length=40,
+        choices=SourceType.choices,
+        blank=True,
+        db_index=True,
+        help_text=_("Type of source transaction that generated this journal."),
+    )
+    source_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("Primary key of the source document (voucher header, transfer record, etc.)."),
+    )
+    source_document_no = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+        help_text=_("Business document number (PV-…, RV-…, transfer ref, etc.)."),
+    )
+    is_system_generated = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=_("True when created from vouchers, transfers, or posting engine (not manual JE UI)."),
+    )
+    posted_by = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="journal_entries_posted",
+        help_text=_("User who posted the journal to the general ledger."),
     )
 
     class Meta:
@@ -358,6 +623,7 @@ class JournalEntry(models.Model):
         Enforce stricter accounting controls:
         - Posted or approved journals must never be hard-deleted.
         - Corrections should be made via reversal entries referencing the original voucher.
+        - System-generated posted journals follow the same rule.
         """
         if self.status in (
             self.Status.APPROVED,
@@ -387,7 +653,31 @@ class JournalEntry(models.Model):
             db = kwargs.get("using") or getattr(self._state, "db", None) or "default"
             original = (
                 JournalEntry.objects.using(db)
-                .only("status")
+                .only(
+                    "status",
+                    "is_system_generated",
+                    "entry_date",
+                    "memo",
+                    "reference",
+                    "grant_id",
+                    "currency_id",
+                    "dimension_id",
+                    "cost_center_id",
+                    "payment_status",
+                    "payee_name",
+                    "payment_method",
+                    "source",
+                    "journal_type",
+                    "source_type",
+                    "source_id",
+                    "source_document_no",
+                    "posting_date",
+                    "adjustment_type",
+                    "donor_id",
+                    "submitted_by_id",
+                    "submitted_at",
+                    "approved_at",
+                )
                 .filter(pk=self.pk)
                 .first()
             )
@@ -417,14 +707,54 @@ class JournalEntry(models.Model):
                             )
                         }
                     )
+                # System-generated journals: no header edits after posting (same as posted lock above)
+                if (
+                    original.is_system_generated
+                    and original.status == self.Status.POSTED
+                    and self.status == self.Status.POSTED
+                ):
+                    frozen = {
+                        "entry_date",
+                        "memo",
+                        "reference",
+                        "grant_id",
+                        "currency_id",
+                        "dimension_id",
+                        "cost_center_id",
+                        "payment_status",
+                        "payee_name",
+                        "payment_method",
+                        "source",
+                        "journal_type",
+                        "source_type",
+                        "source_id",
+                        "source_document_no",
+                        "is_system_generated",
+                        "posting_date",
+                        "adjustment_type",
+                        "donor_id",
+                        "submitted_by_id",
+                        "submitted_at",
+                        "approved_at",
+                    }
+                    for fname in frozen:
+                        if getattr(self, fname) != getattr(original, fname):
+                            raise ValidationError(
+                                {
+                                    "__all__": _(
+                                        "This journal was generated from a source transaction and cannot be edited."
+                                    )
+                                }
+                            )
                 # Enforce posting controls on POSTED transition
                 if original.status != self.Status.POSTED and self.status == self.Status.POSTED:
                     from tenant_finance.services.period_control import assert_can_post_journal
 
+                    gl_date = self.posting_date or self.entry_date
                     try:
-                        assert_can_post_journal(using=db, entry_date=self.entry_date, grant=self.grant, user=self.created_by)
+                        assert_can_post_journal(using=db, entry_date=gl_date, grant=self.grant, user=self.created_by)
                     except ValueError as exc:
-                        raise ValidationError({"entry_date": _(str(exc))})
+                        raise ValidationError({"posting_date": _(str(exc)), "entry_date": _(str(exc))})
                     # Budget control check (line-level) before posting
                     from tenant_finance.services.budget_control import BudgetControlEngine
 
@@ -454,10 +784,11 @@ class JournalEntry(models.Model):
             if self.status == self.Status.POSTED:
                 from tenant_finance.services.period_control import assert_can_post_journal
 
+                gl_date = self.posting_date or self.entry_date
                 try:
-                    assert_can_post_journal(using=db, entry_date=self.entry_date, grant=self.grant, user=self.created_by)
+                    assert_can_post_journal(using=db, entry_date=gl_date, grant=self.grant, user=self.created_by)
                 except ValueError as exc:
-                    raise ValidationError({"entry_date": _(str(exc))})
+                    raise ValidationError({"posting_date": _(str(exc)), "entry_date": _(str(exc))})
                 from tenant_finance.services.budget_control import BudgetControlEngine
 
                 engine = BudgetControlEngine(db)
@@ -484,41 +815,51 @@ class JournalEntry(models.Model):
 
     def clean(self) -> None:
         """Validate grant/project dates for transactions (baseline validation)."""
-        if not self.grant_id:
-            return
         errors = {}
+        if self.grant_id and self.donor_id and self.grant.donor_id != self.donor_id:
+            errors["donor"] = _("Donor must match the selected grant's donor.")
+        if not self.grant_id:
+            if errors:
+                raise ValidationError(errors)
+            return
         grant = self.grant
         # Only active grants can be used in transactions
         if grant.status != "active":
             errors["grant"] = _("Only active grants can be used in transactions.")
-        # Enforce grant period window if defined
+        dates_to_check = []
+        for d in (self.entry_date, self.posting_date):
+            if d and d not in dates_to_check:
+                dates_to_check.append(d)
         effective_grant_end = getattr(grant, "effective_end_date", None)
         effective_grant_end = effective_grant_end() if callable(effective_grant_end) else getattr(grant, "end_date", None)
-        if grant.start_date and self.entry_date and self.entry_date < grant.start_date:
-            errors["entry_date"] = _("Transaction date must be on or after grant start date (%(start)s).") % {
-                "start": grant.start_date
-            }
-        if effective_grant_end and self.entry_date and self.entry_date > effective_grant_end:
-            errors["entry_date"] = _("Transaction date must be on or before grant end date (%(end)s).") % {
-                "end": effective_grant_end
-            }
+        for d in dates_to_check:
+            field_label = "posting_date" if (self.posting_date and d == self.posting_date) else "entry_date"
+            if grant.start_date and d and d < grant.start_date:
+                errors[field_label] = _("Transaction date must be on or after grant start date (%(start)s).") % {
+                    "start": grant.start_date
+                }
+            if effective_grant_end and d and d > effective_grant_end:
+                errors[field_label] = _("Transaction date must be on or before grant end date (%(end)s).") % {
+                    "end": effective_grant_end
+                }
         if grant.project_id:
             project = grant.project
-            # Closed or completed projects cannot accept transactions
             if not getattr(project, "is_open_for_transactions", False):
                 errors["grant"] = _(
                     "Only grants linked to active projects can be used in transactions."
                 )
             effective_project_end = getattr(project, "effective_end_date", None)
             effective_project_end = effective_project_end() if callable(effective_project_end) else getattr(project, "end_date", None)
-            if project.start_date and self.entry_date and self.entry_date < project.start_date:
-                errors["entry_date"] = _("Transaction date must be on or after project start date (%(start)s).") % {
-                    "start": project.start_date
-                }
-            if effective_project_end and self.entry_date and self.entry_date > effective_project_end:
-                errors["entry_date"] = _("Transaction date must be on or before project end date (%(end)s).") % {
-                    "end": effective_project_end
-                }
+            for d in dates_to_check:
+                field_label = "posting_date" if (self.posting_date and d == self.posting_date) else "entry_date"
+                if project.start_date and d and d < project.start_date:
+                    errors[field_label] = _("Transaction date must be on or after project start date (%(start)s).") % {
+                        "start": project.start_date
+                    }
+                if effective_project_end and d and d > effective_project_end:
+                    errors[field_label] = _("Transaction date must be on or before project end date (%(end)s).") % {
+                        "end": effective_project_end
+                    }
         else:
             errors["grant"] = _("Grant must belong to a project for transaction posting.")
         if errors:
@@ -558,6 +899,13 @@ class JournalEntryAttachment(models.Model):
 class JournalLine(models.Model):
     entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name="lines")
     account = models.ForeignKey(ChartAccount, on_delete=models.PROTECT)
+    grant = models.ForeignKey(
+        "tenant_grants.Grant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="journal_lines",
+    )
     description = models.CharField(max_length=255, blank=True)
     debit = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     credit = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -612,24 +960,34 @@ class PaymentRegister(models.Model):
 
 
 class RecurringJournal(models.Model):
-    """Template for recurring journal entries (e.g. monthly rent)."""
+    """Template for recurring journal entries (e.g. monthly rent, NGO project allocations)."""
 
     class Frequency(models.TextChoices):
         MONTHLY = "monthly", "Monthly"
         QUARTERLY = "quarterly", "Quarterly"
         YEARLY = "yearly", "Yearly"
 
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        PAUSED = "paused", "Paused"
+        COMPLETED = "completed", "Completed"
+
     name = models.CharField(max_length=120)
     reference_prefix = models.CharField(max_length=30, blank=True)  # e.g. "RENT"
-    memo = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)
     frequency = models.CharField(max_length=20, choices=Frequency.choices, default=Frequency.MONTHLY)
+    start_date = models.DateField(help_text="Schedule start; first run uses this date.")
+    end_date = models.DateField(null=True, blank=True, help_text="Optional; template completes after last run in range.")
     next_run_date = models.DateField(null=True, blank=True)
     last_run_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    grant = models.ForeignKey(
-        "tenant_grants.Grant", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
@@ -645,6 +1003,14 @@ class RecurringJournalLine(models.Model):
         RecurringJournal, on_delete=models.CASCADE, related_name="lines"
     )
     account = models.ForeignKey(ChartAccount, on_delete=models.PROTECT)
+    grant = models.ForeignKey(
+        "tenant_grants.Grant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="recurring_journal_lines",
+        help_text="Optional project/grant dimension for NGO reporting.",
+    )
     description = models.CharField(max_length=255, blank=True)
     debit = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     credit = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -2054,13 +2420,13 @@ class TransactionReversalRule(models.Model):
     )
     prevent_cross_period_reversal = models.BooleanField(
         default=True,
-        help_text="If enabled, reversals cannot move amounts across fiscal periods unless explicitly authorized.",
+        help_text="If enabled, reversals cannot move amounts across fiscal years unless explicitly authorized.",
     )
     authorized_roles_for_cross_period_reversal = models.CharField(
         max_length=255,
         blank=True,
         help_text=(
-            "Comma-separated role or permission codes allowed to perform cross-fiscal-period reversals."
+            "Comma-separated role or permission codes allowed to perform cross-fiscal-year reversals."
         ),
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2517,27 +2883,122 @@ class InterFundTransferRule(models.Model):
 
 
 class InterFundTransfer(models.Model):
-    """Inter-fund transfer header used for operational register and reporting."""
+    """
+    Inter-fund transfer header (Dynamics-style workflow: draft → submitted → approved → posted).
+    GL posting: debit destination fund account, credit source fund account (fund codes map to chart accounts).
+    """
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
-        PENDING_APPROVAL = "pending_approval", "Pending Approval"
+        SUBMITTED = "submitted", "Submitted"
         APPROVED = "approved", "Approved"
         POSTED = "posted", "Posted"
         REJECTED = "rejected", "Rejected"
+        REVERSED = "reversed", "Reversed"
 
+    transfer_no = models.CharField(
+        max_length=40,
+        unique=True,
+        blank=True,
+        db_index=True,
+        help_text=_("Auto-assigned transfer number (e.g. IFT-2025-000042)."),
+    )
     rule = models.ForeignKey(
         InterFundTransferRule,
         on_delete=models.PROTECT,
         related_name="transfers",
     )
     transfer_date = models.DateField()
+    posting_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("GL posting date (set when posted)."),
+    )
     from_fund_type = models.CharField(max_length=40, choices=InterFundTransferRule.FundType.choices)
     to_fund_type = models.CharField(max_length=40, choices=InterFundTransferRule.FundType.choices)
     from_fund_code = models.CharField(max_length=80)
     to_fund_code = models.CharField(max_length=80)
+    from_grant = models.ForeignKey(
+        "tenant_grants.Grant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_out",
+        help_text=_("Optional: source fund as grant/project (enforces active/closed rules)."),
+    )
+    to_grant = models.ForeignKey(
+        "tenant_grants.Grant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_in",
+        help_text=_("Optional: destination fund as grant/project."),
+    )
+    from_project = models.ForeignKey(
+        "tenant_grants.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_from",
+        help_text=_("Source project when using project/bank workflow."),
+    )
+    to_project = models.ForeignKey(
+        "tenant_grants.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_to",
+        help_text=_("Destination project when using project/bank workflow."),
+    )
+    from_bank_account = models.ForeignKey(
+        "BankAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_out",
+        help_text=_("Source bank; GL account is bank's linked chart account."),
+    )
+    to_bank_account = models.ForeignKey(
+        "BankAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_in",
+        help_text=_("Destination bank; GL account is bank's linked chart account."),
+    )
     amount = models.DecimalField(max_digits=18, decimal_places=2)
-    reason = models.TextField(blank=True)
+    currency = models.ForeignKey(
+        Currency,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers",
+    )
+    description = models.TextField(blank=True, help_text=_("Business description / memo for the transfer."))
+    reason = models.TextField(blank=True, help_text=_("Legacy / extended notes (kept for compatibility)."))
+    reference_no = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text=_("External reference (PO, bank ref, etc.)."),
+    )
+    donor = models.ForeignKey(
+        "tenant_grants.Donor",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers",
+    )
+    attachment = models.FileField(
+        upload_to="finance/interfund_attachments/%Y/%m/",
+        blank=True,
+        null=True,
+        max_length=255,
+    )
+    planned_posting_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("Intended GL posting date (validated when posting to the ledger)."),
+    )
     status = models.CharField(
         max_length=30,
         choices=Status.choices,
@@ -2563,6 +3024,22 @@ class InterFundTransfer(models.Model):
         blank=True,
         related_name="interfund_transfers",
     )
+    reversal_journal = models.ForeignKey(
+        "JournalEntry",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="interfund_transfer_reversals",
+        help_text=_("Reversal journal when a posted transfer was reversed."),
+    )
+    reversed_by = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="interfund_transfers_reversed",
+    )
+    reversed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2572,7 +3049,23 @@ class InterFundTransfer(models.Model):
         verbose_name_plural = "Inter-fund transfers"
 
     def __str__(self) -> str:
-        return f"{self.transfer_date} {self.from_fund_code} -> {self.to_fund_code} {self.amount}"
+        ref = (self.transfer_no or "").strip() or f"#{self.pk or 'new'}"
+        return f"{ref} {self.transfer_date} {self.from_fund_code} → {self.to_fund_code} {self.amount}"
+
+    @property
+    def is_locked(self) -> bool:
+        """Posted or reversed transfers cannot be edited."""
+        return self.status in (self.Status.POSTED, self.Status.REVERSED)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not (self.transfer_no or "").strip():
+            no = f"IFT-{self.transfer_date.year}-{self.id:06d}"
+            InterFundTransfer.objects.filter(pk=self.pk).update(transfer_no=no)
+            self.transfer_no = no
+
+    def display_description(self) -> str:
+        return (self.description or self.reason or "").strip()
 
 class OrganizationSettings(models.Model):
     """

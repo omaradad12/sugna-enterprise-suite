@@ -1,0 +1,73 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Bank transfers" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <h1 class="page-title mb-1">{% trans "Bank transfers" %}</h1>
+  <p class="text-[13px] text-[#605e5c] mb-6">
+    {% trans "Move funds between bank GL accounts. Posts as a system journal (Dr receiving bank, Cr paying bank)." %}
+  </p>
+
+  {% if not can_post %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px]" style="border-color:#fff4ce; background:#fffbf0; color:#8a6d1a;">
+    {% trans "You can view this page. Posting requires Finance Manage permission." %}
+  </div>
+  {% endif %}
+
+  <div class="bg-white border rounded-xl p-6 shadow-sm" style="border-color:#edebe9;">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Transfer date" %}</label>
+          <input type="date" name="transfer_date" required class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Project / Grant" %} <span class="font-normal">({% trans "optional" %})</span></label>
+          <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for g in grants %}
+            <option value="{{ g.id }}">{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "From bank" %}</label>
+          <select name="from_account_id" required {% if not can_post %}disabled{% endif %} class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">{% trans "Select" %}</option>
+            {% for ba in bank_rows %}
+            <option value="{{ ba.account_id }}">{{ ba.bank_name }} — {{ ba.account_name }} ({{ ba.account.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "To bank" %}</label>
+          <select name="to_account_id" required {% if not can_post %}disabled{% endif %} class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">{% trans "Select" %}</option>
+            {% for ba in bank_rows %}
+            <option value="{{ ba.account_id }}">{{ ba.bank_name }} — {{ ba.account_name }} ({{ ba.account.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Amount" %}</label>
+          <input type="number" name="amount" step="0.01" min="0.01" required {% if not can_post %}disabled{% endif %} class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Description" %}</label>
+          <input type="text" name="description" {% if not can_post %}disabled{% endif %} class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'e.g. Transfer to operations account' %}" />
+        </div>
+      </div>
+      {% if can_post %}
+      <div class="pt-2">
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">
+          {% trans "Post transfer" %}
+        </button>
+        <a href="{% url 'tenant_portal:finance_journals' %}" class="ml-3 text-[13px] font-semibold text-[#0078D4]">{% trans "Journal register" %}</a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

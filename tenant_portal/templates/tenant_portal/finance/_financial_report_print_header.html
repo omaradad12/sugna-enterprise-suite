@@ -1,0 +1,112 @@
+{% comment %}
+Shared print/PDF letterhead for Statement of Financial Position, Statement of Activities,
+and Cash Flow Statement (aligned with General Ledger print header). Visible only when printing.
+
+Context: org_settings, tenant. Required with: frpt_title, frpt_subtitle, frpt_meta_mode ("as_at" or "period"), filters.
+Optional: selected_grant, selected_donor. Currency shown when org_settings.default_currency is set.
+{% endcomment %}
+<style>
+  @media print {
+    .frpt-letterhead {
+      text-align: center;
+      margin-bottom: 0.35rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid #e1dfdd;
+      page-break-after: avoid;
+    }
+    .frpt-letterhead .frpt-print-logo {
+      max-height: 40px;
+      width: auto;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+    .frpt-letterhead .frpt-print-legal {
+      font-size: 13px;
+      font-weight: 600;
+      color: #201f1e;
+      margin-top: 0.2rem;
+      letter-spacing: 0.02em;
+      line-height: 1.25;
+    }
+    .frpt-letterhead .frpt-print-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #323130;
+      margin-top: 0.35rem;
+      line-height: 1.25;
+    }
+    .frpt-letterhead .frpt-print-subtitle {
+      font-size: 10px;
+      font-weight: 500;
+      color: #605e5c;
+      margin-top: 0.15rem;
+      line-height: 1.35;
+      letter-spacing: 0.01em;
+      text-transform: none;
+    }
+    .frpt-letterhead .frpt-print-meta-block {
+      margin-top: 0.35rem;
+      font-size: 10px;
+      color: #605e5c;
+      line-height: 1.45;
+      text-align: center;
+    }
+    .frpt-letterhead .frpt-print-meta-line {
+      display: block;
+      margin-top: 0.18rem;
+    }
+    .frpt-letterhead .frpt-print-meta-line:first-child {
+      margin-top: 0;
+    }
+    .frpt-letterhead .frpt-print-meta-printed {
+      margin-top: 0.4rem;
+    }
+    .frpt-letterhead .frpt-print-address {
+      font-size: 10px !important;
+      margin-top: 0.15rem !important;
+      line-height: 1.3 !important;
+      max-width: 100% !important;
+    }
+  }
+</style>
+<div class="print-only frpt-letterhead">
+  <div class="flex justify-center">
+    {% if tenant.brand_logo_url %}
+    <img src="{{ tenant.brand_logo_url }}" alt="" class="frpt-print-logo object-contain" />
+    {% elif org_settings and org_settings.report_logo %}
+    <img src="{{ org_settings.report_logo.url }}" alt="" class="frpt-print-logo object-contain" />
+    {% elif org_settings and org_settings.organization_logo %}
+    <img src="{{ org_settings.organization_logo.url }}" alt="" class="frpt-print-logo object-contain" />
+    {% else %}
+    <img src="{% url 'platform_dashboard:logo' %}" alt="" class="frpt-print-logo object-contain" />
+    {% endif %}
+  </div>
+  <div class="frpt-print-legal">
+    {% if org_settings and org_settings.organization_name %}
+      {{ org_settings.organization_name }}
+    {% else %}
+      {{ tenant.name }}
+    {% endif %}
+  </div>
+  {% if org_settings and org_settings.address %}
+  <div class="frpt-print-address max-w-[520px] mx-auto">{{ org_settings.address }}</div>
+  {% endif %}
+  <div class="frpt-print-title">{{ frpt_title }}</div>
+  <div class="frpt-print-subtitle">{{ frpt_subtitle }}</div>
+  <div class="frpt-print-meta-block">
+    {% if frpt_meta_mode == "as_at" %}
+    <span class="frpt-print-meta-line"><strong>As at:</strong> {{ filters.as_at|date:"d M Y" }}</span>
+    {% elif frpt_meta_mode == "period" %}
+    <span class="frpt-print-meta-line"><strong>Period:</strong> {{ filters.period_start|date:"d M Y" }} – {{ filters.period_end|date:"d M Y" }}</span>
+    {% endif %}
+    <span class="frpt-print-meta-line"><strong>Grant:</strong> {% if selected_grant %}{{ selected_grant.title }}{% if selected_grant.code %} ({{ selected_grant.code }}){% endif %}{% else %}All grants{% endif %}</span>
+    <span class="frpt-print-meta-line"><strong>Donor:</strong> {% if selected_donor %}{{ selected_donor.name }}{% else %}—{% endif %}</span>
+    {% if org_settings and org_settings.default_currency %}
+    <span class="frpt-print-meta-line"><strong>Currency:</strong> {{ org_settings.default_currency.code }}</span>
+    {% endif %}
+    <span class="frpt-print-meta-line frpt-print-meta-printed"><strong>Printed:</strong> {% now "d/m/Y H:i" %}</span>
+  </div>
+</div>

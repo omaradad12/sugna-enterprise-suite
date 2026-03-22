@@ -7,7 +7,7 @@ from datetime import date
 @dataclass(frozen=True)
 class PostingControlResult:
     fiscal_year_id: int
-    fiscal_period_id: int
+    accounting_period_id: int
     period_name: str
 
 
@@ -31,7 +31,7 @@ def get_open_period_for_date(*, using: str, dt: date) -> PostingControlResult:
         raise ValueError(f"Fiscal year is closed ({fy.name}).")
     return PostingControlResult(
         fiscal_year_id=p.fiscal_year_id,
-        fiscal_period_id=p.id,
+        accounting_period_id=p.id,
         period_name=p.name or p.period_name or str(p),
     )
 

@@ -1,0 +1,72 @@
+{% comment %}
+Statement of Financial Position filters: As at date, Grant, optional Donor (synced from grant on change).
+Context: filters (as_at, grant_id, donor_id), grants, donors, grant_donor_map, export_csv_url.
+{% endcomment %}
+<div class="dynamics-filter-pane hidden-print max-w-[1200px] mx-auto">
+  <div class="dynamics-filter-head">
+    <span class="dynamics-filter-head-title">Filters</span>
+    <span class="dynamics-filter-head-hint">Refine the balance sheet</span>
+  </div>
+  <form method="get" action="" id="sfp-filter-form">
+    <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">
+      <div class="dynamics-filter-field">
+        <label for="sfp-as-at">As at date</label>
+        <input id="sfp-as-at" type="date" name="as_at" value="{{ filters.as_at|date:'Y-m-d' }}" class="dynamics-input" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="sfp-grant">Grant</label>
+        <select id="sfp-grant" name="grant_id" class="dynamics-select min-w-[220px] max-w-[300px]">
+          <option value="">All grants</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:6 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="sfp-donor">Donor <span class="dynamics-label-muted">(optional)</span></label>
+        <select id="sfp-donor" name="donor_id" class="dynamics-select min-w-[200px] max-w-[280px]"
+                title="Auto-filled when you select a grant; clear to filter by grant only.">
+          <option value="">—</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field dynamics-filter-field--actions">
+        <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+        <div class="dynamics-filter-inline-actions">
+          <button type="submit" class="dynamics-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply filters
+          </button>
+          {% if export_csv_url %}
+          <a href="{{ export_csv_url }}" class="dynamics-btn-secondary">
+            <i data-feather="download" class="w-4 h-4"></i>
+            Export Excel
+          </a>
+          {% endif %}
+          <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+            <i data-feather="printer" class="w-4 h-4"></i>
+            Print / PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+  {{ grant_donor_map|json_script:"sfp-grant-donor-map" }}
+  <script>
+  (function () {
+    var grantSel = document.getElementById("sfp-grant");
+    var donorSel = document.getElementById("sfp-donor");
+    var el = document.getElementById("sfp-grant-donor-map");
+    if (!grantSel || !donorSel || !el) return;
+    var map = {};
+    try { map = JSON.parse(el.textContent || "{}"); } catch (e) {}
+    grantSel.addEventListener("change", function () {
+      var gid = grantSel.value;
+      if (gid && map[gid]) donorSel.value = map[gid];
+      else donorSel.value = "";
+    });
+  })();
+  </script>
+</div>

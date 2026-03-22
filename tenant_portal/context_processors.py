@@ -8,10 +8,15 @@ def org_settings(request):
     """Add org_settings (tenant's Organization Settings) and tenant_display_name when in a tenant context."""
     tenant = getattr(request, "tenant", None)
     if not tenant or not getattr(tenant, "db_name", None):
-        return {"org_settings": None, "tenant_display_name": None}
+        return {
+            "org_settings": None,
+            "tenant_display_name": None,
+            "can_access_adjusting_journals": False,
+        }
     try:
         from tenants.db import ensure_tenant_db_configured, tenant_db_alias
         from tenant_finance.models import OrganizationSettings
+        from rbac.models import user_has_permission
 
         ensure_tenant_db_configured(tenant)
         alias = tenant_db_alias(tenant)
@@ -21,9 +26,25 @@ def org_settings(request):
             n = (settings.organization_name or "").strip()
             if n:
                 display_name = n
-        return {"org_settings": settings, "tenant_display_name": display_name}
+        user = getattr(request, "tenant_user", None)
+        can_adjusting = False
+        if user:
+            cached = getattr(request, "rbac_permission_codes", None)
+            if isinstance(cached, set) and ("*" in cached or "finance:journals.adjusting" in cached):
+                can_adjusting = True
+            else:
+                can_adjusting = user_has_permission(user, "finance:journals.adjusting", using=alias)
+        return {
+            "org_settings": settings,
+            "tenant_display_name": display_name,
+            "can_access_adjusting_journals": can_adjusting,
+        }
     except Exception:
-        return {"org_settings": None, "tenant_display_name": None}
+        return {
+            "org_settings": None,
+            "tenant_display_name": None,
+            "can_access_adjusting_journals": False,
+        }
 
 
 def smart_alerts(request):

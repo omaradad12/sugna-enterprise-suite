@@ -1,0 +1,207 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% if edit_transfer %}{% trans "Edit inter-fund transfer" %}{% else %}{% trans "New inter-fund transfer" %}{% endif %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+{{ interfund_data|json_script:"interfund-app-data" }}
+<div class="max-w-3xl mx-auto" x-data="interfundTransferForm()" x-init="initFromServer()">
+  <div class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+    <a href="{% url 'tenant_portal:finance_post_transaction' %}" class="font-semibold text-[#0078D4] hover:underline">{% trans "Post transaction" %}</a>
+    <span class="text-[#a19f9d]">/</span>
+    <a href="{% url 'tenant_portal:finance_interfund_transfers' %}" class="font-semibold text-[#0078D4] hover:underline">{% trans "Inter-fund transfers" %}</a>
+  </div>
+  <h1 class="page-title mb-2">{% if edit_transfer %}{% trans "Edit inter-fund transfer" %}{% else %}{% trans "New inter-fund transfer" %}{% endif %}</h1>
+  <p class="text-[13px] text-[#605e5c] mb-6">{% trans "Move balances between project bank accounts. Fund, donor, and GL accounts are determined automatically from your selections." %}</p>
+
+  {% if rules %}
+  <div class="mb-4 text-[12px] text-[#605e5c] border rounded-lg px-3 py-2" style="border-color:#edebe9; background:#faf9f8;">
+    <span class="font-semibold text-[#323130]">{% trans "Requires an active rule" %}:</span>
+    {% trans "Project → project (same currency). " %}
+    <a href="{% url 'tenant_portal:setup_interfund_rules_list' %}" class="text-[#0078D4] font-semibold">{% trans "Financial Setup" %}</a>
+  </div>
+  {% else %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px]" style="border-color:#fde2e1; background:#fef6f6; color:#a4262c;">
+    {% trans "No active inter-fund rules. Configure a PROJECT → PROJECT rule before creating transfers." %}
+    <a href="{% url 'tenant_portal:setup_interfund_rules_add' %}" class="font-semibold underline ml-1">{% trans "Add rule" %}</a>
+  </div>
+  {% endif %}
+
+  <div class="bg-white border rounded-xl p-6 shadow-sm space-y-8" style="border-color:#edebe9;">
+    <form method="post" enctype="multipart/form-data" class="space-y-8" @submit="syncHiddenCurrency()">
+      {% csrf_token %}
+
+      <section>
+        <h2 class="text-sm font-semibold text-[#323130] mb-3 pb-2 border-b" style="border-color:#edebe9;">{% trans "Transfer information" %}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% if edit_transfer and edit_transfer.transfer_no %}
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Transfer #" %}</label>
+            <input type="text" readonly class="w-full px-3 py-2 rounded border text-sm bg-[#faf9f8] text-[#323130] font-mono" style="border-color:#edebe9;" value="{{ edit_transfer.transfer_no }}" />
+          </div>
+          <div></div>
+          {% endif %}
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Transfer date" %} <span class="text-red-600">*</span></label>
+            <input type="date" name="transfer_date" required class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;"
+                   value="{% if edit_transfer %}{{ edit_transfer.transfer_date|date:'Y-m-d' }}{% endif %}" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Posting date" %} <span class="text-red-600">*</span></label>
+            <input type="date" name="planned_posting_date" required class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;"
+                   value="{% if edit_transfer and edit_transfer.planned_posting_date %}{{ edit_transfer.planned_posting_date|date:'Y-m-d' }}{% endif %}" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Amount" %} <span class="text-red-600">*</span></label>
+            <input type="number" name="amount" step="0.01" min="0.01" required class="w-full px-3 py-2 rounded border text-sm font-mono" style="border-color:#edebe9;"
+                   value="{% if edit_transfer %}{{ edit_transfer.amount }}{% endif %}" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Currency" %}</label>
+            <input type="text" readonly class="w-full px-3 py-2 rounded border text-sm bg-[#faf9f8] font-mono" style="border-color:#edebe9;" :value="currencyLabel" placeholder="{% trans 'Select source bank' %}" />
+            <input type="hidden" name="currency_id" :value="currencyId" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Reference number" %} <span class="font-normal text-[#605e5c]">({% trans "optional" %})</span></label>
+            <input type="text" name="reference_no" maxlength="120" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Bank ref, PO…' %}"
+                   value="{% if edit_transfer %}{{ edit_transfer.reference_no }}{% endif %}" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Attachment" %} <span class="font-normal">({% trans "optional" %})</span></label>
+            <input type="file" name="attachment" class="block w-full text-sm text-[#323130] file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#f3f2f1] file:text-[#323130]" />
+            {% if edit_transfer and edit_transfer.attachment %}
+            <p class="mt-1 text-[12px] text-[#605e5c]">{% trans "Current file" %}: <a href="{{ edit_transfer.attachment.url }}" class="text-[#0078D4] font-semibold" target="_blank" rel="noopener">{% trans "Download" %}</a></p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-sm font-semibold text-[#323130] mb-3 pb-2 border-b" style="border-color:#edebe9;">{% trans "Source" %}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "From project" %} <span class="text-red-600">*</span></label>
+            <select name="from_project_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;" required x-model="fp" @change="fb = ''; onFromBankChange()">
+              <option value="">{% trans "Select project" %}</option>
+              <template x-for="p in interfund.projects" :key="p.id">
+                <option :value="p.id" x-text="p.label"></option>
+              </template>
+            </select>
+            <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "Banks listed here are linked to the project via an active grant." %}</p>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "From bank account" %} <span class="text-red-600">*</span></label>
+            <select name="from_bank_account_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;" required x-model="fb" @change="onFromBankChange()" :disabled="!fp">
+              <option value="">{% trans "Select bank" %}</option>
+              <template x-for="b in fromBanks" :key="b.id">
+                <option :value="b.id" x-text="b.label"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-sm font-semibold text-[#323130] mb-3 pb-2 border-b" style="border-color:#edebe9;">{% trans "Destination" %}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "To project" %} <span class="text-red-600">*</span></label>
+            <select name="to_project_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;" required x-model="tp" @change="tb = ''">
+              <option value="">{% trans "Select project" %}</option>
+              <template x-for="p in interfund.projects" :key="'t'+p.id">
+                <option :value="p.id" x-text="p.label"></option>
+              </template>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "To bank account" %} <span class="text-red-600">*</span></label>
+            <select name="to_bank_account_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;" required x-model="tb" :disabled="!tp">
+              <option value="">{% trans "Select bank" %}</option>
+              <template x-for="b in toBanks" :key="'tb'+b.id">
+                <option :value="b.id" x-text="b.label"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-sm font-semibold text-[#323130] mb-3 pb-2 border-b" style="border-color:#edebe9;">{% trans "Description" %}</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Description" %} <span class="text-red-600">*</span></label>
+            <textarea name="description" rows="3" required class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Purpose of this transfer (visible on journal)' %}">{% if edit_transfer %}{{ edit_transfer.description }}{% endif %}</textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Internal note" %} <span class="font-normal text-[#605e5c]">({% trans "optional" %})</span></label>
+            <textarea name="reason" rows="2" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">{% if edit_transfer %}{{ edit_transfer.reason }}{% endif %}</textarea>
+          </div>
+        </div>
+      </section>
+
+      <div class="pt-2 flex flex-wrap gap-3">
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">
+          {% if edit_transfer %}{% trans "Save changes" %}{% else %}{% trans "Create transfer" %}{% endif %}
+        </button>
+        {% if edit_transfer %}
+        <a href="{% url 'tenant_portal:finance_interfund_transfer_detail' edit_transfer.id %}" class="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#edebe9;">{% trans "Cancel" %}</a>
+        {% else %}
+        <a href="{% url 'tenant_portal:finance_interfund_transfers' %}" class="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-semibold border" style="border-color:#edebe9;">{% trans "Cancel" %}</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function interfundTransferForm() {
+  return {
+    interfund: { projects: [], banksByProject: {}, initial: null },
+    fp: '',
+    tp: '',
+    fb: '',
+    tb: '',
+    currencyLabel: '—',
+    currencyId: '',
+    get fromBanks() {
+      const map = this.interfund.banksByProject || {};
+      return map[String(this.fp)] || [];
+    },
+    get toBanks() {
+      const map = this.interfund.banksByProject || {};
+      return map[String(this.tp)] || [];
+    },
+    initFromServer() {
+      const el = document.getElementById('interfund-app-data');
+      if (!el) return;
+      try {
+        this.interfund = JSON.parse(el.textContent);
+      } catch (e) {
+        this.interfund = { projects: [], banksByProject: {} };
+      }
+      const ini = this.interfund.initial || {};
+      if (ini.fromProjectId) this.fp = String(ini.fromProjectId);
+      if (ini.toProjectId) this.tp = String(ini.toProjectId);
+      this.$nextTick(() => {
+        if (ini.fromBankId) this.fb = String(ini.fromBankId);
+        if (ini.toBankId) this.tb = String(ini.toBankId);
+        this.onFromBankChange();
+      });
+    },
+    onFromBankChange() {
+      const banks = this.fromBanks;
+      const b = banks.find(x => String(x.id) === String(this.fb));
+      if (b) {
+        this.currencyLabel = b.currency_code || '—';
+        this.currencyId = String(b.currency_id || '');
+      } else {
+        this.currencyLabel = '—';
+        this.currencyId = '';
+      }
+    },
+    syncHiddenCurrency() {
+      this.onFromBankChange();
+    },
+  };
+}
+</script>
+{% endblock %}

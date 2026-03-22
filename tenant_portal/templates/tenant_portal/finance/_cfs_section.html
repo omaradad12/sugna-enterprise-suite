@@ -1,0 +1,44 @@
+{% load i18n %}
+<div class="cfs-panel mb-5">
+  <div class="cfs-panel-head">
+    <i data-feather="{{ section_icon|default:'layers' }}" class="cfs-panel-head-icon" aria-hidden="true"></i>
+    <span class="cfs-panel-head-title">{{ section_title }}</span>
+  </div>
+  <div class="cfs-table-wrap">
+    <table class="cfs-data-table w-full border-collapse">
+      <thead>
+        <tr>
+          <th scope="col" class="cfs-th cfs-th-date">{% trans "Date" %}</th>
+          <th scope="col" class="cfs-th">{% trans "Reference" %}</th>
+          <th scope="col" class="cfs-th">{% trans "Description" %}</th>
+          <th scope="col" class="cfs-th cfs-th-num">{% trans "Cash effect" %}</th>
+          <th scope="col" class="cfs-th cfs-th-action hidden-print">{% trans "Journal" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if entries %}
+          {% for row in entries %}
+          <tr class="cfs-row dynamics-data-row">
+            <td class="cfs-td cfs-td-date tabular-nums">{% if row.gl_date %}{{ row.gl_date|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="cfs-td cfs-td-ref font-mono">{{ row.label|default:"—" }}</td>
+            <td class="cfs-td cfs-td-desc">{{ row.memo|default:"—"|truncatewords:14 }}</td>
+            <td class="cfs-td cfs-td-num tabular-nums">{{ row.amount|floatformat:2 }}</td>
+            <td class="cfs-td hidden-print">
+              <a href="{% url 'tenant_portal:finance_journal_detail' row.entry_id %}" class="cfs-journal-link">{% trans "View entry" %}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr class="cfs-row">
+            <td colspan="5" class="cfs-td cfs-empty">{% trans "No cash movements in this section for the selected filters." %}</td>
+          </tr>
+        {% endif %}
+        <tr class="cfs-subtotal-row">
+          <td colspan="3" class="cfs-td cfs-subtotal-label">{{ net_label }}</td>
+          <td class="cfs-td cfs-td-num cfs-subtotal-num tabular-nums">{{ net_amount|floatformat:2 }}</td>
+          <td class="cfs-td hidden-print"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

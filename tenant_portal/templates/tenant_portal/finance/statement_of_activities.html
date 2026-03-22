@@ -1,45 +1,195 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Statement of Activities (Income &amp; Expenditure) | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}Income &amp; expenditure | Finance{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Statement of Activities (Income &amp; Expenditure)</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">For period {{ filters.period_start|date:"M d, Y" }} — {{ filters.period_end|date:"M d, Y" }}.</p>
+<div class="frpt-print-root soa-print-root dynamics-financial-report">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+{% include "tenant_portal/finance/_financial_report_print_styles.html" %}
+<style>
+  .soa-report-wrap {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .soa-panel {
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .soa-panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #323130;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid #edebe9;
+    background: #faf9f8;
+  }
+  .soa-cat-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    padding: 0.5rem 0.75rem 0.35rem;
+    background: #fff;
+  }
+  .soa-subtotal td {
+    font-size: 12px;
+    font-weight: 600;
+    color: #323130;
+    background: #f3f2f1;
+    border-top: 1px solid #e1dfdd;
+  }
+  .soa-section-total td {
+    font-size: 12px;
+    font-weight: 700;
+    color: #201f1e;
+    background: #ecebe9;
+    border-top: 2px solid #c8c6c4;
+  }
+  .soa-surplus td {
+    font-size: 12px;
+    font-weight: 700;
+    color: #201f1e;
+    background: #e8f4ff;
+    border: 1px solid #c7e0f4;
+  }
+  .soa-tb {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .soa-tb th {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #605e5c;
+    text-align: left;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid #edebe9;
+    background: #faf9f8;
+  }
+  .soa-tb th.soa-th-amt {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 12mm 10mm 14mm 10mm;
+    }
+    .frpt-print-root .soa-report-wrap {
+      max-width: 100% !important;
+    }
+  }
+</style>
+
+{% include "tenant_portal/finance/_financial_report_print_header.html" with frpt_title="Statement of activities" frpt_subtitle="Income and expenditure report" frpt_meta_mode="period" %}
+
+<div class="hidden-print dynamics-report-hero soa-report-wrap">
+  <h1 class="dynamics-hero-title">Statement of activities</h1>
+  <p class="dynamics-hero-subtitle">Income and expenditure report</p>
+  <div class="dynamics-hero-meta space-y-1">
+    <div><strong>Period</strong> {{ filters.period_start|date:"F j, Y" }} — {{ filters.period_end|date:"F j, Y" }}</div>
+    <div><strong>Grant</strong> {% if selected_grant %}{{ selected_grant.title }}{% if selected_grant.code %} ({{ selected_grant.code }}){% endif %}{% else %}All grants{% endif %}</div>
+    <div><strong>Donor</strong> {% if selected_donor %}{{ selected_donor.name }}{% else %}—{% endif %}</div>
+  </div>
 </div>
 
-{% include "tenant_portal/finance/_filters_export.html" with grants=grants %}
+{% include "tenant_portal/finance/_filters_soa.html" %}
+{% include "tenant_portal/finance/_report_validation_alerts.html" %}
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Income</div>
-  <table class="w-full text-sm">
-    <thead><tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;"><th class="px-4 py-2 font-semibold">Account</th><th class="px-4 py-2 font-semibold text-right">Amount</th></tr></thead>
-    <tbody>
-      {% for code, name, bal in income %}
-      <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
-      {% empty %}
-      <tr><td colspan="2" class="px-4 py-2 text-[#605e5c]">—</td></tr>
-      {% endfor %}
-      <tr class="font-semibold border-t" style="border-color:#edebe9;"><td class="px-4 py-2">Total Income</td><td class="px-4 py-2 text-right">{{ total_income|floatformat:2 }}</td></tr>
-    </tbody>
-  </table>
+<div class="soa-report-wrap print-area erp-section">
+  <div class="soa-panel">
+    <div class="soa-panel-title">Income</div>
+    <table class="soa-tb frpt-rpt-tb">
+      <colgroup>
+        <col class="frpt-col-desc" />
+        <col class="frpt-col-amt" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th class="soa-th-amt frpt-amt">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sec in income_sections %}
+        <tr><td colspan="2" class="soa-cat-title">{{ sec.category_label }}</td></tr>
+        {% include "tenant_portal/finance/_sfp_line_rows.html" with lines=sec.lines %}
+        <tr class="soa-subtotal frpt-subtotal">
+          <td class="px-3 py-1.5">Subtotal — {{ sec.category_label }}</td>
+          <td class="sfp-tb-num frpt-amt px-3 py-1.5 text-right tabular-nums">{{ sec.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr class="sfp-tb-row dynamics-data-row border-b" style="border-color:#edebe9;">
+          <td colspan="2" class="px-3 py-2 text-[12px] text-[#605e5c]">No income for this selection.</td>
+        </tr>
+        {% endfor %}
+        <tr class="soa-section-total frpt-major-total">
+          <td class="px-3 py-2">Total income</td>
+          <td class="frpt-amt px-3 py-2 text-right tabular-nums">{{ total_income|floatformat:2 }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="soa-panel">
+    <div class="soa-panel-title">Expenditure</div>
+    <table class="soa-tb frpt-rpt-tb">
+      <colgroup>
+        <col class="frpt-col-desc" />
+        <col class="frpt-col-amt" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th class="soa-th-amt frpt-amt">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for es in expense_sections %}
+        <tr><td colspan="2" class="soa-cat-title">{{ es.title }}</td></tr>
+        {% include "tenant_portal/finance/_sfp_line_rows.html" with lines=es.lines %}
+        <tr class="soa-subtotal frpt-subtotal">
+          <td class="px-3 py-1.5">Subtotal — {{ es.title }}</td>
+          <td class="sfp-tb-num frpt-amt px-3 py-1.5 text-right tabular-nums">{{ es.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="soa-section-total frpt-major-total">
+          <td class="px-3 py-2">Total expenditure</td>
+          <td class="frpt-amt px-3 py-2 text-right tabular-nums">{{ total_expense|floatformat:2 }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="soa-panel" style="margin-bottom:0;">
+    <div class="soa-panel-title">Surplus / deficit</div>
+    <table class="soa-tb frpt-rpt-tb">
+      <colgroup>
+        <col class="frpt-col-desc" />
+        <col class="frpt-col-amt" />
+      </colgroup>
+      <tbody>
+        <tr class="soa-surplus frpt-surplus">
+          <td class="px-3 py-2.5">
+            Surplus / (deficit) for the period
+            <span class="font-normal text-[#605e5c] text-[11px] hidden-print"> — income less expenditure</span>
+          </td>
+          <td class="frpt-amt px-3 py-2.5 text-right tabular-nums">
+            {% if surplus < 0 %}({{ surplus_abs|floatformat:2 }}){% else %}{{ surplus|floatformat:2 }}{% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
-
-<div class="bg-white border rounded-lg overflow-hidden mt-4" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Expenditure</div>
-  <table class="w-full text-sm">
-    <thead><tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;"><th class="px-4 py-2 font-semibold">Account</th><th class="px-4 py-2 font-semibold text-right">Amount</th></tr></thead>
-    <tbody>
-      {% for code, name, bal in expense %}
-      <tr class="border-b" style="border-color:#edebe9;"><td class="px-4 py-2">{{ code }} — {{ name }}</td><td class="px-4 py-2 text-right">{{ bal|floatformat:2 }}</td></tr>
-      {% empty %}
-      <tr><td colspan="2" class="px-4 py-2 text-[#605e5c]">—</td></tr>
-      {% endfor %}
-      <tr class="font-semibold border-t" style="border-color:#edebe9;"><td class="px-4 py-2">Total Expenditure</td><td class="px-4 py-2 text-right">{{ total_expense|floatformat:2 }}</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<div class="mt-4 p-4 rounded-lg font-semibold" style="background:#faf9f8; border:1px solid #edebe9;">
-  Surplus / (Deficit): {{ surplus|floatformat:2 }}
 </div>
 {% endblock %}

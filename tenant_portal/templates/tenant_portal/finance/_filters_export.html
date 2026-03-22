@@ -1,7 +1,72 @@
+{% load i18n %}
 {% comment %}
-Include for finance overview pages. Filters: period (From/To), Donor, Project.
+Include for finance overview pages. Filters: period (From/To), Donor, Grant.
 Pass: filters (period_start, period_end, grant_id, donor_id), grants (optional), donors (optional), export_csv_url (optional).
+Optional: use_dynamics — wrap in Fluent / Dynamics filter pane (Segoe, command-bar styling).
+Optional: filter_title, filter_hint — override header strings (plain text).
 {% endcomment %}
+{% if use_dynamics %}
+<div class="dynamics-filter-pane hidden-print mb-4">
+  <div class="dynamics-filter-head">
+    <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+    <span class="dynamics-filter-head-title">{% if filter_title %}{{ filter_title }}{% else %}{% trans "Filters" %}{% endif %}</span>
+    <span class="dynamics-filter-head-hint">{% if filter_hint %}{{ filter_hint }}{% else %}{% trans "Adjust criteria and apply" %}{% endif %}</span>
+  </div>
+  <form method="get" action="" class="dynamics-filter-grid">
+    <div class="dynamics-filter-field">
+      <label for="fe-period-start">{% trans "From" %} <span class="dynamics-label-muted">{% trans "(start)" %}</span></label>
+      <input id="fe-period-start" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
+             class="dynamics-input w-full min-w-[140px]" />
+    </div>
+    <div class="dynamics-filter-field">
+      <label for="fe-period-end">{% trans "To" %} <span class="dynamics-label-muted">{% trans "(end)" %}</span></label>
+      <input id="fe-period-end" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
+             class="dynamics-input w-full min-w-[140px]" />
+    </div>
+    {% if donors %}
+    <div class="dynamics-filter-field">
+      <label for="fe-donor">{% trans "Donor" %}</label>
+      <select id="fe-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
+        <option value="">{% trans "All donors" %}</option>
+        {% for d in donors %}
+        <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if grants %}
+    <div class="dynamics-filter-field">
+      <label for="fe-grant">{% trans "Grant" %}</label>
+      <select id="fe-grant" name="grant_id" class="dynamics-select w-full min-w-[200px]">
+        <option value="">{% trans "All grants" %}</option>
+        {% for g in grants %}
+        <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+      <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+      <button type="submit" class="dynamics-btn-primary">
+        <i data-feather="check" class="w-4 h-4"></i>
+        {% trans "Apply" %}
+      </button>
+    </div>
+  </form>
+  <div class="dynamics-filter-actions">
+    {% if export_csv_url %}
+    <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline" title="{% trans 'Opens as CSV in Excel' %}">
+      <i data-feather="download" class="w-4 h-4"></i>
+      {% trans "Export Excel" %}
+    </a>
+    {% endif %}
+    <button type="button" onclick="window.print()" class="dynamics-btn-secondary">
+      <i data-feather="printer" class="w-4 h-4"></i>
+      {% trans "Print / PDF" %}
+    </button>
+  </div>
+</div>
+{% else %}
 <div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
   <form method="get" action="" class="flex flex-wrap items-end gap-3">
     <div class="flex flex-wrap items-center gap-2">
@@ -27,9 +92,9 @@ Pass: filters (period_start, period_end, grant_id, donor_id), grants (optional),
     {% endif %}
     {% if grants %}
     <div class="flex flex-wrap items-center gap-2">
-      <label class="text-xs font-medium text-[#605e5c]">Project</label>
+      <label class="text-xs font-medium text-[#605e5c]">Grant</label>
       <select name="grant_id" class="rounded border px-2 py-1.5 text-sm min-w-[160px]" style="border-color:#edebe9;">
-        <option value="">All</option>
+        <option value="">All grants</option>
         {% for g in grants %}
         <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
         {% endfor %}
@@ -43,9 +108,9 @@ Pass: filters (period_start, period_end, grant_id, donor_id), grants (optional),
   </form>
   <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
     {% if export_csv_url %}
-    <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+    <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;" title="Opens as CSV in Excel">
       <i data-feather="download" class="w-4 h-4"></i>
-      Export to Excel (CSV)
+      Export Excel
     </a>
     {% endif %}
     <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
@@ -54,3 +119,4 @@ Pass: filters (period_start, period_end, grant_id, donor_id), grants (optional),
     </button>
   </div>
 </div>
+{% endif %}

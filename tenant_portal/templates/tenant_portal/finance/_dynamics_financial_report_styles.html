@@ -1,0 +1,329 @@
+{% comment %}
+Fluent / Microsoft Dynamics–aligned styles for Statement of Financial Position & Statement of Activities.
+Include once inside .dynamics-financial-report (or on the same root as .sfp-print-root / .soa-print-root).
+{% endcomment %}
+<style>
+  .dynamics-financial-report {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+
+  /* Screen: report title block (entity-style header) */
+  .dynamics-report-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .dynamics-report-hero .dynamics-hero-org {
+    font-size: 13px;
+    font-weight: 600;
+    color: #201f1e;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+  }
+  .dynamics-report-hero .dynamics-hero-title {
+    margin-top: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .dynamics-report-hero .dynamics-hero-subtitle {
+    margin-top: 0.25rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: #605e5c;
+    line-height: 1.35;
+  }
+  .dynamics-report-hero .dynamics-hero-meta {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #edebe9;
+    font-size: 12px;
+    color: #605e5c;
+    line-height: 1.55;
+    text-align: left;
+  }
+  .dynamics-report-hero .dynamics-hero-meta strong {
+    color: #323130;
+    font-weight: 600;
+    min-width: 4.5rem;
+    display: inline-block;
+  }
+
+  /* Filter pane — command-bar feel */
+  .dynamics-filter-pane {
+    background: #faf9f8;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 1rem 1.25rem 1.1rem;
+    margin-bottom: 1.25rem;
+  }
+  .dynamics-filter-pane .dynamics-filter-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid #e1dfdd;
+  }
+  .dynamics-filter-pane .dynamics-filter-head-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #323130;
+  }
+  .dynamics-filter-pane .dynamics-filter-head-hint {
+    font-size: 11px;
+    color: #8a8886;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .dynamics-filter-pane .dynamics-filter-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem 1.25rem;
+  }
+  /* One toolbar row: filters left, Apply / Export / Print on same line (right of donor) */
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions {
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field--actions {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-inline-actions {
+    flex-wrap: nowrap;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field:not(.dynamics-filter-field--actions) {
+    min-width: 0;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-input {
+    min-width: 0;
+    width: auto;
+    max-width: 100%;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-select {
+    min-width: 0;
+    width: 100%;
+    max-width: min(300px, 100%);
+  }
+  @media (max-width: 1100px) {
+    .dynamics-filter-grid.dynamics-filter-grid--inline-actions {
+      flex-wrap: wrap;
+    }
+    .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field--actions {
+      margin-left: 0;
+      flex-basis: 100%;
+    }
+    .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-inline-actions {
+      flex-wrap: wrap;
+    }
+  }
+  .dynamics-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .dynamics-filter-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #323130;
+    letter-spacing: 0.02em;
+  }
+  .dynamics-filter-field label .dynamics-label-muted {
+    font-weight: 400;
+    color: #8a8886;
+  }
+  .dynamics-input,
+  .dynamics-select {
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    min-height: 32px;
+    padding: 0.25rem 0.6rem;
+    font-size: 14px;
+    line-height: 1.35;
+    color: #201f1e;
+    background: #ffffff;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  .dynamics-input:hover,
+  .dynamics-select:hover {
+    border-color: #323130;
+  }
+  .dynamics-input:focus,
+  .dynamics-select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px #0078d4;
+  }
+  .dynamics-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 32px;
+    padding: 0 1rem;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+    background: #0078d4;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .dynamics-btn-primary:hover {
+    background: #106ebe;
+  }
+  .dynamics-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 32px;
+    padding: 0 0.85rem;
+    font-size: 14px;
+    font-weight: 600;
+    color: #201f1e;
+    background: #ffffff;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .dynamics-btn-secondary:hover {
+    background: #f3f2f1;
+    border-color: #323130;
+  }
+  /* Print / PDF — blue outline (Dynamics-style secondary emphasis) */
+  .dynamics-btn-secondary.dynamics-btn-print {
+    border-color: #0078d4;
+    color: #201f1e;
+    background: #ffffff;
+  }
+  .dynamics-btn-secondary.dynamics-btn-print:hover {
+    border-color: #106ebe;
+    background: #f5f9ff;
+  }
+  .dynamics-btn-primary:focus-visible,
+  .dynamics-btn-secondary:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+  }
+  .dynamics-filter-actions {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #e1dfdd;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dynamics-filter-actions--compact {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+  }
+  /* Primary + export + print on one row (aligned with filter inputs) */
+  .dynamics-filter-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dynamics-filter-field--actions .dynamics-filter-actions-label {
+    font-size: 11px;
+    line-height: 1.35;
+    min-height: 1.35em;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Panels & tables */
+  .dynamics-financial-report .sfp-panel,
+  .dynamics-financial-report .soa-panel {
+    border-radius: 4px;
+    border: 1px solid #edebe9;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .dynamics-financial-report .sfp-panel-title,
+  .dynamics-financial-report .soa-panel-title {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding-left: 0.85rem !important;
+    color: #201f1e !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.07em !important;
+  }
+  .dynamics-financial-report .sfp-tb thead th,
+  .dynamics-financial-report .soa-tb thead th {
+    background: #f3f2f1 !important;
+    color: #201f1e !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid #e1dfdd !important;
+  }
+  .dynamics-financial-report .sfp-sec-title,
+  .dynamics-financial-report .soa-cat-title {
+    background: #f8fbfe !important;
+    color: #201f1e !important;
+    border-left: 3px solid #0078d4 !important;
+    padding-left: 0.65rem !important;
+    font-weight: 700 !important;
+  }
+  .dynamics-financial-report .sfp-tb tbody tr.dynamics-data-row td {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-financial-report .sfp-tb tbody tr.dynamics-data-row:hover td,
+  .dynamics-financial-report .soa-tb tbody tr.dynamics-data-row:hover td {
+    background-color: #f3f9fd !important;
+  }
+  .dynamics-financial-report .sfp-subtotal td,
+  .dynamics-financial-report .soa-subtotal td {
+    background: #edebe9 !important;
+    color: #201f1e !important;
+  }
+  .dynamics-financial-report .sfp-grand-total td,
+  .dynamics-financial-report .soa-section-total td {
+    background: #e1dfdd !important;
+    color: #201f1e !important;
+    border-top: 3px solid #0078d4 !important;
+  }
+  .dynamics-financial-report .soa-surplus td {
+    background: linear-gradient(90deg, #deecf9 0%, #e8f4ff 100%) !important;
+    border: 1px solid #0078d4 !important;
+    border-left-width: 4px !important;
+    color: #201f1e !important;
+  }
+
+  @media print {
+    .dynamics-report-hero {
+      display: none !important;
+    }
+    .dynamics-financial-report .sfp-tb tbody tr.dynamics-data-row:hover td,
+    .dynamics-financial-report .soa-tb tbody tr.dynamics-data-row:hover td {
+      background: transparent !important;
+    }
+    .dynamics-financial-report .sfp-panel,
+    .dynamics-financial-report .soa-panel {
+      box-shadow: none !important;
+    }
+  }
+</style>

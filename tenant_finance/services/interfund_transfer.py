@@ -23,7 +23,7 @@ class InterFundTransferEngine:
     def __init__(self, tenant_db: str):
         self.tenant_db = tenant_db
 
-    def _select_rule(
+    def select_rule(
         self,
         *,
         from_fund_type: str,
@@ -67,7 +67,7 @@ class InterFundTransferEngine:
                 status="block", message="From fund and To fund cannot be the same."
             )
 
-        rule = self._select_rule(
+        rule = self.select_rule(
             from_fund_type=from_fund_type,
             to_fund_type=to_fund_type,
             from_fund_code=from_fund_code,
@@ -111,13 +111,21 @@ class InterFundTransferEngine:
         transfer_date: date,
         reason: str,
         user,
+        description: str = "",
+        currency_id=None,
+        from_grant=None,
+        to_grant=None,
+        reference_no: str = "",
+        donor_id=None,
+        planned_posting_date=None,
+        from_project=None,
+        to_project=None,
+        from_bank_account=None,
+        to_bank_account=None,
     ) -> InterFundTransfer:
-        """Create an InterFundTransfer record in draft/pending state."""
-        status = (
-            InterFundTransfer.Status.PENDING_APPROVAL
-            if rule.require_approval
-            else InterFundTransfer.Status.DRAFT
-        )
+        """Create an InterFundTransfer in Draft (use Submit workflow for approval)."""
+        desc = (description or "").strip()
+        legacy_reason = (reason or "").strip()
         transfer = InterFundTransfer.objects.using(self.tenant_db).create(
             rule=rule,
             transfer_date=transfer_date,
@@ -126,9 +134,20 @@ class InterFundTransferEngine:
             from_fund_code=from_fund_code,
             to_fund_code=to_fund_code,
             amount=amount,
-            reason=reason,
-            status=status,
+            description=desc or legacy_reason,
+            reason=legacy_reason if legacy_reason else desc,
+            status=InterFundTransfer.Status.DRAFT,
             created_by=user,
+            currency_id=currency_id,
+            from_grant=from_grant,
+            to_grant=to_grant,
+            reference_no=(reference_no or "").strip(),
+            donor_id=donor_id,
+            planned_posting_date=planned_posting_date,
+            from_project=from_project,
+            to_project=to_project,
+            from_bank_account=from_bank_account,
+            to_bank_account=to_bank_account,
         )
         return transfer
 

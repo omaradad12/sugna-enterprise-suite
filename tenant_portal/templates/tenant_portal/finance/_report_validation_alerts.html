@@ -1,0 +1,42 @@
+{% load i18n %}
+{% if report_validation %}
+<div class="hidden-print mb-4 max-w-[1200px] mx-auto w-full space-y-2 text-[13px]">
+  {% if report_validation.sfp_equation_ok is not None and not report_validation.sfp_equation_ok %}
+  <div class="rounded-md border px-4 py-3" style="border-color:#f59e0b; background:#fffbeb; color:#92400e;">
+    {% blocktranslate trimmed with d=report_validation.sfp_balance_delta %}
+      Balance sheet equation: total assets differ from liabilities plus fund balance by {{ d }}. Review account types, grant/donor filters, and ensure only posted journals are included.
+    {% endblocktranslate %}
+  </div>
+  {% endif %}
+  {% if report_validation.tb_balanced is not None and not report_validation.tb_balanced %}
+  <div class="rounded-md border px-4 py-3" style="border-color:#f59e0b; background:#fffbeb; color:#92400e;">
+    {% trans "Trial balance: total debits and total credits do not match for the selected period and filters (posted journals only)." %}
+  </div>
+  {% endif %}
+  {% if report_validation.cfs_cash_scope_ok is not None %}
+    {% if not report_validation.cfs_cash_scope_ok %}
+    <div class="rounded-md border px-4 py-3" style="border-color:#f59e0b; background:#fffbeb; color:#92400e;">
+      {% trans "Cash flow: link at least one active bank/cash book to a chart account so this report can be limited to cash and bank accounts." %}
+    </div>
+    {% elif report_validation.cfs_roll_forward_ok is not None and not report_validation.cfs_roll_forward_ok %}
+    <div class="rounded-md border px-4 py-3" style="border-color:#f59e0b; background:#fffbeb; color:#92400e;">
+      {% blocktranslate trimmed with d=report_validation.cfs_roll_forward_delta %}
+        Cash roll-forward: opening balance plus posted movement on cash and bank accounts differs from closing by {{ d }}. Review dates and posted journals.
+      {% endblocktranslate %}
+    </div>
+    {% elif report_validation.cfs_bucket_ok is not None and not report_validation.cfs_bucket_ok %}
+    <div class="rounded-md border px-4 py-3" style="border-color:#f59e0b; background:#fffbeb; color:#92400e;">
+      {% blocktranslate trimmed with d=report_validation.cfs_bucket_delta %}
+        Activity classification: sum of operating, investing, and financing cash flows differs from total posted cash movement by {{ d }}. Review counterpart accounts on mixed journals.
+      {% endblocktranslate %}
+    </div>
+    {% elif report_validation.cfs_recon_ok is not None and not report_validation.cfs_recon_ok %}
+    <div class="rounded-md border px-4 py-3" style="border-color:#f59e0b; background:#fffbeb; color:#92400e;">
+      {% blocktranslate trimmed with d=report_validation.cfs_recon_delta %}
+        Opening plus classified net change differs from closing by {{ d }} (rounding or classification).
+      {% endblocktranslate %}
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endif %}

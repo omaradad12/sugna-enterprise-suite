@@ -1,0 +1,33 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Export tools | Reporting{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-bold tracking-tight">Export PDF &amp; Excel</h1>
+  <p class="text-sm mt-2 text-[#605e5c]">
+    Open a report below and use <strong>Export Excel</strong> and <strong>Print / PDF</strong> (or equivalent) on that page. Official outputs include your organization letterhead where configured.
+  </p>
+  <ul class="mt-6 space-y-2 text-[13px]">
+    <li>
+      <a href="{% url 'tenant_portal:finance_trial_balance' %}" class="text-[#0078D4] font-medium hover:underline">Trial balance</a>
+      <span class="text-[#605e5c]"> — Excel export, print to PDF</span>
+    </li>
+    <li>
+      <a href="{% url 'tenant_portal:finance_general_ledger' %}" class="text-[#0078D4] font-medium hover:underline">General ledger</a>
+      <span class="text-[#605e5c]"> — Excel export, print to PDF</span>
+    </li>
+    <li>
+      <a href="{% url 'tenant_portal:grants_reports' %}" class="text-[#0078D4] font-medium hover:underline">Grant report</a>
+      <span class="text-[#605e5c]"> — Excel export, print to PDF</span>
+    </li>
+    <li>
+      <a href="{% url 'tenant_portal:grants_grant_financial_reports' %}" class="text-[#0078D4] font-medium hover:underline">Grant financial summary</a>
+      <span class="text-[#605e5c]"> — CSV, Excel, PDF</span>
+    </li>
+    <li>
+      <a href="{% url 'tenant_portal:grants_donor_register' %}" class="text-[#0078D4] font-medium hover:underline">Donor register</a>
+      <span class="text-[#605e5c]"> — CSV, Excel, PDF</span>
+    </li>
+  </ul>
+</div>
+{% endblock %}

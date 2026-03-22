@@ -4,6 +4,7 @@
 body {
     font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
     -webkit-font-smoothing: antialiased;
+    background-color: #f3f2f1;
 }
 
 /* --- Login page layout --- */
@@ -178,13 +179,19 @@ body.login-page {
     color: #374151 !important;
 }
 
+/* Light gray sidebar (Fluent / Dynamics — distinct from white content) */
 #jazzy-sidebar {
-    background: #ffffff !important;
-    border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+    background: #f3f2f1 !important;
+    border-right: 1px solid #edebe9 !important;
 }
 
 .app-sidebar {
-    background: #ffffff !important;
+    background: #f3f2f1 !important;
+}
+
+#jazzy-sidebar .sidebar-brand {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #edebe9 !important;
 }
 
 #jazzy-sidebar .nav-header {
@@ -225,7 +232,88 @@ body.login-page {
     background-color: #f5f6fb;
 }
 
+/* Page chrome: white header strip + cool gray canvas (matches reference) */
+.app-content-header {
+    background: #ffffff;
+    border-bottom: 1px solid #edebe9;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.app-content-header h3 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #323130 !important;
+}
+
+.app-content-header .breadcrumb {
+    margin-bottom: 0;
+    padding-top: 0.35rem;
+}
+
+.app-content-header .breadcrumb-item,
+.app-content-header .breadcrumb-item.active {
+    color: #605e5c;
+    font-size: 0.875rem;
+}
+
+.app-content-header .breadcrumb a {
+    color: #008272 !important;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.app-content-header .breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.app-content {
+    background-color: #f5f6fb !important;
+}
+
 /* ---- Premium ERP Admin UI (KPI, Modules cards, Alerts) ---- */
+
+.app-main .container-fluid {
+    /* Keeps the AdminLTE content area from fighting our enterprise background */
+    background: transparent;
+}
+
+/* Circular KPI glyphs (reference: colored round icons) */
+.kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.kpi-icon i {
+    font-size: 16px;
+}
+
+.kpi-icon-primary {
+    background: rgba(0, 120, 212, 0.08);
+    color: #0078d4;
+}
+
+.kpi-icon-success {
+    background: rgba(22, 163, 74, 0.10);
+    color: #15803d;
+}
+
+.kpi-icon-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+}
+
+.kpi-icon-danger {
+    background: rgba(220, 38, 38, 0.10);
+    color: #dc2626;
+}
 
 .jazzy-erp-kpi-grid {
     display: grid;
@@ -237,7 +325,7 @@ body.login-page {
     background: #ffffff;
     border: 1px solid rgba(15, 23, 42, 0.10) !important;
     border-radius: 18px !important;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     overflow: hidden;
 }
@@ -245,7 +333,7 @@ body.login-page {
 .jazzy-erp-kpi-grid .kpi-card:hover {
     transform: translateY(-1px);
     border-color: rgba(0, 120, 212, 0.28);
-    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
 }
 
 .jazzy-erp-kpi-grid .kpi-card .card-body {
@@ -266,11 +354,123 @@ body.login-page {
     color: #111827;
 }
 
+/* System Health: large green “Healthy” (reference) */
+.jazzy-erp-kpi-grid .kpi-value.kpi-value--healthy {
+    color: #107c10 !important;
+    font-size: 24px;
+}
+
+.jazzy-erp-kpi-grid .kpi-value.kpi-value--warn {
+    color: #d97706 !important;
+}
+
+.jazzy-erp-kpi-grid .kpi-value.kpi-value--neutral {
+    color: #6b7280 !important;
+}
+
 .jazzy-erp-kpi-grid .kpi-meta {
     font-size: 12px;
     color: #6b7280;
     margin-top: 8px;
     min-height: 16px;
+}
+
+/* Recent actions (Dynamics-like activity list) */
+#recent-actions-module .card {
+    border-radius: 18px !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    overflow: hidden;
+}
+
+#recent-actions-module .card-header {
+    background: #ffffff;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 16px 16px;
+}
+
+#recent-actions-module .card-body {
+    padding: 14px 16px;
+}
+
+.jazzy-activity-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.jazzy-activity-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.jazzy-activity-item:last-child {
+    border-bottom: none;
+}
+
+.jazzy-activity-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.jazzy-dot-info {
+    background: #6b7280;
+}
+
+.jazzy-dot-success {
+    background: #16a34a;
+}
+
+.jazzy-dot-error {
+    background: #dc2626;
+}
+
+.jazzy-activity-title {
+    font-weight: 900;
+    color: #111827;
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.jazzy-activity-title a {
+    color: #0078d4;
+    text-decoration: none;
+}
+
+.jazzy-activity-title a:hover {
+    text-decoration: underline;
+}
+
+.jazzy-activity-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.jazzy-activity-time {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 700;
+}
+
+.jazzy-activity-body {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #374151;
+}
+
+.jazzy-activity-messages {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.jazzy-activity-messages li {
+    padding: 2px 0;
 }
 
 .jazzy-erp-quick-actions,
@@ -346,6 +546,18 @@ body.login-page {
     background: #ffffff;
     border-bottom: 1px solid rgba(15, 23, 42, 0.08);
     padding: 16px 16px;
+}
+
+.jazzy-erp-modules-card .card-header h5 {
+    color: #323130 !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+}
+
+/* Sidebar product name — Fluent teal accent (reference) */
+#jazzy-sidebar .brand-link .brand-text {
+    color: #008272 !important;
+    font-weight: 600 !important;
 }
 
 .jazzy-erp-modules-icon {

@@ -1,147 +1,366 @@
-{% extends "tenant_portal/_layout.html" %}
-{% block title %}{{ tenant_display_name|default:tenant.name }} | Grants | Reports{% endblock %}
-{% block product_subtitle %}Grant Management{% endblock %}
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Grant report" %} | {% trans "Grants" %}{% endblock %}
 
 {% block content %}
-<div class="flex items-start justify-between gap-4 mb-6">
-  <div>
-    <div class="flex items-center gap-2 text-sm text-[#605e5c]">
-      <a href="{% url 'tenant_portal:grants_home' %}" class="hover:underline">Grant Management</a>
-      <span>/</span>
-      <span>Reports</span>
-    </div>
-    <h1 class="text-2xl font-bold tracking-tight mt-1">Grant Financial Overview</h1>
-    <p class="text-sm mt-1 text-[#605e5c]">Award vs budget vs spend (spend is based on expense debits from Finance journal entries linked to a grant).</p>
-  </div>
-  <div class="flex gap-2">
-    <a href="{% url 'tenant_portal:grants_budgets' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded border bg-white text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-      <i data-feather="layers" class="w-4 h-4"></i> Budgets
-    </a>
-    <a href="{% url 'tenant_portal:grants_approvals' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-white text-sm font-medium shadow-sm hover:shadow" style="background:#0078D4;">
-      <i data-feather="check-circle" class="w-4 h-4"></i> Approvals
-    </a>
-  </div>
-</div>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Grant financial overview" report_subtitle="Award, budget, and spend by grant" official_report_period_line=official_report_period_line %}
 
-<div class="bg-white border rounded-lg p-5 mb-5" style="border-color:#edebe9;">
-  <form method="get" class="flex flex-col sm:flex-row gap-3 items-end">
-    <div>
-      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Start date</label>
-      <input type="date" name="start" value="{{ start }}" class="px-3 py-2 rounded border bg-white" style="border-color:#edebe9;" />
-    </div>
-    <div>
-      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">End date</label>
-      <input type="date" name="end" value="{{ end }}" class="px-3 py-2 rounded border bg-white" style="border-color:#edebe9;" />
-    </div>
-    <button class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white text-sm font-medium shadow-sm hover:shadow" style="background:#0078D4;">
-      <i data-feather="filter" class="w-4 h-4"></i> Apply
-    </button>
-    <a href="{% url 'tenant_portal:grants_reports' %}" class="text-sm font-medium text-[#0078D4] hover:underline">Clear</a>
-  </form>
-</div>
+<div class="dynamics-financial-report grp-rpt-root max-w-[1200px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .grp-rpt-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .grp-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .grp-hero-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .grp-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+  }
+  .grp-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
+  .grp-breadcrumb a:hover { text-decoration: underline; }
+  .grp-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .grp-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .grp-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .grp-quick a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 2px;
+    text-decoration: none;
+    border: 1px solid #edebe9;
+    background: #ffffff;
+    color: #323130;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .grp-quick a:hover { background: #faf9f8; border-color: #c8c6c4; }
+  .grp-quick a.grp-quick--primary {
+    background: #0078d4;
+    border-color: #0078d4;
+    color: #ffffff;
+  }
+  .grp-quick a.grp-quick--primary:hover { background: #106ebe; border-color: #106ebe; }
+  .grp-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .grp-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+  }
+  .grp-panel-head-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .grp-panel-head-title .grp-head-note {
+    text-transform: none;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #8a8886;
+    font-size: 11px;
+  }
+  .grp-panel-meta {
+    font-size: 11px;
+    color: #605e5c;
+    font-weight: 600;
+  }
+  .grp-table-wrap { overflow-x: auto; }
+  .grp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .grp-table thead th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .grp-table thead th.grp-th-num { text-align: right; }
+  .grp-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .grp-table tbody tr:hover td { background: #f3f9fd; }
+  .grp-table tbody tr:last-child td { border-bottom: none; }
+  .grp-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #201f1e;
+  }
+  .grp-code { font-weight: 600; color: #0078d4; font-size: 13px; }
+  .grp-empty {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .grp-split {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  @media (min-width: 1024px) {
+    .grp-split { grid-template-columns: 1fr 1fr; }
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field--actions .dynamics-filter-inline-actions {
+    align-items: center;
+  }
+</style>
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9;">
-    <h2 class="font-semibold">Grants</h2>
-    <span class="text-xs text-[#605e5c]">Latest {{ rows|length }}</span>
-  </div>
-  <div class="overflow-auto">
-    <table class="min-w-full text-sm">
-      <thead style="background:#f3f2f1;">
-        <tr>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Grant</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Donor</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Award</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Budget</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Spent</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Remaining</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rows %}
-        <tr class="border-b last:border-0" style="border-color:#edebe9;">
-          <td class="px-5 py-3">
-            <div class="min-w-0">
-              <div class="font-mono">{{ r.grant.code }}</div>
-              <div class="text-xs text-[#605e5c] truncate">{{ r.grant.title }}</div>
-            </div>
-          </td>
-          <td class="px-5 py-3 text-[#605e5c]">{{ r.grant.donor.name }}</td>
-          <td class="px-5 py-3 font-semibold">${{ r.grant.award_amount }}</td>
-          <td class="px-5 py-3 font-semibold">${{ r.budget }}</td>
-          <td class="px-5 py-3 font-semibold">${{ r.spent }}</td>
-          <td class="px-5 py-3 font-semibold {% if r.remaining < 0 %}text-[#a4262c]{% else %}text-[#0b5a0b]{% endif %}">${{ r.remaining }}</td>
-          <td class="px-5 py-3">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
-                  style="{% if r.grant.status == 'active' %}background:#dff6dd; color:#0b5a0b;{% elif r.grant.status == 'closed' %}background:#edebe9; color:#605e5c;{% else %}background:#fff4ce; color:#d83b01;{% endif %}">
-              {{ r.grant.status|capfirst }}
-            </span>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td class="px-5 py-6 text-[#605e5c]" colspan="7">No grants yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
-  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-    <div class="px-5 py-4 border-b" style="border-color:#edebe9;">
-      <h2 class="font-semibold">Spend by expense account{% if start or end %} (filtered){% endif %}</h2>
+  <div class="grp-hero hidden-print">
+    <div class="grp-hero-top">
+      <div>
+        <nav class="grp-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+          <a href="{% url 'tenant_portal:grants_home' %}">{% trans "Grant Management" %}</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>{% trans "Reports" %}</span>
+        </nav>
+        <h1 class="grp-title">{% trans "Grant report" %}</h1>
+      </div>
+      <div class="grp-quick">
+        <a href="{% url 'tenant_portal:grants_budgets' %}">
+          <i data-feather="layers" class="w-4 h-4"></i>
+          {% trans "Budgets" %}
+        </a>
+        <a href="{% url 'tenant_portal:grants_approvals' %}" class="grp-quick--primary">
+          <i data-feather="check-circle" class="w-4 h-4"></i>
+          {% trans "Approvals" %}
+        </a>
+      </div>
     </div>
-    <div class="overflow-auto">
-      <table class="min-w-full text-sm">
-        <thead style="background:#f3f2f1;">
+  </div>
+
+  <div class="dynamics-filter-pane hidden-print max-w-[1200px] mx-auto">
+    <div class="dynamics-filter-head">
+      <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Refine grant financial overview" %}</span>
+    </div>
+    <form method="get" action="" id="grp-reports-filter-form">
+      <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">
+        <div class="dynamics-filter-field">
+          <label for="grp-start">{% trans "Start date" %}</label>
+          <input id="grp-start" type="date" name="start" value="{{ start }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grp-end">{% trans "End date" %}</label>
+          <input id="grp-end" type="date" name="end" value="{{ end }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grp-grant">{% trans "Grant" %}</label>
+          <select id="grp-grant" name="grant_id" class="dynamics-select min-w-[200px] max-w-[300px]">
+            <option value="">{% trans "All grants" %}</option>
+            {% for g in grants_select %}
+            <option value="{{ g.pk }}" {% if grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:5 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grp-donor">{% trans "Donor" %}</label>
+          <select id="grp-donor" name="donor_id" class="dynamics-select min-w-[180px] max-w-[280px]">
+            <option value="">{% trans "All donors" %}</option>
+            {% for d in donors_select %}
+            <option value="{{ d.pk }}" {% if donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field dynamics-filter-field--actions">
+          <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+          <div class="dynamics-filter-inline-actions">
+            <button type="submit" class="dynamics-btn-primary">
+              <i data-feather="filter" class="w-4 h-4"></i>
+              {% trans "Apply filters" %}
+            </button>
+            <a href="{% url 'tenant_portal:grants_reports' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+            {% if export_csv_url %}
+            <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+              <i data-feather="download" class="w-4 h-4"></i>
+              {% trans "Export Excel" %}
+            </a>
+            {% endif %}
+            <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+              <i data-feather="printer" class="w-4 h-4"></i>
+              {% trans "Print / PDF" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="grp-panel print-area erp-section">
+    <div class="grp-panel-head">
+      <span class="grp-panel-head-title">
+        <i data-feather="briefcase" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+        {% trans "Grants" %}
+      </span>
+      <span class="grp-panel-meta">{% trans "Latest" %} {{ rows|length }}</span>
+    </div>
+    <div class="grp-table-wrap">
+      <table class="grp-table">
+        <thead>
           <tr>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Account</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Spent</th>
+            <th scope="col">{% trans "Grant" %}</th>
+            <th scope="col">{% trans "Donor" %}</th>
+            <th scope="col" class="grp-th-num">{% trans "Award" %}</th>
+            <th scope="col" class="grp-th-num">{% trans "Budget" %}</th>
+            <th scope="col" class="grp-th-num">{% trans "Spent" %}</th>
+            <th scope="col" class="grp-th-num">{% trans "Remaining" %}</th>
+            <th scope="col">{% trans "Status" %}</th>
           </tr>
         </thead>
         <tbody>
-          {% for r in spend_by_account %}
-          <tr class="border-b last:border-0" style="border-color:#edebe9;">
-            <td class="px-5 py-3">
-              <div class="font-mono">{{ r.account__code }}</div>
-              <div class="text-xs text-[#605e5c]">{{ r.account__name }}</div>
+          {% for r in rows %}
+          <tr class="dynamics-data-row">
+            <td>
+              <div class="min-w-0">
+                <div class="grp-code font-mono">{{ r.grant.code }}</div>
+                <div class="text-xs text-[#605e5c] truncate mt-0.5">{{ r.grant.title }}</div>
+              </div>
             </td>
-            <td class="px-5 py-3 font-semibold">${{ r.spent }}</td>
+            <td class="text-[#323130]">{{ r.grant.donor.name }}</td>
+            <td class="grp-num">${{ r.grant.award_amount }}</td>
+            <td class="grp-num">${{ r.budget }}</td>
+            <td class="grp-num">${{ r.spent }}</td>
+            <td class="grp-num {% if r.remaining < 0 %}text-[#a4262c]{% else %}text-[#107c10]{% endif %}">${{ r.remaining }}</td>
+            <td>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                    style="{% if r.grant.status == 'active' %}background:#dff6dd;color:#0b5a0b;{% elif r.grant.status == 'closed' %}background:#edebe9;color:#605e5c;{% else %}background:#fff4ce;color:#ca5010;{% endif %}">
+                {{ r.grant.status|capfirst }}
+              </span>
+            </td>
           </tr>
           {% empty %}
-          <tr><td class="px-5 py-6 text-[#605e5c]" colspan="2">No spend recorded in the selected range.</td></tr>
+          <tr>
+            <td class="grp-empty" colspan="7">{% trans "No grants yet." %}</td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 
-  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-    <div class="px-5 py-4 border-b" style="border-color:#edebe9;">
-      <h2 class="font-semibold">Budget by category</h2>
+  <div class="grp-split">
+    <div class="grp-panel">
+      <div class="grp-panel-head">
+        <span class="grp-panel-head-title">
+          <i data-feather="pie-chart" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+          {% trans "Spend by expense account" %}{% if start or end %} <span class="grp-head-note">({% trans "filtered" %})</span>{% endif %}
+        </span>
+      </div>
+      <div class="grp-table-wrap">
+        <table class="grp-table">
+          <thead>
+            <tr>
+              <th scope="col">{% trans "Account" %}</th>
+              <th scope="col" class="grp-th-num">{% trans "Spent" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in spend_by_account %}
+            <tr class="dynamics-data-row">
+              <td>
+                <div class="font-mono text-[13px] font-semibold text-[#323130]">{{ r.account__code }}</div>
+                <div class="text-xs text-[#605e5c] mt-0.5">{{ r.account__name }}</div>
+              </td>
+              <td class="grp-num">${{ r.spent }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td class="grp-empty" colspan="2">{% trans "No spend recorded in the selected range." %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="overflow-auto">
-      <table class="min-w-full text-sm">
-        <thead style="background:#f3f2f1;">
-          <tr>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Category</th>
-            <th class="text-left px-5 py-3 text-xs font-semibold text-[#605e5c]">Budget</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in budget_by_category %}
-          <tr class="border-b last:border-0" style="border-color:#edebe9;">
-            <td class="px-5 py-3 font-medium">{{ r.category }}</td>
-            <td class="px-5 py-3 font-semibold">${{ r.total }}</td>
-          </tr>
-          {% empty %}
-          <tr><td class="px-5 py-6 text-[#605e5c]" colspan="2">No budget lines yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+
+    <div class="grp-panel">
+      <div class="grp-panel-head">
+        <span class="grp-panel-head-title">
+          <i data-feather="layers" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+          {% trans "Budget by category" %}
+        </span>
+      </div>
+      <div class="grp-table-wrap">
+        <table class="grp-table">
+          <thead>
+            <tr>
+              <th scope="col">{% trans "Category" %}</th>
+              <th scope="col" class="grp-th-num">{% trans "Budget" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in budget_by_category %}
+            <tr class="dynamics-data-row">
+              <td class="font-medium text-[#323130]">{{ r.category }}</td>
+              <td class="grp-num">${{ r.total }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td class="grp-empty" colspan="2">{% trans "No budget lines yet." %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 {% endblock %}
-

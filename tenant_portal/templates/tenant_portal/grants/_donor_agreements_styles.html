@@ -1,0 +1,21 @@
+{% comment %}Shared Donor Agreements module styles (list modal, status chips, print).{% endcomment %}
+<style>
+  .da-agi-root { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; color: #323130; }
+  .da-agi-modal-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(32, 31, 30, 0.45); display: flex; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(2px); }
+  .da-agi-modal { background: #fff; border: 1px solid #edebe9; border-radius: 8px; max-width: 720px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12); }
+  .da-agi-modal-h { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #edebe9; position: sticky; top: 0; background: #faf9f8; z-index: 1; border-radius: 8px 8px 0 0; }
+  .da-agi-modal-b { padding: 1rem 1.25rem 1.25rem; }
+  .da-agi-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; }
+  @media (max-width: 640px) { .da-agi-form-grid { grid-template-columns: 1fr; } }
+  .da-agi-form-full { grid-column: 1 / -1; }
+  .da-agi-empty { text-align: center; padding: 2.5rem 1.5rem; color: #605e5c; }
+  .st-agi-active { background: #dff6dd; color: #0b5a0b; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 11px; }
+  .st-agi-expired { background: #fff4ce; color: #ca5010; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 11px; }
+  .st-agi-closed { background: #edebe9; color: #605e5c; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 11px; }
+  .st-agi-draft { background: #deecf9; color: #004578; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 11px; }
+  .da-agi-alert { font-size: 12px; font-weight: 600; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid #e1dfdd; }
+  .da-agi-alert-warn { background: #fff4ce; color: #7a5c00; border-color: #fede8a; }
+  .da-agi-alert-danger { background: #fde7e9; color: #a4262c; border-color: #f1bbbc; }
+  .da-agi-alert-info { background: #deecf9; color: #004578; border-color: #8cbbdf; }
+  [x-cloak] { display: none !important; }
+</style>

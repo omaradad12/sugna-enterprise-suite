@@ -58,6 +58,7 @@ class Command(BaseCommand):
             ("finance:journals.approve", "Approve journals (maker-checker enforced)"),
             ("finance:journals.post", "Post approved journals (maker-checker enforced)"),
             ("finance:journals.reverse", "Reverse posted journals (as per reversal policy)"),
+            ("finance:journals.adjusting", "Create and manage adjusting journals (NGO standards)"),
             ("finance:journals.override_maker_checker", "Override maker-checker segregation (restricted)"),
             # Vouchers + payments
             ("finance:vouchers.view", "View vouchers (payment/receipt)"),
@@ -263,6 +264,10 @@ class Command(BaseCommand):
             ("module:grants.approve", "Approve or reject grants"),
             ("module:grants.pr_line_manager_approve", "Approve, reject, or return PRs (Line Manager)"),
             ("module:grants.pr_procurement_process", "Process PRs after line manager approval (Procurement Officer)"),
+            (
+                "grants:donor_restrictions.manage",
+                "Create, edit, and deactivate donor conditions & restrictions (compliance)",
+            ),
             # Integrations
             ("module:integrations.manage", "Manage integrations (webhooks and ERP connections)"),
             # Audit & Risk: full findings and results (Admin + Finance Manager only)
@@ -313,6 +318,7 @@ class Command(BaseCommand):
             "finance:journals.approve",
             "finance:journals.post",
             "finance:journals.reverse",
+            "finance:journals.adjusting",
             "finance:vouchers.view",
             "finance:vouchers.create",
             "finance:vouchers.edit",
@@ -378,6 +384,36 @@ class Command(BaseCommand):
                     permission_id=perms[code].id,
                 )
 
+        accountant_role, _ = Role.objects.using(alias).get_or_create(
+            name="Accountant",
+            defaults={
+                "description": "Accountant: journals and NGO adjusting entries (submit for approval; no approve/post).",
+                "role_type": Role.RoleType.FINANCIAL,
+            },
+        )
+        if getattr(accountant_role, "role_type", "") != Role.RoleType.FINANCIAL:
+            accountant_role.role_type = Role.RoleType.FINANCIAL
+            accountant_role.save(using=alias, update_fields=["role_type"])
+        for code in (
+            "module:finance.view",
+            "finance:journals.view",
+            "finance:journals.create",
+            "finance:journals.edit",
+            "finance:journals.delete",
+            "finance:journals.adjusting",
+            "finance:periods.view",
+            "finance:reporting.view",
+            "finance:reporting.export",
+            "finance:attachments.view",
+            "finance:attachments.upload",
+            "dashboard:view",
+        ):
+            if code in perms:
+                RolePermission.objects.using(alias).get_or_create(
+                    role_id=accountant_role.id,
+                    permission_id=perms[code].id,
+                )
+
         user, created = TenantUser.objects.using(alias).get_or_create(
             email=options["email"].lower().strip(),
             defaults={"full_name": options["full_name"], "is_active": True, "is_tenant_admin": True},
@@ -390,6 +426,25 @@ class Command(BaseCommand):
             user.save(using=alias)
 
         UserRole.objects.using(alias).get_or_create(user_id=user.id, role_id=admin_role.id)
+
+        risk_compliance_role, _ = Role.objects.using(alias).get_or_create(
+            name="Risk & Compliance Manager",
+            defaults={
+                "description": "Donor restrictions, compliance rules, and policy enforcement setup.",
+                "role_type": Role.RoleType.FINANCIAL,
+            },
+        )
+        for code in (
+            "module:grants.view",
+            "grants:donor_restrictions.manage",
+            "module:audit_risk.view_audit_results",
+            "dashboard:view",
+        ):
+            if code in perms:
+                RolePermission.objects.using(alias).get_or_create(
+                    role_id=risk_compliance_role.id,
+                    permission_id=perms[code].id,
+                )
 
         self.stdout.write(self.style.SUCCESS(f"Bootstrapped RBAC + tenant admin '{user.email}' in DB '{alias}'."))  # noqa: T201
 

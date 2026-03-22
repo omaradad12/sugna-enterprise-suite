@@ -1,0 +1,10 @@
+{% for code, name, bal in lines %}
+<tr class="sfp-tb-row dynamics-data-row border-b" style="border-color:#edebe9;">
+  <td class="sfp-tb-desc px-3 py-1.5 text-[12px] text-[#323130] leading-snug">{{ code }} — {{ name }}</td>
+  <td class="sfp-tb-num frpt-amt px-3 py-1.5 text-[12px] text-right tabular-nums text-[#323130]">{{ bal|floatformat:2 }}</td>
+</tr>
+{% empty %}
+<tr class="sfp-tb-row dynamics-data-row border-b" style="border-color:#edebe9;">
+  <td colspan="2" class="px-3 py-2 text-[12px] text-[#605e5c] italic">No accounts in this section.</td>
+</tr>
+{% endfor %}

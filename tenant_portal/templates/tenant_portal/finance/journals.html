@@ -1,54 +1,91 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Journal Entries | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "General journal" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div class="print-only mb-4">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
       {% if org_settings and org_settings.organization_logo %}
-      <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-10 w-auto object-contain" />
+      <img src="{{ org_settings.organization_logo.url }}" alt="" class="h-10 w-auto object-contain" />
       {% elif tenant.brand_logo_url %}
-      <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-10 w-auto object-contain" />
+      <img src="{{ tenant.brand_logo_url }}" alt="" class="h-10 w-auto object-contain" />
       {% else %}
-      <img src="{% url 'platform_dashboard:logo' %}" alt="{{ tenant_display_name|default:tenant.name }} logo"
-           class="h-10 w-auto object-contain" />
+      <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-10 w-auto object-contain" />
       {% endif %}
       <div>
-        <h1 class="text-xl font-semibold text-[#323130]">Journal Entries</h1>
+        <h1 class="text-xl font-semibold text-[#323130]">{% trans "General journal" %}</h1>
         <p class="text-xs text-[#605e5c]">{{ tenant_display_name|default:tenant.name }}</p>
       </div>
     </div>
     <div class="text-right text-xs text-[#605e5c]">
-      <div>Printed on: {% now "Y-m-d H:i" %}</div>
+      <div>{% trans "Printed" %}: {% now "Y-m-d H:i" %}</div>
     </div>
   </div>
   <hr class="mt-3 border-[#edebe9]" />
 </div>
 
-<div x-data="{ openCreate: false }" class="hidden-print">
-      <div class="flex items-start justify-between gap-4 mb-4">
+<div x-data="{ openManual: {% if can_create_manual and open_manual_from_query %}true{% else %}false{% endif %} }" class="hidden-print">
+  {% if not journal_schema_0034 %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px]" style="border-color:#fff4ce; background:#fffbf0; color:#605e5c;">
+    <strong class="text-[#323130]">{% trans "Database update needed" %}:</strong>
+    {% trans "Run tenant migration tenant_finance.0034 for full register columns (posted by, source tracking, system flag)." %}
+    <code class="block mt-2 p-2 rounded bg-white/80 text-[12px] text-[#1d4ed8]">python manage.py migrate_tenant --tenant YOUR_SLUG</code>
+  </div>
+  {% endif %}
+  <div class="flex items-start justify-between gap-4 mb-4">
     <div>
-      <h1 class="page-title mt-1">Journal Entries</h1>
+      <h1 class="page-title mt-1">{% trans "General journal" %}</h1>
     </div>
-    <div class="flex items-center gap-3">
-      <button type="button"
-              @click="openCreate = true"
-              class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
+    <div class="relative" x-data="{ openMenu: false }">
+      <button type="button" @click="openMenu = !openMenu"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm"
               style="background:#0078D4;">
         <i data-feather="plus-circle" class="w-4 h-4"></i>
-        Create journal entry
+        {% trans "New" %}
+        <i data-feather="chevron-down" class="w-4 h-4"></i>
       </button>
+      <div x-show="openMenu" @click.away="openMenu = false" x-cloak
+           class="absolute right-0 mt-2 w-56 rounded-xl border bg-white shadow-lg z-20 py-1" style="border-color:#edebe9;">
+        <a href="{% url 'tenant_portal:finance_post_transaction' %}" class="block px-4 py-2.5 text-[13px] hover:bg-[#f3f2f1] text-[#323130]">{% trans "Post transaction" %}</a>
+        {% if can_create_manual %}
+        <button type="button" @click="openManual = true; openMenu = false"
+                class="w-full text-left px-4 py-2.5 text-[13px] hover:bg-[#f3f2f1] text-[#323130]">
+          {% trans "New manual journal" %}
+        </button>
+        {% endif %}
+        <a href="{% url 'tenant_portal:finance_adjusting_journals' %}" class="block px-4 py-2.5 text-[13px] hover:bg-[#f3f2f1] text-[#323130]">{% trans "Import / adjusting journals" %}</a>
+        <a href="{% url 'tenant_portal:finance_recurring_journals' %}" class="block px-4 py-2.5 text-[13px] hover:bg-[#f3f2f1] text-[#323130]">{% trans "Recurring journals" %}</a>
+      </div>
     </div>
   </div>
 
-  <!-- Create Journal modal -->
-  <div x-show="openCreate" x-cloak class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col flex-shrink-0">
+  <!-- KPI cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c] tracking-wide">{% trans "Journals (filtered)" %}</p>
+      <p class="text-sm font-semibold text-[#323130] mt-1 tabular-nums">{{ kpi_total_journals }}</p>
+    </div>
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c] tracking-wide">{% trans "Posted" %}</p>
+      <p class="text-sm font-semibold text-[#107c10] mt-1 tabular-nums">{{ kpi_posted_journals }}</p>
+    </div>
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c] tracking-wide">{% trans "Total debit" %}</p>
+      <p class="text-sm font-semibold text-[#323130] mt-1 tabular-nums">{{ kpi_total_debit|floatformat:2 }}</p>
+    </div>
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c] tracking-wide">{% trans "Total credit" %}</p>
+      <p class="text-sm font-semibold text-[#323130] mt-1 tabular-nums">{{ kpi_total_credit|floatformat:2 }}</p>
+    </div>
+  </div>
+
+  {% if can_create_manual %}
+  <div x-show="openManual" x-cloak class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
       <div class="px-5 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#edebe9;">
-        <h2 class="text-base font-semibold text-[#323130]">New journal entry</h2>
-        <button type="button" @click="openCreate = false" class="text-[#605e5c] hover:text-[#323130]">
+        <h2 class="text-base font-semibold text-[#323130]">{% trans "New manual journal" %}</h2>
+        <button type="button" @click="openManual = false" class="text-[#605e5c] hover:text-[#323130]">
           <i data-feather="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -57,183 +94,299 @@
         <div class="px-5 py-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Date</label>
-              <input type="date" name="entry_date" required
-                     value="{{ filters.period_end|date:'Y-m-d' }}"
-                     class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                     style="border-color:#edebe9;">
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Date" %}</label>
+              <input type="date" name="entry_date" required value="{{ filters.period_end|date:'Y-m-d' }}"
+                     class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
             </div>
             <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-              <select name="grant_id"
-                      class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                      style="border-color:#edebe9;">
-                <option value="">None</option>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Project" %}</label>
+              <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+                <option value="">{% trans "None" %}</option>
                 {% for g in grants %}
-                  <option value="{{ g.id }}">{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+                <option value="{{ g.id }}">{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
                 {% endfor %}
               </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Journal type</label>
-              <select name="journal_type"
-                      class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                      style="border-color:#edebe9;">
-                <option value="adjustment">Adjustment</option>
-                <option value="accrual">Accrual</option>
-                <option value="correction">Correction</option>
-                <option value="opening_balance">Opening balance</option>
-                <option value="reversal">Reversal</option>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Journal type" %}</label>
+              <select name="journal_type" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+                <option value="adjustment">{% trans "Adjustment" %}</option>
+                <option value="accrual">{% trans "Accrual" %}</option>
+                <option value="correction">{% trans "Correction" %}</option>
+                <option value="opening_balance">{% trans "Opening balance" %}</option>
+                <option value="reversal">{% trans "Reversal" %}</option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Memo</label>
-            <input name="memo"
-                   class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                   style="border-color:#edebe9;"
-                   placeholder="Optional description for this journal entry">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Memo" %}</label>
+            <input name="memo" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Description' %}">
           </div>
-
           <div class="border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-            <div class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#605e5c]" style="background:#f3f2f1;">
-              Journal lines
-            </div>
+            <div class="px-4 py-2 text-xs font-semibold uppercase text-[#605e5c]" style="background:#f3f2f1;">{% trans "Lines" %}</div>
             <div class="overflow-x-auto">
               <table class="min-w-full text-xs">
                 <thead style="background:#faf9f8;">
                   <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-                    <th class="px-3 py-2 font-semibold">Account</th>
-                    <th class="px-3 py-2 font-semibold">Description</th>
-                    <th class="px-3 py-2 font-semibold text-right">Debit</th>
-                    <th class="px-3 py-2 font-semibold text-right">Credit</th>
+                    <th class="px-3 py-2 font-semibold">{% trans "Account" %}</th>
+                    <th class="px-3 py-2 font-semibold">{% trans "Description" %}</th>
+                    <th class="px-3 py-2 font-semibold text-right">{% trans "Debit" %}</th>
+                    <th class="px-3 py-2 font-semibold text-right">{% trans "Credit" %}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {% for i in "0123456789" %}
                   <tr class="border-t" style="border-color:#edebe9;">
                     <td class="px-3 py-1.5">
-                      <select name="line_account" class="w-full px-2 py-1.5 rounded border bg-white text-xs"
-                              style="border-color:#edebe9;">
-                        <option value="">— Select account —</option>
+                      <select name="line_account" class="w-full px-2 py-1.5 rounded border bg-white text-xs" style="border-color:#edebe9;">
+                        <option value="">—</option>
                         {% for a in accounts %}
                         <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
                         {% endfor %}
                       </select>
                     </td>
-                    <td class="px-3 py-1.5">
-                      <input name="line_description"
-                             class="w-full px-2 py-1.5 rounded border text-xs"
-                             style="border-color:#edebe9;"
-                             placeholder="Optional">
-                    </td>
-                    <td class="px-3 py-1.5 text-right">
-                      <input name="line_debit" inputmode="decimal"
-                             class="w-full px-2 py-1.5 rounded border text-xs text-right"
-                             style="border-color:#edebe9;" placeholder="0.00">
-                    </td>
-                    <td class="px-3 py-1.5 text-right">
-                      <input name="line_credit" inputmode="decimal"
-                             class="w-full px-2 py-1.5 rounded border text-xs text-right"
-                             style="border-color:#edebe9;" placeholder="0.00">
-                    </td>
+                    <td class="px-3 py-1.5"><input name="line_description" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;"></td>
+                    <td class="px-3 py-1.5 text-right"><input name="line_debit" inputmode="decimal" class="w-full px-2 py-1.5 rounded border text-xs text-right" style="border-color:#edebe9;" placeholder="0.00"></td>
+                    <td class="px-3 py-1.5 text-right"><input name="line_credit" inputmode="decimal" class="w-full px-2 py-1.5 rounded border text-xs text-right" style="border-color:#edebe9;" placeholder="0.00"></td>
                   </tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
-            <div class="px-4 py-2 text-[11px] text-[#605e5c] border-t" style="border-color:#edebe9;">
-              Rules: minimum 2 lines, debit must equal credit, each line must have either debit or credit (not both),
-              only active posting accounts, only open fiscal periods.
-            </div>
           </div>
         </div>
-        <div class="px-5 py-4 border-t flex items-center justify-end gap-3 shrink-0 bg-white" style="border-color:#edebe9;">
-          <button type="button" @click="openCreate = false"
-                  class="px-4 py-2.5 rounded border text-sm font-medium hover:bg-[#faf9f8]"
-                  style="border-color:#edebe9;">
-            Cancel
-          </button>
-          <button type="submit"
-                  class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
-                  style="background:#0078D4;">
+        <div class="px-5 py-4 border-t flex justify-end gap-3 shrink-0 bg-white" style="border-color:#edebe9;">
+          <button type="button" @click="openManual = false" class="px-4 py-2.5 rounded border text-sm font-medium" style="border-color:#edebe9;">{% trans "Cancel" %}</button>
+          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white" style="background:#0078D4;">
             <i data-feather="check" class="w-4 h-4"></i>
-            Save
+            {% trans "Save draft" %}
           </button>
         </div>
       </form>
     </div>
   </div>
-    </div>
-  </div>
+  {% endif %}
 </div>
 
-{% include "tenant_portal/finance/_filters_export.html" with filters=filters grants=grants donors=donors export_csv_url=export_csv_url %}
+<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
+  <div class="flex flex-wrap items-center gap-2 mb-3">
+    <span class="text-xs font-semibold text-[#605e5c] mr-1">{% trans "Quick" %}:</span>
+    <a href="{{ journal_preset_urls.today }}"
+       class="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors {% if quick_filter == 'today' %}bg-[#e5f0ff] border-[#0078D4] text-[#005a9e]{% else %}border-[#edebe9] text-[#323130] hover:bg-[#faf9f8]{% endif %}">{% trans "Today" %}</a>
+    <a href="{{ journal_preset_urls.week }}"
+       class="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors {% if quick_filter == 'week' %}bg-[#e5f0ff] border-[#0078D4] text-[#005a9e]{% else %}border-[#edebe9] text-[#323130] hover:bg-[#faf9f8]{% endif %}">{% trans "This week" %}</a>
+    <a href="{{ journal_preset_urls.period }}"
+       class="inline-flex px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors {% if quick_filter == 'period' %}bg-[#e5f0ff] border-[#0078D4] text-[#005a9e]{% else %}border-[#edebe9] text-[#323130] hover:bg-[#faf9f8]{% endif %}">{% trans "This period" %}</a>
+  </div>
+  <form method="get" class="flex flex-wrap items-end gap-3">
+    {% if quick_filter %}
+    <input type="hidden" name="quick" value="{{ quick_filter }}" />
+    {% endif %}
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "From" %}</label>
+      <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
+             class="rounded border px-2 py-1.5 text-sm" style="border-color:#edebe9;" />
+    </div>
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "To" %}</label>
+      <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
+             class="rounded border px-2 py-1.5 text-sm" style="border-color:#edebe9;" />
+    </div>
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "Accounting period" %}</label>
+      <select name="accounting_period_id" class="rounded border px-2 py-1.5 text-sm min-w-[160px]" style="border-color:#edebe9;">
+        <option value="">{% trans "All (use date range)" %}</option>
+        {% for p in accounting_periods %}
+        <option value="{{ p.pk }}" {% if filter_accounting_period_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.period_name|default:p.name }} ({{ p.start_date }} – {{ p.end_date }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if journal_schema_0034 %}
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "Source type" %}</label>
+      <select name="source_type" class="rounded border px-2 py-1.5 text-sm min-w-[160px]" style="border-color:#edebe9;">
+        <option value="">{% trans "All" %}</option>
+        {% for v, lbl in journal_source_types.choices %}
+        <option value="{{ v }}" {% if filter_source_type == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "Status" %}</label>
+      <select name="status" class="rounded border px-2 py-1.5 text-sm min-w-[140px]" style="border-color:#edebe9;">
+        <option value="">{% trans "All" %}</option>
+        {% for v, lbl in journal_statuses.choices %}
+        <option value="{{ v }}" {% if request.GET.status == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if donors %}
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "Donor" %}</label>
+      <select name="donor_id" class="rounded border px-2 py-1.5 text-sm min-w-[160px]" style="border-color:#edebe9;">
+        <option value="">{% trans "All" %}</option>
+        {% for d in donors %}
+        <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if grants %}
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "Project" %}</label>
+      <select name="grant_id" class="rounded border px-2 py-1.5 text-sm min-w-[160px]" style="border-color:#edebe9;">
+        <option value="">{% trans "All" %}</option>
+        {% for g in grants %}
+        <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="text-xs font-medium text-[#605e5c] block mb-1">{% trans "Search" %}</label>
+      <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="{% trans 'Ref, memo, account…' %}"
+             class="rounded border px-2 py-1.5 text-sm min-w-[180px]" style="border-color:#edebe9;" />
+    </div>
+    <div class="inline-flex flex-wrap items-end gap-2">
+      <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium text-white shadow-sm" style="background:#0078D4;">
+        <i data-feather="filter" class="w-4 h-4"></i>
+        {% trans "Apply" %}
+      </button>
+      {% if export_csv_url %}
+      <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <i data-feather="download" class="w-4 h-4"></i>
+        {% trans "Export CSV" %}
+      </a>
+      {% endif %}
+      <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <i data-feather="printer" class="w-4 h-4"></i>
+        {% trans "Print" %}
+      </button>
+    </div>
+  </form>
+</div>
 
 <div class="bg-white border rounded-lg overflow-hidden print-area" style="border-color:#edebe9;">
   <div class="overflow-x-auto">
-    <table class="min-w-full text-sm">
+    <table class="min-w-[1200px] w-full text-sm">
       <thead style="background:#f3f2f1;">
         <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-5 py-3 text-xs font-semibold">Journal No</th>
-          <th class="px-5 py-3 text-xs font-semibold">Date</th>
-          <th class="px-5 py-3 text-xs font-semibold">Reference</th>
-          <th class="px-5 py-3 text-xs font-semibold">Description</th>
-          <th class="px-5 py-3 text-xs font-semibold">Project / Grant</th>
-          <th class="px-5 py-3 text-xs font-semibold text-right">Debit total</th>
-          <th class="px-5 py-3 text-xs font-semibold text-right">Credit total</th>
-          <th class="px-5 py-3 text-xs font-semibold text-right">Status</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Journal" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Jrnl type" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Source" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Source doc" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Entry date" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Posting date" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Accounting period" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "CCY" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold">{% trans "Description" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold text-right whitespace-nowrap">{% trans "Debit" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold text-right whitespace-nowrap">{% trans "Credit" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Status" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Posted by" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Posted at" %}</th>
+          <th class="px-3 py-3 text-xs font-semibold text-right whitespace-nowrap">{% trans "Actions" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for e in entries %}
         <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-5 py-3 font-medium text-[#323130] whitespace-nowrap">{{ e.journal_no }}</td>
-          <td class="px-5 py-3 whitespace-nowrap">{{ e.date|date:"M d, Y" }}</td>
-          <td class="px-5 py-3 text-[#0078d4] whitespace-nowrap">
-            {{ e.reference|default:"—" }}
+          <td class="px-3 py-3 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+              {% if e.is_system_generated %}
+              <span class="inline-flex text-[#605e5c]" title="{% trans 'System-generated — read-only in register' %}"><i data-feather="lock" class="w-3.5 h-3.5"></i></span>
+              {% endif %}
+              <a href="{% url 'tenant_portal:finance_journal_detail' e.id %}" class="font-mono font-semibold text-[#0078D4] hover:underline">{{ e.journal_no }}</a>
+            </div>
           </td>
-          <td class="px-5 py-3 text-[#605e5c]">
-            {{ e.memo|default:"—" }}
+          <td class="px-3 py-3 whitespace-nowrap">
+            {% if e.journal_type %}
+            <span class="inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-[#f3f2f1] text-[#323130] border border-[#e1dfdd]">{{ e.journal_type_label }}</span>
+            {% else %}<span class="text-[#a19f9d]">—</span>{% endif %}
           </td>
-          <td class="px-5 py-3 text-[#605e5c] whitespace-nowrap">
-            {% if e.grant %}
-              <span class="font-mono">{{ e.grant.code }}</span>
-              <span class="ml-1">{{ e.grant.title|truncatewords:4 }}</span>
+          <td class="px-3 py-3 whitespace-nowrap">
+            {% if e.source_type == 'manual' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'payment_voucher' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'receipt_voucher' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'cash_transfer' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-900">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'bank_transfer' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'fund_transfer' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-100 text-violet-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'posting_engine' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-200 text-gray-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'reversal' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-800">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'opening_balance' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-100 text-teal-900">{{ e.source_type_label }}</span>
+            {% elif e.source_type == 'other' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-stone-100 text-stone-800">{{ e.source_type_label }}</span>
             {% else %}
-              —
+            <span class="text-[#605e5c] text-[13px]">{{ e.source_type_label }}</span>
             {% endif %}
           </td>
-          <td class="px-5 py-3 text-right font-medium text-[#323130]">{{ e.debit_total|floatformat:2 }}</td>
-          <td class="px-5 py-3 text-right font-medium text-[#323130]">{{ e.credit_total|floatformat:2 }}</td>
-          <td class="px-5 py-3 text-right">
+          <td class="px-3 py-3 font-mono text-[12px] text-[#323130] max-w-[140px] truncate" title="{{ e.source_document_no }}">{{ e.source_document_no }}</td>
+          <td class="px-3 py-3 whitespace-nowrap text-[#323130]">{{ e.date|date:"M d, Y" }}</td>
+          <td class="px-3 py-3 whitespace-nowrap text-[#323130]">{{ e.posting_date|date:"M d, Y" }}</td>
+          <td class="px-3 py-3 text-[12px] text-[#605e5c] max-w-[120px] truncate" title="{{ e.accounting_period_label }}">{{ e.accounting_period_label }}</td>
+          <td class="px-3 py-3 font-mono text-xs text-[#323130]">{{ e.currency_code }}</td>
+          <td class="px-3 py-3 text-[#605e5c] max-w-[200px] truncate" title="{{ e.memo }}">{{ e.memo|default:"—" }}</td>
+          <td class="px-3 py-3 text-right tabular-nums font-medium text-[#323130]">{{ e.debit_total|floatformat:2 }}</td>
+          <td class="px-3 py-3 text-right tabular-nums font-medium text-[#323130]">{{ e.credit_total|floatformat:2 }}</td>
+          <td class="px-3 py-3 whitespace-nowrap">
             {% if e.status == "posted" %}
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#e7f5e8] text-[#107c10]">
-                Posted
-              </span>
+              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#e7f5e8] text-[#107c10]">{% trans "Posted" %}</span>
             {% elif e.status == "approved" %}
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#deecf9] text-[#005a9e]">
-                Approved
-              </span>
+              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#deecf9] text-[#005a9e]">{% trans "Approved" %}</span>
             {% elif e.status == "reversed" %}
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#a4262c]">
-                Reversed
-              </span>
+              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#a4262c]">{% trans "Reversed" %}</span>
             {% elif e.status == "pending_approval" %}
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#fff4ce] text-[#8a6d1a]">
-                Pending approval
-              </span>
+              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#fff4ce] text-[#8a6d1a]">{% trans "Pending" %}</span>
             {% else %}
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#323130]">
-                Draft
-              </span>
+              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#323130]">{% trans "Draft" %}</span>
             {% endif %}
+          </td>
+          <td class="px-3 py-3 text-[12px] text-[#605e5c] max-w-[100px] truncate">{{ e.posted_by_name }}</td>
+          <td class="px-3 py-3 text-[12px] text-[#605e5c] whitespace-nowrap">{% if e.posted_at %}{{ e.posted_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+          <td class="px-3 py-3 text-right relative">
+            <details class="inline-block text-left">
+              <summary class="list-none cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-semibold" style="border-color:#cfd0d4; color:#323130;">
+                {% trans "Actions" %} <i data-feather="chevron-down" class="w-3 h-3"></i>
+              </summary>
+              <div class="absolute right-0 mt-1 w-52 rounded-lg border bg-white shadow-lg z-20 py-1" style="border-color:#edebe9;">
+                <a href="{% url 'tenant_portal:finance_journal_detail' e.id %}" class="block px-3 py-2 text-[13px] hover:bg-[#f3f2f1]">{% trans "View" %}</a>
+                {% if e.source_document_url %}
+                <a href="{{ e.source_document_url }}" class="block px-3 py-2 text-[13px] hover:bg-[#f3f2f1]">{% trans "Open source document" %}</a>
+                {% else %}
+                <span class="block px-3 py-2 text-[12px] text-[#a19f9d] cursor-not-allowed">{% trans "Open source document" %} <span class="text-[10px]">(—)</span></span>
+                {% endif %}
+                {% if e.can_reverse %}
+                <form method="post" action="{% url 'tenant_portal:finance_journal_action' e.id %}" class="border-t" style="border-color:#edebe9;"
+                      onsubmit="var r=prompt('{% trans "Reversal reason" %}'); if(!r||!r.trim()) return false; this.reversal_reason.value=r; return confirm('{% trans "Reverse this journal?" %}');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="reverse" />
+                  <input type="hidden" name="reversal_reason" value="" />
+                  <input type="hidden" name="reversal_date" value="{{ e.date|date:'Y-m-d' }}" />
+                  <button type="submit" class="w-full text-left px-3 py-2 text-[13px] text-[#a4262c] hover:bg-[#fde7e9]">{% trans "Reverse" %}</button>
+                </form>
+                {% elif e.status == 'posted' and e.is_system_generated %}
+                <div class="px-3 py-2 text-[11px] text-[#605e5c] border-t" style="border-color:#edebe9;">{% trans "System journal — use source workflow to adjust" %}</div>
+                {% endif %}
+                <a href="{% url 'tenant_portal:finance_journal_detail' e.id %}?print=1" onclick="window.open(this.href);return false;" class="block px-3 py-2 text-[13px] hover:bg-[#f3f2f1] border-t" style="border-color:#edebe9;">{% trans "Print" %}</a>
+                <a href="{{ e.audit_trail_url }}" class="block px-3 py-2 text-[13px] hover:bg-[#f3f2f1] border-t" style="border-color:#edebe9;">{% trans "Audit trail" %}</a>
+              </div>
+            </details>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="8" class="px-5 py-8 text-center text-[#605e5c]">
-            No journal entries match the current filters.
+          <td colspan="15" class="px-5 py-8 text-center text-[#605e5c]">
+            {% trans "No journal entries match the current filters." %}
           </td>
         </tr>
         {% endfor %}
@@ -244,10 +397,9 @@
 
 <div class="print-only mt-6 text-xs text-[#605e5c]">
   <hr class="mb-2 border-[#edebe9]" />
-  <div class="flex items-center justify-between">
-    <span>{{ tenant_display_name|default:tenant.name }} · Journal entries report</span>
-    <span>Generated by Sugna Enterprise Suite</span>
+  <div class="flex justify-between">
+    <span>{{ tenant_display_name|default:tenant.name }} · {% trans "Journal register" %}</span>
+    <span>Sugna Enterprise Suite</span>
   </div>
 </div>
 {% endblock %}
-

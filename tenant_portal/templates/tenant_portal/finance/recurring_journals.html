@@ -1,199 +1,288 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Recurring Journals | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Recurring journals" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div x-data="{ openForm: false }">
-<div class="flex items-start justify-between mb-4">
-  <div>
-    <h1 class="page-title">Recurring Journals</h1>
-  </div>
-  <div>
-    <button type="button"
-       @click="openForm = true"
-       class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
-       style="background:#0078D4;">
-      <i data-feather="plus-circle" class="w-4 h-4"></i>
-      Create Recurring Journal
-    </button>
-  </div>
-</div>
-
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead style="background:#f3f2f1;">
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Name</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Reference prefix</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Frequency</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Start date</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Next run</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">End date</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Status</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide">Lines</th>
-          <th class="px-4 py-2 font-semibold text-xs uppercase tracking-wide text-right">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rj in recurring_list %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ rj.name }}</td>
-          <td class="px-4 py-2">{{ rj.reference_prefix|default:"—" }}</td>
-          <td class="px-4 py-2">{{ rj.get_frequency_display }}</td>
-          <td class="px-4 py-2">{{ rj.next_run_date|date:"Y-m-d"|default:"—" }}</td>
-          <td class="px-4 py-2">{{ rj.next_run_date|date:"Y-m-d"|default:"—" }}</td>
-          <td class="px-4 py-2">{{ rj.end_date|date:"Y-m-d"|default:"—" }}</td>
-          <td class="px-4 py-2">
-            {% if rj.is_active %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#e7f5e8] text-[#107c10]">Active</span>
-            {% else %}
-              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#605e5c]">Inactive</span>
-            {% endif %}
-          </td>
-          <td class="px-4 py-2">{{ rj.lines.count }} line(s)</td>
-          <td class="px-4 py-2 text-right">
-            <div class="inline-flex items-center gap-1">
-              <a href="#" class="text-xs text-[#0078D4] hover:underline">View</a>
-              <span class="text-[#a19f9d]">•</span>
-              <a href="#" class="text-xs text-[#0078D4] hover:underline">Edit</a>
-              <span class="text-[#a19f9d]">•</span>
-              <a href="#" class="text-xs text-[#0078D4] hover:underline">
-                {% if rj.is_active %}Deactivate{% else %}Activate{% endif %}
-              </a>
-              <span class="text-[#a19f9d]">•</span>
-              <a href="#" class="text-xs text-[#0078D4] hover:underline">Run now</a>
-              <span class="text-[#a19f9d]">•</span>
-              <a href="#" class="text-xs text-[#a4262c] hover:underline">Delete</a>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="9" class="px-4 py-6 text-center text-[#605e5c]">
-            No recurring journals defined.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-<!-- Create / Edit Recurring Journal modal (UI only; wire up backend next) -->
-<div x-show="openForm" x-cloak class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-  <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-    <div class="px-5 py-3 border-b flex items-center justify-between" style="border-color:#edebe9;">
-      <h2 class="text-base font-semibold text-[#323130]">New recurring journal</h2>
-      <button type="button" @click="openForm = false" class="text-[#605e5c] hover:text-[#323130]">
-        <i data-feather="x" class="w-4 h-4"></i>
-      </button>
+{{ recurring_json|json_script:"recurring-journals-data" }}
+<div class="max-w-6xl mx-auto" x-data="recurringJournalPage()" x-init="init()">
+  <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+    <div>
+      <h1 class="page-title">{% trans "Recurring journals" %}</h1>
+      <p class="text-[13px] text-[#605e5c] mt-1">{% trans "Templates for periodic GL entries. Lines can carry a grant/project for NGO reporting." %}</p>
     </div>
-    <form class="flex-1 flex flex-col min-h-0">
-      <div class="px-5 py-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% if can_manage %}
+    <button type="button" @click="openCreate()"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm"
+            style="background:#0078D4;">
+      <i data-feather="plus-circle" class="w-4 h-4"></i>
+      {% trans "New template" %}
+    </button>
+    {% endif %}
+  </div>
+
+  <div class="bg-white border rounded-xl overflow-hidden shadow-sm" style="border-color:#edebe9;">
+    <div class="overflow-x-auto">
+      <table class="w-full text-[13px]">
+        <thead class="bg-[#faf9f8] text-left text-[#605e5c] font-semibold border-b" style="border-color:#edebe9;">
+          <tr>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Template name" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Reference prefix" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Frequency" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Start date" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Next run" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "End date" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Status" %}</th>
+            <th class="px-4 py-3 whitespace-nowrap">{% trans "Lines" %}</th>
+            {% if can_manage %}
+            <th class="px-4 py-3 text-right whitespace-nowrap">{% trans "Actions" %}</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for rj in recurring_list %}
+          <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+            <td class="px-4 py-3 font-medium text-[#323130]">{{ rj.name }}</td>
+            <td class="px-4 py-3 font-mono text-[12px]">{{ rj.reference_prefix|default:"—" }}</td>
+            <td class="px-4 py-3">{{ rj.get_frequency_display }}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{{ rj.start_date|default:"—" }}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{{ rj.next_run_date|default:"—" }}</td>
+            <td class="px-4 py-3 whitespace-nowrap">{{ rj.end_date|default:"—" }}</td>
+            <td class="px-4 py-3">
+              {% if rj.status == 'active' %}
+              <span class="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-[#e7f5e8] text-[#107c10]">{{ rj.get_status_display }}</span>
+              {% elif rj.status == 'paused' %}
+              <span class="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-[#f3f2f1] text-[#605e5c]">{{ rj.get_status_display }}</span>
+              {% else %}
+              <span class="inline-flex px-2 py-0.5 rounded text-[11px] font-semibold bg-[#deecf9] text-[#0078D4]">{{ rj.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">{{ rj.lines.count }}</td>
+            {% if can_manage %}
+            <td class="px-4 py-3 text-right">
+              <button type="button" @click="openEdit({{ rj.id }})" class="text-[#0078D4] font-semibold text-[12px] hover:underline mr-2">{% trans "Edit" %}</button>
+              <form method="post" class="inline" onsubmit="return confirm('{% trans "Delete this template?" %}');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete" />
+                <input type="hidden" name="id" value="{{ rj.id }}" />
+                <button type="submit" class="text-[#a4262c] font-semibold text-[12px] hover:underline">{% trans "Delete" %}</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{% if can_manage %}9{% else %}8{% endif %}" class="px-4 py-10 text-center text-[#605e5c]">
+              {% trans "No recurring journal templates yet." %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if can_manage %}
+  <div x-show="modalOpen" x-cloak class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#edebe9;">
+        <h2 class="text-base font-semibold text-[#323130]" x-text="editId ? '{% trans "Edit recurring journal" %}' : '{% trans "New recurring journal" %}'"></h2>
+        <button type="button" @click="modalOpen = false" class="text-[#605e5c] hover:text-[#323130] p-1" aria-label="{% trans 'Close' %}">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" class="flex-1 flex flex-col min-h-0">
+        {% csrf_token %}
+        <input type="hidden" name="action" :value="editId ? 'update' : 'create'" />
+        <input type="hidden" name="edit_id" :value="editId || ''" />
+        <input type="hidden" name="line_count" :value="lines.length" />
+
+        <div class="px-5 py-4 space-y-6 overflow-y-auto flex-1 min-h-0">
           <div>
-            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Template name</label>
-            <input class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                   style="border-color:#edebe9;" placeholder="e.g. Monthly office rent">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Reference prefix</label>
-            <input class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                   style="border-color:#edebe9;" placeholder="e.g. RENT">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Frequency</label>
-            <select class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                    style="border-color:#edebe9;">
-              <option>Monthly</option>
-              <option>Quarterly</option>
-              <option>Yearly</option>
-            </select>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Start date</label>
-              <input type="date" class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                     style="border-color:#edebe9;">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-[#605e5c] mb-3">{% trans "Template information" %}</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Template name" %} <span class="text-red-600">*</span></label>
+                <input name="name" x-model="form.name" maxlength="120" required
+                       class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'e.g. Monthly depreciation — HQ' %}" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Reference prefix" %}</label>
+                <input name="reference_prefix" x-model="form.reference_prefix" maxlength="30"
+                       class="w-full px-3 py-2 rounded border text-sm font-mono" style="border-color:#edebe9;" placeholder="{% trans 'e.g. RJ-MO' %}" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Frequency" %} <span class="text-red-600">*</span></label>
+                <select name="frequency" required x-model="form.frequency" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+                  {% for val, lbl in frequency_choices %}
+                  <option value="{{ val }}">{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Start date" %} <span class="text-red-600">*</span></label>
+                <input type="date" name="start_date" required x-model="form.start_date" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "End date" %} <span class="font-normal text-[#605e5c]">({% trans "optional" %})</span></label>
+                <input type="date" name="end_date" x-model="form.end_date" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Status" %}</label>
+                <select name="status" x-model="form.status" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+                  {% for val, lbl in status_choices %}
+                  <option value="{{ val }}">{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Description" %}</label>
+                <textarea name="description" rows="2" x-model="form.description" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Purpose of this recurring entry' %}"></textarea>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">End date (optional)</label>
-              <input type="date" class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                     style="border-color:#edebe9;">
-            </div>
           </div>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Description</label>
-          <input class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
-                 style="border-color:#edebe9;" placeholder="Optional description for this template">
+
+          <div class="border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+            <div class="px-4 py-2 flex items-center justify-between" style="background:#f3f2f1;">
+              <span class="text-xs font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Journal lines" %}</span>
+              <button type="button" @click="addLine()" class="text-[12px] font-semibold text-[#0078D4] hover:underline">{% trans "Add line" %}</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-[12px]">
+                <thead class="bg-[#faf9f8] border-b" style="border-color:#edebe9;">
+                  <tr class="text-left text-[#605e5c]">
+                    <th class="px-3 py-2 font-semibold min-w-[200px]">{% trans "Account" %} *</th>
+                    <th class="px-3 py-2 font-semibold min-w-[200px]">{% trans "Project / grant" %}</th>
+                    <th class="px-3 py-2 font-semibold min-w-[140px]">{% trans "Description" %}</th>
+                    <th class="px-3 py-2 font-semibold text-right w-28">{% trans "Debit" %}</th>
+                    <th class="px-3 py-2 font-semibold text-right w-28">{% trans "Credit" %}</th>
+                    <th class="px-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(line, idx) in lines" :key="idx">
+                    <tr class="border-t align-top" style="border-color:#edebe9;">
+                      <td class="px-3 py-2">
+                        <select :name="'line_account_' + idx" x-model="line.account_id" class="w-full max-w-xs px-2 py-1.5 rounded border bg-white text-[12px]" style="border-color:#edebe9;">
+                          <option value="">—</option>
+                          {% for a in accounts %}
+                          <option value="{{ a.id }}">{{ a.code }} — {{ a.name|truncatechars:40 }}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td class="px-3 py-2">
+                        <select :name="'line_grant_' + idx" x-model="line.grant_id" class="w-full max-w-xs px-2 py-1.5 rounded border bg-white text-[12px]" style="border-color:#edebe9;">
+                          <option value="">{% trans "— None —" %}</option>
+                          {% for g in grants %}
+                          <option value="{{ g.id }}">{{ g.code }} — {{ g.title|truncatechars:28 }}{% if g.project %} ({{ g.project.code }}){% endif %}</option>
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td class="px-3 py-2">
+                        <input type="text" :name="'line_desc_' + idx" x-model="line.description" maxlength="255" class="w-full px-2 py-1.5 rounded border text-[12px]" style="border-color:#edebe9;" />
+                      </td>
+                      <td class="px-3 py-2">
+                        <input type="text" inputmode="decimal" :name="'line_debit_' + idx" x-model="line.debit" class="w-full px-2 py-1.5 rounded border text-[12px] text-right font-mono" style="border-color:#edebe9;" placeholder="0.00" />
+                      </td>
+                      <td class="px-3 py-2">
+                        <input type="text" inputmode="decimal" :name="'line_credit_' + idx" x-model="line.credit" class="w-full px-2 py-1.5 rounded border text-[12px] text-right font-mono" style="border-color:#edebe9;" placeholder="0.00" />
+                      </td>
+                      <td class="px-1 py-2 text-center">
+                        <button type="button" @click="removeLine(idx)" class="text-[#a4262c] text-lg leading-none" title="{% trans 'Remove line' %}">×</button>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <p class="px-4 py-2 text-[11px] text-[#605e5c] border-t" style="border-color:#edebe9;">
+              {% trans "Minimum 2 lines; total debit must equal total credit; each line has debit or credit only. Next run date is set from the start date when you save." %}
+            </p>
+          </div>
         </div>
 
-        <div class="border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-          <div class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#605e5c]" style="background:#f3f2f1;">
-            Journal lines
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-xs">
-              <thead style="background:#faf9f8;">
-                <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-                  <th class="px-3 py-2 font-semibold">Account</th>
-                  <th class="px-3 py-2 font-semibold">Description</th>
-                  <th class="px-3 py-2 font-semibold text-right">Debit</th>
-                  <th class="px-3 py-2 font-semibold text-right">Credit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for i in "01234" %}
-                <tr class="border-t" style="border-color:#edebe9;">
-                  <td class="px-3 py-1.5">
-                    <select class="w-full px-2 py-1.5 rounded border bg-white text-xs"
-                            style="border-color:#edebe9;">
-                      <option value="">— Select account —</option>
-                      {% for a in accounts %}
-                      <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
-                      {% endfor %}
-                    </select>
-                  </td>
-                  <td class="px-3 py-1.5">
-                    <input class="w-full px-2 py-1.5 rounded border text-xs"
-                           style="border-color:#edebe9;" placeholder="Optional">
-                  </td>
-                  <td class="px-3 py-1.5 text-right">
-                    <input inputmode="decimal"
-                           class="w-full px-2 py-1.5 rounded border text-xs text-right"
-                           style="border-color:#edebe9;" placeholder="0.00">
-                  </td>
-                  <td class="px-3 py-1.5 text-right">
-                    <input inputmode="decimal"
-                           class="w-full px-2 py-1.5 rounded border text-xs text-right"
-                           style="border-color:#edebe9;" placeholder="0.00">
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          <div class="px-4 py-2 text-[11px] text-[#605e5c] border-t" style="border-color:#edebe9;">
-            Rules: at least 2 lines, total debit must equal total credit, each line must have either debit or credit.
-          </div>
+        <div class="px-5 py-4 border-t flex items-center justify-end gap-3 shrink-0 bg-white" style="border-color:#edebe9;">
+          <button type="button" @click="modalOpen = false" class="px-4 py-2.5 rounded-lg border text-sm font-semibold" style="border-color:#edebe9;">{% trans "Cancel" %}</button>
+          <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">
+            <i data-feather="check" class="w-4 h-4"></i>
+            {% trans "Save template" %}
+          </button>
         </div>
-      </div>
-      <div class="px-5 py-4 border-t flex items-center justify-end gap-3 shrink-0 bg-white" style="border-color:#edebe9;">
-        <button type="button"
-                @click="openForm = false"
-                class="px-4 py-2.5 rounded border text-sm font-medium hover:bg-[#faf9f8]"
-                style="border-color:#edebe9;">
-          Cancel
-        </button>
-        <button type="button"
-                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
-                style="background:#0078D4;">
-          <i data-feather="check" class="w-4 h-4"></i>
-          Save template
-        </button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
+  {% endif %}
 </div>
-</div>
+
+<script>
+function recurringJournalPage() {
+  return {
+    modalOpen: false,
+    editId: null,
+    form: {
+      name: '',
+      reference_prefix: '',
+      frequency: 'monthly',
+      start_date: '',
+      end_date: '',
+      status: 'active',
+      description: '',
+    },
+    lines: [
+      { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
+      { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
+    ],
+    payload: [],
+    init() {
+      const el = document.getElementById('recurring-journals-data');
+      if (el) {
+        try { this.payload = JSON.parse(el.textContent); } catch (e) { this.payload = []; }
+      }
+    },
+    openCreate() {
+      this.editId = null;
+      this.form = { name: '', reference_prefix: '', frequency: 'monthly', start_date: '', end_date: '', status: 'active', description: '' };
+      this.lines = [
+        { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
+        { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
+      ];
+      this.modalOpen = true;
+      this.$nextTick(() => { if (window.feather) feather.replace(); });
+    },
+    openEdit(id) {
+      const row = this.payload.find((r) => r.id === id);
+      if (!row) return;
+      this.editId = id;
+      this.form = {
+        name: row.name || '',
+        reference_prefix: row.reference_prefix || '',
+        frequency: row.frequency || 'monthly',
+        start_date: row.start_date || '',
+        end_date: row.end_date || '',
+        status: row.status || 'active',
+        description: row.description || '',
+      };
+      const ln = (row.lines && row.lines.length) ? row.lines.map((l) => ({
+        account_id: String(l.account_id || ''),
+        grant_id: String(l.grant_id || ''),
+        description: l.description || '',
+        debit: l.debit || '',
+        credit: l.credit || '',
+      })) : [{ account_id: '', grant_id: '', description: '', debit: '', credit: '' }, { account_id: '', grant_id: '', description: '', debit: '', credit: '' }];
+      this.lines = ln.length >= 2 ? ln : [
+        ...ln,
+        { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
+      ];
+      this.modalOpen = true;
+      this.$nextTick(() => { if (window.feather) feather.replace(); });
+    },
+    addLine() {
+      this.lines.push({ account_id: '', grant_id: '', description: '', debit: '', credit: '' });
+    },
+    removeLine(idx) {
+      if (this.lines.length <= 2) return;
+      this.lines.splice(idx, 1);
+    },
+  };
+}
+</script>
 {% endblock %}

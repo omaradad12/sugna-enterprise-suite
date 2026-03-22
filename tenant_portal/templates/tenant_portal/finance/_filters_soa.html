@@ -1,0 +1,77 @@
+{% comment %}
+Statement of activities (income & expenditure): period, Grant, optional Donor.
+Same filter bar layout as balance sheet — inline Apply, Export Excel, Print / PDF.
+Context: filters, grants, donors, grant_donor_map, export_csv_url.
+{% endcomment %}
+<div class="dynamics-filter-pane hidden-print soa-report-wrap">
+  <div class="dynamics-filter-head">
+    <span class="dynamics-filter-head-title">Filters</span>
+    <span class="dynamics-filter-head-hint">Refine the income &amp; expenditure report</span>
+  </div>
+  <form method="get" action="" id="soa-filter-form">
+    <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">
+      <div class="dynamics-filter-field">
+        <label for="soa-from">From date</label>
+        <input id="soa-from" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="dynamics-input" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="soa-to">To date</label>
+        <input id="soa-to" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="dynamics-input" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="soa-grant">Grant</label>
+        <select id="soa-grant" name="grant_id" class="dynamics-select min-w-[220px] max-w-[300px]">
+          <option value="">All grants</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:6 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="soa-donor">Donor <span class="dynamics-label-muted">(optional)</span></label>
+        <select id="soa-donor" name="donor_id" class="dynamics-select min-w-[200px] max-w-[280px]"
+                title="Auto-filled when you select a grant; clear to filter by grant only.">
+          <option value="">—</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field dynamics-filter-field--actions">
+        <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+        <div class="dynamics-filter-inline-actions">
+          <button type="submit" class="dynamics-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply filters
+          </button>
+          {% if export_csv_url %}
+          <a href="{{ export_csv_url }}" class="dynamics-btn-secondary">
+            <i data-feather="download" class="w-4 h-4"></i>
+            Export Excel
+          </a>
+          {% endif %}
+          <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+            <i data-feather="printer" class="w-4 h-4"></i>
+            Print / PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+  {{ grant_donor_map|json_script:"soa-grant-donor-map" }}
+  <script>
+  (function () {
+    var grantSel = document.getElementById("soa-grant");
+    var donorSel = document.getElementById("soa-donor");
+    var el = document.getElementById("soa-grant-donor-map");
+    if (!grantSel || !donorSel || !el) return;
+    var map = {};
+    try { map = JSON.parse(el.textContent || "{}"); } catch (e) {}
+    grantSel.addEventListener("change", function () {
+      var gid = grantSel.value;
+      if (gid && map[gid]) donorSel.value = map[gid];
+      else donorSel.value = "";
+    });
+  })();
+  </script>
+</div>

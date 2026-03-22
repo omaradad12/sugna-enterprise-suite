@@ -29,8 +29,56 @@ def _posting_rule_tx_type(tx: str) -> str:
         "receipt_voucher": "receipt",
         "journal_entry": "journal",
         "bank_transfer": "transfer",
+        "cash_transfer": "transfer",
     }
     return m.get(tx, "journal")
+
+
+def _source_metadata_for_transaction(transaction_type: str) -> tuple[str, str, bool]:
+    """Returns (source_type, journal_type, is_system_generated)."""
+    from tenant_finance.models import JournalEntry
+
+    m = {
+        "payment_voucher": (
+            JournalEntry.SourceType.PAYMENT_VOUCHER,
+            "payment_voucher",
+            True,
+        ),
+        "receipt_voucher": (
+            JournalEntry.SourceType.RECEIPT_VOUCHER,
+            "receipt_voucher",
+            True,
+        ),
+        "bank_transfer": (
+            JournalEntry.SourceType.BANK_TRANSFER,
+            "bank_transfer",
+            True,
+        ),
+        "cash_transfer": (
+            JournalEntry.SourceType.CASH_TRANSFER,
+            "cash_transfer",
+            True,
+        ),
+        "staff_advance": (
+            JournalEntry.SourceType.POSTING_ENGINE,
+            "staff_advance",
+            True,
+        ),
+        "advance_settlement": (
+            JournalEntry.SourceType.POSTING_ENGINE,
+            "advance_settlement",
+            True,
+        ),
+        "journal_entry": (
+            JournalEntry.SourceType.POSTING_ENGINE,
+            "transaction",
+            True,
+        ),
+    }
+    return m.get(
+        transaction_type,
+        (JournalEntry.SourceType.POSTING_ENGINE, "transaction", True),
+    )
 
 
 def post_transaction_to_journal(
@@ -48,6 +96,8 @@ def post_transaction_to_journal(
     donor_id: int | None = None,
     project_id: int | None = None,
     action: str = "post",  # "post" or "save_draft"
+    explicit_debit_account_id: int | None = None,
+    explicit_credit_account_id: int | None = None,
 ) -> PostingResult:
     """
     End-to-end posting workflow:
@@ -63,7 +113,7 @@ def post_transaction_to_journal(
 
     from tenant_finance.models import AuditLog, ChartAccount, JournalEntry, JournalLine, ProjectDimensionMapping
     from tenant_finance.services.numbering import generate_document_number
-    from tenant_finance.services.posting_engine import resolve_posting
+    from tenant_finance.services.posting_engine import PostingResolution, resolve_posting
 
     tx_type = _posting_rule_tx_type(transaction_type)
     if amount is None:
@@ -93,18 +143,26 @@ def post_transaction_to_journal(
             .first()
         )
 
-    # Rule resolution
-    resolution = resolve_posting(
-        using=using,
-        transaction_type=tx_type,
-        amount=amount,
-        project_id=project.id if project else None,
-        grant_id=getattr(grant, "id", None),
-        donor_id=donor_id or getattr(getattr(grant, "donor", None), "id", None),
-        cost_center_id=getattr(cost_center, "id", None) if cost_center else None,
-        payment_method=payment_method,
-        currency=getattr(currency, "code", None) if currency else None,
-    )
+    # Rule resolution (bank/cash transfers can supply explicit GL legs: Dr destination, Cr source)
+    if explicit_debit_account_id and explicit_credit_account_id:
+        resolution = PostingResolution(
+            rule_id=None,
+            debit_account_id=explicit_debit_account_id,
+            credit_account_id=explicit_credit_account_id,
+            apply_dimension="none",
+        )
+    else:
+        resolution = resolve_posting(
+            using=using,
+            transaction_type=tx_type,
+            amount=amount,
+            project_id=project.id if project else None,
+            grant_id=getattr(grant, "id", None),
+            donor_id=donor_id or getattr(getattr(grant, "donor", None), "id", None),
+            cost_center_id=getattr(cost_center, "id", None) if cost_center else None,
+            payment_method=payment_method,
+            currency=getattr(currency, "code", None) if currency else None,
+        )
 
     # Required dimension validation (rule-driven)
     apply_dim = (resolution.apply_dimension or "none").strip().lower()
@@ -122,6 +180,8 @@ def post_transaction_to_journal(
 
     status = JournalEntry.Status.DRAFT if action == "save_draft" else JournalEntry.Status.POSTED
 
+    src_type, jrnl_type, sys_gen = _source_metadata_for_transaction(transaction_type)
+
     with transaction.atomic(using=using):
         entry = JournalEntry.objects.using(using).create(
             entry_date=entry_date,
@@ -132,6 +192,10 @@ def post_transaction_to_journal(
             status=JournalEntry.Status.DRAFT,  # create draft first; POSTED transition enforces controls
             created_by=user,
             payment_method=(payment_method or "").strip(),
+            source=src_type,
+            source_type=src_type,
+            journal_type=jrnl_type,
+            is_system_generated=sys_gen,
         )
 
         # Numbering (enterprise series) when applicable
@@ -165,8 +229,22 @@ def post_transaction_to_journal(
 
         if status == JournalEntry.Status.POSTED:
             entry.status = JournalEntry.Status.POSTED
+            entry.posted_at = timezone.now()
+            entry.posted_by = user
+            entry.source_id = entry.pk
+            if entry.reference:
+                entry.source_document_no = entry.reference
             try:
-                entry.save(using=using, update_fields=["status"])
+                entry.save(
+                    using=using,
+                    update_fields=[
+                        "status",
+                        "posted_at",
+                        "posted_by",
+                        "source_id",
+                        "source_document_no",
+                    ],
+                )
             except ValidationError as exc:
                 # Preserve useful error messages for UI
                 msg = "; ".join(sum(exc.message_dict.values(), [])) if hasattr(exc, "message_dict") else str(exc)

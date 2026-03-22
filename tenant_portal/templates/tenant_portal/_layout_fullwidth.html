@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load i18n %}
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -132,9 +133,9 @@
       color: #ffffff;
     }
 
-    /* Elements visible only when printing (e.g. document headers/footers) */
-    .print-only {
-      display: none;
+    /* Letterheads / print-only blocks: must stay off-screen (Tailwind CDN can override a plain display:none). */
+    html body .print-only {
+      display: none !important;
     }
 
     /* Print page setup: landscape for reports like GL */
@@ -145,8 +146,8 @@
 
     /* Print layout: hide app chrome, show only document content */
     @media print {
-      .print-only {
-        display: block;
+      html body .print-only {
+        display: block !important;
       }
       body {
         background: #ffffff !important;
@@ -220,11 +221,33 @@
 
       <!-- Right: post transaction, quick actions, notifications, user -->
       <div class="flex items-center gap-2 ml-2 md:ml-4">
-        <!-- Post transaction primary button -->
+        <!-- Post transaction: hub + operational entry points -->
+        <div class="relative hidden md:block" x-data="{ postTxnOpen: false }">
+          <button type="button" @click="postTxnOpen = !postTxnOpen"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-[#0078D4] hover:bg-[#e5f0ff] border border-white/25">
+            <i data-feather="edit-3" class="w-4 h-4"></i>
+            <span>Post transaction</span>
+            <i data-feather="chevron-down" class="w-3 h-3"></i>
+          </button>
+          <div x-show="postTxnOpen" x-cloak @click.outside="postTxnOpen = false"
+               class="absolute right-0 mt-2 w-64 rounded-xl border bg-white shadow-xl py-1 z-40 text-left"
+               style="border-color:#edebe9;">
+            <a href="{% url 'tenant_portal:finance_post_transaction' %}" @click="postTxnOpen = false"
+               class="block px-3 py-2 text-[12px] font-semibold text-[#605e5c] hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">{% trans "Overview" %}</a>
+            <a href="{% url 'tenant_portal:pay_payment_vouchers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Payment Voucher" %}</a>
+            <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Receipt Voucher" %}</a>
+            <a href="{% url 'tenant_portal:cash_cash_transfers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Cash Transfer" %}</a>
+            <a href="{% url 'tenant_portal:cash_bank_transfers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Bank Transfer" %}</a>
+            <p class="px-3 pt-2.5 pb-0 text-[10px] font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Fund transfers" %}</p>
+            <a href="{% url 'tenant_portal:finance_interfund_transfer_create' %}?src=post" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "New inter-fund transfer" %}</a>
+            <a href="{% url 'tenant_portal:finance_interfund_transfers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Inter-fund transfers" %}</a>
+            <a href="{% url 'tenant_portal:finance_journals' %}?open_manual=1" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8] border-t" style="border-color:#edebe9;">{% trans "Manual Journal" %}</a>
+          </div>
+        </div>
         <a href="{% url 'tenant_portal:finance_post_transaction' %}"
-           class="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-[#0078D4] hover:bg-[#e5f0ff] border border-white/25">
+           class="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#0078D4] border border-white/25"
+           title="Post transaction">
           <i data-feather="edit-3" class="w-4 h-4"></i>
-          <span>Post transaction</span>
         </a>
 
         <!-- Quick actions dropdown -->
@@ -481,7 +504,7 @@
         </a>
 
         <!-- 2) Core Accounting -->
-        <a href="{% url 'tenant_portal:finance_journals' %}"
+        <a href="{% url 'tenant_portal:finance_core_accounting_center' %}"
            @click="subMenu = 'core'"
            :class="subMenu === 'core' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
@@ -499,7 +522,7 @@
         </a>
 
         <!-- 4) Budgeting -->
-        <a href="{% url 'tenant_portal:grants_budgets' %}"
+        <a href="{% url 'tenant_portal:budgeting_center' %}"
            @click="subMenu = 'budget'"
            :class="subMenu === 'budget' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
@@ -517,7 +540,7 @@
         </a>
 
         <!-- 6) Incoming fund -->
-        <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}"
+        <a href="{% url 'tenant_portal:incoming_fund_center' %}"
            @click="subMenu = 'receivables'"
            :class="subMenu === 'receivables' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
@@ -526,7 +549,7 @@
         </a>
 
         <!-- 7) Outgoing fund -->
-        <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+        <a href="{% url 'tenant_portal:outgoing_fund_center' %}"
            @click="subMenu = 'payables'"
            :class="subMenu === 'payables' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
@@ -553,7 +576,7 @@
         </a>
 
         <!-- 10) Reporting -->
-        <a href="{% url 'tenant_portal:grants_reports' %}"
+        <a href="{% url 'tenant_portal:reporting_center' %}"
            @click="subMenu = 'reports'"
            :class="subMenu === 'reports' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-colors">
@@ -644,15 +667,15 @@
                 <span x-show="!sidebarCollapsed" class="truncate">Cash position</span>
               </a>
               <a href="{% url 'tenant_portal:finance_fund_balances' %}"
-                 @click="activeItem = 'dashboard_fund_balances'"
+                 @click="activeItem = 'core_ngo_fund_balance'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'dashboard_fund_balances'
+                 :class="activeItem === 'core_ngo_fund_balance'
                           ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
                           : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="layers"
                    class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'dashboard_fund_balances' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Fund balances</span>
+                   :class="activeItem === 'core_ngo_fund_balance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balance</span>
               </a>
             </div>
 
@@ -684,15 +707,15 @@
                 <span x-show="!sidebarCollapsed" class="truncate">Project financial status</span>
               </a>
               <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
-                 @click="activeItem = 'dashboard_donor_status'"
+                 @click="activeItem = 'core_ngo_donor_contributions'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'dashboard_donor_status'
+                 :class="activeItem === 'core_ngo_donor_contributions'
                           ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
                           : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="users"
                    class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'dashboard_donor_status' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Donor funding status</span>
+                   :class="activeItem === 'core_ngo_donor_contributions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contributions</span>
               </a>
             </div>
 
@@ -702,26 +725,26 @@
                 Budget performance &amp; trends
               </p>
               <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
-                 @click="activeItem = 'dashboard_bva'"
+                 @click="activeItem = 'core_ngo_budget_vs_actual'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'dashboard_bva'
+                 :class="activeItem === 'core_ngo_budget_vs_actual'
                           ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
                           : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="bar-chart-2"
                    class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'dashboard_bva' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                   :class="activeItem === 'core_ngo_budget_vs_actual' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
               </a>
               <a href="{% url 'tenant_portal:finance_expense_trend' %}"
-                 @click="activeItem = 'dashboard_expense_trend'"
+                 @click="activeItem = 'core_ngo_activity_expenses'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'dashboard_expense_trend'
+                 :class="activeItem === 'core_ngo_activity_expenses'
                           ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
                           : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="trending-down"
                    class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'dashboard_expense_trend' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Expense trend</span>
+                   :class="activeItem === 'core_ngo_activity_expenses' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Activity expenses</span>
               </a>
             </div>
 
@@ -767,6 +790,19 @@
           </div>
           <!-- Core Accounting submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'core'" x-cloak>
+            <div class="space-y-1 pb-1">
+              <a href="{% url 'tenant_portal:finance_core_accounting_center' %}"
+                 @click="activeItem = 'core_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Core Accounting Center" %}</span>
+              </a>
+            </div>
             <!-- Account setup -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
@@ -810,7 +846,7 @@
                 <i data-feather="edit-3"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'core_journals' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Journal entries</span>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "General journal" %}</span>
               </a>
               <a href="{% url 'tenant_portal:finance_recurring_journals' %}"
                  @click="activeItem = 'core_recurring'"
@@ -823,6 +859,7 @@
                    :class="activeItem === 'core_recurring' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Recurring journals</span>
               </a>
+              {% if can_access_adjusting_journals %}
               <a href="{% url 'tenant_portal:finance_adjusting_journals' %}"
                  @click="activeItem = 'core_adjusting'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
@@ -834,6 +871,7 @@
                    :class="activeItem === 'core_adjusting' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Adjusting journals</span>
               </a>
+              {% endif %}
               <a href="{% url 'tenant_portal:finance_journal_approval' %}"
                  @click="activeItem = 'core_approval'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
@@ -847,11 +885,22 @@
               </a>
             </div>
 
-            <!-- General ledger -->
+            <!-- Ledgers & trial balance -->
             <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                General ledger
+                Ledgers
               </p>
+              <a href="{% url 'tenant_portal:finance_trial_balance' %}"
+                 @click="activeItem = 'core_tb'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_tb'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="columns"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_tb' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Trial balance</span>
+              </a>
               <a href="{% url 'tenant_portal:finance_general_ledger' %}"
                  @click="activeItem = 'core_gl'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
@@ -874,63 +923,12 @@
                    :class="activeItem === 'core_account_ledger' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Account ledger</span>
               </a>
-              <a href="{% url 'tenant_portal:finance_trial_balance' %}"
-                 @click="activeItem = 'core_tb'"
-                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'core_tb'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="columns"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'core_tb' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Trial balance</span>
-              </a>
             </div>
 
-            <!-- Fiscal period management -->
+            <!-- Financial statements (short labels; full titles on report pages) -->
             <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Fiscal period management
-              </p>
-              <a href="{% url 'tenant_portal:finance_fiscal_periods' %}"
-                 @click="activeItem = 'core_periods'"
-                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'core_periods'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="calendar"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'core_periods' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Fiscal periods</span>
-              </a>
-              <a href="{% url 'tenant_portal:finance_period_closing' %}"
-                 @click="activeItem = 'core_closing'"
-                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'core_closing'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="lock"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'core_closing' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Period closing</span>
-              </a>
-              <a href="{% url 'tenant_portal:finance_reopen_period' %}"
-                 @click="activeItem = 'core_reopen'"
-                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'core_reopen'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="unlock"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'core_reopen' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Reopen closed period (admin)</span>
-              </a>
-            </div>
-
-            <!-- Financial reports (NGO-focused) -->
-            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
-              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Financial reports
+                Financial statements
               </p>
               <a href="{% url 'tenant_portal:finance_statement_financial_position' %}"
                  @click="activeItem = 'core_sfp'"
@@ -941,7 +939,7 @@
                 <i data-feather="layers"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'core_sfp' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Statement of financial position</span>
+                <span x-show="!sidebarCollapsed" class="truncate">Balance sheet</span>
               </a>
               <a href="{% url 'tenant_portal:finance_statement_of_activities' %}"
                  @click="activeItem = 'core_soa'"
@@ -952,7 +950,7 @@
                 <i data-feather="bar-chart-2"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'core_soa' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Statement of activities (NGO)</span>
+                <span x-show="!sidebarCollapsed" class="truncate">Income &amp; expenditure</span>
               </a>
               <a href="{% url 'tenant_portal:finance_cash_flow_statement' %}"
                  @click="activeItem = 'core_cfs'"
@@ -963,7 +961,7 @@
                 <i data-feather="trending-up"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'core_cfs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Cash flow statement</span>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash flow</span>
               </a>
               <a href="{% url 'tenant_portal:finance_opening_balances' %}"
                  @click="activeItem = 'core_fs'"
@@ -975,6 +973,66 @@
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'core_fs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Opening balances</span>
+              </a>
+            </div>
+
+            <!-- Grant & donor reports -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Grant &amp; donor reports
+              </p>
+              <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
+                 @click="activeItem = 'core_ngo_budget_vs_actual'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_ngo_budget_vs_actual'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_ngo_budget_vs_actual' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_reports' %}"
+                 @click="activeItem = 'report_grant'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'report_grant'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="briefcase" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'report_grant' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant report</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+                 @click="activeItem = 'core_ngo_fund_balance'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_ngo_fund_balance'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_ngo_fund_balance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_expense_trend' %}"
+                 @click="activeItem = 'core_ngo_activity_expenses'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_ngo_activity_expenses'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-down"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_ngo_activity_expenses' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Activity expenses</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'core_ngo_donor_contributions'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'core_ngo_donor_contributions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'core_ngo_donor_contributions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contributions</span>
               </a>
             </div>
 
@@ -1016,6 +1074,19 @@
           </div>
           <!-- Funds & Donors submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'funds'" x-cloak>
+            <div class="space-y-1 pb-1">
+              <a href="{% url 'tenant_portal:grants_home' %}"
+                 @click="activeItem = 'funds_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Funds & Donors Center" %}</span>
+              </a>
+            </div>
             <!-- Donor management -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
@@ -1082,6 +1153,17 @@
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'funds_grant_agreements' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Grant agreements</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_projects_list' %}"
+                 @click="activeItem = 'funds_projects_list'"
+                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'funds_projects_list'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="folder"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'funds_projects_list' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Project list</span>
               </a>
               <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
                  @click="activeItem = 'funds_grant_allocation'"
@@ -1215,6 +1297,19 @@
           </div>
           <!-- Budgeting submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'budget'" x-cloak>
+            <div class="space-y-1 pb-1">
+              <a href="{% url 'tenant_portal:budgeting_center' %}"
+                 @click="activeItem = 'budget_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'budget_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'budget_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Budgeting Center" %}</span>
+              </a>
+            </div>
             <!-- Budget setup -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
@@ -1532,6 +1627,19 @@
           </div>
           <!-- Incoming fund (Receivables) submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'receivables'" x-cloak>
+            <div class="space-y-1 pb-1">
+              <a href="{% url 'tenant_portal:incoming_fund_center' %}"
+                 @click="activeItem = 'recv_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'recv_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'recv_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Incoming Fund Center" %}</span>
+              </a>
+            </div>
             <!-- Receipts -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
@@ -1643,6 +1751,19 @@
           </div>
           <!-- Outgoing fund (Payables) submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'payables'" x-cloak>
+            <div class="space-y-1 pb-1">
+              <a href="{% url 'tenant_portal:outgoing_fund_center' %}"
+                 @click="activeItem = 'pay_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'pay_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'pay_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Outgoing Fund Center" %}</span>
+              </a>
+            </div>
             <!-- Payments -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
@@ -1765,33 +1886,46 @@
           </div>
           <!-- Multi-donor sharing (Cost Allocation) submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'cost'" x-cloak>
+            <div class="space-y-1 pb-1">
+              <a href="{% url 'tenant_portal:cost_home' %}"
+                 @click="activeItem = 'cost_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="grid"
+                   class="w-4 h-4 flex-shrink-0"
+                   :class="activeItem === 'cost_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Multi-donor Sharing Center" %}</span>
+              </a>
+            </div>
             <!-- Cost allocation -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
                 Cost allocation
               </p>
-              <button type="button"
-                      @click="activeItem = 'cost_expense_allocation'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'cost_expense_allocation'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              <a href="{% url 'tenant_portal:pay_expense_allocation' %}"
+                 @click="activeItem = 'cost_expense_allocation'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_expense_allocation'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="share-2"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'cost_expense_allocation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Expense allocation</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'cost_shared_costs'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'cost_shared_costs'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:finance_grant_utilization' %}"
+                 @click="activeItem = 'cost_shared_costs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_shared_costs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="layers"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'cost_shared_costs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Shared cost distribution</span>
-              </button>
+              </a>
             </div>
 
             <!-- Multi-donor management -->
@@ -1799,28 +1933,28 @@
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
                 Multi-donor management
               </p>
-              <button type="button"
-                      @click="activeItem = 'cost_multi_donor_allocation'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'cost_multi_donor_allocation'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
+                 @click="activeItem = 'cost_multi_donor_allocation'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_multi_donor_allocation'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="git-branch"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'cost_multi_donor_allocation' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Multi-donor allocation</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'cost_donor_cost_sharing'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'cost_donor_cost_sharing'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'cost_donor_cost_sharing'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_donor_cost_sharing'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="users"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'cost_donor_cost_sharing' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Donor cost sharing</span>
-              </button>
+              </a>
             </div>
 
             <!-- Allocation setup -->
@@ -1828,70 +1962,84 @@
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
                 Allocation setup
               </p>
-              <button type="button"
-                      @click="activeItem = 'cost_allocation_rules'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'cost_allocation_rules'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}"
+                 @click="activeItem = 'cost_allocation_rules'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_allocation_rules'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="sliders"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'cost_allocation_rules' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Allocation rules</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'cost_allocation_templates'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'cost_allocation_templates'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:budget_templates' %}"
+                 @click="activeItem = 'cost_allocation_templates'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
+                 :class="activeItem === 'cost_allocation_templates'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="copy"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'cost_allocation_templates' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Allocation templates</span>
-              </button>
+              </a>
             </div>
           </div>
           <!-- Governance (Controls & Compliance) submenu -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'controls'" x-cloak>
-            <!-- Approval control -->
             <div class="space-y-1">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Overview
+              </p>
+              <a href="{% url 'tenant_portal:controls_home' %}"
+                 @click="activeItem = 'controls_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'controls_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layout" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'controls_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Governance Center</span>
+              </a>
+            </div>
+            <!-- Approval control -->
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
                 Approval control
               </p>
-              <button type="button"
-                      @click="activeItem = 'gov_approval_workflows'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_approval_workflows'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}"
+                 @click="activeItem = 'gov_approval_workflows'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_approval_workflows'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="check-square"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_approval_workflows' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Approval workflows</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'gov_authorization_levels'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_authorization_levels'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}"
+                 @click="activeItem = 'gov_authorization_levels'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_authorization_levels'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="user-check"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_authorization_levels' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Authorization levels</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'gov_maker_checker'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_maker_checker'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:finance_journal_approval' %}"
+                 @click="activeItem = 'gov_maker_checker'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_maker_checker'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="users"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_maker_checker' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Maker-checker approval</span>
-              </button>
+              </a>
             </div>
 
             <!-- Audit & monitoring -->
@@ -1899,28 +2047,28 @@
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
                 Audit &amp; monitoring
               </p>
-              <button type="button"
-                      @click="activeItem = 'gov_audit_trail'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_audit_trail'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              <a href="{% url 'tenant_portal:finance_audit_trail' %}"
+                 @click="activeItem = 'gov_audit_trail'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_audit_trail'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="shield"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_audit_trail' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Audit trail</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'gov_compliance_logs'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_compliance_logs'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:audit_risk_compliance' %}"
+                 @click="activeItem = 'gov_compliance_logs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_compliance_logs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="clipboard"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_compliance_logs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Compliance logs</span>
-              </button>
+              </a>
             </div>
 
             <!-- Document management -->
@@ -1928,157 +2076,196 @@
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
                 Document management
               </p>
-              <button type="button"
-                      @click="activeItem = 'gov_document_attachments'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_document_attachments'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              <a href="{% url 'tenant_portal:audit_risk_evidence' %}"
+                 @click="activeItem = 'gov_document_attachments'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_document_attachments'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="paperclip"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_document_attachments' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Document attachments</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'gov_supporting_docs'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'gov_supporting_docs'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+              </a>
+              <a href="{% url 'tenant_portal:audit_risk_findings' %}"
+                 @click="activeItem = 'gov_supporting_docs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'gov_supporting_docs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
                 <i data-feather="file-text"
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'gov_supporting_docs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Supporting documents</span>
-              </button>
+              </a>
             </div>
           </div>
-          <!-- Reporting submenu -->
+          <!-- Reporting submenu: statements → budget → grants → donors → export -->
           <div class="px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;" x-show="subMenu === 'reports'" x-cloak>
-            <!-- Financial reports -->
             <div class="space-y-1">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Financial reports
+                Overview
               </p>
-              <button type="button"
-                      @click="activeItem = 'rpt_financial_statements'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_financial_statements'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="file-text"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_financial_statements' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Financial statements</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'rpt_general_ledger'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_general_ledger'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="book-open"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_general_ledger' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">General ledger report</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'rpt_trial_balance'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_trial_balance'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="columns"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_trial_balance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Trial balance report</span>
-              </button>
+              <a href="{% url 'tenant_portal:reporting_center' %}"
+                 @click="activeItem = 'report_center_home'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'report_center_home'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layout" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'report_center_home' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Reporting Center</span>
+              </a>
             </div>
-
-            <!-- Budget & cash reports -->
             <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Budget &amp; cash reports
+                Financial statements
               </p>
-              <button type="button"
-                      @click="activeItem = 'rpt_budget'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_budget'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="pie-chart"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_budget' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Budget reports</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'rpt_cash'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_cash'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="dollar-sign"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_cash' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Cash reports</span>
-              </button>
+              <a href="{% url 'tenant_portal:finance_statement_financial_position' %}"
+                 @click="activeItem = 'core_sfp'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_sfp'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_sfp' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Balance sheet</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_statement_of_activities' %}"
+                 @click="activeItem = 'core_soa'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_soa'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_soa' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Income &amp; expenditure</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_cash_flow_statement' %}"
+                 @click="activeItem = 'core_cfs'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_cfs'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-up" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_cfs' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash flow</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_trial_balance' %}"
+                 @click="activeItem = 'core_tb'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_tb'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="columns" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_tb' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Trial balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_general_ledger' %}"
+                 @click="activeItem = 'core_gl'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_gl'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="file-text" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_gl' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">General ledger</span>
+              </a>
             </div>
-
-            <!-- Donor & grant reports -->
             <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Donor &amp; grant reports
+                Budget reports
               </p>
-              <button type="button"
-                      @click="activeItem = 'rpt_donor'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_donor'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="users"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_donor' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Donor reports</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'rpt_grant_utilization'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_grant_utilization'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="trending-up"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_grant_utilization' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization reports</span>
-              </button>
+              <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
+                 @click="activeItem = 'core_ngo_budget_vs_actual'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_ngo_budget_vs_actual'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="bar-chart-2" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_ngo_budget_vs_actual' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_financial_reports' %}"
+                 @click="activeItem = 'funds_grant_reports'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'funds_grant_reports'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="clipboard" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'funds_grant_reports' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget summary</span>
+              </a>
             </div>
-
-            <!-- Report tools -->
-            <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Report tools
+                Grant reports
               </p>
-              <button type="button"
-                      @click="activeItem = 'rpt_project_financial'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_project_financial'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="briefcase"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_project_financial' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Project financial reports</span>
-              </button>
-              <button type="button"
-                      @click="activeItem = 'rpt_export_filters'"
-                      class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md cursor-pointer"
-                      :class="activeItem === 'rpt_export_filters'
-                               ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                               : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="download"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'rpt_export_filters' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Export (PDF &amp; Excel) &amp; filters</span>
-              </button>
+              <a href="{% url 'tenant_portal:grants_reports' %}"
+                 @click="activeItem = 'report_grant'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'report_grant'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="briefcase" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'report_grant' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant report</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_grant_utilization' %}"
+                 @click="activeItem = 'dashboard_grant_util'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'dashboard_grant_util'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="activity" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'dashboard_grant_util' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+                 @click="activeItem = 'core_ngo_fund_balance'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_ngo_fund_balance'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="layers" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_ngo_fund_balance' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_expense_trend' %}"
+                 @click="activeItem = 'core_ngo_activity_expenses'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_ngo_activity_expenses'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="trending-down" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_ngo_activity_expenses' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Activity expenses</span>
+              </a>
+            </div>
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Donor reports
+              </p>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'core_ngo_donor_contributions'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'core_ngo_donor_contributions'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="users" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'core_ngo_donor_contributions' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contributions</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donors' %}?report_nav=1"
+                 @click="activeItem = 'report_donor_summary'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'report_donor_summary'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="list" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'report_donor_summary' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor summary</span>
+              </a>
+            </div>
+            <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+              <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
+                Export tools
+              </p>
+              <a href="{% url 'tenant_portal:reporting_export_tools' %}"
+                 @click="activeItem = 'report_export_tools'"
+                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer no-underline"
+                 :class="activeItem === 'report_export_tools'
+                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
+                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
+                <i data-feather="download" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'report_export_tools' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Export PDF &amp; Excel</span>
+              </a>
             </div>
           </div>
           <!-- Financial Setup submenu (Dynamics-style grouping) -->
@@ -2292,10 +2479,10 @@
               </a>
             </div>
 
-            <!-- Periods & workflows -->
+            <!-- Fiscal structure (fiscal years + accounting periods) -->
             <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
               <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">
-                Periods &amp; workflows
+                Fiscal structure
               </p>
               <a href="{% url 'tenant_portal:setup_fiscal_years_list' %}"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] rounded-md no-underline"

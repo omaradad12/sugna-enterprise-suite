@@ -1,41 +1,190 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Budget vs Actual | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Budget vs actual" %} | Finance{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Budget vs Actual</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Budget performance by project, grant, and account.</p>
-</div>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Budget vs actual report" report_subtitle="Budget performance by budget line" official_report_period_line=official_report_period_line %}
 
-{% include "tenant_portal/_smart_alerts_module.html" with alert_category="budget" %}
+<div class="dynamics-financial-report bva-page max-w-[1200px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .bva-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .bva-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .bva-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+  .bva-breadcrumb a {
+    color: #0078d4;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .bva-breadcrumb a:hover { text-decoration: underline; }
+  .bva-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .bva-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .bva-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .bva-panel-head {
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .bva-panel-head-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .bva-table-wrap { overflow-x: auto; }
+  .bva-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .bva-table thead th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .bva-table thead th.bva-th-num { text-align: right; }
+  .bva-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .bva-table tbody tr:hover td { background: #f3f9fd; }
+  .bva-table tbody tr:last-child td { border-bottom: none; }
+  .bva-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  .bva-grant-code {
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .bva-var-pos { color: #107c10; font-weight: 600; }
+  .bva-var-neg { color: #a4262c; font-weight: 600; }
+  .bva-empty {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .bva-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 0.75rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a19f9d;
+  }
+</style>
 
-{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors %}
+  <div class="bva-hero hidden-print">
+    <nav class="bva-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+      <a href="{% url 'tenant_portal:finance_home' %}">{% trans "Finance" %}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span>{% trans "Budget vs actual" %}</span>
+    </nav>
+    <h1 class="bva-title">{% trans "Budget vs actual" %}</h1>
+  </div>
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Budget vs Actual by Grant</div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">Grant</th>
-          <th class="px-4 py-2 font-semibold text-right">Budget</th>
-          <th class="px-4 py-2 font-semibold text-right">Actual</th>
-          <th class="px-4 py-2 font-semibold text-right">Variance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in bva_rows %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</td>
-          <td class="px-4 py-2 text-right">{{ row.budget|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right">{{ row.actual|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right font-medium {% if row.variance < 0 %}text-[#a4262c]{% else %}text-[#107c10]{% endif %}">{{ row.variance|floatformat:2 }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No budget vs actual data found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {% include "tenant_portal/_smart_alerts_module.html" with alert_category="budget" %}
+
+  {% trans "Report filters" as bva_filter_title %}
+  {% trans "Period, donor, and grant scope" as bva_filter_hint %}
+  {% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors export_csv_url=export_csv_url use_dynamics=True filter_title=bva_filter_title filter_hint=bva_filter_hint %}
+
+  <div class="bva-panel print-area erp-section">
+    <div class="bva-panel-head">
+      <i data-feather="bar-chart-2" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+      <span class="bva-panel-head-title">{% trans "Budget vs actual by budget line" %}</span>
+    </div>
+    <div class="bva-table-wrap">
+      <table class="bva-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Account" %}</th>
+            <th scope="col">{% trans "Budget line" %}</th>
+            <th scope="col">{% trans "Description" %}</th>
+            <th scope="col" class="bva-th-num">{% trans "Budget" %}</th>
+            <th scope="col" class="bva-th-num">{% trans "Actual" %}</th>
+            <th scope="col" class="bva-th-num">{% trans "Variance" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in bva_rows %}
+          <tr class="dynamics-data-row">
+            <td>
+              <div>{{ row.account_display }}</div>
+              <div class="bva-grant-hint">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</div>
+            </td>
+            <td>{{ row.budget_line_label }}</td>
+            <td>{{ row.description }}</td>
+            <td class="bva-num">{{ row.budget|floatformat:2 }}</td>
+            <td class="bva-num">{{ row.actual|floatformat:2 }}</td>
+            <td class="bva-num {% if row.variance < 0 %}bva-var-neg{% else %}bva-var-pos{% endif %}">{{ row.variance|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">
+              <div class="bva-empty">
+                <div class="bva-empty-icon">
+                  <i data-feather="inbox" class="w-6 h-6"></i>
+                </div>
+                {% trans "No budget vs actual data for these filters." %}
+                <div class="text-[12px] mt-2 text-[#a19f9d]">{% trans "Try widening the period or clearing donor/grant filters." %}</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,0 +1,134 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{{ agreement.agreement_code }} | {% trans "Donor Agreements" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1100px] mx-auto w-full pb-10" style="font-family:'Segoe UI',-apple-system,sans-serif;color:#323130;">
+{% include "tenant_portal/grants/_donor_agreements_styles.html" %}
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+  <div class="mb-5 hidden-print">
+    <nav class="text-xs text-[#605e5c] mb-2">
+      <a href="{% url 'tenant_portal:grants_home' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Funds & Donors" %}</a>
+      <span class="mx-1">/</span>
+      <a href="{% url 'tenant_portal:grants_donor_agreements' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Donor Agreements" %}</a>
+      <span class="mx-1">/</span>
+      <span>{{ agreement.agreement_code }}</span>
+    </nav>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-[#201f1e] m-0">{{ agreement.title }}</h1>
+        <p class="text-sm text-[#605e5c] mt-1.5 m-0 leading-relaxed">{{ agreement.agreement_code }} · {{ agreement.donor.name }} · {{ agreement.get_agreement_type_display }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        {% if agreement.status == 'active' %}<span class="st-agi-active">{{ agreement.get_status_display }}</span>
+        {% elif agreement.status == 'expired' %}<span class="st-agi-expired">{{ agreement.get_status_display }}</span>
+        {% elif agreement.status == 'closed' %}<span class="st-agi-closed">{{ agreement.get_status_display }}</span>
+        {% else %}<span class="st-agi-draft">{{ agreement.get_status_display }}</span>
+        {% endif %}
+        {% if can_manage and agreement.status != 'closed' %}
+        <a href="{% url 'tenant_portal:grants_donor_agreement_edit' agreement.pk %}" class="inline-flex items-center px-3 py-1.5 rounded-md border text-sm font-semibold no-underline hover:bg-[#faf9f8]" style="border-color:#edebe9;color:#323130;">{% trans "Edit" %}</a>
+        {% endif %}
+        {% if agreement.file %}
+        <a href="{% url 'tenant_portal:grants_donor_agreement_file' agreement.pk %}" class="inline-flex items-center px-3 py-1.5 rounded-md border text-sm font-semibold no-underline hover:bg-[#faf9f8]" style="border-color:#edebe9;color:#323130;">{% trans "Download signed file" %}</a>
+        {% endif %}
+        <a href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ agreement.donor_id }}" class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold text-white no-underline" style="background:#0078D4;">{% trans "Funding utilization" %}</a>
+      </div>
+    </div>
+  </div>
+
+  {% if expiring_soon or over_limit or missing_signed_file %}
+  <div class="hidden-print flex flex-wrap gap-2 mb-4">
+    {% if expiring_soon %}<div class="da-agi-alert da-agi-alert-warn">{% trans "This agreement ends within 90 days." %}</div>{% endif %}
+    {% if over_limit %}<div class="da-agi-alert da-agi-alert-danger">{% trans "Linked grant awards exceed the recorded funding limit." %}</div>{% endif %}
+    {% if missing_signed_file %}<div class="da-agi-alert da-agi-alert-info">{% trans "No signed agreement file is stored for this record." %}</div>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="bg-white border rounded-lg p-4 shadow-sm" style="border-color:#edebe9;">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3 px-1">{% trans "Financial" %}</h2>
+      <dl class="text-sm space-y-2 m-0">
+        <div class="flex justify-between gap-2"><dt class="text-[#605e5c]">{% trans "Funding limit" %}</dt><dd class="font-semibold m-0">{% if agreement.funding_limit %}{% if agreement.currency %}{{ agreement.currency.symbol }}{% endif %}{{ agreement.funding_limit|floatformat:2 }}{% else %}—{% endif %}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-[#605e5c]">{% trans "Linked grants (award total)" %}</dt><dd class="font-semibold m-0">{{ total_award|floatformat:2 }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-[#605e5c]">{% trans "Currency" %}</dt><dd class="m-0">{{ agreement.currency.code|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-2"><dt class="text-[#605e5c]">{% trans "Funding source" %}</dt><dd class="m-0">{{ agreement.funding_source.name|default:"—" }}</dd></div>
+        <div class="mt-2"><dt class="text-[#605e5c]">{% trans "Payment terms" %}</dt><dd class="mt-1 m-0 text-[#323130] whitespace-pre-wrap">{{ agreement.payment_terms_summary|default:"—" }}</dd></div>
+      </dl>
+    </div>
+    <div class="bg-white border rounded-lg p-4 shadow-sm" style="border-color:#edebe9;">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3 px-1">{% trans "Duration" %}</h2>
+      <dl class="text-sm space-y-2 m-0">
+        <div class="flex justify-between"><dt class="text-[#605e5c]">{% trans "Signed" %}</dt><dd class="m-0">{{ agreement.signed_date|date:"Y-m-d"|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[#605e5c]">{% trans "Start" %}</dt><dd class="m-0">{{ agreement.start_date|date:"Y-m-d"|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[#605e5c]">{% trans "End" %}</dt><dd class="m-0">{{ agreement.end_date|date:"Y-m-d"|default:"—" }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[#605e5c]">{% trans "Type" %}</dt><dd class="m-0">{{ agreement.get_agreement_type_display }}</dd></div>
+        <div class="flex justify-between"><dt class="text-[#605e5c]">{% trans "Reference" %}</dt><dd class="m-0">{{ agreement.reference_number|default:"—" }}</dd></div>
+      </dl>
+    </div>
+    <div class="bg-white border rounded-lg p-4 lg:col-span-2 shadow-sm" style="border-color:#edebe9;">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3 px-1">{% trans "Compliance" %}</h2>
+      <ul class="text-sm grid sm:grid-cols-2 gap-2 m-0 list-none p-0">
+        <li>{% if agreement.compliance_financial_reporting %}✓{% else %}·{% endif %} {% trans "Financial reporting" %}</li>
+        <li>{% if agreement.compliance_narrative_reporting %}✓{% else %}·{% endif %} {% trans "Narrative reporting" %}</li>
+        <li>{% if agreement.compliance_audit_required %}✓{% else %}·{% endif %} {% trans "Audit required" %}</li>
+        <li>{% if agreement.compliance_special_conditions %}✓{% else %}·{% endif %} {% trans "Special donor conditions" %}</li>
+        <li class="sm:col-span-2">{% trans "Reporting frequency" %}: {% if agreement.reporting_frequency %}{{ agreement.get_reporting_frequency_display }}{% else %}—{% endif %}</li>
+        <li class="sm:col-span-2">{% trans "Restricted funding" %}: {% if agreement.restricted_funding %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</li>
+        {% if agreement.restriction_summary %}<li class="sm:col-span-2 text-[#605e5c] whitespace-pre-wrap">{{ agreement.restriction_summary }}</li>{% endif %}
+      </ul>
+    </div>
+    <div id="grants" class="bg-white border rounded-lg overflow-hidden lg:col-span-2 scroll-mt-24 shadow-sm" style="border-color:#edebe9;">
+      <div class="px-4 py-2.5 border-b font-semibold text-[#201f1e] text-sm" style="border-color:#edebe9;background:#faf9f8;">{% trans "Linked grants" %}</div>
+      <div class="p-4">
+      {% if agreement.grant_links.all %}
+      <ul class="m-0 p-0 list-none space-y-1 text-sm">
+        {% for l in agreement.grant_links.all %}
+        <li><a href="{% url 'tenant_portal:grants_grants' %}?grant_id={{ l.grant_id }}" class="text-[#0078d4] font-semibold no-underline hover:underline">{{ l.grant.code }}</a> — {{ l.grant.title|truncatewords:6 }} ({{ l.grant.get_status_display }})</li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="text-sm text-[#605e5c] m-0">{% trans "No grants linked." %}</p>{% endif %}
+      </div>
+    </div>
+    <div id="projects" class="bg-white border rounded-lg overflow-hidden lg:col-span-2 scroll-mt-24 shadow-sm" style="border-color:#edebe9;">
+      <div class="px-4 py-2.5 border-b font-semibold text-[#201f1e] text-sm" style="border-color:#edebe9;background:#faf9f8;">{% trans "Linked projects" %}</div>
+      <div class="p-4">
+      {% if agreement.project_links.all %}
+      <ul class="m-0 p-0 list-none space-y-1 text-sm">
+        {% for l in agreement.project_links.all %}
+        <li><span class="font-mono font-semibold text-[#0078d4]">{{ l.project.code }}</span> — {{ l.project.name|truncatewords:8 }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="text-sm text-[#605e5c] m-0">{% trans "No projects linked." %}</p>{% endif %}
+      </div>
+    </div>
+    {% if agreement.attachments.all %}
+    <div class="bg-white border rounded-lg p-4 lg:col-span-2 shadow-sm" style="border-color:#edebe9;">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3 px-1">{% trans "Attachments" %}</h2>
+      <ul class="m-0 p-0 list-none text-sm space-y-1">
+        {% for att in agreement.attachments.all %}
+        <li><a href="{% url 'tenant_portal:grants_donor_agreement_attachment_file' agreement.pk att.pk %}" class="text-[#0078d4] no-underline hover:underline">{{ att.get_kind_display }} — {{ att.original_filename|default:att.file.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <div class="bg-white border rounded-lg p-4 lg:col-span-2 shadow-sm" style="border-color:#edebe9;">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3 px-1">{% trans "Terms & notes" %}</h2>
+      <p class="text-sm whitespace-pre-wrap m-0 text-[#323130]">{{ agreement.terms_summary|default:"—" }}</p>
+      {% if agreement.internal_notes %}<p class="text-sm whitespace-pre-wrap mt-3 m-0 text-[#605e5c] border-t pt-3" style="border-color:#edebe9;"><strong>{% trans "Internal" %}:</strong> {{ agreement.internal_notes }}</p>{% endif %}
+    </div>
+    {% if show_pdf_preview %}
+    <div class="bg-white border rounded-lg p-4 lg:col-span-2 hidden-print shadow-sm" style="border-color:#edebe9;">
+      <h2 class="text-xs font-bold uppercase tracking-wide text-[#605e5c] m-0 mb-3 px-1">{% trans "Preview (PDF)" %}</h2>
+      <iframe src="{{ agreement.file.url }}" class="w-full border rounded" style="border-color:#edebe9;min-height:480px;" title="{% trans 'Agreement PDF' %}"></iframe>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if can_manage and agreement.status != 'closed' %}
+  <form method="post" action="{% url 'tenant_portal:grants_donor_agreement_close' agreement.pk %}" class="mt-6 hidden-print" onsubmit="return confirm('{% trans "Close this agreement?" %}');">
+    {% csrf_token %}
+    <button type="submit" class="inline-flex items-center px-3 py-2 rounded-md border text-sm font-semibold bg-white hover:bg-[#fde7e9] no-underline" style="border-color:#a4262c;color:#a4262c;">{% trans "Close agreement" %}</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% comment %}
+Letterhead for official financial reports — visible only when printing / saving as PDF from the browser.
+Expects context: org_settings, tenant. Pass with include: report_title, report_subtitle (optional), official_report_period_line (optional).
+{% endcomment %}
+<style>
+  @media print {
+    .official-rpt-print-header {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid #e1dfdd;
+      page-break-after: avoid;
+    }
+    .official-rpt-print-header .official-rpt-print-logo {
+      max-height: 42px;
+      width: auto;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+    .official-rpt-print-header .official-rpt-print-legal {
+      font-size: 13px;
+      font-weight: 600;
+      color: #201f1e;
+      margin-top: 0.25rem;
+      line-height: 1.25;
+    }
+    .official-rpt-print-header .official-rpt-print-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #323130;
+      margin-top: 0.45rem;
+      line-height: 1.25;
+    }
+    .official-rpt-print-header .official-rpt-print-sub {
+      font-size: 10px;
+      font-weight: 500;
+      color: #605e5c;
+      margin-top: 0.2rem;
+      line-height: 1.35;
+    }
+    .official-rpt-print-header .official-rpt-print-meta {
+      margin-top: 0.45rem;
+      font-size: 10px;
+      color: #605e5c;
+      line-height: 1.5;
+    }
+    .official-rpt-print-header .official-rpt-print-printed {
+      margin-top: 0.5rem;
+      font-size: 10px;
+      color: #605e5c;
+    }
+  }
+</style>
+<div class="print-only official-rpt-print-header">
+  <div class="flex justify-center">
+    {% if tenant.brand_logo_url %}
+    <img src="{{ tenant.brand_logo_url }}" alt="" class="official-rpt-print-logo object-contain" />
+    {% elif org_settings and org_settings.report_logo %}
+    <img src="{{ org_settings.report_logo.url }}" alt="" class="official-rpt-print-logo object-contain" />
+    {% elif org_settings and org_settings.organization_logo %}
+    <img src="{{ org_settings.organization_logo.url }}" alt="" class="official-rpt-print-logo object-contain" />
+    {% else %}
+    <img src="{% url 'platform_dashboard:logo' %}" alt="" class="official-rpt-print-logo object-contain" />
+    {% endif %}
+  </div>
+  <div class="official-rpt-print-legal">
+    {% if org_settings and org_settings.organization_name %}
+      {{ org_settings.organization_name }}
+    {% else %}
+      {{ tenant.name }}
+    {% endif %}
+  </div>
+  {% if org_settings and org_settings.address %}
+  <div class="official-rpt-print-meta max-w-[520px] mx-auto">{{ org_settings.address }}</div>
+  {% endif %}
+  <div class="official-rpt-print-title">{{ report_title }}</div>
+  {% if report_subtitle %}
+  <div class="official-rpt-print-sub">{{ report_subtitle }}</div>
+  {% endif %}
+  {% if official_report_period_line %}
+  <div class="official-rpt-print-meta">{{ official_report_period_line }}</div>
+  {% endif %}
+  <div class="official-rpt-print-printed"><strong>Printed:</strong> {% now "d/m/Y H:i" %}</div>
+</div>

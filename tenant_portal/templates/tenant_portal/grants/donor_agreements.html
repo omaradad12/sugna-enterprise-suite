@@ -1,59 +1,376 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Donor Agreements | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Donor Agreements" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Donor Agreements</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Upload and manage signed donor agreements; track terms, funding limits, and duration.</p>
-</div>
+<div x-data="{ createOpen: false, moreFilters: false }" class="contents da-agi-root max-w-[1600px] mx-auto w-full pb-10">
+{% include "tenant_portal/grants/_donor_agreements_styles.html" %}
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Donor Agreements" official_report_period_line=official_report_period_line %}
 
-{% include "tenant_portal/grants/_filters_export.html" with donors=donors %}
+  <div class="mb-5 hidden-print">
+    <h1 class="text-2xl font-bold tracking-tight text-[#201f1e]">{% trans "Donor Agreements" %}</h1>
+    <p class="text-sm mt-1 text-[#605e5c] max-w-3xl leading-relaxed">{% trans "Upload and manage signed donor agreements; track terms, funding limits, duration, and linked grants or projects." %}</p>
+    {% if can_manage %}
+    <div class="mt-4">
+      <button type="button" @click="createOpen = true" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold text-white shadow-sm hover:opacity-95 transition-opacity" style="background:#0078D4;">
+        <i data-feather="plus" class="w-4 h-4"></i>
+        {% trans "Create agreement" %}
+      </button>
+    </div>
+    {% endif %}
+  </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-4">
-  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
-    <h2 class="font-semibold">Record agreement</h2>
-    <form method="post" enctype="multipart/form-data" class="mt-4 space-y-3">
-      {% csrf_token %}
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label><select name="donor_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">{% for d in donors %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}</select></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Title</label><input name="title" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Signed date</label><input name="signed_date" type="date" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Funding limit</label><input name="funding_limit" type="number" step="0.01" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div class="grid grid-cols-2 gap-2">
-        <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Start</label><input name="start_date" type="date" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-        <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">End</label><input name="end_date" type="date" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
+  {% if alert_expiring_soon or alert_expired or alert_missing_file or over_limit_ids %}
+  <div class="flex flex-wrap gap-2 mb-4 hidden-print">
+    {% if alert_expiring_soon %}
+    <span class="da-agi-alert da-agi-alert-warn">{% blocktrans count n=alert_expiring_soon %}{{ n }} agreement expiring within 90 days{% plural %}{{ n }} agreements expiring within 90 days{% endblocktrans %}</span>
+    {% endif %}
+    {% if alert_expired %}
+    <span class="da-agi-alert da-agi-alert-danger">{% blocktrans count n=alert_expired %}{{ n }} expired in this view{% plural %}{{ n }} expired in this view{% endblocktrans %}</span>
+    {% endif %}
+    {% if alert_missing_file %}
+    <span class="da-agi-alert da-agi-alert-info">{% blocktrans count n=alert_missing_file %}{{ n }} without signed file{% plural %}{{ n }} without signed file{% endblocktrans %}</span>
+    {% endif %}
+    {% if over_limit_ids %}
+    <span class="da-agi-alert da-agi-alert-danger">{% trans "Some agreements show linked grant awards above the recorded funding limit." %}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="bg-white border rounded-lg p-4 mb-4 shadow-sm hidden-print" style="border-color:#edebe9;">
+    <form method="get" action="" class="space-y-3">
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-signed-from">{% trans "Signed from" %}</label>
+          <input id="da-signed-from" type="date" name="signed_from" value="{% if filters.signed_from %}{{ filters.signed_from|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-signed-to">{% trans "Signed to" %}</label>
+          <input id="da-signed-to" type="date" name="signed_to" value="{% if filters.signed_to %}{{ filters.signed_to|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-donor">{% trans "Donor" %}</label>
+          <select id="da-donor" name="donor_id" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[180px]" style="border-color:#edebe9;">
+            <option value="">{% trans "All donors" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-st">{% trans "Status" %}</label>
+          <select id="da-st" name="status" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[130px]" style="border-color:#edebe9;">
+            <option value="">{% trans "All" %}</option>
+            <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>{% trans "Draft" %}</option>
+            <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+            <option value="expired" {% if filters.status == 'expired' %}selected{% endif %}>{% trans "Expired" %}</option>
+            <option value="closed" {% if filters.status == 'closed' %}selected{% endif %}>{% trans "Closed" %}</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-at">{% trans "Agreement type" %}</label>
+          <select id="da-at" name="agreement_type" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[170px]" style="border-color:#edebe9;">
+            <option value="">{% trans "All types" %}</option>
+            <option value="grant" {% if filters.agreement_type == 'grant' %}selected{% endif %}>{% trans "Grant agreement" %}</option>
+            <option value="framework" {% if filters.agreement_type == 'framework' %}selected{% endif %}>{% trans "Framework agreement" %}</option>
+            <option value="partnership" {% if filters.agreement_type == 'partnership' %}selected{% endif %}>{% trans "Partnership agreement" %}</option>
+            <option value="contribution" {% if filters.agreement_type == 'contribution' %}selected{% endif %}>{% trans "Contribution agreement" %}</option>
+            <option value="mou" {% if filters.agreement_type == 'mou' %}selected{% endif %}>{% trans "Memorandum of understanding" %}</option>
+          </select>
+        </div>
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Apply" %}</button>
+        <a href="{% url 'tenant_portal:grants_donor_agreements' %}" class="text-sm font-semibold text-[#0078d4] hover:underline py-2 no-underline self-center">{% trans "Clear" %}</a>
       </div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Terms summary</label><textarea name="terms_summary" rows="2" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;"></textarea></div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Signed agreement file</label>
-        <input name="agreement_file" type="file" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;" />
+      <div class="flex flex-wrap items-end gap-3 pt-1 border-t" style="border-color:#edebe9;">
+        <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-q">{% trans "Search" %}</label>
+          <input id="da-q" type="search" name="q" value="{{ filters.q }}" class="rounded-md border px-3 py-2 text-sm w-full max-w-md" style="border-color:#edebe9;" placeholder="{% trans 'Code, title, donor, reference…' %}" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="da-cur">{% trans "Currency" %}</label>
+          <select id="da-cur" name="currency_id" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[120px]" style="border-color:#edebe9;">
+            <option value="">{% trans "All" %}</option>
+            {% for c in currencies %}
+            <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
-      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Save</button>
+      <div class="pt-2">
+        <button type="button" @click="moreFilters = !moreFilters" class="text-xs font-semibold text-[#0078d4] hover:underline">
+          <span x-show="!moreFilters">{% trans "More filters" %}</span>
+          <span x-show="moreFilters" x-cloak>{% trans "Hide extra date filters" %}</span>
+        </button>
+        <div x-show="moreFilters" x-cloak class="mt-3 pt-3 border-t flex flex-wrap gap-3" style="border-color:#edebe9;">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement start from" %}</label>
+            <input type="date" name="ag_start_from" value="{% if filters.ag_start_from %}{{ filters.ag_start_from|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement start to" %}</label>
+            <input type="date" name="ag_start_to" value="{% if filters.ag_start_to %}{{ filters.ag_start_to|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement end from" %}</label>
+            <input type="date" name="ag_end_from" value="{% if filters.ag_end_from %}{{ filters.ag_end_from|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement end to" %}</label>
+            <input type="date" name="ag_end_to" value="{% if filters.ag_end_to %}{{ filters.ag_end_to|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
+        <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8] no-underline" style="border-color:#edebe9;">{% trans "Export CSV" %}</a>
+        <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8] no-underline" style="border-color:#edebe9;">{% trans "Export Excel" %}</a>
+        <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8] no-underline" style="border-color:#edebe9;">{% trans "Export PDF" %}</a>
+        <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">{% trans "Print" %}</button>
+      </div>
     </form>
   </div>
-  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
-    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Agreements</div>
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">Donor</th>
-          <th class="px-4 py-2 font-semibold">Title</th>
-          <th class="px-4 py-2 font-semibold">Signed</th>
-          <th class="px-4 py-2 font-semibold text-right">Limit</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in agreements %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ a.donor.name }}</td>
-          <td class="px-4 py-2">{{ a.title|truncatewords:5 }}</td>
-          <td class="px-4 py-2">{{ a.signed_date|date:"Y-m-d"|default:"—" }}</td>
-          <td class="px-4 py-2 text-right">{{ a.funding_limit|floatformat:2|default:"—" }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No agreements.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5 hidden-print">
+    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "In view" %}</div>
+      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.total }}</div>
+    </div>
+    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Active" %}</div>
+      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.active }}</div>
+    </div>
+    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Draft" %}</div>
+      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.draft }}</div>
+    </div>
+    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Expired" %}</div>
+      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.expired }}</div>
+    </div>
+    <div class="bg-white border rounded-lg p-3 text-center shadow-sm sm:col-span-2 lg:col-span-1" style="border-color:#edebe9;">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Closed" %}</div>
+      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.closed }}</div>
+    </div>
   </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm print-area" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#201f1e] flex flex-wrap justify-between items-center gap-2 hidden-print" style="border-color:#edebe9; background:#faf9f8;">
+      <span>{% trans "Agreements" %}</span>
+      <span class="text-xs font-medium text-[#605e5c]">{{ agreement_kpi.total }} {% trans "rows" %}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Code" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Donor" %}</th>
+            <th class="px-4 py-2.5 font-semibold min-w-[140px]">{% trans "Title" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Type" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Signed" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Start" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "End" %}</th>
+            <th class="px-4 py-2.5 font-semibold text-right whitespace-nowrap">{% trans "Funding limit" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Currency" %}</th>
+            <th class="px-4 py-2.5 font-semibold text-right whitespace-nowrap">{% trans "Grants" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Status" %}</th>
+            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in agreements %}
+          <tr class="border-b hover:bg-[#faf9f8] {% if a.pk in over_limit_ids %}bg-amber-50/80{% endif %}" style="border-color:#edebe9;">
+            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-[#0078d4]">{{ a.agreement_code }}</td>
+            <td class="px-4 py-2.5 text-[#323130]">{{ a.donor.name }}</td>
+            <td class="px-4 py-2.5 font-medium text-[#201f1e]">{{ a.title|truncatewords:10 }}</td>
+            <td class="px-4 py-2.5 text-[#605e5c]">{{ a.get_agreement_type_display }}</td>
+            <td class="px-4 py-2.5 tabular-nums text-[#323130]">{{ a.signed_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="px-4 py-2.5 tabular-nums text-[#323130]">{{ a.start_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="px-4 py-2.5 tabular-nums text-[#323130]">{{ a.end_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-right tabular-nums font-medium text-[#201f1e]">{% if a.funding_limit %}{% if a.currency and a.currency.symbol %}{{ a.currency.symbol }}{% endif %}{{ a.funding_limit|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td class="px-4 py-2.5 text-[#605e5c]">{{ a.currency.code|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-right tabular-nums font-medium">{{ a.linked_grants_count|default:0 }}</td>
+            <td class="px-4 py-2.5">
+              {% if a.status == 'active' %}<span class="st-agi-active">{{ a.get_status_display }}</span>
+              {% elif a.status == 'expired' %}<span class="st-agi-expired">{{ a.get_status_display }}</span>
+              {% elif a.status == 'closed' %}<span class="st-agi-closed">{{ a.get_status_display }}</span>
+              {% else %}<span class="st-agi-draft">{{ a.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5">
+              <div class="flex flex-wrap gap-x-2 gap-y-1 text-xs font-semibold">
+                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}" class="text-[#0078d4] no-underline hover:underline">{% trans "View" %}</a>
+                {% if can_manage %}<a href="{% url 'tenant_portal:grants_donor_agreement_edit' a.pk %}" class="text-[#0078d4] no-underline hover:underline">{% trans "Edit" %}</a>{% endif %}
+                {% if a.file %}<a href="{% url 'tenant_portal:grants_donor_agreement_file' a.pk %}" class="text-[#0078d4] no-underline hover:underline">{% trans "Download" %}</a>{% endif %}
+                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}#grants" class="text-[#605e5c] no-underline hover:underline">{% trans "Grants" %}</a>
+                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}#projects" class="text-[#605e5c] no-underline hover:underline">{% trans "Projects" %}</a>
+                <a href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ a.donor_id }}" class="text-[#605e5c] no-underline hover:underline">{% trans "Utilization" %}</a>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="12" class="da-agi-empty">
+              <p class="mb-3 m-0">{% trans "No donor agreements recorded yet." %}</p>
+              {% if can_manage %}
+              <button type="button" @click="createOpen = true" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Create agreement" %}</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% if can_manage %}
+<div x-show="createOpen" x-cloak class="da-agi-modal-overlay hidden-print" style="display:none;" x-transition.opacity>
+  <div class="da-agi-modal" @click.away="createOpen = false">
+    <div class="da-agi-modal-h">
+      <h2 class="text-base font-bold text-[#201f1e] m-0">{% trans "Create agreement" %}</h2>
+      <button type="button" class="p-1.5 rounded-md hover:bg-[#edebe9] text-[#605e5c]" @click="createOpen = false" aria-label="{% trans 'Close' %}"><i data-feather="x" class="w-5 h-5"></i></button>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="da-agi-modal-b space-y-3">
+      {% csrf_token %}
+      <div class="da-agi-form-grid">
+        <div class="dynamics-filter-field">
+          <label>{% trans "Agreement code" %}</label>
+          <input name="agreement_code" class="dynamics-input w-full" placeholder="{% trans 'Leave blank to auto-generate' %}" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Status" %}</label>
+          <select name="status" class="dynamics-select w-full bg-white">
+            <option value="draft">{% trans "Draft" %}</option>
+            <option value="active">{% trans "Active" %}</option>
+            <option value="expired">{% trans "Expired" %}</option>
+            <option value="closed">{% trans "Closed" %}</option>
+          </select>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Donor" %} *</label>
+          <select name="donor_id" required class="dynamics-select w-full bg-white">
+            <option value="">{% trans "Select donor" %}</option>
+            {% for d in donors %}<option value="{{ d.pk }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Agreement title" %} *</label>
+          <input name="title" required class="dynamics-input w-full" maxlength="200" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Agreement type" %}</label>
+          <select name="agreement_type" class="dynamics-select w-full bg-white">
+            <option value="grant">{% trans "Grant agreement" %}</option>
+            <option value="framework">{% trans "Framework agreement" %}</option>
+            <option value="partnership">{% trans "Partnership agreement" %}</option>
+            <option value="contribution">{% trans "Contribution agreement" %}</option>
+            <option value="mou">{% trans "Memorandum of understanding" %}</option>
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Reference number" %}</label>
+          <input name="reference_number" class="dynamics-input w-full" maxlength="120" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Funding source" %}</label>
+          <select name="funding_source_id" class="dynamics-select w-full bg-white">
+            <option value="">—</option>
+            {% for fs in funding_sources %}<option value="{{ fs.pk }}">{{ fs.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Currency" %}</label>
+          <select name="currency_id" class="dynamics-select w-full bg-white">
+            <option value="">—</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Funding limit" %}</label>
+          <input name="funding_limit" type="text" class="dynamics-input w-full" placeholder="0.00" />
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Payment terms summary" %}</label>
+          <textarea name="payment_terms_summary" class="dynamics-input w-full" rows="2" style="min-height:3rem;"></textarea>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Installment structure (optional)" %}</label>
+          <textarea name="installment_notes" class="dynamics-input w-full" rows="2" style="min-height:3rem;"></textarea>
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Signed date" %}</label>
+          <input name="signed_date" type="date" class="dynamics-input w-full" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Start date" %}</label>
+          <input name="start_date" type="date" class="dynamics-input w-full" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "End date" %}</label>
+          <input name="end_date" type="date" class="dynamics-input w-full" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label>{% trans "Reporting frequency" %}</label>
+          <select name="reporting_frequency" class="dynamics-select w-full bg-white">
+            <option value="">—</option>
+            <option value="monthly">{% trans "Monthly" %}</option>
+            <option value="quarterly">{% trans "Quarterly" %}</option>
+            <option value="annually">{% trans "Annually" %}</option>
+          </select>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full flex flex-wrap gap-3 items-center pt-1">
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_financial_reporting" value="1" /> {% trans "Financial reporting" %}</label>
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_narrative_reporting" value="1" /> {% trans "Narrative reporting" %}</label>
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_audit_required" value="1" /> {% trans "Audit required" %}</label>
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="compliance_special_conditions" value="1" /> {% trans "Special donor conditions" %}</label>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="restricted_funding" value="1" /> {% trans "Restricted funding" %}</label>
+          <textarea name="restriction_summary" class="dynamics-input w-full mt-1" rows="2" placeholder="{% trans 'Restriction summary' %}"></textarea>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full flex flex-wrap gap-4">
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="allow_multiple_grants" value="1" checked /> {% trans "Allow multiple grants" %}</label>
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="allow_multiple_projects" value="1" checked /> {% trans "Allow multiple projects" %}</label>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Linked grants" %} (Ctrl/Cmd+click)</label>
+          <select name="grant_ids" multiple class="dynamics-input w-full" size="5">
+            {% for g in grants %}<option value="{{ g.pk }}">{{ g.code }} — {{ g.title|truncatewords:4 }} ({{ g.donor.name }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Linked projects" %}</label>
+          <select name="project_ids" multiple class="dynamics-input w-full" size="4">
+            {% for p in projects %}<option value="{{ p.pk }}">{{ p.code }} — {{ p.name|truncatewords:4 }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Signed agreement file" %}</label>
+          <input type="file" name="agreement_file" class="dynamics-input w-full py-2" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" />
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Amendment files" %}</label>
+          <input type="file" name="amendment_files" multiple class="dynamics-input w-full py-2" />
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Supporting documents" %}</label>
+          <input type="file" name="supporting_files" multiple class="dynamics-input w-full py-2" />
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Terms summary" %}</label>
+          <textarea name="terms_summary" class="dynamics-input w-full" rows="3"></textarea>
+        </div>
+        <div class="dynamics-filter-field da-agi-form-full">
+          <label>{% trans "Internal notes" %}</label>
+          <textarea name="internal_notes" class="dynamics-input w-full" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2 border-t" style="border-color:#edebe9;">
+        <button type="submit" class="dynamics-btn-primary"><i data-feather="save" class="w-4 h-4"></i> {% trans "Save" %}</button>
+        <button type="button" class="dynamics-btn-secondary" @click="createOpen = false">{% trans "Cancel" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 </div>
 {% endblock %}

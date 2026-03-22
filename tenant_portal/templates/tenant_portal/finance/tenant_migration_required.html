@@ -1,0 +1,36 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Database update required" %} | {{ tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-10">
+  <div class="rounded-xl border bg-white p-8 shadow-sm" style="border-color:#edebe9;">
+    <div class="flex items-start gap-4">
+      <div class="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center" style="background:#fff4ce;">
+        <i data-feather="alert-triangle" class="w-6 h-6" style="color:#d83b01;"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-semibold text-[#323130] mb-2">{% trans "Tenant database needs a migration" %}</h1>
+        <p class="text-[14px] text-[#605e5c] mb-4">
+          {% blocktrans %}This page uses new account category fields. Your tenant database (<code class="font-mono text-[13px] bg-[#f3f2f1] px-1 rounded">{{ tenant_db }}</code>) is still missing this migration (auto-migrate did not succeed or is disabled):{% endblocktrans %}
+        </p>
+        <p class="text-[13px] text-[#605e5c] mb-4">
+          {% trans "With DEBUG=true, the app tries to migrate tenant DBs automatically. If you use DEBUG=false locally, set TENANT_AUTO_MIGRATE=1 or run:" %}
+        </p>
+        <p class="font-mono text-sm bg-[#f3f2f1] px-3 py-2 rounded mb-6">{{ migration_label }}</p>
+        <p class="text-[14px] font-semibold text-[#323130] mb-2">{% trans "Run one of these on the server (PowerShell):" %}</p>
+        <pre class="text-[12px] bg-[#201f1e] text-[#f3f2f1] p-4 rounded-lg overflow-x-auto mb-3">python manage.py migrate_tenant --tenant {{ tenant.slug }}</pre>
+        <p class="text-[13px] text-[#605e5c] mb-2">{% trans "Or migrate every tenant:" %}</p>
+        <pre class="text-[12px] bg-[#201f1e] text-[#f3f2f1] p-4 rounded-lg overflow-x-auto mb-6">python manage.py migrate_all_tenants</pre>
+        <p class="text-[13px] text-[#605e5c] mb-4">
+          {% trans "Optional after migrate — seed default NGO category tree:" %}
+        </p>
+        <pre class="text-[12px] bg-[#201f1e] text-[#f3f2f1] p-4 rounded-lg overflow-x-auto">python manage.py seed_account_categories --database={{ tenant_db }}</pre>
+        <div class="mt-8 pt-6 border-t" style="border-color:#edebe9;">
+          <a href="{% url 'tenant_portal:home' %}" class="text-[14px] font-semibold" style="color:#0078D4;">← {% trans "Back to home" %}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

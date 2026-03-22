@@ -1,5 +1,7 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class ActiveDonorManager(models.Manager):
@@ -121,50 +123,446 @@ class FundingSource(models.Model):
 
 
 class DonorAgreement(models.Model):
-    """Signed donor agreements: terms, funding limits, duration."""
+    """
+    Signed donor agreements: contracts, funding limits, duration, compliance flags,
+    and links to grants/projects for NGO ERP control and audit.
+    """
 
+    class AgreementType(models.TextChoices):
+        GRANT = "grant", "Grant agreement"
+        FRAMEWORK = "framework", "Framework agreement"
+        PARTNERSHIP = "partnership", "Partnership agreement"
+        CONTRIBUTION = "contribution", "Contribution agreement"
+        MOU = "mou", "Memorandum of understanding"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        EXPIRED = "expired", "Expired"
+        CLOSED = "closed", "Closed"
+
+    class ReportingFrequency(models.TextChoices):
+        MONTHLY = "monthly", "Monthly"
+        QUARTERLY = "quarterly", "Quarterly"
+        ANNUALLY = "annually", "Annually"
+
+    agreement_code = models.CharField(
+        max_length=40,
+        unique=True,
+        db_index=True,
+        help_text="Unique reference (e.g. DAG-2025-00001).",
+    )
     donor = models.ForeignKey(Donor, on_delete=models.CASCADE, related_name="agreements")
     title = models.CharField(max_length=200)
-    signed_date = models.DateField(null=True, blank=True)
+    agreement_type = models.CharField(
+        max_length=30,
+        choices=AgreementType.choices,
+        default=AgreementType.GRANT,
+        db_index=True,
+    )
+    reference_number = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Donor or legal reference number.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    funding_source = models.ForeignKey(
+        "FundingSource",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donor_agreements",
+    )
+    currency = models.ForeignKey(
+        "tenant_finance.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="donor_agreements",
+    )
     funding_limit = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
-    start_date = models.DateField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
+    payment_terms_summary = models.TextField(blank=True)
+    installment_notes = models.TextField(blank=True)
+    signed_date = models.DateField(null=True, blank=True, db_index=True)
+    start_date = models.DateField(null=True, blank=True, db_index=True)
+    end_date = models.DateField(null=True, blank=True, db_index=True)
+    reporting_frequency = models.CharField(
+        max_length=20,
+        choices=ReportingFrequency.choices,
+        blank=True,
+    )
+    compliance_financial_reporting = models.BooleanField(default=False)
+    compliance_narrative_reporting = models.BooleanField(default=False)
+    compliance_audit_required = models.BooleanField(default=False)
+    compliance_special_conditions = models.BooleanField(default=False)
+    restricted_funding = models.BooleanField(default=False)
+    restriction_summary = models.TextField(blank=True)
+    allow_multiple_grants = models.BooleanField(default=True)
+    allow_multiple_projects = models.BooleanField(default=True)
     terms_summary = models.TextField(blank=True)
+    internal_notes = models.TextField(blank=True)
     file = models.FileField(upload_to="grants/agreements/%Y/%m/", null=True, blank=True)
     original_filename = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-signed_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["donor", "status"]),
+            models.Index(fields=["signed_date"]),
+            models.Index(fields=["start_date"]),
+            models.Index(fields=["end_date"]),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.donor.name}: {self.title}"
+        return f"{self.agreement_code}: {self.title}"
+
+    def clean(self) -> None:
+        from django.core.exceptions import ValidationError
+        from decimal import Decimal
+
+        errs = {}
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            errs["end_date"] = "End date cannot be earlier than start date."
+        if self.funding_limit is not None and self.funding_limit <= Decimal("0"):
+            errs["funding_limit"] = "Funding limit must be a positive amount when set."
+        if errs:
+            raise ValidationError(errs)
+
+    @property
+    def is_closed(self) -> bool:
+        return self.status == self.Status.CLOSED
+
+    @property
+    def days_until_end(self):
+        from django.utils import timezone
+
+        if not self.end_date:
+            return None
+        return (self.end_date - timezone.now().date()).days
+
+
+class DonorAgreementGrant(models.Model):
+    """Link a donor agreement to one or more post-award grants (grant agreement control)."""
+
+    agreement = models.ForeignKey(
+        DonorAgreement, on_delete=models.CASCADE, related_name="grant_links"
+    )
+    grant = models.ForeignKey(
+        "Grant", on_delete=models.PROTECT, related_name="donor_agreement_links"
+    )
+
+    class Meta:
+        ordering = ["agreement", "grant"]
+        constraints = [
+            models.UniqueConstraint(fields=["agreement", "grant"], name="uniq_donor_agreement_grant"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.agreement.agreement_code} → {self.grant.code}"
+
+
+class DonorAgreementProject(models.Model):
+    """Link a donor agreement to program/projects."""
+
+    agreement = models.ForeignKey(
+        DonorAgreement, on_delete=models.CASCADE, related_name="project_links"
+    )
+    project = models.ForeignKey(
+        "Project", on_delete=models.PROTECT, related_name="donor_agreement_links"
+    )
+
+    class Meta:
+        ordering = ["agreement", "project"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agreement", "project"], name="uniq_donor_agreement_project"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.agreement.agreement_code} → {self.project.code}"
+
+
+class DonorAgreementAttachment(models.Model):
+    """Amendments and supporting documents (signed PDF typically on DonorAgreement.file)."""
+
+    class Kind(models.TextChoices):
+        AMENDMENT = "amendment", "Amendment"
+        SUPPORTING = "supporting", "Supporting document"
+        OTHER = "other", "Other"
+
+    agreement = models.ForeignKey(
+        DonorAgreement, on_delete=models.CASCADE, related_name="attachments"
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.SUPPORTING)
+    file = models.FileField(upload_to="grants/agreement_attachments/%Y/%m/")
+    original_filename = models.CharField(max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self) -> str:
+        return self.original_filename or str(self.pk)
 
 
 class DonorRestriction(models.Model):
-    """Donor conditions: budget lines, procurement rules, reporting requirements."""
+    """
+    Donor-specific conditions and restrictions for NGO compliance: budget, procurement,
+    eligibility, reporting, audit. Used for validation hooks on journals, budgets, and PRs.
+    """
+
+    class Category(models.TextChoices):
+        BUDGET = "budget", "Budget restrictions"
+        PROCUREMENT = "procurement", "Procurement restrictions"
+        GEOGRAPHIC = "geographic", "Geographic restrictions"
+        ACTIVITY = "activity", "Activity restrictions"
+        COST_ELIGIBILITY = "cost_eligibility", "Cost eligibility rules"
+        TIME = "time", "Time restrictions"
+        REPORTING = "reporting", "Reporting restrictions"
+        HR = "hr", "HR restrictions"
+        AUDIT = "audit", "Audit requirements"
+        OTHER = "other", "Other"
 
     class RestrictionType(models.TextChoices):
+        # Legacy / general (kept for backward compatibility)
         BUDGET_LINE = "budget_line", "Budget line restriction"
         PROCUREMENT = "procurement", "Procurement rules"
         REPORTING = "reporting", "Reporting requirement"
         OTHER = "other", "Other"
+        # Budget
+        BUDGET_ALLOWED_LINES = "budget_allowed_lines", "Specific budget lines allowed"
+        BUDGET_CATEGORY_CAP = "budget_category_cap", "Spending cap per category"
+        # Procurement
+        PROC_METHOD_REQUIRED = "proc_method_required", "Procurement method required"
+        PROC_MIN_QUOTES = "proc_min_quotes", "Minimum quotation requirements"
+        PROC_VENDOR_CONDITIONS = "proc_vendor_conditions", "Preferred vendor conditions"
+        # Geographic
+        GEO_ALLOWED_LOCATIONS = "geo_allowed_locations", "Allowed project locations"
+        GEO_RESTRICTED_REGIONS = "geo_restricted_regions", "Restricted countries/regions"
+        # Activity
+        ACT_ALLOWED = "act_allowed", "Allowed activities"
+        ACT_PROHIBITED = "act_prohibited", "Prohibited activities"
+        # Cost eligibility
+        COST_ELIGIBLE_LIST = "cost_eligible_list", "Eligible expenses list"
+        COST_INELIGIBLE_CATEGORIES = "cost_ineligible_categories", "Ineligible expense categories"
+        # Time
+        TIME_SPENDING_DEADLINE = "time_spending_deadline", "Spending deadline"
+        TIME_UTILIZATION_PERIOD = "time_utilization_period", "Funding utilization period"
+        # Reporting
+        REP_FINANCIAL_FREQUENCY = "rep_financial_frequency", "Required financial report frequency"
+        REP_NARRATIVE = "rep_narrative", "Required narrative reports"
+        # HR
+        HR_STAFFING_LIMIT = "hr_staffing_limit", "Staffing cost limits"
+        HR_SALARY_CAP = "hr_salary_cap", "Salary caps"
+        # Audit
+        AUDIT_MANDATORY = "audit_mandatory", "Mandatory audit"
+        AUDIT_SPECIAL = "audit_special", "Special audit conditions"
 
+    class ComplianceLevel(models.TextChoices):
+        MANDATORY = "mandatory", "Mandatory"
+        RECOMMENDED = "recommended", "Recommended"
+        INFORMATIONAL = "informational", "Informational"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        INACTIVE = "inactive", "Inactive"
+        EXPIRED = "expired", "Expired"
+
+    class AppliesScope(models.TextChoices):
+        DONOR_WIDE = "donor_wide", "Entire donor"
+        FUNDING_SOURCE = "funding_source", "Specific funding source"
+        GRANT = "grant", "Specific grant"
+        PROJECT = "project", "Specific project"
+
+    restriction_code = models.CharField(
+        max_length=32,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Unique reference (auto-generated if left blank).",
+    )
     donor = models.ForeignKey(Donor, on_delete=models.CASCADE, related_name="restrictions")
+    funding_source = models.ForeignKey(
+        "FundingSource",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donor_restrictions",
+    )
     grant = models.ForeignKey(
-        "Grant", on_delete=models.CASCADE, related_name="donor_restriction_records", null=True, blank=True
+        "Grant",
+        on_delete=models.SET_NULL,
+        related_name="donor_restriction_records",
+        null=True,
+        blank=True,
+    )
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donor_restrictions",
+    )
+    budget_line = models.ForeignKey(
+        "BudgetLine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donor_restrictions",
+        help_text="Optional link to a specific budget line when restriction applies to one line.",
+    )
+    account_category = models.ForeignKey(
+        "tenant_finance.AccountCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="donor_restrictions",
+        help_text="Optional expense category for eligibility / cap rules.",
+    )
+    category = models.CharField(
+        max_length=30,
+        choices=Category.choices,
+        default=Category.OTHER,
+        db_index=True,
     )
     restriction_type = models.CharField(
-        max_length=20, choices=RestrictionType.choices, default=RestrictionType.OTHER
+        max_length=40,
+        choices=RestrictionType.choices,
+        default=RestrictionType.OTHER,
+        db_index=True,
     )
-    description = models.TextField()
+    compliance_level = models.CharField(
+        max_length=20,
+        choices=ComplianceLevel.choices,
+        default=ComplianceLevel.MANDATORY,
+        db_index=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    effective_start = models.DateField(null=True, blank=True, db_index=True)
+    effective_end = models.DateField(null=True, blank=True, db_index=True)
+    applies_scope = models.CharField(
+        max_length=20,
+        choices=AppliesScope.choices,
+        default=AppliesScope.DONOR_WIDE,
+        help_text="Primary applicability; align with funding source / grant / project when set.",
+    )
+    description = models.TextField(help_text="Summary shown in lists and alerts.")
+    conditions = models.TextField(blank=True, help_text="Detailed enforceable conditions.")
+    internal_notes = models.TextField(blank=True, help_text="Internal notes (not shown to donors).")
+    enforce_budget_validation = models.BooleanField(default=False)
+    enforce_procurement_validation = models.BooleanField(default=False)
+    enforce_expense_eligibility = models.BooleanField(default=False)
+    require_supporting_documents = models.BooleanField(default=False)
+    require_approval_override = models.BooleanField(
+        default=False,
+        help_text="If set, violations may be waived only with an approved override.",
+    )
+    max_budget_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Maximum % of budget that may be used under this rule (when applicable).",
+    )
+    max_expense_per_transaction = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    max_procurement_threshold = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["donor", "status"]),
+            models.Index(fields=["grant", "status"]),
+            models.Index(fields=["restriction_type"]),
+            models.Index(fields=["status", "effective_end"]),
+            models.Index(fields=["effective_start", "effective_end"]),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.donor.name} — {self.get_restriction_type_display()}"
+        code = self.restriction_code or f"#{self.pk}"
+        return f"{code} — {self.donor.name}"
+
+    def save(self, *args, **kwargs):
+        if self.restriction_code == "":
+            self.restriction_code = None
+        super().save(*args, **kwargs)
+        if not self.restriction_code:
+            code = f"DRC-{self.pk:06d}"
+            n = 0
+            while (
+                DonorRestriction.objects.filter(restriction_code=code)
+                .exclude(pk=self.pk)
+                .exists()
+            ):
+                n += 1
+                code = f"DRC-{self.pk:06d}-{n}"
+            DonorRestriction.objects.filter(pk=self.pk).update(restriction_code=code)
+            self.restriction_code = code
+
+    def clean(self) -> None:
+        from decimal import Decimal
+
+        errs = {}
+        if self.effective_start and self.effective_end and self.effective_end < self.effective_start:
+            errs["effective_end"] = _("Effective end cannot be before start.")
+        if self.max_budget_percentage is not None and (
+            self.max_budget_percentage < Decimal("0") or self.max_budget_percentage > Decimal("100")
+        ):
+            errs["max_budget_percentage"] = _("Must be between 0 and 100.")
+        if self.applies_scope == self.AppliesScope.FUNDING_SOURCE and not self.funding_source_id:
+            errs["funding_source"] = _("Select a funding source for this scope.")
+        if self.applies_scope == self.AppliesScope.GRANT and not self.grant_id:
+            errs["grant"] = _("Select a grant for this scope.")
+        if self.applies_scope == self.AppliesScope.PROJECT and not self.project_id:
+            errs["project"] = _("Select a project for this scope.")
+        if errs:
+            raise ValidationError(errs)
+
+    @property
+    def description_summary(self) -> str:
+        t = (self.description or "").strip()
+        return t[:120] + ("…" if len(t) > 120 else "")
+
+    def sync_expired_status(self) -> bool:
+        """Set status to EXPIRED if end date passed; returns True if updated."""
+        from django.utils import timezone
+
+        today = timezone.now().date()
+        if (
+            self.status == self.Status.ACTIVE
+            and self.effective_end
+            and self.effective_end < today
+        ):
+            DonorRestriction.objects.filter(pk=self.pk).update(status=self.Status.EXPIRED)
+            self.status = self.Status.EXPIRED
+            return True
+        return False
 
 
 class GrantAllocation(models.Model):
@@ -252,11 +650,21 @@ class Project(models.Model):
     """Project dimension for linking grant tracking, agreements, and financial mapping."""
 
     class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
         PLANNING = "planning", "Planning"
         ACTIVE = "active", "Active"
         ON_HOLD = "on_hold", "On hold"
         CLOSED = "closed", "Closed"
         COMPLETED = "completed", "Completed"
+
+    class FundingType(models.TextChoices):
+        """Aligned with common grant funding categories (optional on project master)."""
+
+        PROJECT = "project", "Project grant"
+        CORE = "core", "Core / institutional"
+        EMERGENCY = "emergency", "Emergency"
+        INSTITUTIONAL = "institutional", "Institutional"
+        OTHER = "other", "Other"
 
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
@@ -269,6 +677,34 @@ class Project(models.Model):
         null=True,
         blank=True,
         related_name="projects_managed",
+    )
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Primary implementation location (region, site, or country).",
+    )
+    program_sector = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Program, sector, or thematic area.",
+    )
+    funding_type = models.CharField(
+        max_length=30,
+        choices=FundingType.choices,
+        blank=True,
+        help_text="Primary funding modality for this project (optional).",
+    )
+    currency = models.ForeignKey(
+        "tenant_finance.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="projects",
+        help_text="Default reporting currency when multiple grants use different currencies.",
+    )
+    total_beneficiaries = models.PositiveIntegerField(
+        default=0,
+        help_text="Planned or reported beneficiaries (summary field).",
     )
     start_date = models.DateField(null=True, blank=True)
     # Legacy end_date kept for backward compatibility (treated as original end date).
@@ -289,6 +725,7 @@ class Project(models.Model):
     # Keep is_active for backward compatibility; treat ACTIVE status as open for transactions.
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
@@ -297,9 +734,31 @@ class Project(models.Model):
         return f"{self.code} — {self.name}"
 
     @property
+    def title(self) -> str:
+        """Alias for list/report columns expecting project title."""
+        return self.name
+
+    @property
     def is_open_for_transactions(self) -> bool:
         """Project is open for posting when status is Active."""
         return self.status == self.Status.ACTIVE
+
+    def calendar_phase_label(self, today=None) -> str | None:
+        """
+        Read-only lifecycle hint from dates (does not replace stored workflow status).
+        Returns None if dates are insufficient.
+        """
+        from datetime import date
+
+        d = today or date.today()
+        if self.start_date and d < self.start_date:
+            return "Upcoming"
+        end = self.effective_end_date()
+        if end and d > end:
+            return "Ended"
+        if self.start_date and end and self.start_date <= d <= end:
+            return "In period"
+        return None
 
     def effective_end_date(self):
         return self.revised_end_date or self.original_end_date or self.end_date
@@ -1277,6 +1736,15 @@ class BudgetLine(models.Model):
 
     class Meta:
         ordering = ["id"]
+
+    def clean(self) -> None:
+        from decimal import Decimal
+
+        errors = {}
+        if self.amount is not None and self.amount < Decimal("0"):
+            errors["amount"] = _("Budget line amount cannot be negative.")
+        if errors:
+            raise ValidationError(errors)
 
     def __str__(self) -> str:
         return f"{self.grant.code}: {self.category}"

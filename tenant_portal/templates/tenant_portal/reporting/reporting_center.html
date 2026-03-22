@@ -1,0 +1,217 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Reporting Center" %} | {% trans "Finance" %}{% endblock %}
+
+{% block content %}
+<style>
+  .rpt-center-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .rpt-center-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .rpt-center-hero h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+  }
+  .rpt-center-hero p {
+    margin: 0.4rem 0 0;
+    font-size: 14px;
+    color: #605e5c;
+    line-height: 1.5;
+    max-width: 40rem;
+  }
+  .rpt-center-section {
+    margin-bottom: 1.75rem;
+  }
+  .rpt-center-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin: 0 0 0.75rem 0.25rem;
+  }
+  .rpt-center-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+  @media (min-width: 640px) {
+    .rpt-center-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .rpt-center-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .rpt-center-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 1rem 1.1rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    min-height: 5.5rem;
+  }
+  .rpt-center-card:hover {
+    border-color: #0078d4;
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.12);
+    background: #fafdff;
+  }
+  .rpt-center-card:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+  }
+  .rpt-center-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 4px;
+    background: #e5f0ff;
+    color: #0078d4;
+    margin-bottom: 0.15rem;
+  }
+  .rpt-center-card-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+  .rpt-center-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #201f1e;
+    line-height: 1.3;
+  }
+  .rpt-center-card-desc {
+    font-size: 12px;
+    color: #605e5c;
+    line-height: 1.4;
+  }
+</style>
+
+<div class="rpt-center-page pb-8">
+  <div class="rpt-center-hero">
+    <h1>{% trans "Reporting Center" %}</h1>
+    <p>{% trans "Access financial, budget, grant, and donor reports" %}</p>
+  </div>
+
+  <div class="rpt-center-section">
+    <h2 class="rpt-center-section-title">{% trans "Financial reports" %}</h2>
+    <div class="rpt-center-grid">
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_statement_financial_position' %}">
+        <span class="rpt-center-card-icon"><i data-feather="layers"></i></span>
+        <span class="rpt-center-card-title">{% trans "Balance sheet" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Statement of financial position" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_statement_of_activities' %}">
+        <span class="rpt-center-card-icon"><i data-feather="bar-chart-2"></i></span>
+        <span class="rpt-center-card-title">{% trans "Income & expenditure" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Statement of activities" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_cash_flow_statement' %}">
+        <span class="rpt-center-card-icon"><i data-feather="trending-up"></i></span>
+        <span class="rpt-center-card-title">{% trans "Cash flow" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Statement of cash flows" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_trial_balance' %}">
+        <span class="rpt-center-card-icon"><i data-feather="columns"></i></span>
+        <span class="rpt-center-card-title">{% trans "Trial balance" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Posted balances by account" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_general_ledger' %}">
+        <span class="rpt-center-card-icon"><i data-feather="file-text"></i></span>
+        <span class="rpt-center-card-title">{% trans "General ledger" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Detailed journal activity" %}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="rpt-center-section">
+    <h2 class="rpt-center-section-title">{% trans "Budget reports" %}</h2>
+    <div class="rpt-center-grid">
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_budget_vs_actual' %}">
+        <span class="rpt-center-card-icon"><i data-feather="bar-chart-2"></i></span>
+        <span class="rpt-center-card-title">{% trans "Budget vs actual" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Compare budget to posted spend" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:grants_grant_financial_reports' %}">
+        <span class="rpt-center-card-icon"><i data-feather="clipboard"></i></span>
+        <span class="rpt-center-card-title">{% trans "Budget summary" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Grant financial summary and exports" %}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="rpt-center-section">
+    <h2 class="rpt-center-section-title">{% trans "Grant reports" %}</h2>
+    <div class="rpt-center-grid">
+      <a class="rpt-center-card" href="{% url 'tenant_portal:grants_reports' %}">
+        <span class="rpt-center-card-icon"><i data-feather="briefcase"></i></span>
+        <span class="rpt-center-card-title">{% trans "Grant report" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Award, budget, and spend by grant" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_grant_utilization' %}">
+        <span class="rpt-center-card-icon"><i data-feather="activity"></i></span>
+        <span class="rpt-center-card-title">{% trans "Grant utilization" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Utilization by grant" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_fund_balances' %}">
+        <span class="rpt-center-card-icon"><i data-feather="layers"></i></span>
+        <span class="rpt-center-card-title">{% trans "Fund balance" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Liquidity and fund position" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_expense_trend' %}">
+        <span class="rpt-center-card-icon"><i data-feather="trending-down"></i></span>
+        <span class="rpt-center-card-title">{% trans "Activity expenses" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Expense trends by period" %}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="rpt-center-section">
+    <h2 class="rpt-center-section-title">{% trans "Donor reports" %}</h2>
+    <div class="rpt-center-grid">
+      <a class="rpt-center-card" href="{% url 'tenant_portal:finance_donor_funding_status' %}">
+        <span class="rpt-center-card-icon"><i data-feather="users"></i></span>
+        <span class="rpt-center-card-title">{% trans "Donor contributions" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Funding status by donor" %}</span>
+      </a>
+      <a class="rpt-center-card" href="{% url 'tenant_portal:grants_donors' %}?report_nav=1">
+        <span class="rpt-center-card-icon"><i data-feather="list"></i></span>
+        <span class="rpt-center-card-title">{% trans "Donor summary" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Donor register and reporting context" %}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="rpt-center-section">
+    <h2 class="rpt-center-section-title">{% trans "Export tools" %}</h2>
+    <div class="rpt-center-grid">
+      <a class="rpt-center-card" href="{% url 'tenant_portal:reporting_export_tools' %}">
+        <span class="rpt-center-card-icon"><i data-feather="download"></i></span>
+        <span class="rpt-center-card-title">{% trans "Export PDF & Excel" %}</span>
+        <span class="rpt-center-card-desc">{% trans "Hub for official exports and print" %}</span>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,43 +1,235 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Fund Balances | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Fund balance" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Fund Balances</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Balances per fund, grant, and project (restricted vs unrestricted).</p>
-</div>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Fund balance" report_subtitle="Award, cumulative spend, and remaining liquidity by grant" official_report_period_line=official_report_period_line %}
 
-{% include "tenant_portal/finance/_filters_export.html" with donors=donors %}
+<div class="dynamics-financial-report fb-rpt-root max-w-[1200px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .fb-rpt-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .fb-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .fb-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+  }
+  .fb-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
+  .fb-breadcrumb a:hover { text-decoration: underline; }
+  .fb-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .fb-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .fb-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .fb-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+  }
+  .fb-panel-head-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .fb-panel-meta {
+    font-size: 11px;
+    color: #605e5c;
+    font-weight: 600;
+  }
+  .fb-table-wrap { overflow-x: auto; }
+  .fb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .fb-table thead th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .fb-table thead th.fb-th-num { text-align: right; }
+  .fb-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .fb-table tbody tr:hover td { background: #f3f9fd; }
+  .fb-table tbody tr:last-child td { border-bottom: none; }
+  .fb-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #201f1e;
+  }
+  .fb-grant-code { font-weight: 600; color: #0078d4; font-size: 13px; font-family: ui-monospace, monospace; }
+  .fb-rem-pos { color: #107c10; font-weight: 600; }
+  .fb-rem-neg { color: #a4262c; font-weight: 600; }
+  .fb-empty {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field--actions .dynamics-filter-inline-actions {
+    align-items: center;
+  }
+</style>
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Fund / Grant Balances</div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">Grant / Fund</th>
-          <th class="px-4 py-2 font-semibold">Donor</th>
-          <th class="px-4 py-2 font-semibold text-right">Award Amount</th>
-          <th class="px-4 py-2 font-semibold text-right">Spent</th>
-          <th class="px-4 py-2 font-semibold text-right">Remaining</th>
-          <th class="px-4 py-2 font-semibold">Type</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in fund_rows %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ row.grant.code }} — {{ row.grant.title|truncatewords:6 }}</td>
-          <td class="px-4 py-2">{{ row.grant.donor.name }}</td>
-          <td class="px-4 py-2 text-right">{{ row.award_amount|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right">{{ row.spent|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right font-medium">{{ row.remaining|floatformat:2 }}</td>
-          <td class="px-4 py-2">{% if row.restricted %}Restricted{% else %}Unrestricted{% endif %}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="px-4 py-6 text-center text-[#605e5c]">No fund balances found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="fb-hero hidden-print">
+    <nav class="fb-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+      <a href="{% url 'tenant_portal:finance_home' %}">{% trans "Finance" %}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span>{% trans "Fund balance" %}</span>
+    </nav>
+    <h1 class="fb-title">{% trans "Fund balance" %}</h1>
+  </div>
+
+  <div class="dynamics-filter-pane hidden-print max-w-[1200px] mx-auto">
+    <div class="dynamics-filter-head">
+      <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Period context, donor, and grant scope" %}</span>
+    </div>
+    <form method="get" action="" id="fb-filter-form">
+      <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">
+        <div class="dynamics-filter-field">
+          <label for="fb-period-start">{% trans "From date" %}</label>
+          <input id="fb-period-start" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="fb-period-end">{% trans "To date" %}</label>
+          <input id="fb-period-end" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="fb-donor">{% trans "Donor" %}</label>
+          <select id="fb-donor" name="donor_id" class="dynamics-select min-w-[180px] max-w-[280px]">
+            <option value="">{% trans "All donors" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="fb-grant">{% trans "Grant" %}</label>
+          <select id="fb-grant" name="grant_id" class="dynamics-select min-w-[200px] max-w-[300px]">
+            <option value="">{% trans "All grants" %}</option>
+            {% for g in grants %}
+            <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field dynamics-filter-field--actions">
+          <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+          <div class="dynamics-filter-inline-actions">
+            <button type="submit" class="dynamics-btn-primary">
+              <i data-feather="filter" class="w-4 h-4"></i>
+              {% trans "Apply filters" %}
+            </button>
+            <a href="{% url 'tenant_portal:finance_fund_balances' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+            {% if export_csv_url %}
+            <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+              <i data-feather="download" class="w-4 h-4"></i>
+              {% trans "Export Excel" %}
+            </a>
+            {% endif %}
+            <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+              <i data-feather="printer" class="w-4 h-4"></i>
+              {% trans "Print / PDF" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="fb-panel print-area erp-section">
+    <div class="fb-panel-head">
+      <span class="fb-panel-head-title">
+        <i data-feather="layers" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+        {% trans "Fund balance by grant" %}
+      </span>
+      <span class="fb-panel-meta">{% trans "Latest" %} {{ fund_rows|length }}</span>
+    </div>
+    <div class="fb-table-wrap">
+      <table class="fb-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Grant / fund" %}</th>
+            <th scope="col">{% trans "Donor" %}</th>
+            <th scope="col" class="fb-th-num">{% trans "Award amount" %}</th>
+            <th scope="col" class="fb-th-num">{% trans "Spent" %}</th>
+            <th scope="col" class="fb-th-num">{% trans "Remaining" %}</th>
+            <th scope="col">{% trans "Type" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in fund_rows %}
+          <tr class="dynamics-data-row">
+            <td>
+              <div class="fb-grant-code">{{ row.grant.code }}</div>
+              <div class="text-xs text-[#605e5c] truncate mt-0.5 max-w-[280px]">{{ row.grant.title }}</div>
+            </td>
+            <td class="text-[#323130]">{{ row.grant.donor.name }}</td>
+            <td class="fb-num">{{ row.award_amount|floatformat:2 }}</td>
+            <td class="fb-num">{{ row.spent|floatformat:2 }}</td>
+            <td class="fb-num {% if row.remaining < 0 %}fb-rem-neg{% else %}fb-rem-pos{% endif %}">{{ row.remaining|floatformat:2 }}</td>
+            <td>
+              {% if row.restricted %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#deecf9;color:#005a9e;">{% trans "Restricted" %}</span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#edebe9;color:#605e5c;">{% trans "Unrestricted" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td class="fb-empty" colspan="6">{% trans "No fund balances found." %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,0 +1,469 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Funds & Donors Center" %} | {% trans "Finance" %}{% endblock %}
+
+{% block content %}
+<div class="fdc-dynamics-root dynamics-financial-report">
+<style>
+  .fdc-dynamics-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .fdc-hero {
+    position: relative;
+    background: linear-gradient(135deg, #faf9f8 0%, #ffffff 42%, #f5f9fc 100%);
+    border: 1px solid #e1dfdd;
+    border-radius: 6px;
+    border-left: 4px solid #0078d4;
+    box-shadow:
+      0 0.6px 1.8px rgba(0, 0, 0, 0.06),
+      0 4px 14px rgba(0, 0, 0, 0.04);
+    padding: 1.35rem 1.5rem 1.4rem;
+    margin-bottom: 1.35rem;
+    overflow: hidden;
+  }
+  .fdc-hero::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 40%;
+    max-width: 320px;
+    height: 100%;
+    background: radial-gradient(ellipse at top right, rgba(0, 120, 212, 0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .fdc-hero-inner { position: relative; z-index: 1; }
+  .fdc-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .fdc-hero p {
+    margin: 0.5rem 0 0;
+    font-size: 14px;
+    color: #605e5c;
+    line-height: 1.55;
+    max-width: 42rem;
+  }
+  .fdc-kpi-board {
+    background: #faf9f8;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .fdc-kpi-board-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #faf9f8 100%);
+    border-bottom: 1px solid #e1dfdd;
+  }
+  .fdc-kpi-board-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #323130;
+  }
+  .fdc-kpi-board-hint {
+    font-size: 12px;
+    color: #8a8886;
+  }
+  .fdc-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+    gap: 1px;
+    padding: 1px;
+    background: #edebe9;
+  }
+  .fdc-kpi {
+    position: relative;
+    padding: 14px 14px 16px;
+    background: #ffffff;
+    min-height: 5.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s ease;
+  }
+  .fdc-kpi:hover { background: #fafdff; }
+  .fdc-kpi::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+    opacity: 0.85;
+  }
+  .fdc-kpi-value {
+    padding-left: 10px;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #201f1e;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    word-break: break-word;
+  }
+  .fdc-kpi-label {
+    padding-left: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #605e5c;
+    line-height: 1.35;
+  }
+  .fdc-section-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    margin-bottom: 1.35rem;
+    overflow: hidden;
+  }
+  .fdc-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 18px;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+  }
+  .fdc-section-head::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, #e1dfdd 0%, transparent 100%);
+    margin-left: 4px;
+    opacity: 0.7;
+  }
+  .fdc-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #323130;
+    white-space: nowrap;
+  }
+  .fdc-section-body { padding: 1rem 1rem 1.15rem; }
+  .fdc-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 640px) {
+    .fdc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .fdc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .fdc-card {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 14px 14px 16px;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background 0.18s ease,
+      transform 0.15s ease;
+    min-height: 5.25rem;
+    position: relative;
+  }
+  .fdc-card:hover {
+    border-color: #c7e0f4;
+    box-shadow:
+      0 2px 8px rgba(0, 120, 212, 0.1),
+      0 0 0 1px rgba(0, 120, 212, 0.08);
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    transform: translateY(-1px);
+  }
+  .fdc-card:active { transform: translateY(0); }
+  .fdc-card:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+  }
+  .fdc-card-icon-wrap {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 6px;
+    background: linear-gradient(145deg, #e8f4ff 0%, #deecf9 100%);
+    color: #0078d4;
+    border: 1px solid rgba(0, 120, 212, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  .fdc-card-icon-wrap svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    stroke-width: 2.1px;
+  }
+  .fdc-card-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 2px;
+  }
+  .fdc-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #201f1e;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+  }
+  .fdc-card-desc {
+    font-size: 12px;
+    color: #605e5c;
+    line-height: 1.45;
+  }
+  .fdc-card-chevron {
+    flex-shrink: 0;
+    align-self: center;
+    color: #c8c6c4;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
+  }
+  .fdc-card:hover .fdc-card-chevron {
+    opacity: 1;
+    transform: translateX(0);
+    color: #0078d4;
+  }
+  .fdc-card-chevron svg {
+    width: 1.15rem !important;
+    height: 1.15rem !important;
+    stroke-width: 2.2px;
+  }
+</style>
+
+  <header class="fdc-hero" role="banner">
+    <div class="fdc-hero-inner">
+      <h1>{% trans "Funds & Donors Center" %}</h1>
+      <p>{% trans "Manage donors, grants, projects, allocations, utilization, and compliance reporting." %}</p>
+    </div>
+  </header>
+
+  <section class="fdc-kpi-board" aria-label="{% trans 'Key metrics' %}">
+    <div class="fdc-kpi-board-head">
+      <span class="fdc-kpi-board-title">{% trans "At a glance" %}</span>
+      <span class="fdc-kpi-board-hint">{% trans "Summary across donors and active grants" %}</span>
+    </div>
+    <div class="fdc-kpi-grid">
+      {% for k in funds_kpis %}
+      <div class="fdc-kpi">
+        <span class="fdc-kpi-value">{{ k.value }}</span>
+        <span class="fdc-kpi-label">{{ k.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="fdc-section-panel" aria-labelledby="fdc-sec-donor">
+    <div class="fdc-section-head">
+      <h2 id="fdc-sec-donor" class="fdc-section-title">{% trans "Donor management" %}</h2>
+    </div>
+    <div class="fdc-section-body">
+      <div class="fdc-grid">
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_donor_register' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="users"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Donor register" %}</span>
+            <span class="fdc-card-desc">{% trans "Master donor records and contact details." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_funding_sources' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="database"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Funding sources" %}</span>
+            <span class="fdc-card-desc">{% trans "Funding types linked to donors and projects." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_donor_agreements' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="file-text"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Donor agreements" %}</span>
+            <span class="fdc-card-desc">{% trans "Signed agreements, terms, and limits." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_donor_conditions' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="shield"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Donor conditions & restrictions" %}</span>
+            <span class="fdc-card-desc">{% trans "Budget, procurement, and reporting rules." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="fdc-section-panel" aria-labelledby="fdc-sec-grant">
+    <div class="fdc-section-head">
+      <h2 id="fdc-sec-grant" class="fdc-section-title">{% trans "Grant management" %}</h2>
+    </div>
+    <div class="fdc-section-body">
+      <div class="fdc-grid">
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grants' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="file-plus"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant agreements" %}</span>
+            <span class="fdc-card-desc">{% trans "Post-award contracts and award amounts." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_projects_list' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="folder"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Project list" %}</span>
+            <span class="fdc-card-desc">{% trans "Projects, dates, and grant linkage." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_allocation' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="share-2"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant allocation (multi-donor)" %}</span>
+            <span class="fdc-card-desc">{% trans "Split awards across donors." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_tracking' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="map"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant tracking" %}</span>
+            <span class="fdc-card-desc">{% trans "Pre-award pipeline and stages." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_workplan' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="list"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant workplan" %}</span>
+            <span class="fdc-card-desc">{% trans "Activities and milestones by grant." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_utilization' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="pie-chart"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant utilization" %}</span>
+            <span class="fdc-card-desc">{% trans "Budget vs spend by grant." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_timeline' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="calendar"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant start & end periods" %}</span>
+            <span class="fdc-card-desc">{% trans "Timeline and period extensions." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="fdc-section-panel" aria-labelledby="fdc-sec-proc">
+    <div class="fdc-section-head">
+      <h2 id="fdc-sec-proc" class="fdc-section-title">{% trans "Procurement & implementation" %}</h2>
+    </div>
+    <div class="fdc-section-body">
+      <div class="fdc-grid">
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_pr_list' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="clipboard"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Purchase requisitions" %}</span>
+            <span class="fdc-card-desc">{% trans "Create and track requisitions." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:procurement_po_list' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="shopping-cart"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Procurement / POs" %}</span>
+            <span class="fdc-card-desc">{% trans "Purchase orders, receipts, and invoices." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="fdc-section-panel" aria-labelledby="fdc-sec-comp">
+    <div class="fdc-section-head">
+      <h2 id="fdc-sec-comp" class="fdc-section-title">{% trans "Compliance & reporting" %}</h2>
+    </div>
+    <div class="fdc-section-body">
+      <div class="fdc-grid">
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_reporting_requirements' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="clipboard-list"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Donor reporting requirements" %}</span>
+            <span class="fdc-card-desc">{% trans "Templates, frequencies, and formats." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_reporting_deadlines' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="calendar"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Reporting deadlines" %}</span>
+            <span class="fdc-card-desc">{% trans "Due dates, submission status, and overdue tracking." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_donor_compliance' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="eye"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Donor compliance monitoring" %}</span>
+            <span class="fdc-card-desc">{% trans "Restrictions vs spend; read-focused compliance view." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_financial_reports' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="bar-chart-2"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant financial reports" %}</span>
+            <span class="fdc-card-desc">{% trans "Official period reports for grants and donors." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

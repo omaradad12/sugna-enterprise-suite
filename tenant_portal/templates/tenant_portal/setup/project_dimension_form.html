@@ -5,56 +5,113 @@
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
   <div>
     <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
-    <p class="text-sm mt-1" style="color:#605e5c;">{% if project %}Update project.{% else %}Add a project dimension. Code must be unique. Only active projects appear in transactions.{% endif %}</p>
+    <p class="text-sm mt-1" style="color:#605e5c;">Project master is the single source of truth; the <a href="{{ projects_list_url }}" class="font-medium" style="color:#0078d4;">project list</a> always loads live data from the database. Workflow status drives posting: only <strong>Active</strong> projects are open for transactions (<code>is_active</code> syncs automatically).</p>
   </div>
-  <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Project / Grant Dimensions</a>
+  <a href="{{ projects_list_url }}" class="text-sm font-medium" style="color:#0078d4;">Back to project list</a>
 </div>
 
-<div class="erp-section max-w-2xl">
+<div class="erp-section max-w-3xl">
   <div class="erp-section-header">Project details</div>
   <div class="erp-section-body">
     <form method="post" class="space-y-4">
       {% csrf_token %}
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Code <span style="color:#a4262c;">*</span></label>
-        <input type="text" name="code" value="{% if project %}{{ project.code }}{% endif %}" required maxlength="50" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. PRJ-001" />
-        <p class="text-xs mt-1" style="color:#605e5c;">Unique project code.</p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project Name <span style="color:#a4262c;">*</span></label>
-        <input type="text" name="name" value="{% if project %}{{ project.name }}{% endif %}" required maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor</label>
-        <select name="donor_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-          <option value="">— None —</option>
-          {% for d in donors %}
-          <option value="{{ d.pk }}" {% if project and project.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Start Date</label>
-          <input type="date" name="start_date" value="{% if project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-          <p class="text-xs mt-1" style="color:#605e5c;">Transactions must fall within this range.</p>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Code <span style="color:#a4262c;">*</span></label>
+          <input type="text" name="code" value="{% if project %}{{ project.code }}{% endif %}" required maxlength="50" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. PRJ-001" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Unique project code.</p>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">End Date</label>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Workflow status <span style="color:#a4262c;">*</span></label>
+          <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;" required>
+            {% for val, label in project_statuses %}
+            <option value="{{ val }}" {% if project %}{% if project.status == val %}selected{% endif %}{% else %}{% if val == 'planning' %}selected{% endif %}{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project title / name <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="name" value="{% if project %}{{ project.name }}{% endif %}" required maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor</label>
+          <select name="donor_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— None —</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if project and project.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project manager / coordinator</label>
+          <select name="project_manager_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— None —</option>
+            {% for u in users %}
+            <option value="{{ u.pk }}" {% if project and project.project_manager_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Location</label>
+          <input type="text" name="location" value="{% if project %}{{ project.location }}{% endif %}" maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" placeholder="Region, site, country…" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Program / sector</label>
+          <input type="text" name="program_sector" value="{% if project %}{{ project.program_sector }}{% endif %}" maxlength="120" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Funding type</label>
+          <select name="funding_type" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— Not set —</option>
+            {% for val, label in funding_types %}
+            <option value="{{ val }}" {% if project and project.funding_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Reporting currency</label>
+          <select name="currency_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+            <option value="">— None —</option>
+            {% for c in currencies %}
+            <option value="{{ c.pk }}" {% if project and project.currency_id == c.pk %}selected{% endif %}>{{ c.code }}{% if c.name %} — {{ c.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Total beneficiaries (planning / summary)</label>
+        <input type="number" name="total_beneficiaries" min="0" step="1" value="{% if project %}{{ project.total_beneficiaries }}{% else %}0{% endif %}" class="w-full max-w-xs px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Start date</label>
+          <input type="date" name="start_date" value="{% if project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">End date (current / operational)</label>
           <input type="date" name="end_date" value="{% if project and project.end_date %}{{ project.end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
         </div>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
-        <select name="is_active" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-          <option value="1" {% if project and project.is_active or not project %}selected{% endif %}>Active</option>
-          <option value="0" {% if project and not project.is_active %}selected{% endif %}>Inactive</option>
-        </select>
-        <p class="text-xs mt-1" style="color:#605e5c;">Only active projects appear in transaction dropdowns.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Original end date (baseline)</label>
+          <input type="date" name="original_end_date" value="{% if project and project.original_end_date %}{{ project.original_end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Leave blank to default from end date on save.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Revised end date (extension)</label>
+          <input type="date" name="revised_end_date" value="{% if project and project.revised_end_date %}{{ project.revised_end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+        </div>
       </div>
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if project %}Update{% else %}Create{% endif %} Project</button>
-        <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if project %}Save changes{% else %}Create project{% endif %}</button>
+        <a href="{{ projects_list_url }}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
       </div>
     </form>
   </div>

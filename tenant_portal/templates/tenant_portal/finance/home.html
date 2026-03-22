@@ -1,4 +1,5 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
 {% block title %}{{ tenant_display_name|default:tenant.name }} | Financial &amp; Grant Management{% endblock %}
 {% block product_subtitle %}Financial &amp; Grant Management{% endblock %}
 
@@ -17,7 +18,7 @@
     <div class="inline-flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-full bg-white border" style="border-color:#edebe9;">
       <span class="inline-flex items-center gap-1">
         <i data-feather="calendar" class="w-3 h-3"></i>
-        <span>Fiscal period:</span>
+        <span>Accounting period:</span>
         <span class="font-semibold text-[#323130]">May 2024</span>
       </span>
       <span class="mx-1 text-[#a19f9d]">•</span>
@@ -55,7 +56,7 @@
        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs sm:text-sm font-medium text-white shadow-sm hover:shadow"
        style="background:#0078D4;">
       <i data-feather="edit-3" class="w-4 h-4"></i>
-      <span>New Journal Entry</span>
+      <span>{% trans "New general journal" %}</span>
     </a>
     <a href="{% url 'tenant_portal:budget_creation' %}"
        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white hover:bg-[#faf9f8]"
@@ -371,7 +372,7 @@
       </button>
       <button type="button" class="flex flex-col items-start gap-1 px-3 py-3 rounded border hover:bg-[#f3f2f1]" style="border-color:#edebe9;">
         <span class="font-semibold">Income &amp; expenditure</span>
-        <span class="text-[11px] text-[#605e5c]">Current fiscal period</span>
+        <span class="text-[11px] text-[#605e5c]">Current accounting period</span>
       </button>
       <button type="button" class="flex flex-col items-start gap-1 px-3 py-3 rounded border hover:bg-[#f3f2f1]" style="border-color:#edebe9;">
         <span class="font-semibold">Cash flow statement</span>
@@ -399,7 +400,7 @@
               :class="txTab === 'journals' ? 'bg-[#0078D4] text-white' : 'bg-white text-[#323130]'"
               class="px-3 py-1.5 rounded-full border"
               style="border-color:#edebe9;">
-        Journal entries
+        {% trans "General journal" %}
       </button>
       <button type="button"
               @click="txTab = 'payments'"

@@ -1,0 +1,122 @@
+{% comment %}
+Shared @media print rules for SFP / SOA / CFS tables and panels. Include inside .frpt-print-root.
+{% endcomment %}
+<style>
+  @media print {
+    .frpt-print-root .erp-section.print-area,
+    .frpt-print-root .print-area {
+      padding: 0 !important;
+      margin-top: 0.2rem !important;
+      overflow: visible !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .frpt-print-root .frpt-rpt-tb {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .frpt-print-root .frpt-rpt-tb col.frpt-col-desc {
+      width: 72%;
+    }
+    .frpt-print-root .frpt-rpt-tb col.frpt-col-amt {
+      width: 28%;
+    }
+    .frpt-print-root .frpt-rpt-tb th,
+    .frpt-print-root .frpt-rpt-tb td {
+      font-size: 8px !important;
+      padding: 3px 4px !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-top: none !important;
+      border-bottom: 1px solid #e8e6e3 !important;
+      vertical-align: top;
+    }
+    .frpt-print-root .frpt-rpt-tb thead th {
+      background: #ecebe9 !important;
+      color: #201f1e !important;
+      font-size: 8px !important;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid #d2d0ce !important;
+    }
+    .frpt-print-root .frpt-rpt-tb .frpt-amt,
+    .frpt-print-root .frpt-rpt-tb th.frpt-amt {
+      text-align: right !important;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .frpt-print-root .frpt-section-heading td,
+    .frpt-print-root .frpt-rpt-tb .frpt-section-heading td {
+      font-size: 8px !important;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #323130 !important;
+      background: #faf9f8 !important;
+      border-bottom: 1px solid #e1dfdd !important;
+      padding-top: 5px !important;
+      padding-bottom: 4px !important;
+    }
+    .frpt-print-root .frpt-rpt-tb .frpt-subtotal td {
+      font-weight: 600;
+      background: #f3f2f1 !important;
+      border-top: 1px solid #d2d0ce !important;
+    }
+    .frpt-print-root .frpt-rpt-tb .frpt-major-total td {
+      font-weight: 700;
+      background: #ecebe9 !important;
+      border-top: 2px solid #201f1e !important;
+      border-bottom: 2px solid #201f1e !important;
+      padding-top: 5px !important;
+      padding-bottom: 5px !important;
+    }
+    .frpt-print-root .frpt-rpt-tb .frpt-surplus td {
+      font-weight: 700;
+      background: #e8f4ff !important;
+      border-top: 2px solid #201f1e !important;
+      border-bottom: 2px solid #201f1e !important;
+      border-left: none !important;
+      border-right: none !important;
+    }
+    .frpt-print-root .frpt-panel-title,
+    .frpt-print-root .sfp-panel-title,
+    .frpt-print-root .soa-panel-title {
+      font-size: 9px !important;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 6px !important;
+      background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%) !important;
+      border-bottom: 1px solid #e1dfdd !important;
+      border-left: 3px solid #0078d4 !important;
+    }
+    .frpt-print-root .sfp-panel,
+    .frpt-print-root .soa-panel {
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      break-inside: avoid;
+      margin-bottom: 8px !important;
+    }
+    .frpt-print-root .sfp-sec-title,
+    .frpt-print-root .soa-cat-title {
+      font-size: 7.5px !important;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 4px 2px !important;
+    }
+    .frpt-print-root .frpt-cfs-panel-title {
+      font-size: 9px !important;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 5px 6px !important;
+      background: #faf9f8 !important;
+      border-bottom: 1px solid #e1dfdd !important;
+      border-left: 3px solid #0078d4 !important;
+    }
+  }
+</style>

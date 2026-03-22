@@ -1,0 +1,175 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Edit restriction" %} | {{ restriction.restriction_code|default:restriction.pk }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[900px] mx-auto w-full pb-10">
+{% include "tenant_portal/grants/_donor_agreements_styles.html" %}
+  <nav class="text-xs text-[#605e5c] mb-3">
+    <a href="{% url 'tenant_portal:grants_donor_conditions' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Donor Conditions & Restrictions" %}</a>
+    <span class="mx-1">/</span>
+    <a href="{% url 'tenant_portal:grants_donor_condition_detail' restriction.pk %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{{ restriction.restriction_code|default:restriction.pk }}</a>
+    <span class="mx-1">/</span>
+    <span>{% trans "Edit" %}</span>
+  </nav>
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight text-[#201f1e] m-0">{% trans "Edit restriction" %}</h1>
+    <p class="text-sm text-[#605e5c] mt-1 m-0">{% trans "Update donor conditions, enforcement flags, and applicability." %}</p>
+  </div>
+
+  <div class="bg-white border rounded-lg shadow-sm p-5 sm:p-6" style="border-color:#edebe9;">
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c]">{% trans "Basic" %}</div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-rc">{% trans "Restriction code" %} <span class="font-normal">({% trans "optional" %})</span></label>
+          <input id="ed-rc" name="restriction_code" value="{{ restriction.restriction_code|default:'' }}" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" placeholder="{% trans 'Auto if blank' %}" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-st">{% trans "Status" %}</label>
+          <select id="ed-st" name="status" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            {% for value, label in restriction_statuses.choices %}<option value="{{ value }}" {% if restriction.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-donor">{% trans "Donor" %} *</label>
+          <select id="ed-donor" name="donor_id" required class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            <option value="">{% trans "Select donor" %}</option>
+            {% for d in donors %}<option value="{{ d.pk }}" {% if restriction.donor_id == d.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-fs">{% trans "Funding source" %}</label>
+          <select id="ed-fs" name="funding_source_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for fs in funding_sources %}<option value="{{ fs.pk }}" {% if restriction.funding_source_id == fs.pk %}selected{% endif %}>{{ fs.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-grant">{% trans "Grant" %}</label>
+          <select id="ed-grant" name="grant_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for g in grants %}<option value="{{ g.pk }}" {% if restriction.grant_id == g.pk %}selected{% endif %}>{{ g.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-proj">{% trans "Project" %}</label>
+          <select id="ed-proj" name="project_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for p in projects %}<option value="{{ p.pk }}" {% if restriction.project_id == p.pk %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:4 }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c] pt-1 border-t" style="border-color:#edebe9;">{% trans "Classification" %}</div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-cat">{% trans "Category" %}</label>
+          <select id="ed-cat" name="category" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            {% for value, label in restriction_categories.choices %}<option value="{{ value }}" {% if restriction.category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-rt">{% trans "Restriction type" %}</label>
+          <select id="ed-rt" name="restriction_type" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            {% for value, label in restriction_types.choices %}<option value="{{ value }}" {% if restriction.restriction_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-cl">{% trans "Compliance level" %}</label>
+          <select id="ed-cl" name="compliance_level" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            {% for value, label in compliance_levels.choices %}<option value="{{ value }}" {% if restriction.compliance_level == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-scope" title="{% trans 'Where this rule primarily applies' %}">{% trans "Applies scope" %}</label>
+          <select id="ed-scope" name="applies_scope" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            {% for value, label in applies_scopes.choices %}<option value="{{ value }}" {% if restriction.applies_scope == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c] pt-1 border-t" style="border-color:#edebe9;">{% trans "Details" %}</div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-desc">{% trans "Description" %} *</label>
+          <textarea id="ed-desc" name="description" required rows="3" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;">{{ restriction.description }}</textarea>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-cond">{% trans "Conditions" %}</label>
+          <textarea id="ed-cond" name="conditions" rows="3" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;">{{ restriction.conditions }}</textarea>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-notes">{% trans "Internal notes" %}</label>
+          <textarea id="ed-notes" name="internal_notes" rows="2" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;">{{ restriction.internal_notes }}</textarea>
+        </div>
+
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c] pt-1 border-t" style="border-color:#edebe9;">{% trans "Effective period" %}</div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-es">{% trans "Start date" %}</label>
+          <input id="ed-es" type="date" name="effective_start" value="{% if restriction.effective_start %}{{ restriction.effective_start|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-ee">{% trans "End date" %}</label>
+          <input id="ed-ee" type="date" name="effective_end" value="{% if restriction.effective_end %}{{ restriction.effective_end|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" />
+        </div>
+
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c] pt-1 border-t" style="border-color:#edebe9;">{% trans "Links" %}</div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-bl">{% trans "Budget line" %}</label>
+          <select id="ed-bl" name="budget_line_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for bl in budget_lines %}<option value="{{ bl.pk }}" {% if restriction.budget_line_id == bl.pk %}selected{% endif %}>{{ bl.grant.code }} — {{ bl.category }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-ac">{% trans "Expense category" %}</label>
+          <select id="ed-ac" name="account_category_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for ac in account_categories %}<option value="{{ ac.pk }}" {% if restriction.account_category_id == ac.pk %}selected{% endif %}>{{ ac.code }} — {{ ac.name }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c] pt-1 border-t" style="border-color:#edebe9;">{% trans "Control flags" %}</div>
+        <label class="inline-flex items-center gap-2 text-sm sm:col-span-2 cursor-pointer">
+          <input type="checkbox" name="enforce_budget_validation" value="1" {% if restriction.enforce_budget_validation %}checked{% endif %} class="rounded border" style="border-color:#edebe9;" />
+          {% trans "Enforce budget validation" %}
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm sm:col-span-2 cursor-pointer">
+          <input type="checkbox" name="enforce_procurement_validation" value="1" {% if restriction.enforce_procurement_validation %}checked{% endif %} class="rounded border" style="border-color:#edebe9;" />
+          {% trans "Enforce procurement validation" %}
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm sm:col-span-2 cursor-pointer">
+          <input type="checkbox" name="enforce_expense_eligibility" value="1" {% if restriction.enforce_expense_eligibility %}checked{% endif %} class="rounded border" style="border-color:#edebe9;" />
+          {% trans "Enforce expense eligibility" %}
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm sm:col-span-2 cursor-pointer">
+          <input type="checkbox" name="require_supporting_documents" value="1" {% if restriction.require_supporting_documents %}checked{% endif %} class="rounded border" style="border-color:#edebe9;" />
+          {% trans "Require supporting documents" %}
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm sm:col-span-2 cursor-pointer">
+          <input type="checkbox" name="require_approval_override" value="1" {% if restriction.require_approval_override %}checked{% endif %} class="rounded border" style="border-color:#edebe9;" />
+          {% trans "Require approval to override violations" %}
+        </label>
+
+        <div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-[#605e5c] pt-1 border-t" style="border-color:#edebe9;">{% trans "Limits (optional)" %}</div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-mbp">{% trans "Max budget %" %}</label>
+          <input id="ed-mbp" name="max_budget_percentage" value="{{ restriction.max_budget_percentage|default:'' }}" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" placeholder="0–100" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-mex">{% trans "Max expense per transaction" %}</label>
+          <input id="ed-mex" name="max_expense_per_transaction" value="{{ restriction.max_expense_per_transaction|default:'' }}" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" />
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2">
+          <label class="text-xs font-semibold text-[#605e5c]" for="ed-mpt">{% trans "Max procurement threshold" %}</label>
+          <input id="ed-mpt" name="max_procurement_threshold" value="{{ restriction.max_procurement_threshold|default:'' }}" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" />
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 pt-4 border-t" style="border-color:#edebe9;">
+        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Save changes" %}</button>
+        <a href="{% url 'tenant_portal:grants_donor_condition_detail' restriction.pk %}" class="inline-flex items-center px-4 py-2.5 rounded-md border text-sm font-semibold no-underline text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">{% trans "Cancel" %}</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,47 +1,234 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Grant Utilization | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Grant utilization" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Grant Utilization</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Budget vs expenditures and utilization percentage per grant.</p>
-</div>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Grant utilization" report_subtitle="Budget lines: budget, actual, and variance by account" official_report_period_line=official_report_period_line %}
 
-{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors %}
+<div class="dynamics-financial-report gu-rpt-root max-w-[1200px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .gu-rpt-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .gu-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .gu-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+  }
+  .gu-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
+  .gu-breadcrumb a:hover { text-decoration: underline; }
+  .gu-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .gu-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .gu-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .gu-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+  }
+  .gu-panel-head-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .gu-panel-meta {
+    font-size: 11px;
+    color: #605e5c;
+    font-weight: 600;
+  }
+  .gu-table-wrap { overflow-x: auto; }
+  .gu-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .gu-table thead th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .gu-table thead th.gu-th-num { text-align: right; }
+  .gu-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .gu-table tbody tr:hover td { background: #f3f9fd; }
+  .gu-table tbody tr:last-child td { border-bottom: none; }
+  .gu-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #201f1e;
+  }
+  .gu-grant-hint {
+    font-size: 11px;
+    color: #605e5c;
+    margin-top: 0.2rem;
+    line-height: 1.35;
+  }
+  .gu-var-neg { color: #a4262c; font-weight: 600; }
+  .gu-var-pos { color: #107c10; font-weight: 600; }
+  .gu-empty {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field--actions .dynamics-filter-inline-actions {
+    align-items: center;
+  }
+</style>
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Grant Utilization</div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">Grant</th>
-          <th class="px-4 py-2 font-semibold">Donor</th>
-          <th class="px-4 py-2 font-semibold text-right">Budget / Ceiling</th>
-          <th class="px-4 py-2 font-semibold text-right">Spent</th>
-          <th class="px-4 py-2 font-semibold text-right">Utilization %</th>
-          <th class="px-4 py-2 font-semibold">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in utilization_rows %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</td>
-          <td class="px-4 py-2">{{ row.grant.donor.name }}</td>
-          <td class="px-4 py-2 text-right">{{ row.ceiling|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right">{{ row.spent|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right font-medium">{{ row.util_pct|floatformat:1 }}%</td>
-          <td class="px-4 py-2">
-            {% if row.status == "over" %}<span class="text-[#a4262c] font-medium">Over-spent</span>
-            {% elif row.status == "under" %}<span class="text-[#107c10]">Under-utilized</span>
-            {% else %}<span class="text-[#605e5c]">On track</span>{% endif %}
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="px-4 py-6 text-center text-[#605e5c]">No grants found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="gu-hero hidden-print">
+    <nav class="gu-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+      <a href="{% url 'tenant_portal:finance_home' %}">{% trans "Finance" %}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span>{% trans "Grant utilization" %}</span>
+    </nav>
+    <h1 class="gu-title">{% trans "Grant utilization" %}</h1>
+  </div>
+
+  <div class="dynamics-filter-pane hidden-print max-w-[1200px] mx-auto">
+    <div class="dynamics-filter-head">
+      <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Period, donor, and grant scope" %}</span>
+    </div>
+    <form method="get" action="" id="gu-filter-form">
+      <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">
+        <div class="dynamics-filter-field">
+          <label for="gu-period-start">{% trans "From date" %}</label>
+          <input id="gu-period-start" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="gu-period-end">{% trans "To date" %}</label>
+          <input id="gu-period-end" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="gu-donor">{% trans "Donor" %}</label>
+          <select id="gu-donor" name="donor_id" class="dynamics-select min-w-[180px] max-w-[280px]">
+            <option value="">{% trans "All donors" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="gu-grant">{% trans "Grant" %}</label>
+          <select id="gu-grant" name="grant_id" class="dynamics-select min-w-[200px] max-w-[300px]">
+            <option value="">{% trans "All grants" %}</option>
+            {% for g in grants %}
+            <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field dynamics-filter-field--actions">
+          <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+          <div class="dynamics-filter-inline-actions">
+            <button type="submit" class="dynamics-btn-primary">
+              <i data-feather="filter" class="w-4 h-4"></i>
+              {% trans "Apply filters" %}
+            </button>
+            <a href="{% url 'tenant_portal:finance_grant_utilization' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+            {% if export_csv_url %}
+            <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+              <i data-feather="download" class="w-4 h-4"></i>
+              {% trans "Export Excel" %}
+            </a>
+            {% endif %}
+            <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+              <i data-feather="printer" class="w-4 h-4"></i>
+              {% trans "Print / PDF" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="gu-panel print-area erp-section">
+    <div class="gu-panel-head">
+      <span class="gu-panel-head-title">
+        <i data-feather="pie-chart" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+        {% trans "Grant utilization" %}
+      </span>
+      <span class="gu-panel-meta">{% trans "Latest" %} {{ utilization_rows|length }}</span>
+    </div>
+    <div class="gu-table-wrap">
+      <table class="gu-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Account" %}</th>
+            <th scope="col">{% trans "Budget line" %}</th>
+            <th scope="col">{% trans "Description" %}</th>
+            <th scope="col" class="gu-th-num">{% trans "Budget" %}</th>
+            <th scope="col" class="gu-th-num">{% trans "Actual" %}</th>
+            <th scope="col" class="gu-th-num">{% trans "Variance" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in utilization_rows %}
+          <tr class="dynamics-data-row">
+            <td>
+              <div>{{ row.account_display }}</div>
+              <div class="gu-grant-hint">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</div>
+            </td>
+            <td class="text-[#323130]">{{ row.budget_line_label }}</td>
+            <td class="text-[#605e5c]">{{ row.description }}</td>
+            <td class="gu-num">{{ row.budget|floatformat:2 }}</td>
+            <td class="gu-num">{{ row.actual|floatformat:2 }}</td>
+            <td class="gu-num {% if row.variance < 0 %}gu-var-neg{% else %}gu-var-pos{% endif %}">{{ row.variance|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td class="gu-empty" colspan="6">{% trans "No budget lines found for these filters." %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,65 +1,357 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Opening Balances | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Opening balances" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Opening Balances</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Set opening balances when initializing the system.</p>
-</div>
+<div class="dynamics-financial-report ob-page max-w-[1200px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .ob-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .ob-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .ob-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+  .ob-breadcrumb a {
+    color: #0078d4;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .ob-breadcrumb a:hover {
+    text-decoration: underline;
+  }
+  .ob-breadcrumb span.sep {
+    color: #a19f9d;
+    margin: 0 0.35rem;
+  }
+  .ob-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .ob-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    border-radius: 4px;
+    border: 1px solid;
+    margin-bottom: 1.25rem;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .ob-summary--ok {
+    border-color: #92c353;
+    background: linear-gradient(180deg, #f3f9f0 0%, #eef7e8 100%);
+    color: #0b5a0b;
+  }
+  .ob-summary--warn {
+    border-color: #f2c811;
+    background: linear-gradient(180deg, #fffef5 0%, #fff8e0 100%);
+    color: #8a6116;
+  }
+  .ob-summary strong {
+    font-weight: 700;
+    color: #201f1e;
+  }
+  .ob-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .ob-panel-head {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    background: #faf9f8;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ob-panel-head-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #323130;
+  }
+  .ob-panel-body {
+    padding: 1.25rem 1.25rem 1.35rem;
+    flex: 1;
+  }
+  .ob-form-panel {
+    border-left: 4px solid #0078d4;
+  }
+  .ob-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .ob-input,
+  .ob-select {
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    font-size: 13px;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    background: #ffffff;
+    color: #323130;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  .ob-input:hover,
+  .ob-select:hover {
+    border-color: #323130;
+  }
+  .ob-input:focus,
+  .ob-select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px #0078d4;
+  }
+  .ob-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 1rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    background: #0078d4;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transition: background 0.12s ease;
+  }
+  .ob-btn-primary:hover {
+    background: #106ebe;
+  }
+  .ob-btn-primary:active {
+    background: #005a9e;
+  }
+  .ob-table-wrap {
+    overflow: auto;
+    max-height: min(60vh, 520px);
+  }
+  .ob-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .ob-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 1px solid #edebe9;
+  }
+  .ob-table thead th.ob-th-num {
+    text-align: right;
+  }
+  .ob-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .ob-table tbody tr:hover td {
+    background: #faf9f8;
+  }
+  .ob-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .ob-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  .ob-empty {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .ob-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 0.75rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a19f9d;
+  }
+  .ob-hint {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #edebe9;
+    font-size: 12px;
+    color: #605e5c;
+    line-height: 1.5;
+  }
+  .ob-hint ul {
+    margin: 0.35rem 0 0;
+    padding-left: 1.15rem;
+  }
+  .ob-hint li {
+    margin-bottom: 0.2rem;
+  }
+</style>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
-    <h2 class="font-semibold">Add / Update opening balance</h2>
-    <form method="post" class="mt-4 space-y-3">
-      {% csrf_token %}
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">As of date</label>
-        <input type="date" name="as_of_date" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Account</label>
-        <select name="account_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-          <option value="">— Select —</option>
-          {% for a in accounts %}
-          <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Debit</label>
-        <input type="number" name="debit" step="0.01" value="0" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Credit</label>
-        <input type="number" name="credit" step="0.01" value="0" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-      </div>
-      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Save</button>
-    </form>
+  <div class="ob-hero">
+    <nav class="ob-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+      <a href="{% url 'tenant_portal:finance_home' %}">{% trans "Finance" %}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span>{% trans "Opening balances" %}</span>
+    </nav>
+    <h1 class="ob-title">{% trans "Opening balances" %}</h1>
   </div>
-  <div class="bg-white border rounded-lg overflow-hidden lg:col-span-2" style="border-color:#edebe9;">
-    <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Existing opening balances</div>
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">As of date</th>
-          <th class="px-4 py-2 font-semibold">Account</th>
-          <th class="px-4 py-2 font-semibold text-right">Debit</th>
-          <th class="px-4 py-2 font-semibold text-right">Credit</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for b in balances %}
-        <tr class="border-b" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ b.as_of_date|date:"Y-m-d" }}</td>
-          <td class="px-4 py-2">{{ b.account.code }} — {{ b.account.name }}</td>
-          <td class="px-4 py-2 text-right">{{ b.debit|floatformat:2 }}</td>
-          <td class="px-4 py-2 text-right">{{ b.credit|floatformat:2 }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4" class="px-4 py-6 text-center text-[#605e5c]">No opening balances set.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+
+  {% if opening_balances_balanced is not None %}
+  <div class="ob-summary {% if opening_balances_balanced %}ob-summary--ok{% else %}ob-summary--warn{% endif %}" role="status">
+    <i data-feather="{% if opening_balances_balanced %}check-circle{% else %}alert-triangle{% endif %}" class="w-5 h-5 flex-shrink-0" style="margin-top:2px;"></i>
+    <div>
+      <strong>{% trans "Trial balance check" %}</strong>
+      &nbsp;·&nbsp;
+      {% trans "Total debit" %} <strong>{{ opening_balance_total_debit|floatformat:2 }}</strong>
+      &nbsp;·&nbsp;
+      {% trans "Total credit" %} <strong>{{ opening_balance_total_credit|floatformat:2 }}</strong>
+      {% if not opening_balances_balanced %}
+      <div class="mt-1">{% trans "Debits and credits do not match — adjust lines until totals agree." %}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+    <div class="xl:col-span-4">
+      <div class="ob-panel ob-form-panel">
+        <div class="ob-panel-head">
+          <i data-feather="edit-3" class="w-4 h-4 text-[#0078d4]"></i>
+          <span class="ob-panel-head-title">{% trans "New entry" %}</span>
+        </div>
+        <div class="ob-panel-body">
+          <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+              <label class="ob-label" for="ob-as-of">{% trans "As of date" %}</label>
+              <input id="ob-as-of" type="date" name="as_of_date" required class="ob-input" />
+            </div>
+            <div>
+              <label class="ob-label" for="ob-account">{% trans "Account" %}</label>
+              <select id="ob-account" name="account_id" required class="ob-select">
+                <option value="">{% trans "Select account…" %}</option>
+                {% for a in accounts %}
+                <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="ob-label" for="ob-debit">{% trans "Debit" %}</label>
+                <input id="ob-debit" type="number" name="debit" step="0.01" value="0" class="ob-input ob-num" />
+              </div>
+              <div>
+                <label class="ob-label" for="ob-credit">{% trans "Credit" %}</label>
+                <input id="ob-credit" type="number" name="credit" step="0.01" value="0" class="ob-input ob-num" />
+              </div>
+            </div>
+            <button type="submit" class="ob-btn-primary">
+              <i data-feather="save" class="w-4 h-4"></i>
+              {% trans "Save opening balance" %}
+            </button>
+          </form>
+          <div class="ob-hint">
+            <strong class="text-[#323130]">{% trans "Guidance" %}</strong>
+            <ul>
+              <li>{% trans "Use the date that matches your fiscal year start or conversion date." %}</li>
+              <li>{% trans "Post regular journals after opening balances are balanced." %}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="xl:col-span-8">
+      <div class="ob-panel">
+        <div class="ob-panel-head">
+          <i data-feather="layers" class="w-4 h-4 text-[#605e5c]"></i>
+          <span class="ob-panel-head-title">{% trans "Existing lines" %}</span>
+        </div>
+        <div class="ob-table-wrap">
+          <table class="ob-table">
+            <thead>
+              <tr>
+                <th scope="col">{% trans "As of date" %}</th>
+                <th scope="col">{% trans "Account" %}</th>
+                <th scope="col" class="ob-th-num">{% trans "Debit" %}</th>
+                <th scope="col" class="ob-th-num">{% trans "Credit" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in balances %}
+              <tr>
+                <td class="whitespace-nowrap text-[#323130]">{{ b.as_of_date|date:"M j, Y" }}</td>
+                <td>
+                  <span class="font-mono text-[12px] text-[#0078d4] font-semibold">{{ b.account.code }}</span>
+                  <span class="text-[#605e5c]"> — {{ b.account.name }}</span>
+                </td>
+                <td class="ob-num">{% if b.debit %}{{ b.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td class="ob-num">{% if b.credit %}{{ b.credit|floatformat:2 }}{% else %}—{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4">
+                  <div class="ob-empty">
+                    <div class="ob-empty-icon">
+                      <i data-feather="inbox" class="w-6 h-6"></i>
+                    </div>
+                    {% trans "No opening balances recorded yet." %}
+                    <div class="text-[12px] mt-2 text-[#a19f9d]">{% trans "Saved lines will appear in this grid." %}</div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,37 +1,302 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Cash Flow Statement | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Statement of cash flows" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Cash Flow Statement</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Cash and bank movements for period {{ filters.period_start|date:"M d, Y" }} — {{ filters.period_end|date:"M d, Y" }}.</p>
+{% trans "Statement of cash flows" as cfs_report_title %}
+{% trans "Operating, investing, and financing cash flows (posted journals, cash and bank accounts)" as cfs_report_subtitle %}
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title=cfs_report_title report_subtitle=cfs_report_subtitle official_report_period_line=official_report_period_line %}
+
+<div class="frpt-print-root cfs-print-root dynamics-financial-report cfs-page max-w-[1200px] mx-auto w-full pb-10">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+{% include "tenant_portal/finance/_financial_report_print_styles.html" %}
+<style>
+  .cfs-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .cfs-report-wrap { max-width: 1200px; margin-left: auto; margin-right: auto; }
+  .cfs-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .cfs-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+  }
+  .cfs-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
+  .cfs-breadcrumb a:hover { text-decoration: underline; }
+  .cfs-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .cfs-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .cfs-subtitle {
+    margin-top: 0.35rem;
+    font-size: 13px;
+    color: #605e5c;
+    line-height: 1.55;
+    max-width: 52rem;
+  }
+  .cfs-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.35rem;
+  }
+  @media (max-width: 1024px) {
+    .cfs-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    .cfs-kpi-grid { grid-template-columns: 1fr; }
+  }
+  .cfs-kpi-card {
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.03);
+    border-top: 3px solid #0078d4;
+  }
+  .cfs-kpi-card--neutral { border-top-color: #8a8886; }
+  .cfs-kpi-card--ok { border-top-color: #107c10; }
+  .cfs-kpi-card--warn { border-top-color: #ca5010; }
+  .cfs-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .cfs-kpi-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #201f1e;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  .cfs-kpi-hint {
+    margin-top: 0.4rem;
+    font-size: 11px;
+    color: #8a8886;
+    line-height: 1.35;
+  }
+  .cfs-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .cfs-panel-head {
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .cfs-panel-head-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    color: #0078d4;
+  }
+  .cfs-panel-head-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .cfs-table-wrap { overflow-x: auto; }
+  .cfs-data-table { font-size: 13px; }
+  .cfs-data-table .cfs-th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .cfs-data-table .cfs-th-date { width: 6.5rem; }
+  .cfs-data-table .cfs-th-num,
+  .cfs-data-table .cfs-td-num { text-align: right; }
+  .cfs-data-table .cfs-th-action { width: 6.5rem; }
+  .cfs-data-table .cfs-td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .cfs-data-table .cfs-td-desc { color: #605e5c; font-size: 12px; }
+  .cfs-data-table .cfs-td-ref { font-size: 12px; }
+  .cfs-data-table tbody tr.cfs-row:nth-child(even) td { background: #faf9f8; }
+  .cfs-data-table tbody tr.cfs-row:hover td { background: #f3f9fd !important; }
+  .cfs-data-table .cfs-empty {
+    text-align: center;
+    color: #605e5c;
+    font-size: 13px;
+    padding: 1.75rem 1rem !important;
+  }
+  .cfs-journal-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+  }
+  .cfs-journal-link:hover { text-decoration: underline; }
+  .cfs-subtotal-row td {
+    background: #edebe9 !important;
+    font-weight: 700;
+    color: #201f1e;
+    border-bottom: none !important;
+    border-top: 1px solid #e1dfdd;
+  }
+  .cfs-subtotal-num { font-variant-numeric: tabular-nums; }
+  .cfs-summary-grand td {
+    background: #e1dfdd !important;
+    font-weight: 700;
+    font-size: 14px;
+    border-top: 3px solid #0078d4 !important;
+  }
+  @media print {
+    @page { size: A4 landscape; margin: 12mm 10mm 14mm 10mm; }
+    .cfs-print-root .cfs-report-wrap { max-width: 100% !important; }
+    .cfs-print-root .cfs-panel { box-shadow: none !important; break-inside: avoid; }
+    .cfs-data-table tbody tr.cfs-row:hover td { background: transparent !important; }
+    .cfs-data-table tbody tr.cfs-row:nth-child(even) td { background: transparent !important; }
+  }
+</style>
+
+<div class="hidden-print cfs-hero cfs-report-wrap">
+  <nav class="cfs-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+    <a href="{% url 'tenant_portal:finance_home' %}">{% trans "Finance" %}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span>{% trans "Statement of cash flows" %}</span>
+  </nav>
+  <h1 class="cfs-title">{% trans "Statement of cash flows" %}</h1>
+  <p class="cfs-subtitle">
+    {% blocktrans trimmed %}
+      IFRS-style presentation: cash flows from operating, investing, and financing activities. Amounts are derived from posted journals affecting cash and bank accounts only. Legal name and logo appear when you print.
+    {% endblocktrans %}
+  </p>
 </div>
 
-{% include "tenant_portal/finance/_filters_export.html" with grants=grants %}
+{% include "tenant_portal/finance/_filters_cfs.html" %}
+{% include "tenant_portal/finance/_report_validation_alerts.html" %}
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Cash and bank (net change)</div>
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-        <th class="px-4 py-2 font-semibold">Account</th>
-        <th class="px-4 py-2 font-semibold text-right">Net change</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for code, name, net in cash_lines %}
-      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-        <td class="px-4 py-2">{{ code }} — {{ name }}</td>
-        <td class="px-4 py-2 text-right">{{ net|floatformat:2 }}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="2" class="px-4 py-6 text-center text-[#605e5c]">No cash/bank activity in period.</td></tr>
-      {% endfor %}
-      <tr class="font-semibold border-t-2" style="border-color:#edebe9;">
-        <td class="px-4 py-2">Net cash movement</td>
-        <td class="px-4 py-2 text-right">{{ net_cash|floatformat:2 }}</td>
-      </tr>
-    </tbody>
-  </table>
+{% if report_validation and report_validation.cfs_cash_scope_ok %}
+<div class="cfs-kpi-grid cfs-report-wrap hidden-print">
+  <div class="cfs-kpi-card cfs-kpi-card--neutral">
+    <div class="cfs-kpi-label">{% trans "Opening cash" %}</div>
+    <div class="cfs-kpi-value">{{ report_validation.opening_cash|floatformat:2 }}</div>
+    <div class="cfs-kpi-hint">{% trans "Before period start (posted)" %}</div>
+  </div>
+  <div class="cfs-kpi-card">
+    <div class="cfs-kpi-label">{% trans "Net change" %}</div>
+    <div class="cfs-kpi-value">{{ net_cash|floatformat:2 }}</div>
+    <div class="cfs-kpi-hint">{% trans "Sum of sections (period)" %}</div>
+  </div>
+  <div class="cfs-kpi-card cfs-kpi-card--neutral">
+    <div class="cfs-kpi-label">{% trans "Closing cash" %}</div>
+    <div class="cfs-kpi-value">{{ report_validation.closing_cash|floatformat:2 }}</div>
+    <div class="cfs-kpi-hint">{% trans "As at period end (posted)" %}</div>
+  </div>
+  <div class="cfs-kpi-card {% if report_validation.cfs_roll_forward_ok and report_validation.cfs_bucket_ok %}cfs-kpi-card--ok{% else %}cfs-kpi-card--warn{% endif %}">
+    <div class="cfs-kpi-label">{% trans "Roll-forward" %}</div>
+    <div class="cfs-kpi-value" style="font-size:1rem;">
+      {% if report_validation.cfs_roll_forward_ok and report_validation.cfs_bucket_ok %}
+        {% trans "In balance" %}
+      {% else %}
+        {% trans "Review" %}
+      {% endif %}
+    </div>
+    <div class="cfs-kpi-hint">{% trans "Opening + movement = closing" %}</div>
+  </div>
+</div>
+{% elif report_validation %}
+<div class="cfs-kpi-grid cfs-report-wrap hidden-print">
+  <div class="cfs-kpi-card cfs-kpi-card--warn" style="grid-column: 1 / -1;">
+    <div class="cfs-kpi-label">{% trans "Cash scope" %}</div>
+    <div class="cfs-kpi-value" style="font-size:1rem;">{% trans "Link bank books or CASH/BANK chart categories" %}</div>
+    <div class="cfs-kpi-hint">{% trans "This report only includes defined cash and bank GL accounts." %}</div>
+  </div>
+</div>
+{% endif %}
+
+{% trans "Cash flows from operating activities" as sec_op %}
+{% trans "Cash flows from investing activities" as sec_inv %}
+{% trans "Cash flows from financing activities" as sec_fin %}
+{% trans "Net cash from operating activities" as lbl_op %}
+{% trans "Net cash from investing activities" as lbl_inv %}
+{% trans "Net cash from financing activities" as lbl_fin %}
+
+<div class="cfs-report-wrap print-area erp-section">
+  {% include "tenant_portal/finance/_cfs_section.html" with section_title=sec_op section_icon="activity" entries=cfs_operating_entries net_amount=cfs_net_operating net_label=lbl_op %}
+  {% include "tenant_portal/finance/_cfs_section.html" with section_title=sec_inv section_icon="package" entries=cfs_investing_entries net_amount=cfs_net_investing net_label=lbl_inv %}
+  {% include "tenant_portal/finance/_cfs_section.html" with section_title=sec_fin section_icon="percent" entries=cfs_financing_entries net_amount=cfs_net_financing net_label=lbl_fin %}
+
+  <div class="cfs-panel mb-0">
+    <div class="cfs-panel-head">
+      <i data-feather="dollar-sign" class="cfs-panel-head-icon" aria-hidden="true"></i>
+      <span class="cfs-panel-head-title">{% trans "Cash and cash equivalents — reconciliation" %}</span>
+    </div>
+    <div class="cfs-table-wrap">
+      <table class="cfs-data-table w-full border-collapse">
+        <tbody>
+          {% if report_validation and report_validation.cfs_cash_scope_ok %}
+          <tr class="cfs-row">
+            <td class="cfs-td" style="width:70%;">{% trans "Opening balance (before period start)" %}</td>
+            <td class="cfs-td cfs-td-num tabular-nums">{{ report_validation.opening_cash|floatformat:2 }}</td>
+          </tr>
+          <tr class="cfs-row">
+            <td class="cfs-td cfs-td-desc">{% trans "Net increase (decrease) — sum of operating, investing, and financing" %}</td>
+            <td class="cfs-td cfs-td-num tabular-nums">{{ net_cash|floatformat:2 }}</td>
+          </tr>
+          <tr class="cfs-row">
+            <td class="cfs-td cfs-td-desc">{% trans "Total posted movement on cash and bank (period)" %}</td>
+            <td class="cfs-td cfs-td-num tabular-nums">{{ period_cash_movement|floatformat:2 }}</td>
+          </tr>
+          <tr class="cfs-subtotal-row">
+            <td class="cfs-td cfs-subtotal-label">{% trans "Closing balance (as at period end)" %}</td>
+            <td class="cfs-td cfs-td-num cfs-subtotal-num">{{ report_validation.closing_cash|floatformat:2 }}</td>
+          </tr>
+          <tr class="cfs-row">
+            <td class="cfs-td cfs-td-desc" style="font-size:11px;">{% trans "Check: opening + period movement − closing (should be 0.00)" %}</td>
+            <td class="cfs-td cfs-td-num tabular-nums" style="font-size:12px;">{{ report_validation.cfs_roll_forward_delta|floatformat:2 }}</td>
+          </tr>
+          {% else %}
+          <tr class="cfs-row">
+            <td colspan="2" class="cfs-td cfs-empty">{% trans "Configure cash and bank accounts to show opening and closing balances." %}</td>
+          </tr>
+          {% endif %}
+          <tr class="cfs-subtotal-row cfs-summary-grand">
+            <td class="cfs-td">{% trans "Net increase (decrease) in cash and cash equivalents" %}</td>
+            <td class="cfs-td cfs-td-num cfs-subtotal-num">{{ net_cash|floatformat:2 }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 </div>
 {% endblock %}

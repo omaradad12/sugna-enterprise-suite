@@ -1,46 +1,285 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Expense Trend | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Activity expenses" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Expense Trend</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Monthly or quarterly expense analysis.</p>
-</div>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Activity expenses" official_report_period_line=official_report_period_line %}
 
-{% include "tenant_portal/finance/_filters_export.html" with grants=grants donors=donors %}
+<div class="dynamics-financial-report ae-rpt-root max-w-[1200px] mx-auto w-full pb-8">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .ae-rpt-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #323130;
+  }
+  .ae-hero {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .ae-breadcrumb {
+    font-size: 12px;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+  }
+  .ae-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
+  .ae-breadcrumb a:hover { text-decoration: underline; }
+  .ae-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
+  .ae-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #201f1e;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+  }
+  .ae-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (max-width: 640px) {
+    .ae-kpi-grid { grid-template-columns: 1fr; }
+  }
+  .ae-kpi-card {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-top: 3px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    padding: 1rem 1.15rem;
+  }
+  .ae-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #605e5c;
+  }
+  .ae-kpi-value {
+    margin-top: 0.35rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #201f1e;
+    line-height: 1.2;
+  }
+  .ae-kpi-hint {
+    margin-top: 0.35rem;
+    font-size: 11px;
+    color: #8a8886;
+    line-height: 1.35;
+  }
+  .ae-panel {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .ae-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 4px solid #0078d4;
+    padding-left: 0.85rem !important;
+  }
+  .ae-panel-head-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .ae-panel-meta {
+    font-size: 11px;
+    color: #605e5c;
+    font-weight: 600;
+  }
+  .ae-table-wrap { overflow-x: auto; }
+  .ae-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .ae-table thead th {
+    text-align: left;
+    padding: 0.55rem 1rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+  }
+  .ae-table thead th.ae-th-num { text-align: right; }
+  .ae-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+  }
+  .ae-table tbody tr:hover td { background: #f3f9fd; }
+  .ae-table tbody tr:last-child td { border-bottom: none; }
+  .ae-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #201f1e;
+  }
+  .ae-grant-hint {
+    font-size: 11px;
+    color: #605e5c;
+    margin-top: 0.2rem;
+    line-height: 1.35;
+  }
+  .ae-var-neg { color: #a4262c; font-weight: 600; }
+  .ae-var-pos { color: #107c10; font-weight: 600; }
+  .ae-empty {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    color: #605e5c;
+    font-size: 13px;
+  }
+  .dynamics-filter-grid.dynamics-filter-grid--inline-actions .dynamics-filter-field--actions .dynamics-filter-inline-actions {
+    align-items: center;
+  }
+</style>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
-    <p class="text-xs text-[#605e5c]">Total Expenses (Period)</p>
-    <p class="text-xl font-bold mt-1">{{ total_expenses|floatformat:2 }}</p>
+  <div class="ae-hero hidden-print">
+    <nav class="ae-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+      <a href="{% url 'tenant_portal:finance_home' %}">{% trans "Finance" %}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span>{% trans "Activity expenses" %}</span>
+    </nav>
+    <h1 class="ae-title">{% trans "Activity expenses" %}</h1>
   </div>
-  <div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
-    <p class="text-xs text-[#605e5c]">Average per Month</p>
-    <p class="text-xl font-bold mt-1">{{ avg_per_month|floatformat:2 }}</p>
-  </div>
-</div>
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">Expenses by Month</div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-          <th class="px-4 py-2 font-semibold">Month</th>
-          <th class="px-4 py-2 font-semibold text-right">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in monthly_rows %}
-        <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2">{{ row.month|date:"F Y" }}</td>
-          <td class="px-4 py-2 text-right font-medium">{{ row.total|floatformat:2 }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="2" class="px-4 py-6 text-center text-[#605e5c]">No expense data for the selected period.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="dynamics-filter-pane hidden-print max-w-[1200px] mx-auto">
+    <div class="dynamics-filter-head">
+      <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Period, donor, and grant scope" %}</span>
+    </div>
+    <form method="get" action="" id="ae-filter-form">
+      <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">
+        <div class="dynamics-filter-field">
+          <label for="ae-period-start">{% trans "From date" %}</label>
+          <input id="ae-period-start" type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="ae-period-end">{% trans "To date" %}</label>
+          <input id="ae-period-end" type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="ae-donor">{% trans "Donor" %}</label>
+          <select id="ae-donor" name="donor_id" class="dynamics-select min-w-[180px] max-w-[280px]">
+            <option value="">{% trans "All donors" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="ae-grant">{% trans "Grant" %}</label>
+          <select id="ae-grant" name="grant_id" class="dynamics-select min-w-[200px] max-w-[300px]">
+            <option value="">{% trans "All grants" %}</option>
+            {% for g in grants %}
+            <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:4 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field dynamics-filter-field--actions">
+          <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
+          <div class="dynamics-filter-inline-actions">
+            <button type="submit" class="dynamics-btn-primary">
+              <i data-feather="filter" class="w-4 h-4"></i>
+              {% trans "Apply filters" %}
+            </button>
+            <a href="{% url 'tenant_portal:finance_expense_trend' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+            {% if export_csv_url %}
+            <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
+              <i data-feather="download" class="w-4 h-4"></i>
+              {% trans "Export Excel" %}
+            </a>
+            {% endif %}
+            <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+              <i data-feather="printer" class="w-4 h-4"></i>
+              {% trans "Print / PDF" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="ae-kpi-grid hidden-print">
+    <div class="ae-kpi-card">
+      <div class="ae-kpi-label">{% trans "Total expenses (period)" %}</div>
+      <div class="ae-kpi-value">{{ total_expenses|floatformat:2 }}</div>
+      <div class="ae-kpi-hint">{% trans "Posted expense debits in scope" %}</div>
+    </div>
+    <div class="ae-kpi-card">
+      <div class="ae-kpi-label">{% trans "Average per month" %}</div>
+      <div class="ae-kpi-value">{{ avg_per_month|floatformat:2 }}</div>
+      <div class="ae-kpi-hint">{% blocktrans with n=num_months %}Spread over {{ n }} calendar month(s){% endblocktrans %}</div>
+    </div>
+  </div>
+
+  <div class="ae-panel print-area erp-section">
+    <div class="ae-panel-head">
+      <span class="ae-panel-head-title">
+        <i data-feather="trending-down" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+        {% trans "Expenses by budget line" %}
+      </span>
+      <span class="ae-panel-meta">{% trans "Lines" %} {{ expense_detail_rows|length }}</span>
+    </div>
+    <div class="ae-table-wrap">
+      <table class="ae-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Account" %}</th>
+            <th scope="col">{% trans "Budget line" %}</th>
+            <th scope="col">{% trans "Description" %}</th>
+            <th scope="col" class="ae-th-num">{% trans "Budget" %}</th>
+            <th scope="col" class="ae-th-num">{% trans "Actual" %}</th>
+            <th scope="col" class="ae-th-num">{% trans "Variance" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in expense_detail_rows %}
+          <tr class="dynamics-data-row">
+            <td>
+              <div>{{ row.account_display }}</div>
+              <div class="ae-grant-hint">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</div>
+            </td>
+            <td class="text-[#323130]">{{ row.budget_line_label }}</td>
+            <td class="text-[#605e5c]">{{ row.description }}</td>
+            <td class="ae-num">{{ row.budget|floatformat:2 }}</td>
+            <td class="ae-num">{{ row.actual|floatformat:2 }}</td>
+            <td class="ae-num {% if row.variance < 0 %}ae-var-neg{% else %}ae-var-pos{% endif %}">{{ row.variance|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td class="ae-empty" colspan="6">{% trans "No budget lines match these filters, or there is no expense activity in the period." %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}

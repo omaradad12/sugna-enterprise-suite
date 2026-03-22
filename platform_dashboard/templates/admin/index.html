@@ -18,30 +18,58 @@
         <div class="jazzy-erp-kpi-grid">
             <div class="card kpi-card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="kpi-label">{% trans "Total Tenants" %}</div>
-                    <div class="kpi-value tabular-nums" id="kpi_total_tenants">-</div>
-                    <div class="kpi-meta" id="kpi_total_tenants_meta">Loading...</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="kpi-icon kpi-icon-primary" aria-hidden="true">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="kpi-label">{% trans "Total Tenants" %}</div>
+                            <div class="kpi-value tabular-nums" id="kpi_total_tenants">-</div>
+                            <div class="kpi-meta" id="kpi_total_tenants_meta">Loading...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card kpi-card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="kpi-label">{% trans "Active Users" %}</div>
-                    <div class="kpi-value tabular-nums" id="kpi_active_users">-</div>
-                    <div class="kpi-meta" id="kpi_active_users_meta">Loading...</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="kpi-icon kpi-icon-success" aria-hidden="true">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="kpi-label">{% trans "Active Users" %}</div>
+                            <div class="kpi-value tabular-nums" id="kpi_active_users">-</div>
+                            <div class="kpi-meta" id="kpi_active_users_meta">Loading...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card kpi-card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="kpi-label">{% trans "Open Tickets" %}</div>
-                    <div class="kpi-value tabular-nums" id="kpi_open_tickets">-</div>
-                    <div class="kpi-meta" id="kpi_open_tickets_meta">Loading...</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="kpi-icon kpi-icon-warning" aria-hidden="true">
+                            <i class="fas fa-ticket-alt"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="kpi-label">{% trans "Open Tickets" %}</div>
+                            <div class="kpi-value tabular-nums" id="kpi_open_tickets">-</div>
+                            <div class="kpi-meta" id="kpi_open_tickets_meta">Loading...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card kpi-card h-100 shadow-sm">
                 <div class="card-body">
-                    <div class="kpi-label">{% trans "System Health" %}</div>
-                    <div class="kpi-value tabular-nums" id="kpi_system_health">-</div>
-                    <div class="kpi-meta" id="kpi_system_health_meta">Checking...</div>
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="kpi-icon kpi-icon-danger" aria-hidden="true">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="kpi-label">{% trans "System Health" %}</div>
+                            <div class="kpi-value tabular-nums" id="kpi_system_health">-</div>
+                            <div class="kpi-meta" id="kpi_system_health_meta">Checking...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -178,40 +206,48 @@
                     {% if not admin_log %}
                         <p class="text-muted mb-0">{% trans "None available" %}</p>
                     {% else %}
-                        <div class="timeline">
+                        <div class="jazzy-activity-list">
                             {% for entry in admin_log %}
-                                <div>
-                                    {% if entry.is_change %}
-                                        <i class="fas fa-edit bg-gray text-xs"></i>
-                                    {% elif entry.is_deletion %}
-                                        <i class="fas fa-trash bg-danger text-xs"></i>
-                                    {% elif entry.is_addition %}
-                                        <i class="fas fa-plus-circle bg-success text-xs"></i>
-                                    {% endif %}
+                                <div class="jazzy-activity-item">
+                                    <div class="jazzy-activity-dot
+                                        {% if entry.is_addition %} jazzy-dot-success
+                                        {% elif entry.is_deletion %} jazzy-dot-error
+                                        {% else %} jazzy-dot-info
+                                        {% endif %}"
+                                    aria-hidden="true"></div>
 
-                                    <div class="timeline-item">
-                                        <span class="time"><i class="fas fa-clock"></i> {% blocktrans with timesince=entry.action_time|timesince %}{{ timesince }} ago{% endblocktrans %}</span>
-                                        <h3 class="timeline-header no-border">
-                                            {% if entry.is_deletion or not entry.get_admin_url %}
-                                                {{ entry.object_repr }}
-                                            {% else %}
-                                                <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
-                                            {% endif %}
+                                    <div class="jazzy-activity-content">
+                                        <div class="d-flex align-items-start justify-content-between gap-3">
+                                            <div class="min-w-0">
+                                                <div class="jazzy-activity-title">
+                                                    {% if entry.is_deletion or not entry.get_admin_url %}
+                                                        {{ entry.object_repr }}
+                                                    {% else %}
+                                                        <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                                                    {% endif %}
+                                                </div>
 
-                                            {% if entry.model %}
-                                                <span class="mini quiet">
-                                                    {% filter capfirst %}
-                                                        {{ entry.model }}
-                                                    {% endfilter %}
-                                                </span>
-                                            {% endif %}
-                                        </h3>
+                                                {% if entry.model %}
+                                                    <div class="jazzy-activity-subtitle">
+                                                        {% filter capfirst %}
+                                                            {{ entry.model }}
+                                                        {% endfilter %}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="jazzy-activity-time text-nowrap">
+                                                <i class="fas fa-clock me-1"></i>
+                                                {% blocktrans with timesince=entry.action_time|timesince %}{{ timesince }} ago{% endblocktrans %}
+                                            </div>
+                                        </div>
+
                                         {% if not entry.is_deletion %}
-                                            <div class="timeline-body">
+                                            <div class="jazzy-activity-body">
                                                 {% if entry.is_addition %}
                                                     {{ entry }}
                                                 {% else %}
-                                                    <ul style="list-style: none; padding: 0;">
+                                                    <ul class="jazzy-activity-messages">
                                                         {% action_message_to_list entry as action_message_list %}
                                                         {% for action_message in action_message_list %}
                                                             <li>{{ action_message.msg|style_bold_first_word }}</li>
@@ -223,9 +259,6 @@
                                     </div>
                                 </div>
                             {% endfor %}
-                            <div>
-                                <i class="fa fa-clock bg-gray"></i>
-                            </div>
                         </div>
                     {% endif %}
                 </div>
@@ -241,6 +274,21 @@
                 el.textContent = text;
             }
 
+            function setSystemHealthKpi(text, meta) {
+                var el = document.getElementById("kpi_system_health");
+                if (!el) return;
+                el.textContent = text;
+                el.classList.remove("kpi-value--healthy", "kpi-value--warn", "kpi-value--neutral");
+                if (text === "Healthy") {
+                    el.classList.add("kpi-value--healthy");
+                } else if (text === "Attention") {
+                    el.classList.add("kpi-value--warn");
+                } else {
+                    el.classList.add("kpi-value--neutral");
+                }
+                setText("kpi_system_health_meta", meta || "");
+            }
+
             function safeText(val, fallback) {
                 if (val === null || val === undefined) return fallback;
                 var s = String(val).trim();
@@ -249,7 +297,7 @@
 
             function extractCountFromHtml(htmlText) {
                 if (!htmlText) return null;
-                var m = htmlText.match(/([0-9]+)\\s+results?/i) || htmlText.match(/([0-9]+)\\s+result\\b/i);
+                var m = htmlText.match(/([0-9]+)\s+results?/i) || htmlText.match(/([0-9]+)\s+result\b/i);
                 if (!m) return null;
                 var n = parseInt(m[1], 10);
                 return Number.isFinite(n) ? n : null;
@@ -289,7 +337,7 @@
                 setText("kpi_total_tenants", "-");
                 setText("kpi_active_users", "-");
                 setText("kpi_open_tickets", "-");
-                setText("kpi_system_health", "-");
+                setSystemHealthKpi("-", "Checking...");
 
                 var health = null;
                 try {
@@ -325,8 +373,7 @@
                     addAlert(cacheOk ? "success" : "warning", "Cache status", cacheOk ? "Cache appears healthy." : "Cache check failed.");
                     addAlert(tenantErrors ? "warning" : "success", "Tenant database checks", tenantErrors ? (tenantErrors + " tenant(s) reported errors.") : "All tenant checks returned ok.");
                 } else {
-                    setText("kpi_system_health", "Unknown");
-                    setText("kpi_system_health_meta", "Health check unavailable");
+                    setSystemHealthKpi("Unknown", "Health check unavailable");
                 }
 
                 // Active users (parse Jazzmin/Django changelist HTML)

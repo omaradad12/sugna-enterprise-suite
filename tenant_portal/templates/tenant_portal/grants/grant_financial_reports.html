@@ -1,15 +1,17 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Grant Financial Reports | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}Grant financial reports | Grants{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Grant Financial Reports</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Generate grant financial reports for donors. Budget vs spent by grant.</p>
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Grant financial reports" report_subtitle="Budget, spent, and remaining by grant" official_report_period_line=official_report_period_line %}
+
+<div class="mb-4 hidden-print">
+  <h1 class="text-2xl font-bold tracking-tight">Grant financial reports</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">On-screen summary. Full legal name and logo appear in CSV, Excel, PDF, and print.</p>
 </div>
 
 {% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+<div class="bg-white border rounded-lg overflow-hidden print-area erp-section" style="border-color:#edebe9;">
   <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Grant financial summary</div>
   <table class="w-full text-sm">
     <thead>

@@ -1,0 +1,305 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "New adjusting journal" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+{{ accounting_period_rows|json_script:"accounting-period-rows" }}
+{{ grant_rows|json_script:"grant-rows-data" }}
+{{ accounts_json|json_script:"chart-accounts-data" }}
+<div class="max-w-5xl mx-auto" x-data="adjustingJournalForm()" x-init="init()">
+  <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+    <div>
+      <a href="{% url 'tenant_portal:finance_adjusting_journals' %}" class="text-[13px] font-semibold text-[#0078D4] hover:underline">← {% trans "Adjusting journals" %}</a>
+      <h1 class="page-title mt-2">{% trans "New adjusting journal" %}</h1>
+      <p class="text-[13px] text-[#605e5c] mt-1">{% trans "NGO adjusting entry: draft first, then submit → approve → post." %}</p>
+    </div>
+  </div>
+
+  <form method="post" action="" enctype="multipart/form-data" class="space-y-6"
+        @submit="beforeSubmit($event)">
+    {% csrf_token %}
+
+    <!-- Section 1 -->
+    <div class="bg-white border rounded-xl shadow-sm overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">
+        {% trans "Journal information" %}
+      </div>
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Journal date" %} *</label>
+          <input type="date" name="entry_date" required x-model="entryDate"
+                 class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                 style="border-color:#edebe9;">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Posting date" %} *</label>
+          <input type="date" name="posting_date" required x-model="postingDate" @change="updateAccountingPeriodLabel()"
+                 class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                 style="border-color:#edebe9;">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Accounting period" %}</label>
+          <input type="text" readonly :value="accountingPeriodLabel"
+                 class="w-full px-3 py-2 rounded border text-sm bg-[#f3f2f1] text-[#323130]"
+                 style="border-color:#edebe9;">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Reference number" %}</label>
+          <input type="text" name="reference" maxlength="60"
+                 class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                 style="border-color:#edebe9;" placeholder="{% trans 'Optional' %}">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Adjustment type" %} *</label>
+          <select name="adjustment_type" required
+                  class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                  style="border-color:#edebe9;">
+            <option value="">{% trans "— Select —" %}</option>
+            {% for value, label in adjustment_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Description" %} *</label>
+          <textarea name="memo" required rows="3" maxlength="255"
+                    class="w-full px-3 py-2 rounded border text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                    style="border-color:#edebe9;" placeholder="{% trans 'Required narrative for audit trail' %}"></textarea>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Attachment" %}</label>
+          <input type="file" name="attachment"
+                 class="w-full text-sm text-[#605e5c] file:mr-3 file:py-2 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#f3f2f1] file:text-[#323130]">
+          <p class="text-[11px] text-[#605e5c] mt-1">{% trans "Optional supporting document." %}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="bg-white border rounded-xl shadow-sm overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">
+        {% trans "Dimensions" %}
+      </div>
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Project / grant" %}</label>
+          <select name="grant_id" x-model="headerGrant" @change="onHeaderGrantChange()"
+                  class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                  style="border-color:#edebe9;">
+            <option value="">{% trans "None" %}</option>
+            {% for g in grant_rows %}
+            <option value="{{ g.id }}">{{ g.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Fund" %}</label>
+          <input type="text" readonly :value="fundLabel"
+                 class="w-full px-3 py-2 rounded border text-sm bg-[#f3f2f1] text-[#323130]"
+                 style="border-color:#edebe9;">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Donor" %}</label>
+          <select name="donor_id" x-model="headerDonor"
+                  class="w-full px-3 py-2 rounded border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30"
+                  style="border-color:#edebe9;">
+            <option value="">{% trans "None" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+          <p class="text-[11px] text-[#605e5c] mt-1">{% trans "Optional; auto-filled when a grant is selected." %}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="bg-white border rounded-xl shadow-sm overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b font-semibold text-[#323130] flex items-center justify-between" style="border-color:#edebe9; background:#faf9f8;">
+        <span>{% trans "Journal lines" %}</span>
+        <button type="button" @click="addLine()"
+                class="text-[13px] font-semibold text-[#0078D4] hover:underline">+ {% trans "Add line" %}</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-xs">
+          <thead style="background:#faf9f8;">
+            <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+              <th class="px-3 py-2 font-semibold">{% trans "Account" %} *</th>
+              <th class="px-3 py-2 font-semibold">{% trans "Project / grant" %}</th>
+              <th class="px-3 py-2 font-semibold">{% trans "Description" %}</th>
+              <th class="px-3 py-2 font-semibold text-right">{% trans "Debit" %}</th>
+              <th class="px-3 py-2 font-semibold text-right">{% trans "Credit" %}</th>
+              <th class="px-2 py-2 w-10"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(line, idx) in lines" :key="idx">
+              <tr class="border-t" style="border-color:#edebe9;">
+                <td class="px-3 py-1.5 align-top">
+                  <select name="line_account" class="w-full min-w-[200px] px-2 py-1.5 rounded border bg-white text-xs"
+                          style="border-color:#edebe9;" x-model="line.account">
+                    <option value="">—</option>
+                    <template x-for="a in chartAccounts" :key="a.id">
+                      <option :value="a.id" x-text="a.label"></option>
+                    </template>
+                  </select>
+                </td>
+                <td class="px-3 py-1.5 align-top">
+                  <select name="line_grant" class="w-full min-w-[180px] px-2 py-1.5 rounded border bg-white text-xs"
+                          style="border-color:#edebe9;" x-model="line.grant">
+                    <option value="">—</option>
+                    <template x-for="g in grantRows" :key="g.id">
+                      <option :value="g.id" x-text="g.label"></option>
+                    </template>
+                  </select>
+                </td>
+                <td class="px-3 py-1.5 align-top">
+                  <input name="line_description" x-model="line.description"
+                         class="w-full min-w-[120px] px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;">
+                </td>
+                <td class="px-3 py-1.5 align-top text-right">
+                  <input name="line_debit" x-model="line.debit" inputmode="decimal"
+                         class="w-full px-2 py-1.5 rounded border text-xs text-right" style="border-color:#edebe9;" placeholder="0.00">
+                </td>
+                <td class="px-3 py-1.5 align-top text-right">
+                  <input name="line_credit" x-model="line.credit" inputmode="decimal"
+                         class="w-full px-2 py-1.5 rounded border text-xs text-right" style="border-color:#edebe9;" placeholder="0.00">
+                </td>
+                <td class="px-1 py-1 align-top text-center">
+                  <button type="button" @click="removeLine(idx)" class="text-[#a4262c] p-1" title="{% trans 'Remove' %}">
+                    <i data-feather="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot style="background:#faf9f8;">
+            <tr class="border-t font-semibold text-[#323130]" style="border-color:#edebe9;">
+              <td colspan="3" class="px-3 py-2 text-right">{% trans "Totals" %}</td>
+              <td class="px-3 py-2 text-right tabular-nums" x-text="formatNum(totalDebit())"></td>
+              <td class="px-3 py-2 text-right tabular-nums" x-text="formatNum(totalCredit())"></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="px-4 py-3 text-[11px] text-[#605e5c] border-t" style="border-color:#edebe9;">
+        {% trans "Minimum two lines; each line has debit or credit (not both); debits must equal credits; posting date must fall in an open accounting period (see Financial Setup); accounts must be active posting (leaf) accounts." %}
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-3">
+      <a href="{% url 'tenant_portal:finance_adjusting_journals' %}"
+         class="px-4 py-2.5 rounded border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">{% trans "Cancel" %}</a>
+      <button type="submit"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-sm font-medium text-white shadow-sm hover:shadow"
+              style="background:#0078D4;">
+        <i data-feather="save" class="w-4 h-4"></i>
+        {% trans "Save draft" %}
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+function adjustingJournalForm() {
+  return {
+    entryDate: '{{ today|date:"Y-m-d" }}',
+    postingDate: '{{ today|date:"Y-m-d" }}',
+    accountingPeriodLabel: '—',
+    fundLabel: '—',
+    headerGrant: '',
+    headerDonor: '',
+    periods: [],
+    grantRows: [],
+    chartAccounts: [],
+    lines: [
+      { account: '', grant: '', description: '', debit: '', credit: '' },
+      { account: '', grant: '', description: '', debit: '', credit: '' },
+    ],
+    init() {
+      const pEl = document.getElementById('accounting-period-rows');
+      if (pEl && pEl.textContent) {
+        try { this.periods = JSON.parse(pEl.textContent); } catch (e) { this.periods = []; }
+      }
+      const gEl = document.getElementById('grant-rows-data');
+      if (gEl && gEl.textContent) {
+        try { this.grantRows = JSON.parse(gEl.textContent); } catch (e) { this.grantRows = []; }
+      }
+      const aEl = document.getElementById('chart-accounts-data');
+      if (aEl && aEl.textContent) {
+        try { this.chartAccounts = JSON.parse(aEl.textContent); } catch (e) { this.chartAccounts = []; }
+      }
+      this.updateAccountingPeriodLabel();
+      if (window.feather) window.feather.replace();
+    },
+    updateAccountingPeriodLabel() {
+      const d = this.postingDate;
+      if (!d || !this.periods.length) { this.accountingPeriodLabel = '—'; return; }
+      for (const p of this.periods) {
+        if (p.start <= d && d <= p.end) { this.accountingPeriodLabel = p.label; return; }
+      }
+      this.accountingPeriodLabel = '—';
+    },
+    onHeaderGrantChange() {
+      const id = this.headerGrant;
+      const row = this.grantRows.find((r) => String(r.id) === String(id));
+      if (row) {
+        this.fundLabel = row.fund_label || '—';
+        if (row.donor_id) this.headerDonor = String(row.donor_id);
+      } else {
+        this.fundLabel = '—';
+      }
+      for (const line of this.lines) {
+        line.grant = id || '';
+      }
+    },
+    addLine() {
+      const g = this.headerGrant || '';
+      this.lines.push({ account: '', grant: g, description: '', debit: '', credit: '' });
+      this.$nextTick(() => { if (window.feather) window.feather.replace(); });
+    },
+    removeLine(idx) {
+      if (this.lines.length <= 2) return;
+      this.lines.splice(idx, 1);
+    },
+    parseAmt(s) {
+      const t = (s || '').trim();
+      if (!t) return 0;
+      const n = parseFloat(t.replace(/,/g, ''));
+      return isNaN(n) ? 0 : n;
+    },
+    totalDebit() {
+      return this.lines.reduce((s, l) => s + this.parseAmt(l.debit), 0);
+    },
+    totalCredit() {
+      return this.lines.reduce((s, l) => s + this.parseAmt(l.credit), 0);
+    },
+    formatNum(n) {
+      return (Math.round(n * 100) / 100).toFixed(2);
+    },
+    beforeSubmit(ev) {
+      const rows = this.lines.filter((l) => (l.account || '').trim());
+      if (rows.length < 2) {
+        ev.preventDefault();
+        alert('{% trans "At least two lines with accounts are required." %}');
+        return false;
+      }
+      let td = 0, tc = 0;
+      for (const l of rows) {
+        const d = this.parseAmt(l.debit), c = this.parseAmt(l.credit);
+        if (d && c) { ev.preventDefault(); alert('{% trans "Each line may have only debit or credit." %}'); return false; }
+        if (!d && !c) { ev.preventDefault(); alert('{% trans "Each line must have a debit or credit amount." %}'); return false; }
+        td += d; tc += c;
+      }
+      if (Math.abs(td - tc) > 0.001) {
+        ev.preventDefault();
+        alert('{% trans "Total debits must equal total credits." %}');
+        return false;
+      }
+      return true;
+    },
+  };
+}
+</script>
+{% endblock %}
