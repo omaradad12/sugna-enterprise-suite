@@ -38,9 +38,45 @@ elif _tam in ("false", "0", "no"):
 else:
     TENANT_AUTO_MIGRATE = DEBUG
 
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+def _split_csv(value: str) -> list[str]:
+    return [x.strip() for x in (value or "").split(",") if x.strip()]
+
+
+# Host header validation (400 Bad Request if the browser Host is not listed when DEBUG is False).
+_env_hosts = _split_csv(os.environ.get("ALLOWED_HOSTS", ""))
+_extra_hosts = _split_csv(os.environ.get("ALLOWED_HOSTS_EXTRA", ""))
+if _env_hosts:
+    ALLOWED_HOSTS = list(dict.fromkeys(_env_hosts + _extra_hosts))
+elif DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    # Production: explicit ALLOWED_HOSTS env is recommended. If unset, allow primary Sugna domain
+    # so https://sugnaerp.com does not 400 after deploy (health checks: localhost).
+    ALLOWED_HOSTS = list(
+        dict.fromkeys(
+            ["sugnaerp.com", "www.sugnaerp.com", "127.0.0.1", "localhost"] + _extra_hosts
+        )
+    )
+
 if os.environ.get("CSRF_TRUSTED_ORIGINS"):
-    CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ["CSRF_TRUSTED_ORIGINS"].split(",") if o.strip()]
+    CSRF_TRUSTED_ORIGINS = _split_csv(os.environ["CSRF_TRUSTED_ORIGINS"])
+elif not DEBUG:
+    # HTTPS forms (login, contact) need trusted origins when behind TLS.
+    CSRF_TRUSTED_ORIGINS = []
+    for host in ALLOWED_HOSTS:
+        if host == "*" or host.startswith("."):
+            continue
+        if host in ("127.0.0.1", "localhost"):
+            CSRF_TRUSTED_ORIGINS.extend(
+                [f"http://{host}", f"http://{host}:8000"]
+            )
+        else:
+            CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+    if not CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS = ["https://sugnaerp.com", "https://www.sugnaerp.com"]
+
+if os.environ.get("USE_X_FORWARDED_HOST", "").lower() in ("1", "true", "yes"):
+    USE_X_FORWARDED_HOST = True
 
 # Production security hardening
 # These should generally be enabled when DEBUG=false and the app is behind a TLS-terminating reverse proxy.
