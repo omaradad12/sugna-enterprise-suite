@@ -610,18 +610,38 @@ class ReportingRequirement(models.Model):
 
 
 class ReportingDeadline(models.Model):
-    """Report submission deadlines and status."""
+    """Report submission deadlines; open/submitted stored, upcoming/due/overdue derived from dates."""
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
+        OPEN = "open", "Open"
         SUBMITTED = "submitted", "Submitted"
+
+    class Priority(models.TextChoices):
+        LOW = "low", "Low"
+        NORMAL = "normal", "Normal"
+        HIGH = "high", "High"
+        CRITICAL = "critical", "Critical"
+
+    class DisplayStatus(models.TextChoices):
+        UPCOMING = "upcoming", "Upcoming"
+        DUE = "due", "Due"
         OVERDUE = "overdue", "Overdue"
+        SUBMITTED = "submitted", "Submitted"
+
+    REMINDER_MILESTONE_DAYS = (30, 14, 7, 3)
 
     donor = models.ForeignKey(
         Donor, on_delete=models.CASCADE, related_name="reporting_deadlines", null=True, blank=True
     )
     grant = models.ForeignKey(
         "Grant", on_delete=models.CASCADE, related_name="reporting_deadlines", null=True, blank=True
+    )
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reporting_deadlines",
     )
     requirement = models.ForeignKey(
         ReportingRequirement,
@@ -631,10 +651,37 @@ class ReportingDeadline(models.Model):
         related_name="deadlines",
     )
     title = models.CharField(max_length=200)
-    deadline_date = models.DateField()
+    reporting_period_from = models.DateField(null=True, blank=True)
+    reporting_period_to = models.DateField(null=True, blank=True)
+    deadline_date = models.DateField(db_index=True)
+    submitted_date = models.DateField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True
+        max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
+    )
+    responsible_user = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reporting_deadlines_responsible",
+    )
+    reviewer_user = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reporting_deadlines_reviewer",
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=Priority.choices,
+        default=Priority.NORMAL,
+        db_index=True,
+    )
+    reminder_days_before = models.PositiveSmallIntegerField(
+        default=7,
+        help_text="Within this many days before the deadline, status shows as Due (if not submitted).",
     )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -644,6 +691,82 @@ class ReportingDeadline(models.Model):
 
     def __str__(self) -> str:
         return f"{self.title} — {self.deadline_date}"
+
+    def clean(self) -> None:
+        errs = {}
+        if (
+            self.reporting_period_from
+            and self.reporting_period_to
+            and self.reporting_period_to < self.reporting_period_from
+        ):
+            errs["reporting_period_to"] = _("Reporting period end cannot be before start.")
+        if errs:
+            raise ValidationError(errs)
+
+    def is_submitted_record(self) -> bool:
+        return self.status == self.Status.SUBMITTED or bool(self.submitted_at)
+
+    def days_remaining(self, today=None) -> int | None:
+        from django.utils import timezone
+
+        td = today if today is not None else timezone.now().date()
+        if self.is_submitted_record():
+            return None
+        return (self.deadline_date - td).days
+
+    def is_overdue(self, today=None) -> bool:
+        from django.utils import timezone
+
+        td = today if today is not None else timezone.now().date()
+        return not self.is_submitted_record() and self.deadline_date < td
+
+    def display_status(self, today=None) -> str:
+        """upcoming | due | overdue | submitted (for UI and exports)."""
+        from django.utils import timezone
+
+        td = today if today is not None else timezone.now().date()
+        if self.is_submitted_record():
+            return self.DisplayStatus.SUBMITTED
+        if self.deadline_date < td:
+            return self.DisplayStatus.OVERDUE
+        days_left = (self.deadline_date - td).days
+        threshold = self.reminder_days_before or 7
+        if days_left <= threshold:
+            return self.DisplayStatus.DUE
+        return self.DisplayStatus.UPCOMING
+
+    def display_status_label(self, today=None) -> str:
+        code = self.display_status(today)
+        return str(self.DisplayStatus(code).label)
+
+    def effective_project(self):
+        if self.project_id:
+            return self.project
+        if self.grant_id and getattr(self.grant, "project_id", None):
+            return self.grant.project
+        return None
+
+    def reminder_milestone_hit(self, today=None) -> int | None:
+        """If today matches a standard reminder day (30/14/7/3 days before deadline), return that value."""
+        from django.utils import timezone
+
+        td = today if today is not None else timezone.now().date()
+        if self.is_submitted_record():
+            return None
+        left = (self.deadline_date - td).days
+        if left in self.REMINDER_MILESTONE_DAYS:
+            return left
+        return None
+
+    @property
+    def remaining_days(self) -> int | None:
+        """Calendar days until deadline; negative if past; None if already submitted."""
+        return self.days_remaining()
+
+    @property
+    def deadline_status_code(self) -> str:
+        """Display status key for templates: upcoming | due | overdue | submitted."""
+        return self.display_status()
 
 
 class Project(models.Model):

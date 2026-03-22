@@ -7734,7 +7734,7 @@ def _active_donors_queryset(tenant_db):
 
 
 def _parse_grants_filters(request):
-    """Parse donor_id, grant_id, period for Funds & Donors pages."""
+    """Parse donor_id, grant_id, project_id, deadline_status, period for Funds & Donors pages."""
     from django.utils.dateparse import parse_date
     from django.utils import timezone
     today = timezone.now().date()
@@ -7749,6 +7749,8 @@ def _parse_grants_filters(request):
         "period_end": period_end,
         "donor_id": request.GET.get("donor_id") or "",
         "grant_id": request.GET.get("grant_id") or "",
+        "project_id": request.GET.get("project_id") or "",
+        "deadline_status": (request.GET.get("deadline_status") or "").strip().lower(),
         "q": (request.GET.get("q") or "").strip(),
     }
 
@@ -12052,81 +12054,205 @@ def grants_donor_compliance_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_reporting_deadlines_view(request: HttpRequest) -> HttpResponse:
+    from django.db.models import Q
     from django.utils import timezone
-    from tenant_grants.models import ReportingDeadline, ReportingRequirement, Donor, Grant
     from django.utils.dateparse import parse_date
+    from tenant_grants.models import ReportingDeadline, ReportingRequirement, Donor, Grant, Project
+    from tenant_users.models import TenantUser
+    from datetime import timedelta
 
     tenant_db = request.tenant_db
     today = timezone.now().date()
+
     if request.method == "POST":
         action = request.POST.get("action") or ""
         if action == "mark_submitted":
             dl_id = request.POST.get("deadline_id")
             if dl_id:
-                d = ReportingDeadline.objects.using(tenant_db).filter(pk=dl_id).first()
-                if d:
+                d = (
+                    ReportingDeadline.objects.using(tenant_db)
+                    .filter(pk=dl_id)
+                    .select_related("donor", "grant", "project")
+                    .first()
+                )
+                if d and not d.is_submitted_record():
+                    sub_date = parse_date(request.POST.get("submitted_date") or "") or today
                     d.status = ReportingDeadline.Status.SUBMITTED
                     d.submitted_at = timezone.now()
-                    d.save(update_fields=["status", "submitted_at"])
+                    d.submitted_date = sub_date
+                    d.save(update_fields=["status", "submitted_at", "submitted_date"])
                     messages.success(request, "Marked as submitted.")
                     return redirect(reverse("tenant_portal:grants_reporting_deadlines"))
         if action == "create_deadline":
             donor_id = request.POST.get("donor_id") or ""
             grant_id = request.POST.get("grant_id") or ""
+            project_id = request.POST.get("project_id") or ""
             requirement_id = request.POST.get("requirement_id") or ""
             title = (request.POST.get("title") or "").strip()
             deadline_date = parse_date(request.POST.get("deadline_date") or "")
+            reporting_period_from = parse_date(request.POST.get("reporting_period_from") or "")
+            reporting_period_to = parse_date(request.POST.get("reporting_period_to") or "")
+            submitted_date = parse_date(request.POST.get("submitted_date") or "")
             notes = (request.POST.get("notes") or "").strip()
-            if not donor_id or not grant_id or not title or not deadline_date:
-                messages.error(request, "Please provide donor, grant, title, and deadline date.")
+            priority = (request.POST.get("priority") or ReportingDeadline.Priority.NORMAL).strip()
+            if priority not in dict(ReportingDeadline.Priority.choices):
+                priority = ReportingDeadline.Priority.NORMAL
+            try:
+                reminder_days_before = int(request.POST.get("reminder_days_before") or "7")
+            except ValueError:
+                reminder_days_before = 7
+            reminder_days_before = max(1, min(reminder_days_before, 365))
+            responsible_id = request.POST.get("responsible_user_id") or ""
+            reviewer_id = request.POST.get("reviewer_user_id") or ""
+            donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first() if donor_id else None
+            grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first() if grant_id else None
+            project = Project.objects.using(tenant_db).filter(pk=project_id).first() if project_id else None
+            req = (
+                ReportingRequirement.objects.using(tenant_db).filter(pk=requirement_id).first()
+                if requirement_id
+                else None
+            )
+            responsible = (
+                TenantUser.objects.using(tenant_db).filter(pk=responsible_id).first()
+                if responsible_id
+                else None
+            )
+            reviewer = (
+                TenantUser.objects.using(tenant_db).filter(pk=reviewer_id).first() if reviewer_id else None
+            )
+            if not donor or not title or not deadline_date:
+                messages.error(request, "Please provide donor, title, and deadline date.")
+            elif not grant and not project:
+                messages.error(request, "Select a grant or a project (or both).")
             else:
-                donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first()
-                grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first()
-                req = (
-                    ReportingRequirement.objects.using(tenant_db).filter(pk=requirement_id).first()
-                    if requirement_id else None
+                initial_status = (
+                    ReportingDeadline.Status.SUBMITTED
+                    if submitted_date
+                    else ReportingDeadline.Status.OPEN
                 )
-                if donor and grant:
-                    ReportingDeadline.objects.using(tenant_db).create(
-                        donor=donor,
-                        grant=grant,
-                        requirement=req,
-                        title=title,
-                        deadline_date=deadline_date,
-                        status=ReportingDeadline.Status.PENDING,
-                        notes=notes,
-                    )
-                    messages.success(request, "Reporting deadline created.")
-                    return redirect(reverse("tenant_portal:grants_reporting_deadlines"))
+                submitted_at = timezone.now() if submitted_date else None
+                ReportingDeadline.objects.using(tenant_db).create(
+                    donor=donor,
+                    grant=grant,
+                    project=project,
+                    requirement=req,
+                    title=title,
+                    reporting_period_from=reporting_period_from,
+                    reporting_period_to=reporting_period_to,
+                    deadline_date=deadline_date,
+                    submitted_date=submitted_date or None,
+                    submitted_at=submitted_at,
+                    status=initial_status,
+                    notes=notes,
+                    priority=priority,
+                    reminder_days_before=reminder_days_before,
+                    responsible_user=responsible,
+                    reviewer_user=reviewer,
+                )
+                messages.success(request, "Reporting deadline created.")
+                return redirect(reverse("tenant_portal:grants_reporting_deadlines"))
     f = _parse_grants_filters(request)
-    qs = ReportingDeadline.objects.using(tenant_db).select_related("donor", "grant", "requirement").order_by("deadline_date")
+    if not (request.GET.get("period_start") or "").strip():
+        f["period_start"] = today - timedelta(days=180)
+    if not (request.GET.get("period_end") or "").strip():
+        f["period_end"] = today + timedelta(days=730)
+    qs = (
+        ReportingDeadline.objects.using(tenant_db)
+        .select_related(
+            "donor",
+            "grant",
+            "grant__project",
+            "project",
+            "requirement",
+            "responsible_user",
+            "reviewer_user",
+        )
+        .filter(
+            deadline_date__gte=f["period_start"],
+            deadline_date__lte=f["period_end"],
+        )
+    )
     if f["donor_id"]:
         qs = qs.filter(donor_id=f["donor_id"])
     if f["grant_id"]:
         qs = qs.filter(grant_id=f["grant_id"])
-    deadlines = list(qs[:100])
-    overdue = [d for d in deadlines if d.deadline_date < today and d.status == ReportingDeadline.Status.PENDING]
+    if f["project_id"]:
+        qs = qs.filter(Q(project_id=f["project_id"]) | Q(grant__project_id=f["project_id"]))
+    deadlines = list(qs.order_by("deadline_date", "id")[:500])
+    _allowed_disp = {k for k, _ in ReportingDeadline.DisplayStatus.choices}
+    if f["deadline_status"] in _allowed_disp:
+        deadlines = [d for d in deadlines if d.display_status() == f["deadline_status"]]
+    overdue = [d for d in deadlines if d.is_overdue()]
+    reminder_alerts = []
+    for d in deadlines:
+        hit = d.reminder_milestone_hit(today)
+        if hit is not None:
+            reminder_alerts.append({"deadline": d, "milestone": hit})
+    reminder_alerts.sort(key=lambda x: (-x["milestone"], x["deadline"].deadline_date))
     donors = list(_active_donors_queryset(tenant_db))
-    grants = Grant.objects.using(tenant_db).order_by("code")
-    requirements = ReportingRequirement.objects.using(tenant_db).select_related("donor").filter(is_active=True).order_by("donor__name", "name")
+    grants = Grant.objects.using(tenant_db).select_related("project").order_by("code")
+    projects = Project.objects.using(tenant_db).order_by("code")
+    requirements = (
+        ReportingRequirement.objects.using(tenant_db)
+        .select_related("donor")
+        .filter(is_active=True)
+        .order_by("donor__name", "name")
+    )
+    tenant_users = TenantUser.objects.using(tenant_db).filter(is_active=True).order_by(
+        "full_name", "email"
+    )
     if request.GET.get("format"):
-        rows = [
-            [
-                d.title,
-                d.donor.name if d.donor else "",
-                d.grant.code if d.grant else "",
-                (d.requirement.name if d.requirement else ""),
-                d.deadline_date or "",
-                d.status,
-                d.submitted_at or "",
-            ]
-            for d in deadlines
-        ]
+        rows = []
+        for d in deadlines:
+            ep = d.effective_project()
+            period_s = ""
+            if d.reporting_period_from or d.reporting_period_to:
+                period_s = f"{d.reporting_period_from or '—'} → {d.reporting_period_to or '—'}"
+            dr = d.days_remaining()
+            ru = d.responsible_user
+            rv = d.reviewer_user
+            res_lbl = ((ru.full_name or "").strip() or (ru.email if ru else "")) if ru else ""
+            rev_lbl = ((rv.full_name or "").strip() or (rv.email if rv else "")) if rv else ""
+            rows.append(
+                [
+                    d.title,
+                    d.donor.name if d.donor else "",
+                    d.grant.code if d.grant else "",
+                    ep.code if ep else "",
+                    period_s,
+                    d.deadline_date,
+                    "" if dr is None else dr,
+                    d.display_status_label(),
+                    "Yes" if d.is_overdue() else "No",
+                    d.submitted_date or (d.submitted_at.date() if d.submitted_at else ""),
+                    d.get_priority_display(),
+                    d.reminder_days_before,
+                    res_lbl,
+                    rev_lbl,
+                    d.notes or "",
+                ]
+            )
         resp = _export_table_response(
             export_format=request.GET.get("format") or "",
             filename_base="reporting_deadlines",
             title="Donor Reporting Deadlines",
-            headers=["Title", "Donor", "Grant", "Requirement", "Deadline", "Status", "Submitted at"],
+            headers=[
+                "Title",
+                "Donor",
+                "Grant",
+                "Project",
+                "Period",
+                "Deadline",
+                "Days remaining",
+                "Status",
+                "Overdue",
+                "Submitted date",
+                "Priority",
+                "Reminder days before",
+                "Responsible",
+                "Reviewer",
+                "Notes",
+            ],
             rows=rows,
         )
         if resp:
@@ -12137,12 +12263,19 @@ def grants_reporting_deadlines_view(request: HttpRequest) -> HttpResponse:
         {
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
+            "today": today,
             "deadlines": deadlines,
             "overdue": overdue,
+            "reminder_alerts": reminder_alerts,
             "donors": donors,
             "grants": grants,
+            "projects": projects,
             "requirements": requirements,
+            "tenant_users": tenant_users,
             "filters": f,
+            "deadline_status_choices": ReportingDeadline.DisplayStatus.choices,
+            "priority_choices": ReportingDeadline.Priority.choices,
+            "reminder_presets": ReportingDeadline.REMINDER_MILESTONE_DAYS,
             "active_submenu": "funds",
             "active_item": "funds_reporting_deadlines",
             "export_csv_url": _grants_export_urls(request)["csv"],

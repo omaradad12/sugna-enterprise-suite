@@ -31,6 +31,28 @@
       </select>
     </div>
     {% endif %}
+    {% if projects %}
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-xs font-medium text-[#605e5c]">Project</label>
+      <select name="project_id" class="rounded border px-2 py-1.5 text-sm min-w-[160px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for p in projects %}
+        <option value="{{ p.pk }}" {% if filters.project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    {% if deadline_status_choices %}
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="text-xs font-medium text-[#605e5c]">Status</label>
+      <select name="deadline_status" class="rounded border px-2 py-1.5 text-sm min-w-[140px]" style="border-color:#edebe9;">
+        <option value="">All</option>
+        {% for value, label in deadline_status_choices %}
+        <option value="{{ value }}" {% if filters.deadline_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
     {% if pipeline_stages %}
     <div class="flex flex-wrap items-center gap-2">
       <label class="text-xs font-medium text-[#605e5c]">Pipeline stage</label>
@@ -55,6 +77,7 @@
     {% endif %}
     <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
   </form>
+  {% if not hide_export_row %}
   {% if export_csv_url or export_xlsx_url or export_pdf_url %}
   <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
     {% if export_csv_url %}
@@ -68,5 +91,6 @@
     {% endif %}
     <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Print</button>
   </div>
+  {% endif %}
   {% endif %}
 </div>

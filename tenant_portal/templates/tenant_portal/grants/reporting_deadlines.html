@@ -2,57 +2,125 @@
 {% block title %}Donor Reporting Deadlines | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Donor Reporting Deadlines</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Track report submission deadlines and alerts.</p>
+<style>
+  .rd-dyn-root { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #323130; }
+  .rd-dyn-cmdbar {
+    background: #f3f2f1;
+    border: 1px solid #edebe9;
+    border-radius: 2px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .rd-dyn-cmdbar .rd-cmd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 12px;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    text-decoration: none;
+  }
+  .rd-dyn-cmdbar .rd-cmd:hover { background: #edebe9; border-color: #605e5c; }
+  .rd-dyn-pgtitle { font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
+  .rd-dyn-sub { font-size: 12px; color: #605e5c; margin-top: 0.25rem; }
+  .rd-dyn-panel { background: #fff; border: 1px solid #edebe9; border-radius: 2px; }
+  .rd-dyn-panel-h {
+    padding: 0.5rem 0.75rem;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #faf9f8;
+    border-bottom: 1px solid #edebe9;
+    color: #323130;
+  }
+  .rd-dyn-grid { width: 100%; font-size: 12px; border-collapse: collapse; }
+  .rd-dyn-grid th {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    font-weight: 600;
+    color: #323130;
+    background: #f3f2f1;
+    border-bottom: 1px solid #edebe9;
+    white-space: nowrap;
+  }
+  .rd-dyn-grid td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: top;
+  }
+  .rd-dyn-grid tbody tr:hover { background: #faf9f8; }
+  .rd-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.1rem 0.45rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+  }
+  .rd-badge-upcoming { background: #f3f2f1; color: #323130; border-color: #c8c6c4; }
+  .rd-badge-due { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .rd-badge-overdue { background: #fde7e9; color: #a4262c; border-color: #f1bbbc; }
+  .rd-badge-submitted { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .rd-msgbar {
+    border-left: 4px solid #0078d4;
+    background: #f3f9fd;
+    border: 1px solid #edebe9;
+    border-left-width: 4px;
+    padding: 0.5rem 0.75rem;
+    font-size: 12px;
+    margin-bottom: 0.75rem;
+    border-radius: 2px;
+  }
+  .rd-msgbar-warn { border-left-color: #ffb900; background: #fff9f0; }
+  .rd-msgbar-err { border-left-color: #d13438; background: #fdf3f4; }
+  .rd-form-label { font-size: 11px; font-weight: 600; color: #605e5c; display: block; margin-bottom: 0.2rem; }
+  .rd-form-ctl {
+    width: 100%;
+    font-size: 12px;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    background: #fff;
+  }
+  .rd-form-ctl:focus { outline: 2px solid #0078d4; outline-offset: -1px; }
+  @media print {
+    .hidden-print, .rd-dyn-cmdbar { display: none !important; }
+  }
+</style>
+
+<div class="rd-dyn-root mb-4">
+  <h1 class="rd-dyn-pgtitle">Donor Reporting Deadlines</h1>
+  <p class="rd-dyn-sub">Track submission deadlines, ownership, and reminder milestones (30 / 14 / 7 / 3 days).</p>
 </div>
 
-{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants %}
+{% if reminder_alerts %}
+<div class="rd-msgbar rd-msgbar-warn hidden-print">
+  <strong>Reminder alerts (today)</strong>
+  <ul class="mt-1.5 ml-4 list-disc space-y-0.5">
+    {% for a in reminder_alerts %}
+    <li>
+      <span class="font-semibold">{{ a.milestone }}-day</span> before deadline:
+      {{ a.deadline.title }} — due {{ a.deadline.deadline_date|date:"Y-m-d" }}
+      {% if a.deadline.donor %}({{ a.deadline.donor.name }}){% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-4">
-  <div class="bg-white border rounded-lg p-5 lg:col-span-1" style="border-color:#edebe9;">
-    <h2 class="font-semibold">Create deadline</h2>
-    <form method="post" class="mt-4 space-y-3">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="create_deadline" />
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
-        <select name="donor_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-          <option value="">Select</option>
-          {% for d in donors %}
-          <option value="{{ d.pk }}">{{ d.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant</label>
-        <select name="grant_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-          <option value="">Select</option>
-          {% for g in grants %}
-          <option value="{{ g.pk }}">{{ g.code }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Requirement (optional)</label>
-        <select name="requirement_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-          <option value="">—</option>
-          {% for r in requirements %}
-          <option value="{{ r.pk }}">{{ r.donor.name }} — {{ r.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Title</label><input name="title" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Deadline date</label><input name="deadline_date" type="date" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" /></div>
-      <div><label class="block text-xs font-semibold mb-1 text-[#605e5c]">Notes</label><textarea name="notes" rows="2" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;"></textarea></div>
-      <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded text-white font-medium" style="background:#0078D4;">Create</button>
-    </form>
-  </div>
-  <div class="lg:col-span-2 space-y-4">
 {% if overdue %}
-<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-  <h2 class="font-semibold text-red-800">Overdue reports</h2>
-  <ul class="mt-2 space-y-1 text-sm">
+<div class="rd-msgbar rd-msgbar-err hidden-print">
+  <strong>Overdue (not submitted)</strong>
+  <ul class="mt-1.5 ml-4 list-disc space-y-0.5">
     {% for d in overdue %}
     <li>{{ d.title }} — {{ d.deadline_date|date:"Y-m-d" }} ({{ d.donor.name|default:d.grant.code|default:"—" }})</li>
     {% endfor %}
@@ -60,39 +128,201 @@
 </div>
 {% endif %}
 
-<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
-  <div class="px-4 py-3 border-b font-semibold" style="border-color:#edebe9; background:#faf9f8;">Deadlines</div>
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-        <th class="px-4 py-2 font-semibold">Title</th>
-        <th class="px-4 py-2 font-semibold">Donor / Grant</th>
-        <th class="px-4 py-2 font-semibold">Deadline</th>
-        <th class="px-4 py-2 font-semibold">Status</th>
-        <th class="px-4 py-2 font-semibold">Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for d in deadlines %}
-      <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-        <td class="px-4 py-2">{{ d.title }}</td>
-        <td class="px-4 py-2">{{ d.donor.name|default:d.grant.code|default:"—" }}</td>
-        <td class="px-4 py-2">{{ d.deadline_date|date:"Y-m-d" }}</td>
-        <td class="px-4 py-2">{{ d.get_status_display }}</td>
-        <td class="px-4 py-2">
-          {% if d.status == 'pending' %}
-          <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="action" value="mark_submitted" /><input type="hidden" name="deadline_id" value="{{ d.pk }}" /><button type="submit" class="text-[#0078d4] font-medium hover:underline">Mark submitted</button></form>
-          {% else %}
-          {{ d.submitted_at|date:"Y-m-d H:i"|default:"—" }}
-          {% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="5" class="px-4 py-6 text-center text-[#605e5c]">No deadlines.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="rd-dyn-cmdbar hidden-print">
+  <span class="text-xs font-semibold text-[#605e5c] mr-1">EXPORT</span>
+  {% if export_csv_url %}<a class="rd-cmd" href="{{ export_csv_url }}">CSV</a>{% endif %}
+  {% if export_xlsx_url %}<a class="rd-cmd" href="{{ export_xlsx_url }}">Excel</a>{% endif %}
+  {% if export_pdf_url %}<a class="rd-cmd" href="{{ export_pdf_url }}">PDF</a>{% endif %}
+  <button type="button" class="rd-cmd" onclick="window.print()">Print</button>
 </div>
+
+{% include "tenant_portal/grants/_filters_export.html" with donors=donors grants=grants projects=projects deadline_status_choices=deadline_status_choices hide_export_row=1 %}
+
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-3">
+  <div class="rd-dyn-panel xl:col-span-3 hidden-print">
+    <div class="rd-dyn-panel-h">New deadline</div>
+    <div class="p-3">
+      <form method="post" class="space-y-2.5">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_deadline" />
+        <div>
+          <label class="rd-form-label">Donor</label>
+          <select name="donor_id" required class="rd-form-ctl">
+            <option value="">Select</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="rd-form-label">Grant</label>
+          <select name="grant_id" class="rd-form-ctl">
+            <option value="">—</option>
+            {% for g in grants %}
+            <option value="{{ g.pk }}">{{ g.code }}{% if g.project %} ({{ g.project.code }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="rd-form-label">Project</label>
+          <select name="project_id" class="rd-form-ctl">
+            <option value="">—</option>
+            {% for p in projects %}
+            <option value="{{ p.pk }}">{{ p.code }} — {{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <p class="text-[11px] text-[#605e5c]">Provide at least one of Grant or Project.</p>
+        <div>
+          <label class="rd-form-label">Requirement (optional)</label>
+          <select name="requirement_id" class="rd-form-ctl">
+            <option value="">—</option>
+            {% for r in requirements %}
+            <option value="{{ r.pk }}">{{ r.donor.name }} — {{ r.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="rd-form-label">Title</label>
+          <input name="title" required class="rd-form-ctl" maxlength="200" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="rd-form-label">Period from</label>
+            <input name="reporting_period_from" type="date" class="rd-form-ctl" />
+          </div>
+          <div>
+            <label class="rd-form-label">Period to</label>
+            <input name="reporting_period_to" type="date" class="rd-form-ctl" />
+          </div>
+        </div>
+        <div>
+          <label class="rd-form-label">Deadline date</label>
+          <input name="deadline_date" type="date" required class="rd-form-ctl" />
+        </div>
+        <div>
+          <label class="rd-form-label">Submitted date (optional)</label>
+          <input name="submitted_date" type="date" class="rd-form-ctl" />
+          <p class="text-[11px] text-[#605e5c] mt-0.5">If set, the deadline is created as already submitted.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="rd-form-label">Responsible</label>
+            <select name="responsible_user_id" class="rd-form-ctl">
+              <option value="">—</option>
+              {% for u in tenant_users %}
+              <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="rd-form-label">Reviewer</label>
+            <select name="reviewer_user_id" class="rd-form-ctl">
+              <option value="">—</option>
+              {% for u in tenant_users %}
+              <option value="{{ u.pk }}">{{ u.full_name|default:u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="rd-form-label">Priority</label>
+            <select name="priority" class="rd-form-ctl">
+              {% for value, label in priority_choices %}
+              <option value="{{ value }}" {% if value == 'normal' %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="rd-form-label">Due window (days)</label>
+            <select name="reminder_days_before" class="rd-form-ctl">
+              {% for n in reminder_presets %}
+              <option value="{{ n }}" {% if n == 7 %}selected{% endif %}>{{ n }} days</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="rd-form-label">Notes</label>
+          <textarea name="notes" rows="2" class="rd-form-ctl"></textarea>
+        </div>
+        <button type="submit" class="rd-cmd w-full justify-center text-white border-0" style="background:#0078d4;">Create</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="xl:col-span-9 min-w-0">
+    <div class="rd-dyn-panel overflow-x-auto">
+      <div class="rd-dyn-panel-h">Deadlines</div>
+      <table class="rd-dyn-grid">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Donor</th>
+            <th>Grant</th>
+            <th>Project</th>
+            <th>Period</th>
+            <th>Deadline</th>
+            <th>Days left</th>
+            <th>Status</th>
+            <th>Responsible</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in deadlines %}
+          <tr>
+            <td class="font-medium">{{ d.title }}</td>
+            <td>{% if d.donor %}{{ d.donor.name }}{% else %}—{% endif %}</td>
+            <td>{% if d.grant %}{{ d.grant.code }}{% else %}—{% endif %}</td>
+            <td>{% with ep=d.effective_project %}{% if ep %}{{ ep.code }}{% else %}—{% endif %}{% endwith %}</td>
+            <td class="whitespace-nowrap">
+              {% if d.reporting_period_from or d.reporting_period_to %}
+                {{ d.reporting_period_from|date:"Y-m-d"|default:"—" }} → {{ d.reporting_period_to|date:"Y-m-d"|default:"—" }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="whitespace-nowrap">{{ d.deadline_date|date:"Y-m-d" }}</td>
+            <td class="text-right whitespace-nowrap">
+              {% if d.remaining_days is not None %}
+                {{ d.remaining_days }}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if d.deadline_status_code == 'submitted' %}
+                <span class="rd-badge rd-badge-submitted">Submitted</span>
+              {% elif d.deadline_status_code == 'overdue' %}
+                <span class="rd-badge rd-badge-overdue">Overdue</span>
+              {% elif d.deadline_status_code == 'due' %}
+                <span class="rd-badge rd-badge-due">Due</span>
+              {% else %}
+                <span class="rd-badge rd-badge-upcoming">Upcoming</span>
+              {% endif %}
+            </td>
+            <td>{% if d.responsible_user %}{{ d.responsible_user.full_name|default:d.responsible_user.email }}{% else %}—{% endif %}</td>
+            <td class="whitespace-nowrap">
+              {% if d.status != 'submitted' and not d.submitted_at %}
+              <form method="post" class="inline-flex flex-col gap-1">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_submitted" />
+                <input type="hidden" name="deadline_id" value="{{ d.pk }}" />
+                <input type="date" name="submitted_date" value="{{ today|date:'Y-m-d' }}" class="rd-form-ctl text-[11px] py-0.5 max-w-[9.5rem]" />
+                <button type="submit" class="text-[#0078d4] font-semibold hover:underline text-left text-[11px]">Mark submitted</button>
+              </form>
+              {% else %}
+                <span class="text-[#605e5c]">{{ d.submitted_date|date:"Y-m-d"|default:"—" }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="text-center py-6 text-[#605e5c]">No deadlines in this range.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if deadlines|length >= 500 %}
+    <p class="text-[11px] text-[#605e5c] mt-2">Showing up to 500 rows. Narrow the date range or filters to see specific items.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
