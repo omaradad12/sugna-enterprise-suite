@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -24,6 +25,8 @@ from tenants.models import Module, SubscriptionPlan, Tenant, TenantDomain
 from tenants.services.onboarding import run_full_tenant_provisioning
 from tenants.services.registration_cleanup import cleanup_failed_registration_tenant
 from tenants.services.tenant_modules import replace_tenant_modules
+
+logger = logging.getLogger(__name__)
 
 
 def logo_view(request):
@@ -451,15 +454,18 @@ def _resolve_subscription_plan_label(raw: str) -> str:
 def _apply_tenant_branding_from_request(request, tenant: Tenant, slug: str) -> None:
     logo_file = request.FILES.get("logo")
     if logo_file:
-        ext = os.path.splitext(logo_file.name)[1] or ".png"
-        relative_path = f"tenant_logos/{slug}{ext}"
-        saved_path = default_storage.save(relative_path, logo_file)
-        tenant.brand_logo_url = settings.MEDIA_URL + saved_path.replace("\\", "/")
-        primary, bg = extract_brand_colors(default_storage.open(saved_path, "rb"))
-        if primary and not tenant.brand_primary_color:
-            tenant.brand_primary_color = primary
-        if bg and not tenant.brand_background_color:
-            tenant.brand_background_color = bg
+        try:
+            ext = os.path.splitext(logo_file.name)[1] or ".png"
+            relative_path = f"tenant_logos/{slug}{ext}"
+            saved_path = default_storage.save(relative_path, logo_file)
+            tenant.brand_logo_url = settings.MEDIA_URL + saved_path.replace("\\", "/")
+            primary, bg = extract_brand_colors(default_storage.open(saved_path, "rb"))
+            if primary and not tenant.brand_primary_color:
+                tenant.brand_primary_color = primary
+            if bg and not tenant.brand_background_color:
+                tenant.brand_background_color = bg
+        except Exception:
+            logger.warning("Logo upload/branding extraction skipped for slug=%s", slug, exc_info=True)
     brand_primary = (request.POST.get("brand_primary_color") or "").strip()
     brand_bg = (request.POST.get("brand_secondary_color") or "").strip()
     if brand_primary:
@@ -477,14 +483,17 @@ def _log_tenant_provisioning(request, tenant: Tenant, message: str) -> None:
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return
-    LogEntry.objects.create(
-        user_id=user.pk,
-        content_type_id=ContentType.objects.get_for_model(Tenant).pk,
-        object_id=str(tenant.pk),
-        object_repr=str(tenant)[:200],
-        action_flag=ADDITION,
-        change_message=message[:2000],
-    )
+    try:
+        LogEntry.objects.create(
+            user_id=user.pk,
+            content_type_id=ContentType.objects.get_for_model(Tenant).pk,
+            object_id=str(tenant.pk),
+            object_repr=str(tenant)[:200],
+            action_flag=ADDITION,
+            change_message=message[:2000],
+        )
+    except Exception:
+        logger.warning("Could not write django_admin_log for tenant provisioning", exc_info=True)
 
 
 def _send_tenant_setup_link_email(*, recipient: str, tenant: Tenant, login_url: str) -> None:
@@ -519,7 +528,7 @@ def tenant_register_view(request):
             {"modules": modules, "subscription_plans": subscription_plans},
         )
 
-    action = request.POST.get("action", "create")
+    action = (request.POST.get("registration_action") or request.POST.get("action") or "create").strip()
     approval = (request.POST.get("approval_decision") or "pending").strip().lower()
 
     name = (request.POST.get("organization_legal_name") or request.POST.get("organization_short_name") or "").strip()
@@ -569,6 +578,11 @@ def tenant_register_view(request):
         return redirect("platform_dashboard:tenant_list")
 
     if action not in ("create", "create_send_link"):
+        messages.error(
+            request,
+            "The form did not submit a valid action (create / create & send link). "
+            "Complete all steps and submit from step 8 (Review), or refresh and try again.",
+        )
         return redirect("platform_dashboard:tenant_register")
 
     if approval == "rejected":
@@ -663,7 +677,16 @@ def tenant_register_view(request):
     )
 
     if not onboard.ok:
-        cleanup_failed_registration_tenant(tenant)
+        try:
+            cleanup_failed_registration_tenant(tenant)
+        except Exception:
+            logger.exception("cleanup_failed_registration_tenant after onboarding failure slug=%s", tenant.slug)
+            messages.error(
+                request,
+                f"Provisioning failed: {onboard.message}. "
+                "Automatic cleanup also failed — check the server logs and remove any partial tenant/DB manually.",
+            )
+            return redirect("platform_dashboard:tenant_register")
         messages.error(
             request,
             "Provisioning failed and was rolled back (no partial tenant left in the directory). "

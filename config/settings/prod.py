@@ -29,8 +29,17 @@ if not ALLOWED_HOSTS or ALLOWED_HOSTS == ["*"]:
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS + ["127.0.0.1", "localhost"]))
 
 
-if os.environ.get("CSRF_TRUSTED_ORIGINS"):
-    CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ["CSRF_TRUSTED_ORIGINS"].split(",") if o.strip()]
+# HTTPS POSTs (e.g. platform tenant registration) fail CSRF checks if this is empty/mis-set.
+# When unset, derive https://<host> for each concrete entry in ALLOWED_HOSTS (not wildcards).
+_csrf_origins_env = (os.environ.get("CSRF_TRUSTED_ORIGINS") or "").strip()
+if _csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins_env.split(",") if o.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = []
+    for host in ALLOWED_HOSTS:
+        if not host or host == "*" or "*" in host or host.startswith("."):
+            continue
+        CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
 
 
 # Security hardening: only intended to be enabled behind TLS-terminating reverse proxy (Nginx)

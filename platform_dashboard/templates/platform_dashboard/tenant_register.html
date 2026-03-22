@@ -18,6 +18,15 @@
     enctype="multipart/form-data"
   >
     {% csrf_token %}
+    {# Duplicates clicked submit action so POST is reliable even if a browser omits a disabled submitter #}
+    <input type="hidden" name="registration_action" id="tenant-registration-action" value="">
+
+    <div id="tenant-register-busy" class="hidden fixed inset-0 z-[200] bg-black/30 flex items-center justify-center p-4" aria-live="polite" role="status">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full px-8 py-6 border border-surface-200 text-center">
+        <p class="font-semibold text-surface-800">Working…</p>
+        <p class="text-sm mt-2" style="color:#605e5c;">Provisioning can take 1–3 minutes (database creation and migrations). Please keep this tab open.</p>
+      </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
       <div class="min-w-0">
@@ -1069,19 +1078,18 @@
     }
 
     // Ensure all wizard fields submit (some browsers omit controls inside hidden ancestors).
+    // Copy submitter action into a hidden field — do not disable submit buttons (breaks some browsers' POST).
     form.addEventListener('submit', function(ev) {
-      const sub = ev.submitter;
-      const action = sub && sub.getAttribute('name') === 'action' ? sub.value : '';
+      var sub = ev.submitter;
+      var hid = document.getElementById('tenant-registration-action');
+      if (hid && sub && sub.getAttribute('name') === 'action' && sub.value) {
+        hid.value = sub.value;
+      }
       steps.forEach(function(s) { s.removeAttribute('hidden'); });
-      if (action === 'create' || action === 'create_send_link') {
-        var createBtns = form.querySelectorAll('[data-submit-create]');
-        createBtns.forEach(function(btn) {
-          btn.disabled = true;
-          var sp = btn.querySelector('.submit-spinner');
-          var lb = btn.querySelector('.submit-label');
-          if (sp) sp.classList.remove('hidden');
-          if (lb && sub && btn === sub) lb.textContent = 'Provisioning…';
-        });
+      var act = hid && hid.value ? hid.value : '';
+      var busy = document.getElementById('tenant-register-busy');
+      if (busy && (act === 'create' || act === 'create_send_link')) {
+        busy.classList.remove('hidden');
       }
     });
 
