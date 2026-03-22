@@ -20,13 +20,27 @@ if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY is required for production (set it in .env.prod).")
 
 
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
+def _split_csv(value: str) -> list[str]:
+    return [x.strip() for x in (value or "").split(",") if x.strip()]
+
+
+ALLOWED_HOSTS = _split_csv(os.environ.get("ALLOWED_HOSTS", ""))
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == ["*"]:
     raise RuntimeError("ALLOWED_HOSTS must be set to your domain(s) in .env.prod (not '*').")
 
 # Always allow local access for Docker health checks / local curl debugging.
 # Django will strip the port (e.g. "127.0.0.1:8000") during validation.
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS + ["127.0.0.1", "localhost"]))
+
+# Public marketing + tenant subdomains (Namecheap: @, www, app, * → same IP).
+# Merge so requests to sugnaerp.com / www / any *.sugnaerp.com are not DisallowedHost (400).
+# Override with SUGNA_PUBLIC_HOSTS=... or disable merge with STRICT_ALLOWED_HOSTS_ONLY=true.
+_strict_hosts = os.environ.get("STRICT_ALLOWED_HOSTS_ONLY", "").lower() in ("1", "true", "yes")
+_public_hosts = _split_csv(
+    os.environ.get("SUGNA_PUBLIC_HOSTS", "sugnaerp.com,www.sugnaerp.com,.sugnaerp.com")
+)
+if not _strict_hosts and _public_hosts and ALLOWED_HOSTS != ["*"]:
+    ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS + _public_hosts))
 
 
 # HTTPS POSTs (e.g. platform tenant registration) fail CSRF checks if this is empty/mis-set.

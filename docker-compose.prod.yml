@@ -20,7 +20,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      ALLOWED_HOSTS: 127.0.0.1,localhost,46.224.112.206,app.sugnaerp.com
+      ALLOWED_HOSTS: 127.0.0.1,localhost,46.224.112.206,sugnaerp.com,www.sugnaerp.com,app.sugnaerp.com,.sugnaerp.com
       DB_EXTRA_TENANTS: "false"
       DB_HOST: db
       DB_NAME: sugna_enterprise_suite
