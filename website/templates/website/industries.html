@@ -1,0 +1,41 @@
+{% extends "website/base.html" %}
+{% block title %}Industries{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="container">
+    <h1>Industries</h1>
+    <p>Sugna is designed for mission-driven and highly regulated environments.</p>
+  </div>
+</div>
+<section class="section">
+  <div class="container card-grid">
+    <article class="card">
+      <h3>NGOs</h3>
+      <p>International and national NGOs balancing multiple donors, restricted funds, and field implementation across regions.</p>
+    </article>
+    <article class="card">
+      <h3>Humanitarian organizations</h3>
+      <p>Rapid response, surge staffing, and high-volume procurement with controls that stand up to scrutiny after the crisis.</p>
+    </article>
+    <article class="card">
+      <h3>Hospitals &amp; clinics</h3>
+      <p>From single facilities to networks — patient flow, pharmacy, lab, billing, and inventory with financial discipline.</p>
+    </article>
+    <article class="card">
+      <h3>Foundations</h3>
+      <p>Grant-making organizations tracking disbursements, grantee reporting, and portfolio-level visibility.</p>
+    </article>
+    <article class="card">
+      <h3>Development agencies</h3>
+      <p>Bilateral and multilateral-style programs requiring strong internal control and transparent use of public funds.</p>
+    </article>
+  </div>
+</section>
+<section class="section section-alt">
+  <div class="container" style="text-align:center;">
+    <h2 class="section-title">Not sure where you fit?</h2>
+    <p class="section-sub">Tell us about your operating model — we’ll recommend a starting footprint and rollout sequence.</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:contact' %}">Talk to us</a>
+  </div>
+</section>
+{% endblock %}

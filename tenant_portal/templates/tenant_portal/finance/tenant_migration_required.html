@@ -12,7 +12,9 @@
       <div>
         <h1 class="text-xl font-semibold text-[#323130] mb-2">{% trans "Tenant database needs a migration" %}</h1>
         <p class="text-[14px] text-[#605e5c] mb-4">
-          {% blocktrans %}This page uses new account category fields. Your tenant database (<code class="font-mono text-[13px] bg-[#f3f2f1] px-1 rounded">{{ tenant_db }}</code>) is still missing this migration (auto-migrate did not succeed or is disabled):{% endblocktrans %}
+          {% blocktrans %}This page needs database schema that is not on your tenant yet. Tenant database:{% endblocktrans %}
+          <code class="font-mono text-[13px] bg-[#f3f2f1] px-1 rounded">{{ tenant_db }}</code>.
+          {% trans "Missing migration (auto-migrate may be off or a prior migration failed):" %}
         </p>
         <p class="text-[13px] text-[#605e5c] mb-4">
           {% trans "With DEBUG=true, the app tries to migrate tenant DBs automatically. If you use DEBUG=false locally, set TENANT_AUTO_MIGRATE=1 or run:" %}
@@ -22,10 +24,12 @@
         <pre class="text-[12px] bg-[#201f1e] text-[#f3f2f1] p-4 rounded-lg overflow-x-auto mb-3">python manage.py migrate_tenant --tenant {{ tenant.slug }}</pre>
         <p class="text-[13px] text-[#605e5c] mb-2">{% trans "Or migrate every tenant:" %}</p>
         <pre class="text-[12px] bg-[#201f1e] text-[#f3f2f1] p-4 rounded-lg overflow-x-auto mb-6">python manage.py migrate_all_tenants</pre>
+        {% if show_account_category_seed %}
         <p class="text-[13px] text-[#605e5c] mb-4">
           {% trans "Optional after migrate — seed default NGO category tree:" %}
         </p>
         <pre class="text-[12px] bg-[#201f1e] text-[#f3f2f1] p-4 rounded-lg overflow-x-auto">python manage.py seed_account_categories --database={{ tenant_db }}</pre>
+        {% endif %}
         <div class="mt-8 pt-6 border-t" style="border-color:#edebe9;">
           <a href="{% url 'tenant_portal:home' %}" class="text-[14px] font-semibold" style="color:#0078D4;">← {% trans "Back to home" %}</a>
         </div>

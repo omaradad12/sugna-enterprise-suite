@@ -1,0 +1,36 @@
+{% load static %}
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="logo" href="{% url 'website:home' %}">Sugna <span>Enterprise Suite</span></a>
+    <button type="button" class="nav-toggle" aria-label="Open menu" id="nav-toggle">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav-main" id="nav-main" aria-label="Primary">
+      <a href="{% url 'website:home' %}">Home</a>
+      <a href="{% url 'website:about' %}">About</a>
+      <a href="{% url 'website:modules' %}">Modules</a>
+      <a href="{% url 'website:solutions' %}">Solutions</a>
+      <a href="{% url 'website:industries' %}">Industries</a>
+      <a href="{% url 'website:pricing' %}">Pricing</a>
+      <a href="{% url 'website:training' %}">Training</a>
+      <a href="{% url 'website:demo_request' %}">Demo</a>
+      <a href="{% url 'website:support' %}">Support</a>
+      <a href="{% url 'website:contact' %}">Contact</a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn btn-outline" href="{% url 'website:login_portal' %}">Login</a>
+      <a class="btn btn-primary" href="{% url 'website:demo_request' %}">Request demo</a>
+    </div>
+  </div>
+</header>
+<script>
+(function () {
+  var btn = document.getElementById("nav-toggle");
+  var nav = document.getElementById("nav-main");
+  if (btn && nav) {
+    btn.addEventListener("click", function () {
+      nav.classList.toggle("is-open");
+    });
+  }
+})();
+</script>

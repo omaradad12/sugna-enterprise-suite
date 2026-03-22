@@ -5273,6 +5273,7 @@ def finance_account_categories_view(request: HttpRequest) -> HttpResponse:
                 "migration_label": "tenant_finance.0033_accountcategory_enterprise_fields",
                 "active_submenu": "core",
                 "active_item": "core_categories",
+                "show_account_category_seed": True,
             },
             status=503,
         )
@@ -12054,14 +12055,34 @@ def grants_donor_compliance_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_reporting_deadlines_view(request: HttpRequest) -> HttpResponse:
+    from django.conf import settings
     from django.db.models import Q
     from django.utils import timezone
     from django.utils.dateparse import parse_date
     from tenant_grants.models import ReportingDeadline, ReportingRequirement, Donor, Grant, Project
     from tenant_users.models import TenantUser
+    from tenant_portal.migration_checks import ensure_reporting_deadline_schema
     from datetime import timedelta
 
     tenant_db = request.tenant_db
+    if not ensure_reporting_deadline_schema(
+        tenant_db, auto_migrate=getattr(settings, "TENANT_AUTO_MIGRATE", False)
+    ):
+        return render(
+            request,
+            "tenant_portal/finance/tenant_migration_required.html",
+            {
+                "tenant": request.tenant,
+                "tenant_user": request.tenant_user,
+                "tenant_db": tenant_db,
+                "migration_label": "tenant_grants.0028_reporting_deadline_enterprise",
+                "active_submenu": "funds",
+                "active_item": "funds_reporting_deadlines",
+                "show_account_category_seed": False,
+            },
+            status=503,
+        )
+
     today = timezone.now().date()
 
     if request.method == "POST":

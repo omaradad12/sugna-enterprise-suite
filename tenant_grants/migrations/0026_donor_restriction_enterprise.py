@@ -6,16 +6,17 @@ from django.db import migrations, models
 
 def _backfill_donor_restrictions(apps, schema_editor):
     DonorRestriction = apps.get_model("tenant_grants", "DonorRestriction")
+    db = schema_editor.connection.alias
     type_to_cat = {
         "budget_line": "budget",
         "procurement": "procurement",
         "reporting": "reporting",
         "other": "other",
     }
-    for r in DonorRestriction.objects.all().iterator():
+    for r in DonorRestriction.objects.using(db).all().iterator():
         code = f"DRC-{r.pk:06d}"
         cat = type_to_cat.get(r.restriction_type, "other")
-        DonorRestriction.objects.filter(pk=r.pk).update(
+        DonorRestriction.objects.using(db).filter(pk=r.pk).update(
             restriction_code=code,
             category=cat,
             status="active",
@@ -24,6 +25,78 @@ def _backfill_donor_restrictions(apps, schema_editor):
 
 def _noop_reverse(apps, schema_editor):
     pass
+
+
+def _apply_restriction_code_unique_db(apps, schema_editor):
+    """
+    Make restriction_code unique idempotently. Django's AlterField(unique=True) on PG
+    can fail with '..._like already exists' after partial applies; we drop stale objects
+    then CREATE UNIQUE INDEX IF NOT EXISTS (works on PostgreSQL and SQLite).
+    """
+    conn = schema_editor.connection
+    qn = conn.ops.quote_name
+    tbl = "tenant_grants_donorrestriction"
+    idx_name = "tenant_grants_donorrestriction_restriction_code_uniq"
+
+    with conn.cursor() as cursor:
+        if conn.vendor == "postgresql":
+            cursor.execute(
+                """
+                SELECT c.conname
+                FROM pg_constraint c
+                JOIN pg_class rel ON rel.oid = c.conrelid
+                WHERE rel.relname = %s
+                  AND c.contype = 'u'
+                  AND pg_get_constraintdef(c.oid) ILIKE %s
+                """,
+                [tbl, "%restriction_code%"],
+            )
+            for (cname,) in cursor.fetchall():
+                cursor.execute(
+                    "ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s"
+                    % (qn(tbl), qn(cname))
+                )
+            cursor.execute(
+                """
+                SELECT ns.nspname, ic.relname
+                FROM pg_class tc
+                JOIN pg_namespace ns ON ns.oid = tc.relnamespace
+                JOIN pg_index ix ON tc.oid = ix.indrelid AND ix.indisprimary = false
+                JOIN pg_class ic ON ic.oid = ix.indexrelid
+                WHERE tc.relkind = 'r'
+                  AND tc.relname = %s
+                  AND ic.relname ILIKE %s
+                """,
+                [tbl, "%restriction_code%"],
+            )
+            for schema, iname in cursor.fetchall():
+                cursor.execute(
+                    "DROP INDEX IF EXISTS %s.%s CASCADE" % (qn(schema), qn(iname))
+                )
+        elif conn.vendor == "sqlite":
+            cursor.execute('PRAGMA table_info(%s)' % qn(tbl))
+            if not cursor.fetchall():
+                return
+            cursor.execute("PRAGMA index_list(%s)" % qn(tbl))
+            for row in cursor.fetchall():
+                iname = row[1]
+                if "restriction_code" in iname:
+                    cursor.execute("DROP INDEX IF EXISTS %s" % qn(iname))
+
+    with conn.cursor() as cursor:
+        if conn.vendor == "mysql":
+            try:
+                cursor.execute(
+                    "CREATE UNIQUE INDEX %s ON %s (%s)"
+                    % (qn(idx_name), qn(tbl), qn("restriction_code"))
+                )
+            except Exception:
+                pass
+        else:
+            cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)"
+                % (qn(idx_name), qn(tbl), qn("restriction_code"))
+            )
 
 
 class Migration(migrations.Migration):
@@ -287,17 +360,27 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(_backfill_donor_restrictions, _noop_reverse),
-        migrations.AlterField(
-            model_name="donorrestriction",
-            name="restriction_code",
-            field=models.CharField(
-                blank=True,
-                db_index=True,
-                help_text="Unique reference (auto-generated if left blank).",
-                max_length=32,
-                null=True,
-                unique=True,
-            ),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AlterField(
+                    model_name="donorrestriction",
+                    name="restriction_code",
+                    field=models.CharField(
+                        blank=True,
+                        db_index=True,
+                        help_text="Unique reference (auto-generated if left blank).",
+                        max_length=32,
+                        null=True,
+                        unique=True,
+                    ),
+                ),
+            ],
+            database_operations=[
+                migrations.RunPython(
+                    _apply_restriction_code_unique_db,
+                    _noop_reverse,
+                ),
+            ],
         ),
         migrations.AddIndex(
             model_name="donorrestriction",

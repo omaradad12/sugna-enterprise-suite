@@ -6,7 +6,10 @@ import django.db.models.deletion
 
 def forwards_status(apps, schema_editor):
     ReportingDeadline = apps.get_model("tenant_grants", "ReportingDeadline")
-    ReportingDeadline.objects.filter(status__in=["pending", "overdue"]).update(status="open")
+    db = schema_editor.connection.alias
+    ReportingDeadline.objects.using(db).filter(status__in=["pending", "overdue"]).update(
+        status="open"
+    )
 
 
 def noop_reverse(apps, schema_editor):

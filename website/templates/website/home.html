@@ -1,0 +1,129 @@
+{% extends "website/base.html" %}
+{% load static %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <h1>Enterprise ERP Platform for NGOs, Humanitarian Organizations, Hospitals, and Donor-Funded Projects</h1>
+      <p class="hero-lead">
+        Sugna Enterprise Suite unifies finance, grants, HR, procurement, logistics, compliance, hospital operations, and intelligent auditing in one secure cloud platform designed for complex multi-organization environments.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-lg" href="{% url 'website:demo_request' %}">Request demo</a>
+        <a class="btn btn-outline btn-lg" href="{% url 'website:modules' %}">Explore modules</a>
+        <a class="btn btn-navy btn-lg" href="{% url 'website:login_portal' %}">Login</a>
+      </div>
+      <div class="hero-badges">
+        <span class="badge">Multi-tenant</span>
+        <span class="badge">Fund accounting</span>
+        <span class="badge">Grant compliance</span>
+        <span class="badge">Role-based security</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-visual-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <p><strong>Unified operations dashboard</strong><br />Placeholder for product screenshots — replace with your UI captures.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Core modules</h2>
+    <p class="section-sub">Everything your finance, programs, and operations teams need in a single integrated suite.</p>
+    <div class="card-grid">
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <h3>Financial &amp; Grant Management</h3>
+        <p>Fund accounting, donor visibility, grant controls, and multi-currency reporting aligned to donor rules.</p>
+        <p style="margin-top:0.75rem;"><a href="{% url 'website:modules' %}#finance">View details →</a></p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Human Resource Management</h3>
+        <p>Employee records, contracts, attendance, leave, payroll hooks, and performance visibility.</p>
+        <p style="margin-top:0.75rem;"><a href="{% url 'website:modules' %}#hr">View details →</a></p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        </div>
+        <h3>Procurement &amp; Logistics</h3>
+        <p>Requisitions, RFQs, POs, approvals, inventory, and warehouse tracking with audit trails.</p>
+        <p style="margin-top:0.75rem;"><a href="{% url 'website:modules' %}#procurement">View details →</a></p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>AI Auditor</h3>
+        <p>Anomaly detection, duplicate checks, compliance signals, and smart insights for finance teams.</p>
+        <p style="margin-top:0.75rem;"><a href="{% url 'website:modules' %}#ai-auditor">View details →</a></p>
+      </article>
+      <article class="card">
+        <div class="card-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.5 9.5a7.5 7.5 0 1 1 15 0c0 4.28-2.5 6.5-5 9.5l-2.5 2.5-2.5-2.5c-2.5-3-5-5.22-5-9.5z"/><circle cx="12" cy="9.5" r="2"/></svg>
+        </div>
+        <h3>Hospital Management</h3>
+        <p>Patients, appointments, pharmacy, lab, billing, and stock — integrated with finance where you need it.</p>
+        <p style="margin-top:0.75rem;"><a href="{% url 'website:modules' %}#hospital">View details →</a></p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container two-col">
+    <div>
+      <h2 class="section-title" style="text-align:left;margin-bottom:0.75rem;">Why Sugna</h2>
+      <p class="section-sub" style="text-align:left;margin-left:0;margin-bottom:1rem;">
+        Built for organizations that must prove stewardship, meet donor rules, and scale across countries and programs.
+      </p>
+      <ul style="color:var(--sugna-muted);padding-left:1.2rem;margin:0;">
+        <li><strong style="color:var(--sugna-navy);">Multi-tenant architecture</strong> — isolated data per organization with centralized platform operations.</li>
+        <li><strong style="color:var(--sugna-navy);">Grant-aware finance</strong> — tie spend and reporting to projects, donors, and compliance checkpoints.</li>
+        <li><strong style="color:var(--sugna-navy);">Enterprise controls</strong> — RBAC, approvals, and audit trails suitable for audits and accreditation.</li>
+        <li><strong style="color:var(--sugna-navy);">Extensible roadmap</strong> — modular delivery so you adopt what you need first.</li>
+      </ul>
+    </div>
+    <div class="card" style="min-height:220px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--sugna-muted);font-size:0.95rem;">
+      <div>
+        <p style="margin:0 0 0.5rem;color:var(--sugna-navy);font-weight:600;">Product mockup</p>
+        <p style="margin:0;">Drop a dashboard or mobile screenshot here when assets are ready.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Who we serve</h2>
+    <p class="section-sub">From field missions to hospital networks — one platform, adapted to your operating model.</p>
+    <div class="card-grid">
+      <article class="card"><h3>NGOs &amp; INGOs</h3><p>Program finance, donor reporting, and multi-entity consolidation.</p></article>
+      <article class="card"><h3>Humanitarian response</h3><p>Rapid deployment, controls, and traceability under pressure.</p></article>
+      <article class="card"><h3>Hospitals &amp; clinics</h3><p>Clinical operations with disciplined revenue cycle and inventory.</p></article>
+      <article class="card"><h3>Foundations &amp; donors</h3><p>Visibility into grant outcomes and financial integrity.</p></article>
+    </div>
+    <p style="text-align:center;margin-top:1.5rem;"><a class="btn btn-outline" href="{% url 'website:industries' %}">Explore industries</a></p>
+  </div>
+</section>
+
+<section class="cta-banner">
+  <div class="container">
+    <h2>See Sugna in action</h2>
+    <p>Schedule a tailored walkthrough with our team — finance, grants, HR, procurement, or hospital workflows.</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:demo_request' %}">Request a demo</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Sugna Enterprise Suite{% endblock %} | Cloud ERP for NGOs &amp; Enterprises</title>
+  <meta name="description" content="{% block meta_description %}Sugna Enterprise Suite unifies finance, grants, HR, procurement, logistics, compliance, hospital operations, and AI auditing in one secure cloud platform.{% endblock %}" />
+  <link rel="stylesheet" href="{% static 'website/css/marketing.css' %}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% include "website/_nav.html" %}
+  <main>
+    {% if messages %}
+      <div class="container" style="padding-top:1rem;">
+        {% for message in messages %}
+          <div class="alert-success" role="alert">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% include "website/_footer.html" %}
+</body>
+</html>

@@ -8,12 +8,15 @@ def map_old_pipeline_stages(apps, schema_editor):
     """Map old stage values to new; no-op if table does not exist (e.g. fresh tenant)."""
     try:
         GrantTracking = apps.get_model("tenant_grants", "GrantTracking")
+        db = schema_editor.connection.alias
         stage_map = {
             "proposal": "proposal_preparation",
             "submitted": "proposal_submitted",
         }
         for old, new in stage_map.items():
-            GrantTracking.objects.filter(pipeline_stage=old).update(pipeline_stage=new)
+            GrantTracking.objects.using(db).filter(pipeline_stage=old).update(
+                pipeline_stage=new
+            )
     except Exception:
         pass
 

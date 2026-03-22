@@ -17,14 +17,13 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include
-from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
 from . import views
 
 urlpatterns = [
-    path("", RedirectView.as_view(url="/platform/", permanent=False)),
+    path("", include("website.urls")),
     path("platform/login/", auth_views.LoginView.as_view(template_name="platform_dashboard/platform_login.html"), name="platform_login"),
     # Reuse the platform login UI for Django admin login as well, so the
     # look-and-feel is identical across "Admin" and "Platform".

@@ -1,0 +1,81 @@
+{% extends "website/base.html" %}
+{% block title %}Modules{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="container">
+    <h1>Modules</h1>
+    <p>Deep capabilities across finance, people, supply chain, intelligent assurance, and healthcare — integrated on one platform.</p>
+  </div>
+</div>
+<section class="section">
+  <div class="container">
+    <div class="card-grid" style="grid-template-columns:1fr;">
+      <article class="card" id="finance" style="max-width:880px;margin:0 auto;">
+        <h2 style="margin:0 0 0.5rem;font-size:1.35rem;color:var(--sugna-navy);">1. Financial &amp; Grant Management</h2>
+        <p style="color:var(--sugna-muted);">Purpose-built for fund accounting and donor accountability.</p>
+        <ul>
+          <li>Fund accounting and chart of accounts structured for restricted and unrestricted funds</li>
+          <li>Donor tracking and multi-donor / multi-grant visibility</li>
+          <li>Grant control — budgets, burn rates, and compliance checkpoints</li>
+          <li>Project budgets linked to programs and locations</li>
+          <li>Financial statements and management reporting</li>
+          <li>Multi-currency operations with controlled rates and translation</li>
+        </ul>
+      </article>
+      <article class="card" id="hr" style="max-width:880px;margin:0 auto;">
+        <h2 style="margin:0 0 0.5rem;font-size:1.35rem;color:var(--sugna-navy);">2. Human Resource Management</h2>
+        <p style="color:var(--sugna-muted);">People data and workforce processes in one place.</p>
+        <ul>
+          <li>Employee records and organizational structure</li>
+          <li>Contracts and document management hooks</li>
+          <li>Leave management and policies</li>
+          <li>Attendance tracking</li>
+          <li>Payroll preparation interfaces and integrations</li>
+          <li>Performance tracking and reviews</li>
+        </ul>
+      </article>
+      <article class="card" id="procurement" style="max-width:880px;margin:0 auto;">
+        <h2 style="margin:0 0 0.5rem;font-size:1.35rem;color:var(--sugna-navy);">3. Procurement &amp; Logistics</h2>
+        <p style="color:var(--sugna-muted);">From need to payment — controlled and traceable.</p>
+        <ul>
+          <li>Supplier master and qualification</li>
+          <li>Purchase requests and workflows</li>
+          <li>RFQ and competitive sourcing</li>
+          <li>Purchase orders and receiving</li>
+          <li>Approval matrices aligned to policy</li>
+          <li>Inventory and stock movements</li>
+          <li>Warehouse and logistics tracking</li>
+        </ul>
+      </article>
+      <article class="card" id="ai-auditor" style="max-width:880px;margin:0 auto;">
+        <h2 style="margin:0 0 0.5rem;font-size:1.35rem;color:var(--sugna-navy);">4. AI Auditor</h2>
+        <p style="color:var(--sugna-muted);">Continuous assurance for finance and compliance teams.</p>
+        <ul>
+          <li>Anomaly detection across transactions and patterns</li>
+          <li>Duplicate transaction checks</li>
+          <li>Compliance monitoring against rules and thresholds</li>
+          <li>Fraud and risk indicators surfaced for review</li>
+          <li>Smart audit insights and prioritization</li>
+        </ul>
+      </article>
+      <article class="card" id="hospital" style="max-width:880px;margin:0 auto;">
+        <h2 style="margin:0 0 0.5rem;font-size:1.35rem;color:var(--sugna-navy);">5. Hospital Management</h2>
+        <p style="color:var(--sugna-muted);">Clinical and administrative workflows with finance alignment.</p>
+        <ul>
+          <li>Patient records and registration</li>
+          <li>Appointments and scheduling</li>
+          <li>Doctors, nurses, and staff rosters</li>
+          <li>Pharmacy dispensing and stock</li>
+          <li>Laboratory orders and results workflow</li>
+          <li>Billing and collections</li>
+          <li>Medical inventory and consumption</li>
+          <li>Finance integration for revenue recognition and costing</li>
+        </ul>
+      </article>
+    </div>
+    <p style="text-align:center;margin-top:2rem;">
+      <a class="btn btn-primary btn-lg" href="{% url 'website:demo_request' %}">Discuss your module mix</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

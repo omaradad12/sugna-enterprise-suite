@@ -17,6 +17,12 @@ TENANT_FINANCE_ACCOUNT_CATEGORY_0033 = (
     "0033_accountcategory_enterprise_fields",
 )
 
+# ReportingDeadline.project_id and related enterprise fields
+TENANT_GRANTS_REPORTING_DEADLINE_0028 = (
+    "tenant_grants",
+    "0028_reporting_deadline_enterprise",
+)
+
 
 def migration_applied(using: str, app_label: str, migration_name: str) -> bool:
     """True if django_migrations records this migration on the given DB alias."""
@@ -29,6 +35,10 @@ def migration_applied(using: str, app_label: str, migration_name: str) -> bool:
 
 def tenant_finance_account_categories_ready(using: str) -> bool:
     return migration_applied(using, *TENANT_FINANCE_ACCOUNT_CATEGORY_0033)
+
+
+def tenant_grants_reporting_deadlines_ready(using: str) -> bool:
+    return migration_applied(using, *TENANT_GRANTS_REPORTING_DEADLINE_0028)
 
 
 def apply_all_migrations_for_alias(using: str) -> bool:
@@ -59,4 +69,17 @@ def ensure_account_category_schema(using: str, *, auto_migrate: bool) -> bool:
     if auto_migrate:
         apply_all_migrations_for_alias(using)
         return tenant_finance_account_categories_ready(using)
+    return False
+
+
+def ensure_reporting_deadline_schema(using: str, *, auto_migrate: bool) -> bool:
+    """
+    Return True if ReportingDeadline enterprise columns (e.g. project_id) exist.
+    If auto_migrate and not ready, run migrate on `using` once and re-check.
+    """
+    if tenant_grants_reporting_deadlines_ready(using):
+        return True
+    if auto_migrate:
+        apply_all_migrations_for_alias(using)
+        return tenant_grants_reporting_deadlines_ready(using)
     return False

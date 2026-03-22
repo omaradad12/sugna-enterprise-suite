@@ -1,0 +1,46 @@
+{% extends "website/base.html" %}
+{% block title %}Support{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="container">
+    <h1>Support</h1>
+    <p>Resources and channels to keep your Sugna environment healthy from go-live through steady-state operations.</p>
+  </div>
+</div>
+<section class="section">
+  <div class="container card-grid">
+    <article class="card">
+      <h3>Help center</h3>
+      <p>Searchable answers for common tasks, configuration tips, and troubleshooting — updated as the product evolves.</p>
+    </article>
+    <article class="card">
+      <h3>Documentation</h3>
+      <p>Technical and functional references for administrators and power users integrating Sugna with your policies.</p>
+    </article>
+    <article class="card">
+      <h3>Implementation support</h3>
+      <p>Guided configuration, data migration planning, and cutover rehearsal with consultants who know your sector.</p>
+    </article>
+    <article class="card">
+      <h3>Technical assistance</h3>
+      <p>Structured ticketing and severity-based response for production issues, aligned to your support tier.</p>
+    </article>
+    <article class="card">
+      <h3>FAQs</h3>
+      <p>Security, hosting, backups, upgrades, and integration questions — consolidated for leadership and IT reviewers.</p>
+    </article>
+  </div>
+</section>
+<section class="section section-alt">
+  <div class="container two-col">
+    <div class="card">
+      <h3 style="margin-top:0;color:var(--sugna-navy);">Open a ticket</h3>
+      <p style="margin:0;color:var(--sugna-muted);">Existing customers: use your designated support portal or email provided in your welcome pack.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;color:var(--sugna-navy);">Not yet a customer?</h3>
+      <p style="margin:0;color:var(--sugna-muted);">We’re happy to answer pre-sales and security questionnaires through <a href="{% url 'website:contact' %}">Contact</a>.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
