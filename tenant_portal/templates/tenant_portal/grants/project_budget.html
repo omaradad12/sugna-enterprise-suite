@@ -1,0 +1,100 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Project budget structure" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[1000px] mx-auto w-full pb-10">
+  <div class="mb-5">
+    <h1 class="text-2xl font-bold tracking-tight text-[#201f1e]">{% trans "Project budget structure" %}</h1>
+    <p class="text-sm text-[#605e5c] mt-1">{% trans "Define project budget lines (allocated amounts). Workplan activities link to these lines; posted expenses update remaining balances." %}</p>
+  </div>
+
+  <div class="bg-white border rounded-lg p-4 mb-4 shadow-sm" style="border-color:#edebe9;">
+    <form method="get" class="flex flex-wrap items-end gap-3">
+      <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+        <label class="text-xs font-semibold text-[#605e5c]" for="pb-proj">{% trans "Project" %}</label>
+        <select id="pb-proj" name="project_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+          <option value="">{% trans "Select project" %}</option>
+          {% for p in projects %}
+          <option value="{{ p.pk }}" {% if selected_project and selected_project.pk == p.pk %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:5 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="px-4 py-2 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Load" %}</button>
+    </form>
+  </div>
+
+  {% if selected_project %}
+  <div class="bg-white border rounded-lg p-4 mb-4 shadow-sm" style="border-color:#edebe9;">
+    <div class="flex flex-wrap justify-between gap-2 items-center mb-3">
+      <h2 class="text-base font-semibold text-[#201f1e] m-0">{{ selected_project.code }} — {{ selected_project.name }}</h2>
+      {% if not project_budget %}
+      <form method="post" class="inline">
+        {% csrf_token %}
+        <input type="hidden" name="project_id" value="{{ selected_project.pk }}" />
+        <input type="hidden" name="action" value="ensure_budget" />
+        <button type="submit" class="px-3 py-2 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Create Main budget" %}</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if project_budget %}
+    <form method="post" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end border-t pt-4" style="border-color:#edebe9;">
+      {% csrf_token %}
+      <input type="hidden" name="project_id" value="{{ selected_project.pk }}" />
+      <input type="hidden" name="action" value="add_line" />
+      <div class="sm:col-span-2 flex flex-col gap-1">
+        <label class="text-xs font-semibold text-[#605e5c]">{% trans "Category" %} *</label>
+        <input name="category" required class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-[#605e5c]">{% trans "GL account" %}</label>
+        <select name="account_id" class="rounded-md border px-3 py-2 text-sm bg-white w-full" style="border-color:#edebe9;">
+          <option value="">—</option>
+          {% for a in accounts %}
+          <option value="{{ a.pk }}">{{ a.code }} — {{ a.name|truncatewords:3 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-semibold text-[#605e5c]">{% trans "Allocated" %} *</label>
+        <input name="allocated_amount" type="text" required class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" placeholder="0.00" />
+      </div>
+      <div class="sm:col-span-2 flex flex-col gap-1">
+        <label class="text-xs font-semibold text-[#605e5c]">{% trans "Description" %}</label>
+        <input name="description" class="rounded-md border px-3 py-2 text-sm w-full" style="border-color:#edebe9;" />
+      </div>
+      <div class="sm:col-span-6">
+        <button type="submit" class="px-4 py-2 rounded-md text-sm font-semibold text-white" style="background:#107C10;">{% trans "Add budget line" %}</button>
+      </div>
+    </form>
+
+    <div class="mt-6 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
+            <th class="px-3 py-2 font-semibold">{% trans "Category" %}</th>
+            <th class="px-3 py-2 font-semibold">{% trans "Account" %}</th>
+            <th class="px-3 py-2 font-semibold text-right">{% trans "Allocated" %}</th>
+            <th class="px-3 py-2 font-semibold text-right">{% trans "Remaining" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bl in budget_lines %}
+          <tr class="border-b" style="border-color:#edebe9;">
+            <td class="px-3 py-2 font-medium text-[#323130]">{{ bl.category }}</td>
+            <td class="px-3 py-2 text-[#605e5c]">{% if bl.account %}{{ bl.account.code }}{% else %}—{% endif %}</td>
+            <td class="px-3 py-2 text-right tabular-nums">{{ bl.allocated_amount|floatformat:2 }}</td>
+            <td class="px-3 py-2 text-right tabular-nums">{{ bl.remaining_amount|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="px-3 py-6 text-center text-[#605e5c]">{% trans "No budget lines yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

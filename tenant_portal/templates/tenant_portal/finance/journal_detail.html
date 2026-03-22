@@ -155,6 +155,8 @@
             <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">{% trans "Project / grant" %}</th>
             {% endif %}
             <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">{% trans "Description" %}</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">{% trans "Project budget line" %}</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">{% trans "Activity" %}</th>
             <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">{% trans "Debit" %}</th>
             <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">{% trans "Credit" %}</th>
           </tr>
@@ -169,16 +171,22 @@
             </td>
             {% endif %}
             <td class="px-4 py-3 text-[#605e5c]">{{ line.description|default:"—" }}</td>
+            <td class="px-4 py-3 text-[#605e5c] text-xs max-w-[180px]">
+              {% if line.project_budget_line %}{{ line.project_budget_line.category }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-3 text-[#605e5c] text-xs max-w-[160px]">
+              {% if line.workplan_activity %}{{ line.workplan_activity.activity_code }} — {{ line.workplan_activity.activity|truncatewords:4 }}{% else %}—{% endif %}
+            </td>
             <td class="px-4 py-3 text-right tabular-nums font-medium">{{ line.debit|floatformat:2 }}</td>
             <td class="px-4 py-3 text-right tabular-nums font-medium">{{ line.credit|floatformat:2 }}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="{% if journal_schema_0040 %}5{% else %}4{% endif %}" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No lines" %}</td></tr>
+          <tr><td colspan="{% if journal_schema_0040 %}7{% else %}6{% endif %}" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No lines" %}</td></tr>
           {% endfor %}
         </tbody>
         <tfoot style="background:#faf9f8;">
           <tr>
-            <td colspan="{% if journal_schema_0040 %}3{% else %}2{% endif %}" class="px-4 py-3 font-semibold text-[#323130]">{% trans "Totals" %}</td>
+            <td colspan="{% if journal_schema_0040 %}5{% else %}4{% endif %}" class="px-4 py-3 font-semibold text-[#323130]">{% trans "Totals" %}</td>
             <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ debit_total|floatformat:2 }}</td>
             <td class="px-4 py-3 text-right font-semibold tabular-nums">{{ credit_total|floatformat:2 }}</td>
           </tr>

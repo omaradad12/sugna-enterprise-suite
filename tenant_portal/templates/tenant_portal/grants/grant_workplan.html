@@ -1,4 +1,5 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
 {% block title %}Grant Workplan | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
@@ -122,7 +123,9 @@
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Responsible staff</th>
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Start date</th>
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">End date</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">{% trans "Proj. budget line" %}</th>
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Budget amount</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actual</th>
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Approved for PR</th>
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Activity status</th>
           <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
@@ -142,7 +145,9 @@
           <td class="px-4 py-2" style="color:#605e5c;">{{ w.responsible_staff|default:"—" }}</td>
           <td class="px-4 py-2" style="color:#605e5c;">{{ w.start_date|date:"d/m/Y"|default:"—" }}</td>
           <td class="px-4 py-2" style="color:#605e5c;">{{ w.end_date|date:"d/m/Y"|default:"—" }}</td>
+          <td class="px-4 py-2 text-xs" style="color:#605e5c;">{% if w.project_budget_line %}{{ w.project_budget_line.category }}{% else %}—{% endif %}</td>
           <td class="px-4 py-2" style="color:#323130;">{% if w.budget_amount %}{{ w.budget_amount|floatformat:0 }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-2 tabular-nums" style="color:#323130;">{% if w.actual_cost %}{{ w.actual_cost|floatformat:0 }}{% else %}0{% endif %}</td>
           <td class="px-4 py-2">
             {% if w.approved_for_pr %}
             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#dff6dd; color:#0b5a0b;">Yes</span>
@@ -262,8 +267,17 @@
           <input name="workplan_component" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Grant output" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Budget line</label>
-          <input name="workplan_budget_line" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Budget line / category" />
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">{% trans "Project budget line" %}</label>
+          <select name="workplan_project_budget_line" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">{% trans "— (required if project has budget structure)" %}</option>
+            {% for bl in project_budget_lines %}
+            <option value="{{ bl.pk }}">{{ bl.project_budget.project.code }} · {{ bl.category }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">{% trans "Budget line (text)" %}</label>
+          <input name="workplan_budget_line" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Optional label / memo' %}" />
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Procurement requirement</label>

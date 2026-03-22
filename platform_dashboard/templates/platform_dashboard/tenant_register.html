@@ -673,7 +673,7 @@
                     <label class="block text-sm font-medium mb-1" style="color:#323130;">Approval Decision</label>
                     <select name="approval_decision" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
                       <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
+                      <option value="approved" selected>Approved</option>
                       <option value="rejected">Rejected</option>
                     </select>
                   </div>
@@ -1067,6 +1067,23 @@
     if (window.feather && typeof window.feather.replace === 'function') {
       window.feather.replace();
     }
+
+    // Ensure all wizard fields submit (some browsers omit controls inside hidden ancestors).
+    form.addEventListener('submit', function(ev) {
+      const sub = ev.submitter;
+      const action = sub && sub.getAttribute('name') === 'action' ? sub.value : '';
+      steps.forEach(function(s) { s.removeAttribute('hidden'); });
+      if (action === 'create' || action === 'create_send_link') {
+        var createBtns = form.querySelectorAll('[data-submit-create]');
+        createBtns.forEach(function(btn) {
+          btn.disabled = true;
+          var sp = btn.querySelector('.submit-spinner');
+          var lb = btn.querySelector('.submit-label');
+          if (sp) sp.classList.remove('hidden');
+          if (lb && sub && btn === sub) lb.textContent = 'Provisioning…';
+        });
+      }
+    });
 
     // Init
     setStep(1);

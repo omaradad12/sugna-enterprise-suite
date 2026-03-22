@@ -130,6 +130,8 @@
                   <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
                     <th class="px-3 py-2 font-semibold">{% trans "Account" %}</th>
                     <th class="px-3 py-2 font-semibold">{% trans "Description" %}</th>
+                    <th class="px-3 py-2 font-semibold min-w-[140px]">{% trans "Proj. budget line" %}</th>
+                    <th class="px-3 py-2 font-semibold min-w-[140px]">{% trans "Workplan activity" %}</th>
                     <th class="px-3 py-2 font-semibold text-right">{% trans "Debit" %}</th>
                     <th class="px-3 py-2 font-semibold text-right">{% trans "Credit" %}</th>
                   </tr>
@@ -146,6 +148,22 @@
                       </select>
                     </td>
                     <td class="px-3 py-1.5"><input name="line_description" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;"></td>
+                    <td class="px-3 py-1.5">
+                      <select name="line_project_budget_line" class="w-full max-w-[200px] px-2 py-1.5 rounded border bg-white text-[11px]" style="border-color:#edebe9;">
+                        <option value="">—</option>
+                        {% for bl in manual_journal_budget_lines %}
+                        <option value="{{ bl.pk }}">{{ bl.project_budget.project.code }} · {{ bl.category }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td class="px-3 py-1.5">
+                      <select name="line_workplan_activity" class="w-full max-w-[200px] px-2 py-1.5 rounded border bg-white text-[11px]" style="border-color:#edebe9;">
+                        <option value="">—</option>
+                        {% for wa in manual_journal_workplan_activities %}
+                        <option value="{{ wa.pk }}">{{ wa.grant.code }} · {{ wa.activity_code }} {{ wa.activity|truncatewords:3 }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
                     <td class="px-3 py-1.5 text-right"><input name="line_debit" inputmode="decimal" class="w-full px-2 py-1.5 rounded border text-xs text-right" style="border-color:#edebe9;" placeholder="0.00"></td>
                     <td class="px-3 py-1.5 text-right"><input name="line_credit" inputmode="decimal" class="w-full px-2 py-1.5 rounded border text-xs text-right" style="border-color:#edebe9;" placeholder="0.00"></td>
                   </tr>

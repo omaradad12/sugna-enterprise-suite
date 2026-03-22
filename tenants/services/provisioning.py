@@ -47,6 +47,28 @@ def provision_postgres_role_and_database(
             cur.execute('CREATE DATABASE "{}" OWNER "{}"'.format(db_name, db_user))
 
 
+def drop_postgres_database(db_name: str) -> None:
+    """
+    Drop a tenant database on the same server as the default Django connection.
+    Terminates other backends first. No-op if database does not exist.
+    """
+    if connection.vendor != "postgresql":
+        raise RuntimeError("PostgreSQL required to drop tenant database.")
+
+    db_name = validate_pg_identifier(db_name, "database name")
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE pg_stat_activity.datname = %s
+              AND pid <> pg_backend_pid()
+            """,
+            [db_name],
+        )
+        cur.execute('DROP DATABASE IF EXISTS "{}"'.format(db_name))
+
+
 def register_tenant_connection(tenant: Tenant) -> str:
     """Ensure settings.DATABASES has the tenant alias; returns alias."""
     from tenants.db import ensure_tenant_db_configured

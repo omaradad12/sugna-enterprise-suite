@@ -40,22 +40,23 @@ class TenantOnboardingResult:
     generated_admin_password: str | None = None
 
 
-def _fail(tenant: Tenant, step: str, exc: BaseException) -> TenantOnboardingResult:
+def _fail(tenant: Tenant, step: str, exc: BaseException, *, persist_on_tenant: bool = True) -> TenantOnboardingResult:
     err = f"{step}: {exc}"
     logger.error("Tenant onboarding failed slug=%s: %s", tenant.slug, err, exc_info=True)
-    tenant.provisioning_status = tenant.ProvisioningStatus.FAILED
-    tenant.provisioning_error = err[:4000]
-    tenant.is_active = False
-    tenant.status = tenant.Status.PENDING
-    tenant.save(
-        update_fields=[
-            "provisioning_status",
-            "provisioning_error",
-            "is_active",
-            "status",
-            "updated_at",
-        ]
-    )
+    if persist_on_tenant:
+        tenant.provisioning_status = tenant.ProvisioningStatus.FAILED
+        tenant.provisioning_error = err[:4000]
+        tenant.is_active = False
+        tenant.status = tenant.Status.FAILED
+        tenant.save(
+            update_fields=[
+                "provisioning_status",
+                "provisioning_error",
+                "is_active",
+                "status",
+                "updated_at",
+            ]
+        )
     return TenantOnboardingResult(ok=False, message=err, step=step)
 
 
@@ -102,6 +103,7 @@ def run_full_tenant_provisioning(
     admin_full_name: str | None = None,
     auto_generate_admin_password: bool = True,
     reuse_saved_credentials: bool = False,
+    register_flow: bool = False,
 ) -> TenantOnboardingResult:
     """
     Run the full onboarding pipeline for an existing Tenant row.
@@ -109,7 +111,10 @@ def run_full_tenant_provisioning(
     :param reuse_saved_credentials: If True and Tenant already has db_* set, skip credential generation
         and DDL (assumes DB already exists). Useful for retry after a late failure.
     :param skip_create_db: If True, only persist credentials (manual DBA setup); no CREATE USER/DATABASE.
+    :param register_flow: If True, failures do not persist FAILED state on the Tenant row (caller may
+        delete the row and drop the database instead).
     """
+    persist_fail = not register_flow
     tenant.provisioning_status = Tenant.ProvisioningStatus.IN_PROGRESS
     tenant.provisioning_error = ""
     tenant.save(update_fields=["provisioning_status", "provisioning_error", "updated_at"])
@@ -140,7 +145,7 @@ def run_full_tenant_provisioning(
                     db_password=db_password,
                 )
             except Exception as exc:
-                return _fail(tenant, "create_database_or_role", exc)
+                return _fail(tenant, "create_database_or_role", exc, persist_on_tenant=persist_fail)
         else:
             logger.info("Skipping PostgreSQL DDL for tenant slug=%s (--no-create style)", tenant.slug)
 
@@ -166,14 +171,14 @@ def run_full_tenant_provisioning(
         try:
             run_tenant_migrations(tenant)
         except Exception as exc:
-            return _fail(tenant, "migrate_tenant", exc)
+            return _fail(tenant, "migrate_tenant", exc, persist_on_tenant=persist_fail)
 
         # --- Default rows (currencies, FY, COA scaffold, etc.) ---
         try:
             init_summary = run_tenant_initialization(tenant)
             logger.info("Tenant init summary slug=%s: %s", tenant.slug, init_summary)
         except Exception as exc:
-            return _fail(tenant, "initialize_tenant_defaults", exc)
+            return _fail(tenant, "initialize_tenant_defaults", exc, persist_on_tenant=persist_fail)
 
         # --- RBAC + tenant admin (optional) ---
         email = (admin_email or "").strip().lower()
@@ -185,6 +190,7 @@ def run_full_tenant_provisioning(
                         tenant,
                         "bootstrap_rbac",
                         ValueError("admin_password is required when auto_generate_admin_password is False."),
+                        persist_on_tenant=persist_fail,
                     )
                 from secrets import token_urlsafe
 
@@ -200,7 +206,7 @@ def run_full_tenant_provisioning(
                     full_name=full_name,
                 )
             except Exception as exc:
-                return _fail(tenant, "bootstrap_tenant_rbac", exc)
+                return _fail(tenant, "bootstrap_tenant_rbac", exc, persist_on_tenant=persist_fail)
         else:
             logger.info("Skipping RBAC bootstrap (no admin_email) for tenant slug=%s", tenant.slug)
 
@@ -210,4 +216,4 @@ def run_full_tenant_provisioning(
         return _succeed(tenant, message=msg, generated_admin_password=gen_pw)
 
     except Exception as exc:
-        return _fail(tenant, "unexpected", exc)
+        return _fail(tenant, "unexpected", exc, persist_on_tenant=persist_fail)

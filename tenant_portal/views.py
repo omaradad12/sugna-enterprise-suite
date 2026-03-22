@@ -1286,6 +1286,253 @@ def finance_grant_utilization_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@tenant_view(require_module="finance_grants", require_perm="module:grants.manage")
+def grants_project_budget_view(request: HttpRequest) -> HttpResponse:
+    """Maintain project budget lines (allocated / remaining) for activity-based planning."""
+    from decimal import Decimal, InvalidOperation
+
+    from django.shortcuts import redirect
+    from django.urls import reverse
+
+    from tenant_finance.models import ChartAccount
+    from tenant_grants.models import Project, ProjectBudget, ProjectBudgetLine
+
+    tenant_db = request.tenant_db
+    projects = list(Project.objects.using(tenant_db).order_by("code")[:400])
+    pid = (request.GET.get("project_id") or request.POST.get("project_id") or "").strip()
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if not pid.isdigit():
+            messages.error(request, "Select a project.")
+        else:
+            proj = Project.objects.using(tenant_db).filter(pk=int(pid)).first()
+            if not proj:
+                messages.error(request, "Project not found.")
+            elif action == "ensure_budget":
+                ProjectBudget.objects.using(tenant_db).get_or_create(
+                    project=proj, name="Main", defaults={}
+                )
+                messages.success(request, "Project budget container ready.")
+                return redirect(reverse("tenant_portal:grants_project_budget") + f"?project_id={pid}")
+            elif action == "add_line":
+                budget = (
+                    ProjectBudget.objects.using(tenant_db)
+                    .filter(project_id=int(pid), name="Main")
+                    .first()
+                )
+                if not budget:
+                    messages.error(request, "Create the project budget first (Main).")
+                else:
+                    cat = (request.POST.get("category") or "").strip()
+                    raw_amt = (request.POST.get("allocated_amount") or "0").replace(",", "")
+                    acc_id = (request.POST.get("account_id") or "").strip()
+                    desc = (request.POST.get("description") or "").strip()
+                    try:
+                        amt = Decimal(raw_amt)
+                    except InvalidOperation:
+                        amt = Decimal("0")
+                    acct = (
+                        ChartAccount.objects.using(tenant_db).filter(pk=int(acc_id)).first()
+                        if acc_id.isdigit()
+                        else None
+                    )
+                    if not cat:
+                        messages.error(request, "Category is required.")
+                    elif amt < 0:
+                        messages.error(request, "Allocated amount cannot be negative.")
+                    else:
+                        ProjectBudgetLine.objects.using(tenant_db).create(
+                            project_budget=budget,
+                            category=cat,
+                            description=desc,
+                            account=acct,
+                            allocated_amount=amt,
+                            remaining_amount=amt,
+                        )
+                        messages.success(request, "Budget line added.")
+                        return redirect(reverse("tenant_portal:grants_project_budget") + f"?project_id={pid}")
+
+    budget = None
+    lines: list = []
+    selected_project = None
+    if pid.isdigit():
+        selected_project = Project.objects.using(tenant_db).filter(pk=int(pid)).first()
+        if selected_project:
+            budget = (
+                ProjectBudget.objects.using(tenant_db)
+                .filter(project=selected_project, name="Main")
+                .first()
+            )
+            if budget:
+                lines = list(
+                    ProjectBudgetLine.objects.using(tenant_db)
+                    .select_related("account")
+                    .filter(project_budget=budget)
+                    .order_by("id")
+                )
+
+    accounts = list(
+        ChartAccount.objects.using(tenant_db).filter(is_active=True).order_by("code")[:500]
+    )
+    return render(
+        request,
+        "tenant_portal/grants/project_budget.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "funds",
+            "active_item": "funds_project_budget",
+            "projects": projects,
+            "selected_project": selected_project,
+            "project_budget": budget,
+            "budget_lines": lines,
+            "accounts": accounts,
+        },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def finance_project_budget_activity_report_view(request: HttpRequest) -> HttpResponse:
+    """Project budget vs actual by line; activity planned vs actual; grant/donor columns."""
+    from decimal import Decimal
+
+    from django.db.models import Sum
+
+    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
+    from tenant_grants.models import Donor, Grant, Project, ProjectBudgetLine, WorkplanActivity
+
+    tenant_db = request.tenant_db
+    pid = (request.GET.get("project_id") or "").strip()
+    gid = (request.GET.get("grant_id") or "").strip()
+    did = (request.GET.get("donor_id") or "").strip()
+
+    projects = list(Project.objects.using(tenant_db).order_by("code")[:400])
+    donors = list(Donor.objects.using(tenant_db).order_by("name"))
+    grants = list(Grant.objects.using(tenant_db).select_related("donor").order_by("code")[:300])
+
+    line_rows: list[dict] = []
+    act_rows: list[dict] = []
+
+    pbl_qs = (
+        ProjectBudgetLine.objects.using(tenant_db)
+        .select_related("project_budget__project", "account")
+        .order_by("project_budget__project__code", "id")
+    )
+    if pid.isdigit():
+        pbl_qs = pbl_qs.filter(project_budget__project_id=int(pid))
+    pbl_list = list(pbl_qs[:500])
+
+    for bl in pbl_list:
+        actual = (
+            JournalLine.objects.using(tenant_db)
+            .filter(
+                project_budget_line_id=bl.pk,
+                entry__status=JournalEntry.Status.POSTED,
+                account__type=ChartAccount.Type.EXPENSE,
+                debit__gt=0,
+            )
+            .aggregate(s=Sum("debit"))
+            .get("s")
+            or Decimal("0")
+        )
+        alloc = bl.allocated_amount or Decimal("0")
+        line_rows.append(
+            {
+                "project": bl.project_budget.project,
+                "category": bl.category,
+                "account": bl.account,
+                "allocated": alloc,
+                "actual": actual,
+                "remaining": bl.remaining_amount,
+                "variance": actual - alloc,
+            }
+        )
+
+    wa_qs = (
+        WorkplanActivity.objects.using(tenant_db)
+        .select_related("grant", "grant__donor", "project_budget_line")
+        .order_by("-id")
+    )
+    if pid.isdigit():
+        wa_qs = wa_qs.filter(project_id=int(pid))
+    if gid.isdigit():
+        wa_qs = wa_qs.filter(grant_id=int(gid))
+    if did.isdigit():
+        wa_qs = wa_qs.filter(grant__donor_id=int(did))
+    for w in wa_qs[:500]:
+        act_rows.append(
+            {
+                "activity_code": w.activity_code or w.workplan_code,
+                "name": w.activity,
+                "grant": w.grant,
+                "donor": w.grant.donor if w.grant_id else None,
+                "budget_line": w.project_budget_line.category if w.project_budget_line_id else (w.budget_line or "—"),
+                "planned": w.budget_amount or Decimal("0"),
+                "actual": w.actual_cost or Decimal("0"),
+            }
+        )
+
+    if request.GET.get("format") == "csv":
+        import csv
+
+        from django.http import HttpResponse
+
+        resp = HttpResponse(content_type="text/csv")
+        resp["Content-Disposition"] = 'attachment; filename="project_budget_activity.csv"'
+        w = csv.writer(resp)
+        w.writerow(["Section", "Project", "Category / Activity", "Grant", "Donor", "Allocated / Planned", "Actual", "Variance / Remaining"])
+        for r in line_rows:
+            p = r["project"]
+            w.writerow(
+                [
+                    "Budget line",
+                    p.code if p else "",
+                    r["category"],
+                    "",
+                    "",
+                    r["allocated"],
+                    r["actual"],
+                    r["allocated"] - r["actual"],
+                ]
+            )
+        for r in act_rows:
+            g = r["grant"]
+            d = r["donor"]
+            w.writerow(
+                [
+                    "Activity",
+                    "",
+                    r["name"],
+                    g.code if g else "",
+                    d.name if d else "",
+                    r["planned"],
+                    r["actual"],
+                    r["actual"] - r["planned"],
+                ]
+            )
+        return resp
+
+    return render(
+        request,
+        "tenant_portal/finance/project_budget_activity_report.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "dashboard",
+            "active_item": "dashboard_project_budget_activity",
+            "projects": projects,
+            "grants": grants,
+            "donors": donors,
+            "line_rows": line_rows,
+            "act_rows": act_rows,
+            "filter_project_id": pid,
+            "filter_grant_id": gid,
+            "filter_donor_id": did,
+        },
+    )
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def finance_project_financial_status_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal
@@ -3999,6 +4246,19 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
     can_reverse_journal = user_has_permission(user, "finance:journals.reverse", using=tenant_db)
     can_create_manual = user_has_permission(user, "finance.add_journalentry", using=tenant_db)
 
+    from tenant_grants.models import ProjectBudgetLine, WorkplanActivity
+
+    manual_journal_budget_lines = list(
+        ProjectBudgetLine.objects.using(tenant_db)
+        .select_related("project_budget__project")
+        .order_by("project_budget__project__code", "id")[:500]
+    )
+    manual_journal_workplan_activities = list(
+        WorkplanActivity.objects.using(tenant_db)
+        .select_related("grant")
+        .order_by("-id")[:500]
+    )
+
     if request.GET.get("format") == "csv":
         import csv
 
@@ -4075,6 +4335,8 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             "can_create_manual": can_create_manual,
             "open_manual_from_query": request.GET.get("open_manual") == "1",
             "journal_schema_0034": je_schema_0034,
+            "manual_journal_budget_lines": manual_journal_budget_lines,
+            "manual_journal_workplan_activities": manual_journal_workplan_activities,
             "active_submenu": "core",
             "active_item": "core_journals",
         },
@@ -4140,7 +4402,14 @@ def finance_journal_detail_view(request: HttpRequest, entry_id: int) -> HttpResp
 
     lines = list(
         JournalLine.objects.using(tenant_db)
-        .select_related("account", "grant")
+        .select_related(
+            "account",
+            "grant",
+            "project_budget_line",
+            "project_budget_line__project_budget__project",
+            "workplan_activity",
+            "workplan_activity__grant",
+        )
         .filter(entry=entry)
         .order_by("id")
     )
@@ -4233,17 +4502,23 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
     debits = request.POST.getlist("line_debit")
     credits = request.POST.getlist("line_credit")
     descriptions = request.POST.getlist("line_description")
+    line_pbl = request.POST.getlist("line_project_budget_line")
+    line_wa = request.POST.getlist("line_workplan_activity")
 
     lines = []
     for idx in range(len(accounts)):
         if not accounts[idx]:
             continue
+        pr = (line_pbl[idx] or "").strip() if idx < len(line_pbl) else ""
+        wr = (line_wa[idx] or "").strip() if idx < len(line_wa) else ""
         lines.append(
             {
                 "account_id": accounts[idx],
                 "description": descriptions[idx] if idx < len(descriptions) else "",
                 "debit": debits[idx] if idx < len(debits) else "0",
                 "credit": credits[idx] if idx < len(credits) else "0",
+                "project_budget_line_id": int(pr) if pr.isdigit() else None,
+                "workplan_activity_id": int(wr) if wr.isdigit() else None,
             }
         )
 
@@ -4297,6 +4572,9 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
                 description=line["description"],
                 debit=Decimal(line["debit"] or "0"),
                 credit=Decimal(line["credit"] or "0"),
+                grant_id=grant.pk if grant else None,
+                project_budget_line_id=line.get("project_budget_line_id"),
+                workplan_activity_id=line.get("workplan_activity_id"),
             )
 
         # Audit log
@@ -4361,7 +4639,12 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
     entry = (
         JournalEntry.objects.using(tenant_db)
         .select_related("grant", "donor")
-        .prefetch_related("lines__account", "lines__grant")
+        .prefetch_related(
+            "lines__account",
+            "lines__grant",
+            "lines__project_budget_line",
+            "lines__workplan_activity",
+        )
         .filter(pk=entry_id)
         .first()
     )
@@ -4536,6 +4819,13 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                             f"Grant budget would be exceeded. Budget: {grant_budget}, "
                             f"already posted: {existing_spent}, this entry expense: {entry_expense}."
                         )
+                    from tenant_grants.services.project_budget_actuals import (
+                        validate_journal_entry_expense_budget_dimensions,
+                    )
+
+                    dim_errs = validate_journal_entry_expense_budget_dimensions(entry, tenant_db)
+                    if dim_errs:
+                        raise ValueError(dim_errs[0])
                     from tenant_grants.restrictions import evaluate_journal_post_restrictions
 
                     override_dn = user_has_permission(
@@ -4574,6 +4864,14 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                     summary=f"Journal status changed {old_status} → {entry.status}",
                 )
                 messages.success(request, "Journal posted to the general ledger.")
+                try:
+                    from tenant_grants.services.project_budget_actuals import (
+                        refresh_project_budget_and_activity_actuals,
+                    )
+
+                    refresh_project_budget_and_activity_actuals(tenant_db, entry=entry)
+                except Exception:
+                    pass
 
             elif action == "reverse":
                 if entry.status != JournalEntry.Status.POSTED:
@@ -4699,6 +4997,8 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                         entry=reversal,
                         account=line.account,
                         grant_id=getattr(line, "grant_id", None),
+                        project_budget_line_id=getattr(line, "project_budget_line_id", None),
+                        workplan_activity_id=getattr(line, "workplan_activity_id", None),
                         description=f"Reversal of line {line.id}",
                         debit=Decimal(line.credit or 0),
                         credit=Decimal(line.debit or 0),
@@ -9803,11 +10103,22 @@ def _grant_workplan_export_urls(request):
     return {"xlsx": xlsx_url, "pdf": pdf_url}
 
 
-def _validate_workplan_activity(tenant_db, grant, start_date, end_date, budget_amount, exclude_activity_id=None):
+def _validate_workplan_activity(
+    tenant_db,
+    grant,
+    start_date,
+    end_date,
+    budget_amount,
+    exclude_activity_id=None,
+    project_budget_line_id=None,
+):
     """Validate workplan activity: dates within grant period; total activity budgets <= grant award_amount."""
     from decimal import Decimal
-    from tenant_grants.models import WorkplanActivity
     from django.db.models import Sum
+
+    from tenant_grants.models import WorkplanActivity
+    from tenant_grants.services.project_budget_actuals import project_has_budget_lines
+
     errors = []
     if not grant:
         return errors
@@ -9834,15 +10145,21 @@ def _validate_workplan_activity(tenant_db, grant, start_date, end_date, budget_a
             f"Total workplan budget would exceed grant allocation ({grant_total}). "
             f"Current activities total {existing_sum}; this activity would add {new_budget}."
         )
+    if grant.project_id and project_has_budget_lines(tenant_db, grant.project_id):
+        if not project_budget_line_id:
+            errors.append(
+                "Select a project budget line for this activity (project has a budget structure)."
+            )
     return errors
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
     """Grant workplan: filter panel, workplan table, Create workplan and Raise PR forms."""
+    from django.core.exceptions import ValidationError
     from django.utils.dateparse import parse_date
     from decimal import Decimal
-    from tenant_grants.models import Grant, WorkplanActivity
+    from tenant_grants.models import Donor, Grant, ProjectBudgetLine, WorkplanActivity
 
     tenant_db = request.tenant_db
     can_manage = user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
@@ -9854,6 +10171,7 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
             donor_id = request.POST.get("donor_id") or None
             component = (request.POST.get("workplan_component") or "").strip()
             budget_line = (request.POST.get("workplan_budget_line") or "").strip()
+            pbl_raw = (request.POST.get("workplan_project_budget_line") or "").strip()
             procurement_req = (request.POST.get("workplan_procurement") or "").strip()
             dept = (request.POST.get("workplan_department") or "").strip()
             staff = (request.POST.get("workplan_staff") or "").strip()
@@ -9870,8 +10188,22 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                             budget_val = Decimal(str(budget).replace(",", ""))
                         except Exception:
                             pass
+                    pbl = (
+                        ProjectBudgetLine.objects.using(tenant_db)
+                        .select_related("project_budget")
+                        .filter(pk=int(pbl_raw))
+                        .first()
+                        if pbl_raw.isdigit()
+                        else None
+                    )
                     errs = _validate_workplan_activity(
-                        tenant_db, grant, start_date, end_date, budget_val, exclude_activity_id=None
+                        tenant_db,
+                        grant,
+                        start_date,
+                        end_date,
+                        budget_val,
+                        exclude_activity_id=None,
+                        project_budget_line_id=pbl.pk if pbl else None,
                     )
                     if errs:
                         for e in errs:
@@ -9879,11 +10211,10 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                     else:
                         donor = None
                         if donor_id:
-                            from tenant_grants.models import Donor
                             donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first()
                         if not donor:
                             donor = grant.donor
-                        WorkplanActivity.objects.using(tenant_db).create(
+                        act = WorkplanActivity(
                             grant=grant,
                             donor=donor,
                             activity=title,
@@ -9896,8 +10227,18 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                             end_date=end_date or None,
                             budget_amount=budget_val,
                             notes=notes,
+                            description=notes,
+                            project_budget_line=pbl,
                         )
-                        messages.success(request, "Workplan activity created.")
+                        try:
+                            act.full_clean()
+                        except ValidationError as ve:
+                            for _f, msg_list in ve.error_dict.items():
+                                for msg in msg_list:
+                                    messages.error(request, str(msg))
+                        else:
+                            act.save(using=tenant_db)
+                            messages.success(request, "Workplan activity created.")
                 else:
                     messages.error(request, "Grant not found.")
             else:
@@ -9922,7 +10263,7 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                 )
             messages.error(request, "Select a workplan activity to raise a PR.")
         elif form_type == "import_workplan" and can_manage:
-            from tenant_grants.models import Donor
+            from tenant_grants.models import Donor, ProjectBudgetLine
             from django.db.models import Sum
             import csv
             import io
@@ -10013,7 +10354,23 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                             budget_val = Decimal(str(b).replace(",", ""))
                     except Exception:
                         pass
-                    errs = _validate_workplan_activity(tenant_db, grant, start_date, end_date, budget_val, exclude_activity_id=None)
+                    pbl_imp = _get(row, "project_budget_line_id", "project_budget_line")
+                    pbl_imp_obj = (
+                        ProjectBudgetLine.objects.using(tenant_db)
+                        .filter(pk=int(pbl_imp))
+                        .first()
+                        if str(pbl_imp).isdigit()
+                        else None
+                    )
+                    errs = _validate_workplan_activity(
+                        tenant_db,
+                        grant,
+                        start_date,
+                        end_date,
+                        budget_val,
+                        exclude_activity_id=None,
+                        project_budget_line_id=pbl_imp_obj.pk if pbl_imp_obj else None,
+                    )
                     existing_sum = batch_budget_by_grant.get(grant.id)
                     if existing_sum is None:
                         existing_sum = WorkplanActivity.objects.using(tenant_db).filter(grant=grant).aggregate(s=Sum("budget_amount")).get("s") or Decimal("0")
@@ -10027,7 +10384,7 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                     activity_status_val = _get(row, "activity_status", "status").lower() or "planned"
                     if activity_status_val not in ("planned", "in_progress", "completed"):
                         activity_status_val = "planned"
-                    WorkplanActivity.objects.using(tenant_db).create(
+                    imp_act = WorkplanActivity(
                         grant=grant,
                         donor=donor,
                         activity=activity_title,
@@ -10041,7 +10398,16 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                         budget_amount=budget_val,
                         activity_status=activity_status_val,
                         notes="",
+                        project_budget_line=pbl_imp_obj,
                     )
+                    try:
+                        imp_act.full_clean()
+                    except ValidationError as ve:
+                        for _f, msg_list in ve.error_dict.items():
+                            for msg in msg_list:
+                                messages.warning(request, f"Row {idx + 2}: {msg}")
+                        continue
+                    imp_act.save(using=tenant_db)
                     batch_budget_by_grant[grant.id] = existing_sum + budget_val
                     created += 1
                 if created:
@@ -10059,14 +10425,36 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
         ws = wb.active
         ws.title = "Workplan import"
         headers = [
-            "Grant", "Donor", "Activity", "Component/Output", "Budget line", "Procurement",
-            "Responsible department", "Responsible staff", "Start date", "End date", "Budget amount", "Activity status",
+            "Grant",
+            "Donor",
+            "Activity",
+            "Component/Output",
+            "Budget line",
+            "Project_budget_line_id",
+            "Procurement",
+            "Responsible department",
+            "Responsible staff",
+            "Start date",
+            "End date",
+            "Budget amount",
+            "Activity status",
         ]
         for col, h in enumerate(headers, 1):
             ws.cell(row=1, column=col, value=h)
         sample = [
-            "GRANT-001", "Donor name", "Q1 field activities", "Output 1", "Travel", "Vehicle hire",
-            "Programme", "John Doe", "2025-01-01", "2025-03-31", "5000.00", "planned",
+            "GRANT-001",
+            "Donor name",
+            "Q1 field activities",
+            "Output 1",
+            "Travel",
+            "",
+            "Vehicle hire",
+            "Programme",
+            "John Doe",
+            "2025-01-01",
+            "2025-03-31",
+            "5000.00",
+            "planned",
         ]
         for col, v in enumerate(sample, 1):
             ws.cell(row=2, column=col, value=v)
@@ -10078,7 +10466,11 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
         return resp
 
     f = _parse_workplan_filters(request)
-    qs = WorkplanActivity.objects.using(tenant_db).select_related("grant", "donor").order_by("-created_at")
+    qs = (
+        WorkplanActivity.objects.using(tenant_db)
+        .select_related("grant", "donor", "project_budget_line", "project_budget_line__project_budget__project")
+        .order_by("-created_at")
+    )
     if f["grant_id"]:
         qs = qs.filter(grant_id=f["grant_id"])
     if f["donor_id"]:
@@ -10114,13 +10506,14 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
                 w.donor_display(),
                 w.activity,
                 w.component_output,
-                w.budget_line or "",
+                (w.project_budget_line.category if w.project_budget_line_id else "") or (w.budget_line or ""),
                 w.procurement_requirement[:80] if w.procurement_requirement else "",
                 w.responsible_department,
                 w.responsible_staff,
                 w.start_date or "",
                 w.end_date or "",
                 w.budget_amount or "",
+                w.actual_cost or 0,
                 "Yes" if w.approved_for_pr else "No",
                 w.get_activity_status_display(),
             ]
@@ -10131,9 +10524,21 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
             filename_base="grant_workplan",
             title="Grant Workplan",
             headers=[
-                "Workplan ID", "Grant", "Donor", "Activity", "Component/Output",
-                "Budget Line", "Procurement", "Responsible Department", "Responsible Staff",
-                "Start Date", "End Date", "Budget Amount", "Approved for PR", "Activity Status",
+                "Workplan ID",
+                "Grant",
+                "Donor",
+                "Activity",
+                "Component/Output",
+                "Budget line (project / text)",
+                "Procurement",
+                "Responsible Department",
+                "Responsible Staff",
+                "Start Date",
+                "End Date",
+                "Planned amount",
+                "Actual cost",
+                "Approved for PR",
+                "Activity Status",
             ],
             rows=rows,
         )
@@ -10142,6 +10547,11 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
 
     export_urls = _grant_workplan_export_urls(request)
     workplan_import_template_url = reverse("tenant_portal:grants_grant_workplan") + "?download_template=1"
+    project_budget_lines = list(
+        ProjectBudgetLine.objects.using(tenant_db)
+        .select_related("project_budget__project")
+        .order_by("project_budget__project__code", "id")[:500]
+    )
     return render(
         request,
         "tenant_portal/grants/grant_workplan.html",
@@ -10160,6 +10570,7 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
             "workplan_status_choices": WorkplanActivity.WorkplanStatus.choices,
             "activity_status_choices": WorkplanActivity.ActivityStatus.choices,
             "can_manage": can_manage,
+            "project_budget_lines": project_budget_lines,
             "approved_activities_for_pr": [
                 a for a in workplans if getattr(a, "approved_for_pr", False)
             ],

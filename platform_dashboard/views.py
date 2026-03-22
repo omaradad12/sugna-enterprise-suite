@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.db import utils as db_utils
+from django.db import IntegrityError, utils as db_utils
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -20,8 +20,9 @@ from django.utils.text import slugify
 
 from tenants.branding import extract_brand_colors
 from tenants.db import ensure_tenant_db_configured
-from tenants.models import Module, Tenant
+from tenants.models import Module, SubscriptionPlan, Tenant, TenantDomain
 from tenants.services.onboarding import run_full_tenant_provisioning
+from tenants.services.registration_cleanup import cleanup_failed_registration_tenant
 from tenants.services.tenant_modules import replace_tenant_modules
 
 
@@ -422,118 +423,281 @@ def _export_tenants_csv(queryset):
     return response
 
 
+def _tenant_register_allocate_slug(base: str) -> str:
+    slug = (base or "")[:50] or "tenant"
+    if not Tenant.objects.filter(slug=slug).exists():
+        return slug
+    base_slug, i = slug, 1
+    while True:
+        candidate = f"{base_slug}-{i}"[:50]
+        if not Tenant.objects.filter(slug=candidate).exists():
+            return candidate
+        i += 1
+
+
+def _resolve_subscription_plan_label(raw: str) -> str:
+    raw = (raw or "").strip()
+    if not raw:
+        return ""
+    code_guess = slugify(raw)
+    for sp in SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code"):
+        if sp.code.lower() == raw.lower() or sp.code.lower() == code_guess.lower():
+            return sp.name
+        if sp.name.lower() == raw.lower():
+            return sp.name
+    return raw
+
+
+def _apply_tenant_branding_from_request(request, tenant: Tenant, slug: str) -> None:
+    logo_file = request.FILES.get("logo")
+    if logo_file:
+        ext = os.path.splitext(logo_file.name)[1] or ".png"
+        relative_path = f"tenant_logos/{slug}{ext}"
+        saved_path = default_storage.save(relative_path, logo_file)
+        tenant.brand_logo_url = settings.MEDIA_URL + saved_path.replace("\\", "/")
+        primary, bg = extract_brand_colors(default_storage.open(saved_path, "rb"))
+        if primary and not tenant.brand_primary_color:
+            tenant.brand_primary_color = primary
+        if bg and not tenant.brand_background_color:
+            tenant.brand_background_color = bg
+    brand_primary = (request.POST.get("brand_primary_color") or "").strip()
+    brand_bg = (request.POST.get("brand_secondary_color") or "").strip()
+    if brand_primary:
+        tenant.brand_primary_color = brand_primary
+    if brand_bg:
+        tenant.brand_background_color = brand_bg
+    if not tenant.brand_login_title:
+        tenant.brand_login_title = tenant.name
+
+
+def _log_tenant_provisioning(request, tenant: Tenant, message: str) -> None:
+    from django.contrib.admin.models import ADDITION, LogEntry
+    from django.contrib.contenttypes.models import ContentType
+
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return
+    LogEntry.objects.create(
+        user_id=user.pk,
+        content_type_id=ContentType.objects.get_for_model(Tenant).pk,
+        object_id=str(tenant.pk),
+        object_repr=str(tenant)[:200],
+        action_flag=ADDITION,
+        change_message=message[:2000],
+    )
+
+
+def _send_tenant_setup_link_email(*, recipient: str, tenant: Tenant, login_url: str) -> None:
+    from django.core.mail import send_mail
+
+    subject = f"Your Sugna workspace is ready — {tenant.name}"
+    body = (
+        "Your organization workspace has been provisioned on Sugna Enterprise Suite.\n\n"
+        f"Workspace: {tenant.name}\n"
+        f"Sign-in URL: {login_url}\n\n"
+        "Use the credentials your administrator shared, or use password recovery from the login page if needed.\n"
+    )
+    send_mail(
+        subject,
+        body,
+        getattr(settings, "DEFAULT_FROM_EMAIL", None) or "webmaster@localhost",
+        [recipient],
+        fail_silently=False,
+    )
+
+
 @login_required(login_url="/platform/login/")
 @staff_member_required(login_url="/platform/login/")
 def tenant_register_view(request):
     """Tenant registration form (GET) and create tenant (POST). Maps form fields to Tenant where applicable."""
     modules = Module.objects.filter(is_active=True).order_by("code")
-    if request.method == "POST":
-        action = request.POST.get("action", "create")
-        name = (request.POST.get("organization_legal_name") or request.POST.get("organization_short_name") or "").strip()
-        tenant_code = (request.POST.get("tenant_code") or "").strip()
-        subdomain = (request.POST.get("preferred_subdomain") or "").strip()
-        custom_domain = (request.POST.get("custom_domain") or "").strip()
-        domain = (custom_domain or (subdomain + ".sugna.org") if subdomain else "").strip()
-        country = (request.POST.get("country") or "").strip()
-        plan = (request.POST.get("plan_name") or "").strip()
-        if action == "draft":
-            messages.info(request, "Draft not persisted yet. Use Create Tenant to save.")
-            return redirect("platform_dashboard:tenant_register")
+    subscription_plans = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
+    if request.method != "POST":
+        return render(
+            request,
+            "platform_dashboard/tenant_register.html",
+            {"modules": modules, "subscription_plans": subscription_plans},
+        )
+
+    action = request.POST.get("action", "create")
+    approval = (request.POST.get("approval_decision") or "pending").strip().lower()
+
+    name = (request.POST.get("organization_legal_name") or request.POST.get("organization_short_name") or "").strip()
+    tenant_code = (request.POST.get("tenant_code") or "").strip()
+    subdomain = (request.POST.get("preferred_subdomain") or "").strip()
+    custom_domain = (request.POST.get("custom_domain") or "").strip()
+    domain = (custom_domain or (f"{subdomain}.sugna.org" if subdomain else "")).strip()
+    country = (request.POST.get("country") or "").strip()
+    plan = _resolve_subscription_plan_label(request.POST.get("plan_name") or "")
+    admin_email = (request.POST.get("admin_email") or request.POST.get("contact_email") or "").strip()
+    admin_full_name = (
+        (request.POST.get("admin_full_name") or request.POST.get("contact_full_name") or "").strip() or name
+    )
+
+    if action == "draft":
         if not name:
-            messages.error(request, "Organization name is required.")
-        elif not domain:
-            messages.error(request, "Preferred subdomain or custom domain is required.")
-        else:
-            slug = slugify(tenant_code or name)[:50] or "tenant"
-            if Tenant.objects.filter(slug=slug).exists():
-                base, i = slug, 1
-                while Tenant.objects.filter(slug=slug).exists():
-                    slug = f"{base}-{i}"
-                    i += 1
-            if Tenant.objects.filter(domain=domain).exists():
-                messages.error(request, f"Domain '{domain}' is already in use.")
-            else:
-                tenant = Tenant.objects.create(
-                    name=name,
-                    slug=slug,
-                    domain=domain,
-                    country=country,
-                    plan=plan,
-                    status=Tenant.Status.PENDING,
-                    is_active=False,
-                )
-                module_ids = request.POST.getlist("selected_modules")
-                if module_ids:
-                    replace_tenant_modules(tenant, list(Module.objects.filter(pk__in=module_ids)))
-                # Handle branding fields (colors) and logo upload
-                logo_file = request.FILES.get("logo")
-                if logo_file:
-                    ext = os.path.splitext(logo_file.name)[1] or ".png"
-                    relative_path = f"tenant_logos/{slug}{ext}"
-                    saved_path = default_storage.save(relative_path, logo_file)
-                    from django.conf import settings
+            messages.error(request, "Organization name is required to save a draft.")
+            return redirect("platform_dashboard:tenant_register")
+        slug = _tenant_register_allocate_slug(slugify(tenant_code or name)[:50] or "tenant")
+        draft_key = token_urlsafe(9).replace("-", "")[:20]
+        draft_domain = f"draft-{draft_key}.sugna.org"
+        try:
+            tenant = Tenant.objects.create(
+                name=name[:255],
+                slug=slug,
+                domain=draft_domain,
+                country=country,
+                plan=plan,
+                status=Tenant.Status.DRAFT,
+                is_active=False,
+                provisioning_status=Tenant.ProvisioningStatus.NOT_STARTED,
+            )
+            TenantDomain.objects.create(tenant=tenant, domain=draft_domain, is_primary=True)
+            module_ids = request.POST.getlist("selected_modules")
+            if module_ids:
+                replace_tenant_modules(tenant, list(Module.objects.filter(pk__in=module_ids)))
+            _apply_tenant_branding_from_request(request, tenant, slug)
+            tenant.save()
+            _log_tenant_provisioning(request, tenant, "Tenant registration draft saved (no database provisioned).")
+        except IntegrityError:
+            messages.error(request, "Could not save draft: duplicate organization name or conflicting slug.")
+            return redirect("platform_dashboard:tenant_register")
+        messages.success(
+            request,
+            f"Draft saved for «{name}». Open Tenant Directory to continue; replace the draft domain when you finalize the workspace URL.",
+        )
+        return redirect("platform_dashboard:tenant_list")
 
-                    tenant.brand_logo_url = settings.MEDIA_URL + saved_path.replace("\\", "/")
-
-                    # Auto-derive branding colors from the logo if not explicitly provided.
-                    primary, bg = extract_brand_colors(default_storage.open(saved_path, "rb"))
-                    if primary and not tenant.brand_primary_color:
-                        tenant.brand_primary_color = primary
-                    if bg and not tenant.brand_background_color:
-                        tenant.brand_background_color = bg
-
-                # If colors were explicitly chosen in the form, they take precedence.
-                brand_primary = (request.POST.get("brand_primary_color") or "").strip()
-                brand_bg = (request.POST.get("brand_secondary_color") or "").strip()
-                if brand_primary:
-                    tenant.brand_primary_color = brand_primary
-                if brand_bg:
-                    tenant.brand_background_color = brand_bg
-
-                # Default login title/subtitle from tenant name if not customized later.
-                if not tenant.brand_login_title:
-                    tenant.brand_login_title = tenant.name
-
-                tenant.save()
-
-                # DB-per-tenant: provision PostgreSQL, migrate, seed defaults, bootstrap RBAC (service layer).
-                admin_email = (request.POST.get("admin_email") or request.POST.get("contact_email") or "").strip()
-                admin_full_name = (
-                    request.POST.get("admin_full_name") or request.POST.get("contact_full_name") or ""
-                ).strip() or name
-                setup_method = (request.POST.get("setup_method") or "invite").strip()
-                admin_password = (request.POST.get("admin_temporary_password") or "").strip()
-                auto_gen_pw = setup_method != "password" or not admin_password
-
-                onboard = run_full_tenant_provisioning(
-                    tenant,
-                    admin_email=admin_email or None,
-                    admin_password=admin_password or None,
-                    admin_full_name=admin_full_name,
-                    auto_generate_admin_password=auto_gen_pw,
-                )
-                if onboard.ok:
-                    messages.success(request, onboard.message)
-                    if onboard.generated_admin_password:
-                        messages.warning(
-                            request,
-                            "Tenant admin temporary password (copy securely; not shown again): "
-                            f"{onboard.generated_admin_password}",
-                        )
-                    if action == "create_send_link":
-                        messages.info(
-                            request,
-                            f"Tenant «{name}» is active. Send setup link to {admin_email or 'the admin'} when email is configured.",
-                        )
-                else:
-                    messages.error(
-                        request,
-                        f"Tenant «{name}» was saved, but automated provisioning failed: {onboard.message}",
-                    )
-
-                return redirect("platform_dashboard:tenant_detail", pk=tenant.pk)
+    if action not in ("create", "create_send_link"):
         return redirect("platform_dashboard:tenant_register")
-    return render(request, "platform_dashboard/tenant_register.html", {"modules": modules})
+
+    if approval == "rejected":
+        messages.error(request, "Change approval from Rejected to Pending or Approved before creating a tenant.")
+        return redirect("platform_dashboard:tenant_register")
+
+    if action == "create_send_link" and approval != "approved":
+        messages.error(request, "Approve the tenant before using Create & Send Setup Link.")
+        return redirect("platform_dashboard:tenant_register")
+
+    if action == "create_send_link" and not admin_email:
+        messages.error(request, "Admin or contact email is required to send a setup link.")
+        return redirect("platform_dashboard:tenant_register")
+
+    if not name:
+        messages.error(request, "Organization name is required.")
+        return redirect("platform_dashboard:tenant_register")
+    if not domain:
+        messages.error(request, "Preferred subdomain or custom domain is required.")
+        return redirect("platform_dashboard:tenant_register")
+
+    if Tenant.objects.filter(domain=domain).exists():
+        messages.error(request, f"Domain '{domain}' is already in use.")
+        return redirect("platform_dashboard:tenant_register")
+
+    slug = _tenant_register_allocate_slug(slugify(tenant_code or name)[:50] or "tenant")
+
+    if approval == "pending":
+        try:
+            tenant = Tenant.objects.create(
+                name=name[:255],
+                slug=slug,
+                domain=domain,
+                country=country,
+                plan=plan,
+                status=Tenant.Status.PENDING,
+                is_active=False,
+                provisioning_status=Tenant.ProvisioningStatus.NOT_STARTED,
+            )
+            TenantDomain.objects.create(tenant=tenant, domain=domain, is_primary=True)
+            module_ids = request.POST.getlist("selected_modules")
+            if module_ids:
+                replace_tenant_modules(tenant, list(Module.objects.filter(pk__in=module_ids)))
+            _apply_tenant_branding_from_request(request, tenant, slug)
+            tenant.save()
+            _log_tenant_provisioning(
+                request,
+                tenant,
+                "Tenant registered; approval pending — database provisioning was not run.",
+            )
+        except IntegrityError:
+            messages.error(request, "Could not create tenant: duplicate organization name, slug, or domain.")
+            return redirect("platform_dashboard:tenant_register")
+        messages.success(
+            request,
+            f"Tenant «{name}» saved as pending. Assign modules and plan are stored; provision the database when approved (Tenant Directory / retry provisioning).",
+        )
+        return redirect("platform_dashboard:tenant_list")
+
+    try:
+        tenant = Tenant.objects.create(
+            name=name[:255],
+            slug=slug,
+            domain=domain,
+            country=country,
+            plan=plan,
+            status=Tenant.Status.PENDING,
+            is_active=False,
+            provisioning_status=Tenant.ProvisioningStatus.NOT_STARTED,
+        )
+        TenantDomain.objects.create(tenant=tenant, domain=domain, is_primary=True)
+        module_ids = request.POST.getlist("selected_modules")
+        if module_ids:
+            replace_tenant_modules(tenant, list(Module.objects.filter(pk__in=module_ids)))
+        _apply_tenant_branding_from_request(request, tenant, slug)
+        tenant.save()
+    except IntegrityError:
+        messages.error(request, "Could not create tenant: duplicate organization name, slug, or domain.")
+        return redirect("platform_dashboard:tenant_register")
+
+    setup_method = (request.POST.get("setup_method") or "invite").strip()
+    admin_password = (request.POST.get("admin_temporary_password") or "").strip()
+    auto_gen_pw = setup_method != "password" or not admin_password
+
+    onboard = run_full_tenant_provisioning(
+        tenant,
+        admin_email=admin_email or None,
+        admin_password=admin_password or None,
+        admin_full_name=admin_full_name,
+        auto_generate_admin_password=auto_gen_pw,
+        register_flow=True,
+    )
+
+    if not onboard.ok:
+        cleanup_failed_registration_tenant(tenant)
+        messages.error(
+            request,
+            "Provisioning failed and was rolled back (no partial tenant left in the directory). "
+            f"Details: {onboard.message}",
+        )
+        return redirect("platform_dashboard:tenant_register")
+
+    messages.success(request, onboard.message)
+    if onboard.generated_admin_password:
+        messages.warning(
+            request,
+            "Tenant admin temporary password (copy securely; not stored after this message): "
+            f"{onboard.generated_admin_password}",
+        )
+
+    _log_tenant_provisioning(
+        request,
+        tenant,
+        f"Tenant provisioned successfully (action={action}, domain={domain}, admin_email={admin_email or 'none'}).",
+    )
+
+    login_url = f"https://{tenant.domain}/t/login/"
+    if action == "create_send_link" and admin_email:
+        try:
+            _send_tenant_setup_link_email(recipient=admin_email, tenant=tenant, login_url=login_url)
+            messages.info(request, f"A setup email with the sign-in link was sent to {admin_email}.")
+        except Exception as exc:
+            messages.warning(
+                request,
+                f"The tenant was created successfully, but the setup email could not be sent ({exc}). "
+                f"Share this link manually: {login_url}",
+            )
+
+    return redirect("platform_dashboard:tenant_list")
 
 
 @login_required(login_url="/platform/login/")

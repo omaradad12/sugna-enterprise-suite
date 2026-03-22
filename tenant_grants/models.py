@@ -1105,6 +1105,75 @@ class GrantPeriodExtension(models.Model):
             raise ValidationError(errors)
 
 
+class ProjectBudget(models.Model):
+    """Project-level budget container (e.g. operational envelope). Links to project master."""
+
+    project = models.ForeignKey(
+        "Project", on_delete=models.CASCADE, related_name="project_budgets"
+    )
+    name = models.CharField(max_length=120, default="Main")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["project", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["project", "name"], name="uniq_project_budget_project_name"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.project.code}: {self.name}"
+
+
+class ProjectBudgetLine(models.Model):
+    """
+    Budget line under a project budget: category, optional GL account, allocated vs remaining (remaining updated from posted expenses).
+    """
+
+    project_budget = models.ForeignKey(
+        ProjectBudget, on_delete=models.CASCADE, related_name="lines"
+    )
+    account = models.ForeignKey(
+        "tenant_finance.ChartAccount",
+        on_delete=models.PROTECT,
+        related_name="project_budget_lines",
+        null=True,
+        blank=True,
+    )
+    category = models.CharField(max_length=120)
+    description = models.CharField(max_length=255, blank=True)
+    allocated_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    remaining_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Updated from posted expenses tagged to this line; equals allocated minus actual when synced.",
+    )
+    notes = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["project_budget", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.project_budget.project.code} — {self.category}"
+
+    def clean(self) -> None:
+        from decimal import Decimal
+
+        errs = {}
+        if self.allocated_amount is not None and self.allocated_amount < Decimal("0"):
+            errs["allocated_amount"] = _("Allocated amount cannot be negative.")
+        if errs:
+            raise ValidationError(errs)
+
+    @property
+    def project(self):
+        return self.project_budget.project
+
+
 class WorkplanActivity(models.Model):
     """
     Grant workplan activity: one row per activity linked to a grant.
@@ -1137,10 +1206,32 @@ class WorkplanActivity(models.Model):
     donor = models.ForeignKey(
         Donor, on_delete=models.PROTECT, related_name="workplan_activities", null=True, blank=True
     )
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.PROTECT,
+        related_name="workplan_activities",
+        null=True,
+        blank=True,
+        help_text="Implementation project; synced from grant.project when set.",
+    )
+    project_budget_line = models.ForeignKey(
+        ProjectBudgetLine,
+        on_delete=models.PROTECT,
+        related_name="workplan_activities",
+        null=True,
+        blank=True,
+        help_text="Required when the project uses a project budget structure.",
+    )
     workplan_code = models.CharField(
         max_length=30, unique=True, blank=True, help_text="Auto-generated Workplan ID (e.g. WP-00001)."
     )
+    activity_code = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text="Optional short code; defaults to workplan ID when blank.",
+    )
     activity = models.CharField(max_length=255)
+    description = models.TextField(blank=True, help_text="Extended activity description.")
     component_output = models.CharField(max_length=255, blank=True)
     budget_line = models.CharField(
         max_length=120, blank=True, help_text="Budget line or category for this activity."
@@ -1157,7 +1248,18 @@ class WorkplanActivity(models.Model):
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     budget_amount = models.DecimalField(
-        max_digits=14, decimal_places=2, null=True, blank=True, default=0
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=0,
+        help_text="Planned cost for this activity (must fit within budget line envelope).",
+    )
+    actual_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Posted expense total tagged to this activity (system-maintained).",
     )
     pr_number = models.CharField(max_length=80, blank=True)
     pr_status = models.CharField(
@@ -1189,11 +1291,48 @@ class WorkplanActivity(models.Model):
         return self.donor.name if self.donor else (self.grant.donor.name if self.grant else "")
 
     def save(self, *args, **kwargs):
+        if self.grant_id and getattr(self.grant, "project_id", None):
+            self.project_id = self.grant.project_id
         super().save(*args, **kwargs)
         if not self.workplan_code:
             self.workplan_code = f"WP-{self.pk:05d}"
             db = kwargs.get("using") or self._state.db
             WorkplanActivity.objects.using(db).filter(pk=self.pk).update(workplan_code=self.workplan_code)
+        if not (self.activity_code or "").strip():
+            db = kwargs.get("using") or self._state.db
+            WorkplanActivity.objects.using(db).filter(pk=self.pk).update(activity_code=self.workplan_code)
+            self.activity_code = self.workplan_code
+
+    def clean(self) -> None:
+        from decimal import Decimal
+        from django.db.models import Sum
+
+        errs = {}
+        exp_proj = None
+        if self.grant_id:
+            exp_proj = self.grant.project_id
+            if self.project_id and exp_proj and self.project_id != exp_proj:
+                errs["project"] = _("Activity project must match the grant's project.")
+        if self.project_budget_line_id:
+            pb_proj = self.project_budget_line.project_budget.project_id
+            line_exp_proj = self.project_id or exp_proj
+            if line_exp_proj and pb_proj != line_exp_proj:
+                errs["project_budget_line"] = _("Budget line must belong to the same project as the grant.")
+            planned = self.budget_amount or Decimal("0")
+
+            db = getattr(self._state, "db", None) or "default"
+            qs = WorkplanActivity.objects.using(db).filter(project_budget_line_id=self.project_budget_line_id)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            others = qs.aggregate(s=Sum("budget_amount")).get("s") or Decimal("0")
+            cap = self.project_budget_line.allocated_amount or Decimal("0")
+            if cap and (others + planned) > cap:
+                errs["budget_amount"] = _(
+                    "Planned cost for this line would exceed the budget line allocation (%(cap)s). "
+                    "Other activities on this line: %(others)s."
+                ) % {"cap": cap, "others": others}
+        if errs:
+            raise ValidationError(errs)
 
     def can_raise_pr(self):
         """True if this activity is valid for raising a PR (approved and within budget)."""

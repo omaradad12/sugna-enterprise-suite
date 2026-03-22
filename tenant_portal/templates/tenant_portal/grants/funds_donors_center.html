@@ -354,6 +354,14 @@
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_project_budget' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="layers"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Project budget structure" %}</span>
+            <span class="fdc-card-desc">{% trans "Allocated lines; links to workplan activities and expense tagging." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
         <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_allocation' %}">
           <span class="fdc-card-icon-wrap"><i data-feather="share-2"></i></span>
           <span class="fdc-card-main">
@@ -459,6 +467,14 @@
           <span class="fdc-card-main">
             <span class="fdc-card-title">{% trans "Grant financial reports" %}</span>
             <span class="fdc-card-desc">{% trans "Official period reports for grants and donors." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:finance_project_budget_activity' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="activity"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Project budget & activity actuals" %}</span>
+            <span class="fdc-card-desc">{% trans "Budget lines vs spend; activities by grant and donor." %}</span>
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>

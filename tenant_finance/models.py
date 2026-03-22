@@ -906,12 +906,32 @@ class JournalLine(models.Model):
         blank=True,
         related_name="journal_lines",
     )
+    project_budget_line = models.ForeignKey(
+        "tenant_grants.ProjectBudgetLine",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="journal_lines",
+        help_text="Project budget line for expense tracking (NGO activity-based budgeting).",
+    )
+    workplan_activity = models.ForeignKey(
+        "tenant_grants.WorkplanActivity",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="journal_lines",
+        help_text="Grant workplan activity for expense tagging.",
+    )
     description = models.CharField(max_length=255, blank=True)
     debit = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     credit = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     class Meta:
         ordering = ["id"]
+        indexes = [
+            models.Index(fields=["project_budget_line"]),
+            models.Index(fields=["workplan_activity"]),
+        ]
 
     def __str__(self) -> str:
         return f"{self.account.code} D{self.debit} C{self.credit}"

@@ -292,6 +292,15 @@
       </header>
 
       <main class="flex-1 p-4 sm:p-6 overflow-auto" style="background: #faf9f8;">
+        {% if messages %}
+        <div class="max-w-6xl mx-auto mb-4 space-y-2" role="status" aria-live="polite">
+          {% for message in messages %}
+          <div class="rounded-xl border px-4 py-3 text-sm shadow-sm {% if 'error' in message.tags %}border-danger-500 bg-danger-50 text-danger-600{% elif 'warning' in message.tags %}border-warning-500 bg-warning-50 text-surface-800{% elif 'success' in message.tags %}border-success-500 bg-success-50 text-success-600{% else %}border-surface-200 bg-white text-surface-800{% endif %}">
+            {{ message }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
         {% block content %}{% endblock %}
       </main>
     </div>

@@ -55,11 +55,13 @@ class Tenant(models.Model):
     """
 
     class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
         ACTIVE = "active", "Active"
         TRIAL = "trial", "Trial"
         PENDING = "pending", "Pending"
         SUSPENDED = "suspended", "Suspended"
         EXPIRED = "expired", "Expired"
+        FAILED = "failed", "Failed"
 
     class ProvisioningStatus(models.TextChoices):
         """Lifecycle for automated DB + migrate + init + RBAC onboarding."""
@@ -156,6 +158,8 @@ class Tenant(models.Model):
 
     def display_status(self):
         """Status for display; respects is_active for Active/Suspended."""
+        if self.status in (self.Status.FAILED, self.Status.DRAFT):
+            return self.status
         if not self.is_active:
             return self.Status.SUSPENDED if self.status == self.Status.ACTIVE else self.status
         return self.status

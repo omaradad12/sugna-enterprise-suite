@@ -1154,17 +1154,6 @@
                    :class="activeItem === 'funds_grant_agreements' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Grant agreements</span>
               </a>
-              <a href="{% url 'tenant_portal:grants_projects_list' %}"
-                 @click="activeItem = 'funds_projects_list'"
-                 class="group flex items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'funds_projects_list'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="folder"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'funds_projects_list' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Project list</span>
-              </a>
               <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
                  @click="activeItem = 'funds_grant_allocation'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
@@ -1209,17 +1198,6 @@
                    :class="activeItem === 'funds_pr' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Purchase requisitions</span>
               </a>
-              <a href="{% url 'tenant_portal:procurement_po_list' %}"
-                 @click="activeItem = 'procurement'"
-                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'procurement'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="shopping-cart"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'procurement' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Procurement / POs</span>
-              </a>
               <a href="{% url 'tenant_portal:grants_grant_utilization' %}"
                  @click="activeItem = 'funds_grant_utilization'"
                  class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
@@ -1230,17 +1208,6 @@
                    class="w-4 h-4 flex-shrink-0"
                    :class="activeItem === 'funds_grant_utilization' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
-              </a>
-              <a href="{% url 'tenant_portal:grants_grant_timeline' %}"
-                 @click="activeItem = 'funds_grant_timeline'"
-                 class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md cursor-pointer"
-                 :class="activeItem === 'funds_grant_timeline'
-                          ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]'
-                          : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'">
-                <i data-feather="calendar"
-                   class="w-4 h-4 flex-shrink-0"
-                   :class="activeItem === 'funds_grant_timeline' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Grant start &amp; end periods</span>
               </a>
             </div>
 
