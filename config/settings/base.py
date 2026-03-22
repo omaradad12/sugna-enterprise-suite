@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     # Platform apps
     "tenants",
     "platform_dashboard",
+    "website",
     "help_center",
 
     # Tenant-scoped apps (routed to tenant DBs)
