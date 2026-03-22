@@ -58,6 +58,13 @@ else:
         )
     )
 
+# If ALLOWED_HOSTS was set via env but omitted the public marketing domain, requests to
+# https://sugnaerp.com still 400. Merge defaults in production unless strict mode is on.
+_strict_hosts = os.environ.get("STRICT_ALLOWED_HOSTS_ONLY", "").lower() in ("1", "true", "yes")
+_public_hosts = _split_csv(os.environ.get("SUGNA_PUBLIC_HOSTS", "sugnaerp.com,www.sugnaerp.com"))
+if not DEBUG and not _strict_hosts and _public_hosts and ALLOWED_HOSTS != ["*"]:
+    ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS + _public_hosts))
+
 if os.environ.get("CSRF_TRUSTED_ORIGINS"):
     CSRF_TRUSTED_ORIGINS = _split_csv(os.environ["CSRF_TRUSTED_ORIGINS"])
 elif not DEBUG:
