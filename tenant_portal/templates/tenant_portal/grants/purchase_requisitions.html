@@ -1,124 +1,343 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Purchase Requisitions | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Purchase requisitions" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Purchase Requisitions</h1>
-    <p class="text-sm mt-1" style="color:#605e5c;">PRs raised from approved grant workplan activities. Values are validated against activity budget.</p>
-  </div>
-  <div class="flex flex-wrap items-center gap-2">
-    <a href="{% url 'tenant_portal:grants_pr_create' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow" style="background:#0078D4;">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dynamics-pr-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-pr-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-pr-page .dynamics-pr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-pr-page .dynamics-pr-toolbar > span.dynamics-pr-toolbar-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-pr-page .dynamics-pr-toolbar-spacer {
+    flex: 1 1 auto;
+    min-width: 0.5rem;
+  }
+  .dynamics-pr-page .dynamics-pr-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-pr-page .dynamics-pr-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .dynamics-pr-page .dynamics-pr-panel-h > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-pr-page .dynamics-pr-panel-meta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+  }
+  .dynamics-pr-page .dynamics-pr-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-pr-page .dynamics-pr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .dynamics-pr-page .dynamics-pr-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .dynamics-pr-page .dynamics-pr-grid thead th.text-right {
+    text-align: right;
+  }
+  .dynamics-pr-page .dynamics-pr-grid tbody td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-pr-page .dynamics-pr-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-pr-page .dynamics-pr-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-pr-page .dynamics-pr-code {
+    font-family: "Segoe UI", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .dynamics-pr-page .dynamics-pr-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+  }
+  .dynamics-pr-page .dynamics-pr-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-pr-page .dynamics-pr-pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+  }
+  .dynamics-pr-page .dynamics-pr-footer {
+    padding: 0.5rem 1rem;
+    border-top: 1px solid #edebe9;
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+    background: #faf9f8;
+  }
+  .dynamics-pr-page .dynamics-pr-empty {
+    text-align: center;
+    padding: 3rem 1.5rem 3.25rem;
+    color: #605e5c;
+  }
+  .dynamics-pr-page .dynamics-pr-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-pr-page .dynamics-pr-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-pr-page .dynamics-pr-empty-sub {
+    font-size: 13px;
+    max-width: 28rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  .dynamics-pr-page .dynamics-pr-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #323130;
+    background: #ffffff;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    text-decoration: none;
+  }
+  .dynamics-pr-page .dynamics-pr-reset:hover {
+    background: #f3f2f1;
+  }
+  @media print {
+    .dynamics-pr-page .hidden-print,
+    .dynamics-pr-page .dynamics-pr-toolbar,
+    .dynamics-pr-page .dynamics-filter-pane {
+      display: none !important;
+    }
+    .dynamics-pr-page .dynamics-pr-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-pr-page .dynamics-pr-panel {
+      box-shadow: none !important;
+    }
+  }
+</style>
+
+<div class="dynamics-financial-report dynamics-pr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Grant management" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Purchase requisitions" %}</h1>
+    <p class="dynamics-hero-subtitle">{% trans "PRs raised from approved workplan activities. Totals are validated against activity budget." %}</p>
+  </header>
+
+  <div class="dynamics-pr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Actions' %}">
+    <span class="dynamics-pr-toolbar-label">{% trans "Export" %}</span>
+    {% if export_xlsx_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>{% endif %}
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
+    <span class="dynamics-pr-toolbar-spacer" aria-hidden="true"></span>
+    <a href="{% url 'tenant_portal:grants_pr_create' %}" class="dynamics-btn-primary no-underline">
       <i data-feather="plus" class="w-4 h-4"></i>
-      New PR
-    </a>
-    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-      <i data-feather="download" class="w-4 h-4"></i> Export Excel
-    </a>
-    <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-      <i data-feather="file-text" class="w-4 h-4"></i> Export PDF
+      {% trans "New PR" %}
     </a>
   </div>
-</div>
 
-{# Filters #}
-<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
-  <form method="get" action="" class="flex flex-wrap items-end gap-4">
-    <div>
-      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant</label>
-      <select name="grant_id" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for g in grants %}
-        <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
-        {% endfor %}
-      </select>
+  <div class="dynamics-filter-pane hidden-print mb-4">
+    <div class="dynamics-filter-head">
+      <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+      <span class="dynamics-filter-head-title">{% trans "View filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Grant, donor, status, and PR date range — then Apply." %}</span>
     </div>
-    <div>
-      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor</label>
-      <select name="donor_id" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for d in donors %}
-        <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Status</label>
-      <select name="status" class="rounded-lg border px-3 py-2 text-sm bg-white min-w-[120px]" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for value, label in pr_status_choices %}
-        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">PR date from</label>
-      <input type="date" name="date_from" value="{{ filters.date_from }}" class="rounded-lg border px-3 py-2 text-sm" style="border-color:#edebe9;" />
-    </div>
-    <div>
-      <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">PR date to</label>
-      <input type="date" name="date_to" value="{{ filters.date_to }}" class="rounded-lg border px-3 py-2 text-sm" style="border-color:#edebe9;" />
-    </div>
-    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
-    <a href="{% url 'tenant_portal:grants_pr_list' %}" class="px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Reset</a>
-  </form>
-</div>
+    <form method="get" action="" class="dynamics-filter-grid">
+      {% if grants %}
+      <div class="dynamics-filter-field">
+        <label for="pr-grant">{% trans "Grant" %}</label>
+        <select id="pr-grant" name="grant_id" class="dynamics-select w-full min-w-[180px]">
+          <option value="">{% trans "All grants" %}</option>
+          {% for g in grants %}
+          <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      {% if donors %}
+      <div class="dynamics-filter-field">
+        <label for="pr-donor">{% trans "Donor" %}</label>
+        <select id="pr-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
+          <option value="">{% trans "All donors" %}</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="dynamics-filter-field">
+        <label for="pr-status">{% trans "Status" %}</label>
+        <select id="pr-status" name="status" class="dynamics-select w-full min-w-[200px]">
+          <option value="">{% trans "All statuses" %}</option>
+          {% for value, label in pr_status_choices %}
+          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="pr-date-from">{% trans "PR date from" %}</label>
+        <input id="pr-date-from" type="date" name="date_from" value="{{ filters.date_from }}" class="dynamics-input w-full min-w-[140px]" />
+      </div>
+      <div class="dynamics-filter-field">
+        <label for="pr-date-to">{% trans "PR date to" %}</label>
+        <input id="pr-date-to" type="date" name="date_to" value="{{ filters.date_to }}" class="dynamics-input w-full min-w-[140px]" />
+      </div>
+      <div class="dynamics-filter-field flex flex-col justify-end gap-2 sm:flex-row sm:items-end">
+        <button type="submit" class="dynamics-btn-primary">
+          <i data-feather="check" class="w-4 h-4"></i>
+          {% trans "Apply" %}
+        </button>
+        <a href="{% url 'tenant_portal:grants_pr_list' %}" class="dynamics-pr-reset">{% trans "Reset" %}</a>
+      </div>
+    </form>
+  </div>
 
-{# PR table #}
-<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
-  <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color:#edebe9; background:#faf9f8;">
-    <h2 class="font-semibold text-lg" style="color:#323130;">Purchase Requisitions</h2>
+  <div class="dynamics-pr-panel">
+    <div class="dynamics-pr-panel-h">
+      <span>{% trans "Requisition register" %}</span>
+      <span class="dynamics-pr-panel-meta">{{ prs|length }} {% trans "rows" %}</span>
+    </div>
+    <div class="dynamics-pr-grid-wrap">
+      <table class="dynamics-pr-grid">
+        <thead>
+          <tr>
+            <th>{% trans "PR number" %}</th>
+            <th>{% trans "PR date" %}</th>
+            <th>{% trans "Grant" %}</th>
+            <th>{% trans "Donor" %}</th>
+            <th>{% trans "Workplan activity" %}</th>
+            <th>{% trans "Item" %}</th>
+            <th class="text-right">{% trans "Total cost" %}</th>
+            <th>{% trans "Priority" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pr in prs %}
+          <tr>
+            <td><span class="dynamics-pr-code">{{ pr.pr_number }}</span></td>
+            <td class="text-[#605e5c]">{{ pr.pr_date|date:"Y-m-d" }}</td>
+            <td class="font-medium">{{ pr.grant.code|default:"—" }}</td>
+            <td class="text-[#605e5c]">{{ pr.donor.name|default:"—" }}</td>
+            <td class="text-[#605e5c] max-w-[200px]">{{ pr.workplan_activity.workplan_code|default:"—" }} {{ pr.workplan_activity.activity|truncatewords:4 }}</td>
+            <td class="max-w-[220px]">{{ pr.item_description|truncatewords:10 }}</td>
+            <td class="text-right tabular-nums font-semibold">{{ pr.estimated_total_cost|floatformat:2 }}</td>
+            <td>
+              <span class="dynamics-pr-pill"
+                    style="{% if pr.priority == 'critical' %}background:#fde7e9;color:#a4262c;border-color:#f1bbbc;{% elif pr.priority == 'high' %}background:#fff4ce;color:#8a6116;border-color:#e0d5a3;{% else %}background:#f3f2f1;color:#605e5c;border-color:#c8c6c4;{% endif %}">
+                {{ pr.get_priority_display }}
+              </span>
+            </td>
+            <td>
+              <span class="dynamics-pr-pill"
+                    style="{% if pr.status == 'fulfilled' or pr.status == 'approved_by_line_manager' %}background:#dff6dd;color:#107c10;border-color:#a7e0a5;{% elif pr.status == 'pending_line_manager_approval' %}background:#deecf9;color:#0078d4;border-color:#c7e0f4;{% elif pr.status == 'rejected' or pr.status == 'cancelled' %}background:#fde7e9;color:#a4262c;border-color:#f1bbbc;{% elif pr.status == 'assigned_to_procurement' or pr.status == 'under_procurement_processing' or pr.status == 'po_issued' %}background:#fff4ce;color:#8a6116;border-color:#e0d5a3;{% elif pr.status == 'draft' %}background:#edebe9;color:#605e5c;border-color:#c8c6c4;{% else %}background:#f3f2f1;color:#605e5c;border-color:#c8c6c4;{% endif %}">
+                {{ pr.get_status_display }}
+              </span>
+            </td>
+            <td>
+              <a href="{% url 'tenant_portal:grants_pr_detail' pr.pk %}" class="dynamics-pr-link">{% trans "View" %}</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="p-0 border-0">
+              <div class="dynamics-pr-empty">
+                <div class="dynamics-pr-empty-icon" aria-hidden="true"><i data-feather="shopping-cart" class="w-6 h-6"></i></div>
+                <p class="dynamics-pr-empty-title">{% trans "No purchase requisitions" %}</p>
+                <p class="dynamics-pr-empty-sub">{% trans "Create a PR from an approved workplan activity using New PR." %}</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="dynamics-pr-footer hidden-print">{% trans "Showing" %} {{ prs|length }} {% trans "entries" %}</div>
   </div>
-  <div class="overflow-auto">
-    <table class="min-w-full text-sm">
-      <thead style="background:#f3f2f1;">
-        <tr>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PR number</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">PR date</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Grant</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Donor</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Workplan activity</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Item</th>
-          <th class="text-right px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Total cost</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Priority</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pr in prs %}
-        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2 font-mono font-medium" style="color:#323130;">{{ pr.pr_number }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ pr.pr_date|date:"d/m/Y" }}</td>
-          <td class="px-4 py-2" style="color:#323130;">{{ pr.grant.code|default:"—" }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ pr.donor.name|default:"—" }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ pr.workplan_activity.workplan_code|default:"—" }} {{ pr.workplan_activity.activity|truncatewords:3 }}</td>
-          <td class="px-4 py-2" style="color:#323130;">{{ pr.item_description|truncatewords:8 }}</td>
-          <td class="px-4 py-2 text-right font-medium" style="color:#323130;">{{ pr.estimated_total_cost|floatformat:2 }}</td>
-          <td class="px-4 py-2">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                  style="{% if pr.priority == 'critical' %}background:#fde7e9; color:#a4262c;{% elif pr.priority == 'high' %}background:#fff4ce; color:#7a5c00;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
-              {{ pr.get_priority_display }}
-            </span>
-          </td>
-          <td class="px-4 py-2">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                  style="{% if pr.status == 'fulfilled' or pr.status == 'approved_by_line_manager' %}background:#dff6dd; color:#0b5a0b;{% elif pr.status == 'pending_line_manager_approval' %}background:#e5f0ff; color:#1d4ed8;{% elif pr.status == 'rejected' or pr.status == 'cancelled' %}background:#fde7e9; color:#a4262c;{% elif pr.status == 'assigned_to_procurement' or pr.status == 'under_procurement_processing' or pr.status == 'po_issued' %}background:#fff4ce; color:#7a5c00;{% elif pr.status == 'draft' %}background:#eaeaea; color:#605e5c;{% else %}background:#edebe9; color:#605e5c;{% endif %}">
-              {{ pr.get_status_display }}
-            </span>
-          </td>
-          <td class="px-4 py-2">
-            <a href="{% url 'tenant_portal:grants_pr_detail' pr.pk %}" class="font-medium hover:underline" style="color:#0078D4;">View</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="10" class="px-4 py-8 text-center" style="color:#605e5c;">No purchase requisitions. Create a PR from an approved workplan activity.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="px-4 py-2 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ prs|length }} entries</div>
 </div>
 {% endblock %}

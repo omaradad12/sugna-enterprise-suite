@@ -6,8 +6,12 @@
     <title>Sugna Platform Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
   </head>
-  <body class="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
+  <body class="erp-page min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
     <div class="w-full max-w-md">
       <div class="bg-white/95 border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
         <div class="px-7 py-6 bg-gradient-to-br from-sky-700 via-blue-600 to-blue-700 text-white">
@@ -16,10 +20,10 @@
               <img src="{% url 'platform_dashboard:logo' %}" alt="Sugna" class="w-8 h-8 object-contain" />
             </div>
             <div>
-              <div class="text-xl font-semibold leading-tight">
+              <div class="erp-type-page-title text-white leading-tight">
                 {% if request.path == '/admin/login/' %}Admin Sign In{% else %}Platform Sign In{% endif %}
               </div>
-              <div class="text-xs text-white/90 font-medium">
+              <div class="erp-type-helper text-white/90">
                 {% if request.path == '/admin/login/' %}Use your admin credentials{% else %}Use your platform credentials{% endif %}
               </div>
             </div>

@@ -1,0 +1,31 @@
+{% extends "website/base.html" %}
+{% block title %}Blog{% endblock %}
+{% block meta_description %}Insights on ERP, grant management, compliance, and operations for mission-driven organizations.{% endblock %}
+{% block content %}
+{% include "website/includes/hero_marketing.html" with title="Insights &amp; updates" subtitle="Stories on finance, grants, and accountable operations." description="Practical guidance for NGOs, hospitals, and donor-funded programs. New articles are added regularly." %}
+
+<section class="m-section m-section--soft">
+  <div class="container">
+    <div class="m-blog-grid">
+      <article class="m-blog-card">
+        <p class="m-blog-meta">Coming soon</p>
+        <h2 class="m-blog-title">Grant reporting without the spreadsheet maze</h2>
+        <p class="m-blog-excerpt">How unified finance and grant data speeds donor reporting and audits.</p>
+      </article>
+      <article class="m-blog-card">
+        <p class="m-blog-meta">Coming soon</p>
+        <h2 class="m-blog-title">Segregation of duties in cloud ERP</h2>
+        <p class="m-blog-excerpt">Designing approvals and roles that satisfy auditors and stay usable in the field.</p>
+      </article>
+      <article class="m-blog-card">
+        <p class="m-blog-meta">Coming soon</p>
+        <h2 class="m-blog-title">Multi-entity consolidation for INGOs</h2>
+        <p class="m-blog-excerpt">One platform view across countries, programs, and funding sources.</p>
+      </article>
+    </div>
+    <p class="m-blog-note">Subscribe to product updates via our <a href="{% url 'website:contact' %}">contact form</a> — mention “newsletter.”</p>
+  </div>
+</section>
+
+{% include "website/includes/cta_banner.html" with cta_id="blog-cta-title" cta_title="See the platform live" cta_text="Schedule a guided session with our team." cta_btn="Request demo" cta_arrow=1 show_icon=1 %}
+{% endblock %}

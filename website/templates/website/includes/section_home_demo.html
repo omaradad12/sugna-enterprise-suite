@@ -1,0 +1,36 @@
+{% load static %}
+{# Sway-style: Demo request (split layout — form + dashboard visual) #}
+<section class="home-section home-demo-sway" id="request-demo" aria-labelledby="home-demo-title">
+  <div class="container home-demo-grid">
+    <div class="home-demo-visual">
+      <img
+        src="{% static 'assets/images/dashboard-preview.png' %}"
+        alt=""
+        width="1200"
+        height="750"
+        loading="lazy"
+        decoding="async"
+        class="home-demo-visual-img"
+      />
+      <p class="home-demo-visual-caption">Representative dashboard — tailored in your walkthrough.</p>
+    </div>
+    <div class="home-demo-panel">
+      <h2 id="home-demo-title" class="home-demo-title">Request a demo</h2>
+      <p class="home-demo-lead">Share your organization, regions, and modules of interest. We’ll follow up to schedule a session.</p>
+      <form method="post" action="{% url 'website:demo_request' %}" class="home-demo-form">
+        {% csrf_token %}
+        {% for field in demo_form %}
+          <div class="form-group">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<div class="form-errors">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-home-primary home-demo-submit">Submit demo request</button>
+      </form>
+      <p class="home-demo-footnote">
+        Prefer email first? <a href="{% url 'website:contact' %}">Contact sales</a>
+      </p>
+    </div>
+  </div>
+</section>

@@ -6,8 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ tenant_display_name|default:tenant.name }} | Two-factor authentication</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
 </head>
-<body class="min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#faf9f8' }};">
+<body class="erp-page min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#faf9f8' }};">
   <div class="min-h-screen flex items-center justify-center px-4">
     <div class="w-full max-w-md bg-white border rounded-lg shadow-sm p-7" style="border-color: #edebe9;">
       <div class="flex items-center gap-3 mb-6">

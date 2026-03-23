@@ -9432,12 +9432,14 @@ def grants_grant_allocation_view(request: HttpRequest) -> HttpResponse:
 
 
 def _parse_tracking_filters(request: HttpRequest) -> dict:
+    from django.utils.dateparse import parse_date
+
     return {
-        "donor_id": request.GET.get("donor_id") or None,
-        "tracking_id": request.GET.get("tracking_id") or None,
-        "pipeline_stage": request.GET.get("pipeline_stage") or None,
-        "period_start": request.GET.get("period_start") or None,
-        "period_end": request.GET.get("period_end") or None,
+        "donor_id": request.GET.get("donor_id") or "",
+        "tracking_id": request.GET.get("tracking_id") or "",
+        "pipeline_stage": (request.GET.get("pipeline_stage") or "").strip(),
+        "period_start": parse_date(request.GET.get("period_start") or "") or None,
+        "period_end": parse_date(request.GET.get("period_end") or "") or None,
     }
 
 
@@ -10614,6 +10616,7 @@ def grants_grant_workplan_view(request: HttpRequest) -> HttpResponse:
             "departments": departments,
             "filters": f,
             "export_xlsx_url": export_urls["xlsx"],
+            "export_pdf_url": export_urls["pdf"],
             "workplan_import_template_url": workplan_import_template_url,
             "workplan_status_choices": WorkplanActivity.WorkplanStatus.choices,
             "activity_status_choices": WorkplanActivity.ActivityStatus.choices,
@@ -11961,6 +11964,14 @@ def grants_grant_financial_reports_view(request: HttpRequest) -> HttpResponse:
         )
         if resp:
             return resp
+    from decimal import Decimal
+
+    gfr_kpi = {
+        "grant_count": len(rows),
+        "total_budget": sum((r["budget"] or Decimal("0")) for r in rows),
+        "total_spent": sum((r["spent"] or Decimal("0")) for r in rows),
+        "total_remaining": sum((r["remaining"] or Decimal("0")) for r in rows),
+    }
     return render(
         request,
         "tenant_portal/grants/grant_financial_reports.html",
@@ -11971,6 +11982,7 @@ def grants_grant_financial_reports_view(request: HttpRequest) -> HttpResponse:
             "grants": grants_for_dropdown,
             "donors": donors,
             "filters": f,
+            "gfr_kpi": gfr_kpi,
             "active_submenu": "funds",
             "active_item": "funds_grant_reports",
             "export_csv_url": _grants_export_urls(request)["csv"],

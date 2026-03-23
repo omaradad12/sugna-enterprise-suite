@@ -284,6 +284,35 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", 
 # Use BigAutoField across the project (enterprise default)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Website contact / demo forms: inbox for submissions (not shown on public pages — set only via environment).
+WEBSITE_INBOUND_EMAIL = os.environ.get("WEBSITE_INBOUND_EMAIL", "").strip()
+
+_default_from = os.environ.get("DEFAULT_FROM_EMAIL", "").strip()
+if _default_from:
+    DEFAULT_FROM_EMAIL = _default_from
+else:
+    DEFAULT_FROM_EMAIL = "Sugna Enterprise Suite <webmaster@localhost>"
+
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Outbound SMTP (required in production to actually deliver mail; omitted in local dev → console backend).
+_email_host = os.environ.get("EMAIL_HOST", "").strip()
+if _email_host:
+    EMAIL_BACKEND = os.environ.get(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.smtp.EmailBackend",
+    )
+    EMAIL_HOST = _email_host
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+    EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() in ("true", "1", "yes")
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "").strip()
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+else:
+    EMAIL_BACKEND = os.environ.get(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.console.EmailBackend",
+    )
+
 # Platform dashboard: use admin login for auth
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/platform/'

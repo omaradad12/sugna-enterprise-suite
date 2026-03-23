@@ -1,0 +1,49 @@
+{% extends "website/base.html" %}
+{% block title %}Features{% endblock %}
+{% block meta_description %}Explore Sugna Enterprise Suite capabilities: multi-tenant architecture, fund accounting, grant compliance, role security, integrations, and AI-assisted auditing.{% endblock %}
+{% block content %}
+{% include "website/includes/hero_marketing.html" with title="Platform features" subtitle="Enterprise foundations for finance, grants, and operations." description="Everything you need to run accountable programs — from tenant isolation and fund accounting to donor compliance and intelligent audit signals." %}
+
+<section class="m-section">
+  <div class="container">
+    <div class="m-feature-pillars">
+      <article class="m-pillar-card">
+        <div class="m-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-grid"/></svg></div>
+        <h2 class="m-pillar-title">Architecture &amp; scale</h2>
+        <p class="m-pillar-lead">Multi-tenant cloud delivery with logical isolation, encryption, and centralized platform lifecycle.</p>
+        <ul class="m-pillar-list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Dedicated tenant configuration</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> High availability &amp; monitored SLAs</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> API-ready for integrations</li>
+        </ul>
+      </article>
+      <article class="m-pillar-card">
+        <div class="m-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-coins"/></svg></div>
+        <h2 class="m-pillar-title">Finance &amp; funds</h2>
+        <p class="m-pillar-lead">Fund-aware ledger, multi-currency, budgets, and period governance built for NGOs and hospitals.</p>
+        <ul class="m-pillar-list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Restricted &amp; unrestricted funds</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Controlled rates &amp; translation</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Audit-ready journals &amp; close</li>
+        </ul>
+      </article>
+      <article class="m-pillar-card">
+        <div class="m-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-shield"/></svg></div>
+        <h2 class="m-pillar-title">Compliance &amp; assurance</h2>
+        <p class="m-pillar-lead">Grant rules, approvals, segregation of duties, and AI-assisted checks across modules.</p>
+        <ul class="m-pillar-list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Donor &amp; policy checkpoints</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Workflow &amp; delegation</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Anomaly &amp; duplicate signals</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+{% include "website/includes/section_module_showcase.html" %}
+{% include "website/includes/section_testimonials.html" %}
+{% include "website/includes/section_faq.html" %}
+
+{% include "website/includes/cta_banner.html" with cta_title="See features in your environment" cta_text="Walk through finance, grants, or operations with our team." cta_btn="Request demo" cta_arrow=1 show_icon=1 %}
+{% endblock %}

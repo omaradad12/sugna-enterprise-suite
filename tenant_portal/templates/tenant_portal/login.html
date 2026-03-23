@@ -6,8 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ tenant_display_name|default:tenant.name }} | Sign in</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
 </head>
-<body class="min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#f3f4f6' }};">
+<body class="erp-page min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#f3f4f6' }};">
   <div class="min-h-screen grid lg:grid-cols-[1.1fr_0.9fr]">
     <section class="hidden lg:flex items-center justify-center px-12 py-16 text-white"
              style="background: linear-gradient(140deg, #0f172a 0%, {{ tenant.brand_primary_color|default:'#0078D4' }} 100%);">
@@ -27,8 +31,8 @@
             </svg>
           </div>
         {% endif %}
-        <h1 class="text-3xl font-semibold leading-tight">{{ tenant_display_name|default:tenant.name }}</h1>
-        <p class="mt-4 text-sm text-white/90">
+        <h1 class="erp-type-page-title text-white leading-tight">{{ tenant_display_name|default:tenant.name }}</h1>
+        <p class="mt-4 erp-type-helper text-white/90">
           {% if tenant.brand_login_subtitle %}
             {{ tenant.brand_login_subtitle }}
           {% else %}

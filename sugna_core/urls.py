@@ -19,8 +19,12 @@ from django.contrib.auth import views as auth_views
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
 from . import views
+from website import views as website_views
+
+handler404 = website_views.page_not_found_view
 
 urlpatterns = [
     path("", include("website.urls")),
@@ -67,3 +71,6 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Serve STATICFILES_DIRS (e.g. project static/assets/...) when using ASGI (uvicorn/daphne)
+    # or any server that does not wrap the app with StaticFilesHandler.
+    urlpatterns += staticfiles_urlpatterns()

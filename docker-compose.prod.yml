@@ -30,6 +30,14 @@ services:
       DEBUG: "False"
       DJANGO_SECRET_KEY: sugna-super-secret-2026
       DJANGO_SETTINGS_MODULE: config.settings.prod
+      # Contact / demo form mail — set via `.env.prod` (do not commit passwords). See `.env.example`.
+      WEBSITE_INBOUND_EMAIL: ${WEBSITE_INBOUND_EMAIL:-}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
     expose:
       - "8000"
     volumes:

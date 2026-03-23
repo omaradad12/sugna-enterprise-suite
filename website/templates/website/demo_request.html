@@ -1,28 +1,49 @@
 {% extends "website/base.html" %}
+{% load static %}
 {% block title %}Request a demo{% endblock %}
 {% block content %}
-<div class="page-hero">
+<div class="page-hero page-hero--visual">
   <div class="container">
+    <div class="page-hero-icon-row" aria-hidden="true">
+      <span class="page-hero-pill">Live walkthrough</span>
+      <span class="page-hero-pill">Tailored to your org</span>
+    </div>
     <h1>Request a demo</h1>
     <p>Share a few details and we’ll schedule a session tailored to your programs, regions, and modules of interest.</p>
   </div>
 </div>
-<section class="section">
-  <div class="container" style="max-width:560px;margin:0 auto;">
-    <form method="post" class="card" style="padding:1.75rem;">
-      {% csrf_token %}
-      {% for field in form %}
-        <div class="form-group">
-          {{ field.label_tag }}
-          {{ field }}
-          {% if field.errors %}<div class="form-errors">{{ field.errors }}</div>{% endif %}
-        </div>
-      {% endfor %}
-      <button type="submit" class="btn btn-primary" style="width:100%;">Submit demo request</button>
-    </form>
-    <p style="text-align:center;margin-top:1.5rem;color:var(--sugna-muted);font-size:0.9rem;">
-      Prefer email? Use <a href="{% url 'website:contact' %}">Contact</a> and reference “demo” in your message.
-    </p>
+<section class="section demo-page-sway">
+  <div class="container demo-page-grid">
+    <div class="demo-page-visual-wrap">
+      <figure class="demo-page-visual">
+        <img
+          src="{% static 'assets/images/hero-dashboard.svg' %}"
+          alt=""
+          width="1200"
+          height="720"
+          loading="lazy"
+          decoding="async"
+          class="demo-page-visual-img"
+        />
+        <figcaption class="demo-page-visual-cap">See finance, grants, and operations in one walkthrough.</figcaption>
+      </figure>
+    </div>
+    <div class="demo-page-form-wrap">
+      <form method="post" class="card demo-page-form">
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="form-group">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<div class="form-errors">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-home-primary" style="width:100%;">Submit demo request</button>
+      </form>
+      <p style="text-align:center;margin-top:1.5rem;color:var(--sugna-muted);font-size:0.9rem;">
+        Prefer email? Use <a href="{% url 'website:contact' %}">Contact</a> and reference “demo” in your message.
+      </p>
+    </div>
   </div>
 </section>
 {% endblock %}

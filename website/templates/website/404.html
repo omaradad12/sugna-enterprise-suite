@@ -1,0 +1,17 @@
+{% extends "website/base.html" %}
+{% load static %}
+{% block title %}Page not found{% endblock %}
+{% block meta_description %}The page you requested could not be found. Return to Sugna Enterprise Suite home or explore solutions and contact.{% endblock %}
+{% block content %}
+<section class="m-section m-not-found">
+  <div class="container m-not-found-inner">
+    <p class="m-not-found-code">404</p>
+    <h1 class="m-not-found-title">We couldn’t find that page</h1>
+    <p class="m-not-found-text">The link may be outdated, or the page may have moved. Try one of the links below.</p>
+    <div class="m-not-found-actions">
+      <a class="btn btn-home-primary" href="{% url 'website:home' %}">Back to home</a>
+      <a class="btn btn-home-outline" href="{% url 'website:contact' %}">Contact us</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

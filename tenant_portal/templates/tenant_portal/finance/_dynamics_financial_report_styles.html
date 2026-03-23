@@ -4,7 +4,7 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
 {% endcomment %}
 <style>
   .dynamics-financial-report {
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    font-family: var(--font-family-sans, "Segoe UI", Inter, Arial, sans-serif);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     color: #323130;
@@ -21,24 +21,24 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     margin-bottom: 1.25rem;
   }
   .dynamics-report-hero .dynamics-hero-org {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--font-sm, 13px);
+    font-weight: 500;
     color: #201f1e;
     letter-spacing: 0.01em;
     line-height: 1.3;
   }
   .dynamics-report-hero .dynamics-hero-title {
     margin-top: 0;
-    font-size: 20px;
-    font-weight: 700;
+    font-size: var(--font-xxl, 22px);
+    font-weight: 600;
     color: #201f1e;
     letter-spacing: 0.02em;
     line-height: 1.25;
   }
   .dynamics-report-hero .dynamics-hero-subtitle {
     margin-top: 0.25rem;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: var(--font-sm, 13px);
+    font-weight: 400;
     color: #605e5c;
     line-height: 1.35;
   }
@@ -46,7 +46,7 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid #edebe9;
-    font-size: 12px;
+    font-size: var(--font-xs, 12px);
     color: #605e5c;
     line-height: 1.55;
     text-align: left;
@@ -76,14 +76,14 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     border-bottom: 1px solid #e1dfdd;
   }
   .dynamics-filter-pane .dynamics-filter-head-title {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: var(--font-md, 13px);
+    font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #323130;
   }
   .dynamics-filter-pane .dynamics-filter-head-hint {
-    font-size: 11px;
+    font-size: var(--font-xs, 12px);
     color: #8a8886;
     font-weight: 400;
     letter-spacing: 0;
@@ -140,9 +140,9 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     min-width: 0;
   }
   .dynamics-filter-field label {
-    font-size: 11px;
-    font-weight: 600;
-    color: #323130;
+    font-size: var(--font-xs, 12px);
+    font-weight: 500;
+    color: #4b5563;
     letter-spacing: 0.02em;
   }
   .dynamics-filter-field label .dynamics-label-muted {
@@ -155,7 +155,7 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     border-radius: 2px;
     min-height: 32px;
     padding: 0.25rem 0.6rem;
-    font-size: 14px;
+    font-size: var(--font-sm, 13px);
     line-height: 1.35;
     color: #201f1e;
     background: #ffffff;
@@ -178,8 +178,8 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     gap: 0.35rem;
     min-height: 32px;
     padding: 0 1rem;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: var(--font-sm, 13px);
+    font-weight: 500;
     color: #ffffff;
     background: #0078d4;
     border: none;
@@ -197,8 +197,8 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     gap: 0.35rem;
     min-height: 32px;
     padding: 0 0.85rem;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: var(--font-sm, 13px);
+    font-weight: 500;
     color: #201f1e;
     background: #ffffff;
     border: 1px solid #8a8886;
@@ -247,7 +247,7 @@ Include once inside .dynamics-financial-report (or on the same root as .sfp-prin
     gap: 0.5rem;
   }
   .dynamics-filter-field--actions .dynamics-filter-actions-label {
-    font-size: 11px;
+    font-size: var(--font-xs, 12px);
     line-height: 1.35;
     min-height: 1.35em;
     opacity: 0;

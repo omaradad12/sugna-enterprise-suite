@@ -1,29 +1,34 @@
 {% extends "website/base.html" %}
+{% load static %}
 {% block title %}Contact{% endblock %}
 {% block content %}
-<div class="page-hero">
+<div class="page-hero page-hero--visual">
   <div class="container">
+    <div class="page-hero-icon-row" aria-hidden="true">
+      <span class="page-hero-pill">Sales &amp; support</span>
+    </div>
     <h1>Contact</h1>
     <p>Reach sales, partnerships, or general inquiries. We typically respond within one business day.</p>
   </div>
 </div>
-<section class="section">
-  <div class="container two-col">
-    <div>
-      <form method="post" class="card" style="padding:1.75rem;">
-        {% csrf_token %}
-        <h2 style="margin:0 0 1rem;font-size:1.15rem;color:var(--sugna-navy);">Send a message</h2>
-        {% for field in form %}
-          <div class="form-group">
-            {{ field.label_tag }}
-            {{ field }}
-            {% if field.errors %}<div class="form-errors">{{ field.errors }}</div>{% endif %}
-          </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-primary" style="width:100%;">Submit</button>
-      </form>
+<section class="section contact-page-sway">
+  <div class="container two-col contact-page-grid">
+    <div class="contact-page-form">
+      {% include "website/includes/form_contact_card.html" with form=form form_title="Send a message" submit_label="Submit" %}
     </div>
-    <div>
+    <div class="contact-page-aside">
+      <figure class="contact-page-visual">
+        <img
+          src="{% static 'assets/images/contact-support.png' %}"
+          alt=""
+          width="720"
+          height="520"
+          loading="lazy"
+          decoding="async"
+          class="contact-page-visual-img"
+        />
+        <figcaption class="contact-page-visual-cap">Dedicated support for implementation and ongoing operations.</figcaption>
+      </figure>
       <div class="card" style="margin-bottom:1.25rem;">
         <h3 style="margin-top:0;color:var(--sugna-navy);">Sales</h3>
         <p style="margin:0;color:var(--sugna-muted);font-size:0.92rem;">Demos, pricing, and module scoping. Use the form or mention “sales” in your message.</p>

@@ -1,0 +1,674 @@
+/**
+ * Sugna Enterprise Suite — global ERP typography (Microsoft Dynamics / SAP–style)
+ * Load after Tailwind CDN so tokens and baseline apply across tenant portal modules.
+ *
+ * Base 13px · Page titles 22px/600 · Section bands 13px/600 uppercase · Labels 12px/500 #4b5563
+ * Tables & inputs 13px · Sidebar & top nav & buttons 13px/500 · Help 12px · KPI values 18px/600 only
+ */
+
+:root {
+  --font-family-sans: "Segoe UI", Inter, Arial, sans-serif;
+
+  /* ERP scale */
+  --erp-base: 13px;
+  --erp-page-title: 22px;
+  --erp-section-header: 13px;
+  --erp-label: 12px;
+  --erp-input: 13px;
+  --erp-table-header: 13px;
+  --erp-table-body: 13px;
+  --erp-sidebar: 13px;
+  --erp-topnav: 13px;
+  --erp-button: 13px;
+  --erp-help: 12px;
+  --erp-kpi: 18px;
+
+  --erp-color-form-label: #4b5563;
+
+  /* Legacy token aliases (templates / partials) */
+  --font-2xs: var(--erp-help);
+  --font-xs: var(--erp-label);
+  --font-sm: var(--erp-base);
+  --font-md: var(--erp-section-header);
+  --font-lg: var(--erp-kpi);
+  --font-xl: var(--erp-kpi);
+  --font-xxl: var(--erp-page-title);
+
+  --erp-leading-tight: 1.25;
+  --erp-leading-snug: 1.35;
+  --erp-leading-normal: 1.45;
+
+  /* Layout density (Dynamics / SAP–style) */
+  --erp-space-section: 1.125rem; /* 18px — between major page blocks */
+  --erp-space-card-gap: 0.875rem; /* 14px — between cards in a grid */
+  --erp-space-card-pad: 1rem; /* 16px — default card interior */
+  --erp-space-card-pad-sm: 0.875rem; /* 14px */
+  --erp-space-title-below: 0.5rem; /* 8px under page title */
+  --erp-space-section-title-mb: 0.625rem; /* 10px under section headings */
+  --erp-main-pad-y: 1.25rem; /* 20px vertical main column */
+  --erp-main-pad-x: 1.25rem; /* 20px horizontal main column */
+
+  --erp-section-margin-bottom: var(--erp-space-section);
+  --erp-block-gap: var(--erp-space-card-gap);
+
+  --erp-color-text: #323130;
+  --erp-color-text-secondary: #605e5c;
+  --erp-color-muted: #8a8886;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Document baseline                                                          */
+/* -------------------------------------------------------------------------- */
+
+html {
+  font-size: 100%;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  font-size: var(--erp-base);
+  font-weight: 400;
+  line-height: var(--erp-leading-normal);
+  color: var(--erp-color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+main {
+  font-size: var(--erp-base);
+  line-height: var(--erp-leading-normal);
+}
+
+/* Main content column (tenant shell) — tighter than Tailwind py-8 px-6 */
+main.erp-main-scroll {
+  padding: var(--erp-main-pad-y) var(--erp-main-pad-x) !important;
+}
+
+/* Optional: add class="erp-stack-gap" on a column wrapper for consistent section spacing */
+.erp-stack-gap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--erp-space-section);
+}
+
+/* Common loose headings in module pages */
+main h1.text-2xl,
+main h1.text-3xl,
+main h1.text-xl {
+  margin-bottom: var(--erp-space-title-below) !important;
+}
+
+main h2.text-base,
+main h2.text-lg,
+main h2.text-xl {
+  margin-top: 0;
+  margin-bottom: var(--erp-space-section-title-mb) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Semantic type roles                                                        */
+/* -------------------------------------------------------------------------- */
+
+.erp-type-page-title,
+.page-title {
+  font-size: var(--erp-page-title);
+  font-weight: 600;
+  line-height: var(--erp-leading-tight);
+  color: var(--erp-color-text);
+  letter-spacing: -0.02em;
+  margin: 0;
+  margin-bottom: var(--erp-space-title-below);
+}
+
+.erp-type-page-title.text-white {
+  color: #ffffff !important;
+}
+
+.erp-type-helper.text-white\/90 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* In-page section titles (sentence case) */
+.erp-type-section-title {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-text);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  margin-bottom: var(--erp-space-section-title-mb);
+}
+
+/* Alias: form / list section bands (uppercase) */
+.section-title {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: var(--erp-space-section-title-mb);
+}
+
+.erp-type-card-title {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-text);
+}
+
+.erp-type-body {
+  font-size: var(--erp-base);
+  font-weight: 400;
+  line-height: var(--erp-leading-normal);
+  color: var(--erp-color-text);
+}
+
+.erp-type-helper,
+.page-subtitle {
+  font-size: var(--erp-help);
+  font-weight: 400;
+  line-height: var(--erp-leading-normal);
+  color: var(--erp-color-text-secondary);
+}
+
+.erp-type-label {
+  font-size: var(--erp-label);
+  font-weight: 500;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-form-label);
+}
+
+.erp-type-caption {
+  font-size: var(--erp-help);
+  font-weight: 400;
+  line-height: var(--erp-leading-normal);
+  color: var(--erp-color-muted);
+}
+
+/* Currency / line amounts (not KPI hero numbers) */
+.erp-amount,
+.erp-type-amount {
+  font-size: var(--erp-base);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--erp-leading-snug);
+}
+
+.erp-kpi-value,
+.erp-type-kpi-value {
+  font-size: var(--erp-kpi);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--erp-leading-tight);
+}
+
+.erp-kpi-label {
+  font-size: var(--erp-help);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--erp-color-text-secondary);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Default headings in main (unstyled / no Tailwind text-* override)          */
+/* -------------------------------------------------------------------------- */
+
+main h1:not([class*="text-"]):not(.dynamics-hero-title) {
+  font-size: var(--erp-page-title);
+  font-weight: 600;
+  line-height: var(--erp-leading-tight);
+  color: var(--erp-color-text);
+  letter-spacing: -0.02em;
+}
+
+main h2:not([class*="text-"]) {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-text);
+}
+
+main h3:not([class*="text-"]) {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Form labels & help (override common Tailwind label utilities in main)       */
+/* -------------------------------------------------------------------------- */
+
+main label,
+.dynamics-filter-field label {
+  font-size: var(--erp-label) !important;
+  font-weight: 500 !important;
+  color: var(--erp-color-form-label) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* ERP section + table shell                                                  */
+/* -------------------------------------------------------------------------- */
+
+.erp-section {
+  margin-bottom: var(--erp-space-section) !important;
+}
+
+.erp-section-header {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--erp-color-text);
+  padding: 8px 12px !important;
+}
+
+.erp-section-body {
+  font-size: var(--erp-base);
+  line-height: var(--erp-leading-normal);
+  padding: var(--erp-space-card-pad) !important;
+}
+
+.erp-table {
+  font-size: var(--erp-table-body);
+  line-height: var(--erp-leading-normal);
+}
+
+.erp-table th {
+  font-size: var(--erp-table-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: var(--erp-color-text);
+}
+
+.erp-table td {
+  font-size: var(--erp-table-body);
+  font-weight: 400;
+  line-height: var(--erp-leading-normal);
+}
+
+.erp-table tfoot td {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Generic data tables in main content */
+main table thead th,
+main table thead td {
+  font-size: var(--erp-table-header);
+  font-weight: 600;
+}
+
+main table tbody td,
+main table tbody th {
+  font-size: var(--erp-table-body);
+  font-weight: 400;
+}
+
+main table tfoot td,
+main table tfoot th {
+  font-size: var(--erp-table-body);
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons (content area)                                                      */
+/* -------------------------------------------------------------------------- */
+
+main button,
+main [type="submit"],
+main [type="button"],
+main [type="reset"],
+main a[role="button"] {
+  font-family: inherit;
+  font-size: var(--erp-button);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.sidebar-header-title {
+  font-size: var(--erp-sidebar);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.sidebar-section-label {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  line-height: var(--erp-leading-snug);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.sidebar-link {
+  font-size: var(--erp-sidebar);
+  font-weight: 500;
+  line-height: var(--erp-leading-snug);
+  color: #323130;
+}
+
+.sidebar-link--active {
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Top module navigation strip                                                */
+/* -------------------------------------------------------------------------- */
+
+.topbar-modules a {
+  font-size: var(--erp-topnav);
+  font-weight: 500;
+}
+
+/* Sidebar menu (full-width shell + shared class for Audit & Risk layout) */
+.tenant-sidebar nav a.group {
+  font-size: var(--erp-sidebar);
+  font-weight: 500;
+  padding-top: 0.5rem !important; /* 8px */
+  padding-bottom: 0.5rem !important;
+}
+
+.tenant-sidebar nav a.group.font-semibold {
+  font-weight: 600;
+}
+
+.tenant-sidebar nav p.px-3.uppercase.tracking-wide {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Header row (identity + search)                                             */
+/* -------------------------------------------------------------------------- */
+
+.erp-topbar-org {
+  font-size: var(--erp-base);
+  font-weight: 600;
+  line-height: var(--erp-leading-tight);
+}
+
+.erp-topbar-tagline {
+  font-size: var(--erp-help);
+  font-weight: 500;
+  line-height: var(--erp-leading-snug);
+  opacity: 0.9;
+}
+
+#tenant-search-fw {
+  font-size: var(--erp-input) !important;
+  line-height: var(--erp-leading-snug) !important;
+}
+
+.erp-global-chip {
+  font-size: var(--erp-help);
+  font-weight: 500;
+  line-height: var(--erp-leading-snug);
+}
+
+.erp-global-chip .erp-global-chip-value {
+  font-size: var(--erp-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dynamics / Fluent reports & grids                                          */
+/* -------------------------------------------------------------------------- */
+
+.dynamics-financial-report {
+  font-family: var(--font-family-sans);
+}
+
+.dynamics-report-hero .dynamics-hero-org {
+  font-size: var(--erp-base);
+  font-weight: 500;
+  line-height: var(--erp-leading-snug);
+}
+
+.dynamics-report-hero .dynamics-hero-title {
+  font-size: var(--erp-page-title);
+  font-weight: 600;
+  line-height: var(--erp-leading-tight);
+}
+
+.dynamics-report-hero .dynamics-hero-subtitle {
+  font-size: var(--erp-base);
+  font-weight: 400;
+  line-height: var(--erp-leading-normal);
+  color: var(--erp-color-text-secondary);
+}
+
+.dynamics-report-hero .dynamics-hero-meta {
+  font-size: var(--erp-help);
+  line-height: var(--erp-leading-normal);
+}
+
+.dynamics-filter-pane .dynamics-filter-head-title {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dynamics-filter-pane .dynamics-filter-head-hint {
+  font-size: var(--erp-help);
+  font-weight: 400;
+}
+
+.dynamics-input,
+.dynamics-select {
+  font-size: var(--erp-input);
+  font-weight: 400;
+  line-height: var(--erp-leading-snug);
+}
+
+.dynamics-btn-primary,
+.dynamics-btn-secondary {
+  font-size: var(--erp-button);
+  font-weight: 500;
+  line-height: var(--erp-leading-snug);
+}
+
+.dynamics-financial-report .sfp-tb,
+.dynamics-financial-report .soa-tb {
+  font-size: var(--erp-table-body);
+}
+
+.dynamics-financial-report .sfp-tb thead th,
+.dynamics-financial-report .soa-tb thead th {
+  font-size: var(--erp-table-header);
+  font-weight: 600;
+}
+
+.dynamics-financial-report .sfp-tb tbody td,
+.dynamics-financial-report .soa-tb tbody td {
+  font-size: var(--erp-table-body);
+  font-weight: 400;
+}
+
+.dynamics-financial-report .sfp-panel-title,
+.dynamics-financial-report .soa-panel-title {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dynamics-gfr-page .dynamics-gfr-kpi-label {
+  font-size: var(--erp-help);
+}
+
+.dynamics-gfr-page .dynamics-gfr-badge {
+  font-size: var(--erp-help);
+  font-weight: 600;
+}
+
+.dynamics-gfr-page .dynamics-gfr-action-link {
+  font-size: var(--erp-base);
+  font-weight: 500;
+}
+
+.dynamics-gfr-page .dynamics-gfr-empty-title {
+  font-size: var(--erp-section-header);
+  font-weight: 600;
+}
+
+.dynamics-gfr-page .dynamics-gfr-empty-sub,
+.dynamics-gfr-page .dynamics-gfr-empty {
+  font-size: var(--erp-base);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Form controls in main                                                      */
+/* -------------------------------------------------------------------------- */
+
+main input[type="text"],
+main input[type="email"],
+main input[type="password"],
+main input[type="number"],
+main input[type="search"],
+main input[type="tel"],
+main input[type="url"],
+main input[type="date"],
+main input[type="datetime-local"],
+main input[type="time"],
+main input[type="file"],
+main select:not([class*="text-"]),
+main textarea:not([class*="text-"]) {
+  font-family: inherit;
+  font-size: var(--erp-input);
+  font-weight: 400;
+  line-height: var(--erp-leading-snug);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modals                                                                     */
+/* -------------------------------------------------------------------------- */
+
+[role="dialog"] .gw-modal-h h3,
+[aria-modal="true"] h3.text-lg {
+  font-size: var(--erp-page-title);
+  font-weight: 600;
+  line-height: var(--erp-leading-tight);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Standalone pages without <main> (tenant login / 2FA)                        */
+/* -------------------------------------------------------------------------- */
+
+.erp-page form label {
+  font-size: var(--erp-label) !important;
+  font-weight: 500 !important;
+  color: var(--erp-color-form-label) !important;
+}
+
+.erp-page form input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.erp-page form select,
+.erp-page form textarea {
+  font-family: inherit;
+  font-size: var(--erp-input) !important;
+  font-weight: 400;
+}
+
+.erp-page form button[type="submit"],
+.erp-page form button[type="button"] {
+  font-family: inherit;
+  font-size: var(--erp-button) !important;
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Beat per-template <style> blocks (grant grids, KPI tiles)                   */
+/* -------------------------------------------------------------------------- */
+
+.dynamics-gfr-page .dynamics-gfr-panel-h span:first-child {
+  font-size: var(--erp-section-header) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: #323130 !important;
+}
+
+.dynamics-gfr-page .dynamics-gfr-panel-meta {
+  font-size: var(--erp-base) !important;
+  font-weight: 500 !important;
+}
+
+.dynamics-gfr-page .dynamics-gfr-grid {
+  font-size: var(--erp-table-body) !important;
+}
+
+.dynamics-gfr-page .dynamics-gfr-grid thead th {
+  font-size: var(--erp-table-header) !important;
+  font-weight: 600 !important;
+}
+
+.dynamics-gfr-page .dynamics-gfr-grid tbody td {
+  font-size: var(--erp-table-body) !important;
+  font-weight: 400 !important;
+}
+
+.dynamics-gfr-page .dynamics-gfr-kpi-value {
+  font-size: var(--erp-kpi) !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--erp-leading-tight);
+}
+
+.dynamics-gfr-page .dynamics-gfr-toolbar > span:first-child {
+  font-size: var(--erp-help) !important;
+  font-weight: 600 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Module center tiles & KPI boards (overrides per-page <style> where needed)    */
+/* -------------------------------------------------------------------------- */
+
+main a.fdc-card,
+main a.acc-card,
+main a.bdc-card,
+main a.ifc-card,
+main a.ofc-card,
+main a.mdc-card {
+  padding: var(--erp-space-card-pad-sm) var(--erp-space-card-pad) !important;
+  min-height: 4rem !important;
+  gap: 0.75rem !important;
+}
+
+main .fdc-grid,
+main .acc-grid,
+main .bdc-grid,
+main .ifc-grid,
+main .ofc-grid,
+main .mdc-grid {
+  gap: var(--erp-space-card-gap) !important;
+}
+
+main .fdc-section-body,
+main .acc-section-body,
+main .bdc-section-body,
+main .ifc-section-body,
+main .ofc-section-body,
+main .mdc-section-body {
+  padding: var(--erp-space-card-pad) !important;
+}
+
+main .bdc-kpi {
+  padding: 0.625rem 0.75rem 0.75rem !important;
+  min-height: 3.5rem !important;
+}

@@ -1,0 +1,11 @@
+{% comment %}
+  Reusable page hero — with title, optional subtitle, optional description.
+  Optional: variant e.g. "tint" for subtle background.
+{% endcomment %}
+<div class="m-hero m-hero--page{% if variant %} m-hero--{{ variant }}{% endif %}">
+  <div class="container m-hero-inner">
+    <h1 class="m-hero-title">{{ title }}</h1>
+    {% if subtitle %}<p class="m-hero-subtitle">{{ subtitle }}</p>{% endif %}
+    {% if description %}<p class="m-hero-desc">{{ description }}</p>{% endif %}
+  </div>
+</div>

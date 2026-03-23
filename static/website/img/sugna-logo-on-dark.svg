@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 268 44" fill="none" role="img" aria-hidden="true">
+  <defs>
+    <linearGradient id="sugnaMarkGradD" x1="6" y1="4" x2="38" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60a5fa"/>
+      <stop offset="0.55" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+    <linearGradient id="sugnaMarkShineD" x1="10" y1="8" x2="34" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="sugnaMarkShadowD" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-opacity="0.25"/>
+    </filter>
+    <clipPath id="sugnaIconClipD">
+      <rect x="2" y="2" width="40" height="40" rx="10"/>
+    </clipPath>
+  </defs>
+  <g filter="url(#sugnaMarkShadowD)">
+    <rect x="2" y="2" width="40" height="40" rx="10" fill="url(#sugnaMarkGradD)"/>
+    <rect x="2" y="2" width="40" height="40" rx="10" fill="url(#sugnaMarkShineD)"/>
+  </g>
+  <g clip-path="url(#sugnaIconClipD)">
+    <rect x="8" y="11" width="24" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.95"/>
+    <rect x="8" y="18.25" width="16" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.88"/>
+    <rect x="8" y="25.5" width="20" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.88"/>
+    <rect x="8" y="32.75" width="14" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.82"/>
+  </g>
+  <text x="52" y="27" fill="#f8fafc" font-family="Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="17" font-weight="700" letter-spacing="-0.03em">Sugna</text>
+  <text x="52" y="39" fill="#94a3b8" font-family="Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, sans-serif" font-size="9.5" font-weight="600" letter-spacing="0.12em">ENTERPRISE SUITE</text>
+</svg>

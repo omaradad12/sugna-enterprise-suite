@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="smg" x1="6" y1="4" x2="38" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb"/>
+      <stop offset="0.55" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="sms" x1="10" y1="8" x2="34" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="smd" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-opacity="0.14"/>
+    </filter>
+    <clipPath id="smc">
+      <rect x="2" y="2" width="40" height="40" rx="10"/>
+    </clipPath>
+  </defs>
+  <g filter="url(#smd)">
+    <rect x="2" y="2" width="40" height="40" rx="10" fill="url(#smg)"/>
+    <rect x="2" y="2" width="40" height="40" rx="10" fill="url(#sms)"/>
+  </g>
+  <g clip-path="url(#smc)">
+    <rect x="8" y="11" width="24" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.95"/>
+    <rect x="8" y="18.25" width="16" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.88"/>
+    <rect x="8" y="25.5" width="20" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.88"/>
+    <rect x="8" y="32.75" width="14" height="4.5" rx="2.25" fill="#ffffff" fill-opacity="0.82"/>
+  </g>
+</svg>

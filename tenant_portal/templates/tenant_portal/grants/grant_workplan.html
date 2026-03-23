@@ -1,224 +1,459 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}Grant Workplan | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}{% trans "Grant workplan" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div x-data="{ createWorkplanOpen: false, raisePROpen: false, importWorkplanOpen: false }" class="contents">
-<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Grant Workplan</h1>
-  </div>
-  <div class="flex flex-wrap items-center gap-2">
-    <button type="button"
-            @click="createWorkplanOpen = true"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow"
-            style="background:#0078D4;">
-      <i data-feather="plus" class="w-4 h-4"></i>
-      Create workplan
-    </button>
-    {% if can_manage %}
-    <button type="button"
-            @click="importWorkplanOpen = true"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border hover:bg-[#faf9f8]"
-            style="border-color:#107C10; color:#107C10;">
-      <i data-feather="upload" class="w-4 h-4"></i>
-      Import
-    </button>
-    {% endif %}
-    <button type="button"
-            @click="raisePROpen = true"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border hover:bg-[#faf9f8]"
-            style="border-color:#0078D4; color:#0078D4;">
-      <i data-feather="clipboard" class="w-4 h-4"></i>
-      PR
-    </button>
-    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-      <i data-feather="download" class="w-4 h-4"></i>
-      Export Excel
-    </a>
-  </div>
-</div>
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dynamics-gfr-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-gfr-page .dynamics-report-hero--with-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .dynamics-gfr-page .dynamics-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-btn-outline-green {
+    border-color: #107c10 !important;
+    color: #107c10 !important;
+    background: #ffffff !important;
+  }
+  .dynamics-gfr-page .dynamics-btn-outline-green:hover {
+    background: #f3faf3 !important;
+    border-color: #0b5a0b !important;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-meta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th {
+    text-align: left;
+    padding: 0.45rem 0.5rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-gfr-page .dynamics-gfr-code {
+    font-family: "Segoe UI", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link {
+    font-size: 11px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link--success {
+    color: #107c10;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link--success:hover {
+    color: #0b5a0b;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-sep {
+    color: #c8c6c4;
+    user-select: none;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge--ok { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .dynamics-gfr-page .dynamics-gfr-badge--neutral { background: #f3f2f1; color: #605e5c; border-color: #e1dfdd; }
+  .dynamics-gfr-page .dynamics-gfr-badge--warn { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-gfr-page .dynamics-gfr-badge--info { background: #deecf9; color: #004578; border-color: #c7e0f4; }
+  .dynamics-gfr-page .dynamics-gfr-empty {
+    text-align: center;
+    padding: 2.5rem 1rem 2.75rem;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-gfr-page .gw-modal-shell {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 3.2px 7.2px rgba(0, 0, 0, 0.12);
+    background: #fff;
+  }
+  .dynamics-gfr-page .gw-modal-h {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid #edebe9;
+    border-left: 3px solid #0078d4;
+    margin-left: -1px;
+    background: linear-gradient(180deg, #faf9f8 0%, #ffffff 100%);
+  }
+  @media print {
+    .dynamics-gfr-page .hidden-print,
+    .dynamics-gfr-page .dynamics-gfr-toolbar,
+    .dynamics-gfr-page .dynamics-filter-pane,
+    .dynamics-gfr-page .dynamics-hero-actions {
+      display: none !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-panel {
+      box-shadow: none !important;
+    }
+  }
+</style>
 
-{# Filters #}
-<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
-  <form method="get" action="" class="space-y-4">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant</label>
-        <select name="grant_id" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
-          <option value="">All</option>
+<div class="dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
+  <header class="dynamics-report-hero dynamics-report-hero--with-cta hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <div class="min-w-0 flex-1">
+      <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Grant management" %}</p>
+      <h1 class="dynamics-hero-title">{% trans "Grant workplan" %}</h1>
+      <p class="dynamics-hero-subtitle">{% trans "Plan activities per grant: budgets, procurement, owners, and dates. Approve lines for purchase requisitions (PR) when ready." %}</p>
+    </div>
+    <div class="dynamics-hero-actions">
+      <button type="button" @click="createWorkplanOpen = true" class="dynamics-btn-primary">
+        <i data-feather="plus" class="w-4 h-4"></i>
+        {% trans "Create workplan" %}
+      </button>
+      {% if can_manage %}
+      <button type="button" @click="importWorkplanOpen = true" class="dynamics-btn-secondary dynamics-btn-outline-green">
+        <i data-feather="upload" class="w-4 h-4"></i>
+        {% trans "Import" %}
+      </button>
+      {% endif %}
+      <button type="button" @click="raisePROpen = true" class="dynamics-btn-secondary">
+        <i data-feather="clipboard" class="w-4 h-4"></i>
+        {% trans "PR" %}
+      </button>
+    </div>
+  </header>
+
+  <div class="dynamics-gfr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Export' %}">
+    <span>{% trans "Export" %}</span>
+    <a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
+  </div>
+
+  <div class="dynamics-filter-pane hidden-print mb-4">
+    <div class="dynamics-filter-head">
+      <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+      <span class="dynamics-filter-head-title">{% trans "View filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Narrow by grant, donor, status, department, activity status, or date range — then Apply." %}</span>
+    </div>
+    <form method="get" action="" class="dynamics-filter-grid">
+      <div class="dynamics-filter-field">
+        <label for="gw-grant">{% trans "Grant" %}</label>
+        <select id="gw-grant" name="grant_id" class="dynamics-select w-full min-w-[160px] bg-white">
+          <option value="">{% trans "All" %}</option>
           {% for g in grants %}
           <option value="{{ g.pk }}" {% if filters.grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor</label>
-        <select name="donor_id" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
-          <option value="">All</option>
+      <div class="dynamics-filter-field">
+        <label for="gw-donor">{% trans "Donor" %}</label>
+        <select id="gw-donor" name="donor_id" class="dynamics-select w-full min-w-[180px] bg-white">
+          <option value="">{% trans "All" %}</option>
           {% for d in donors %}
           <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Workplan status</label>
-        <select name="workplan_status" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
-          <option value="">All</option>
+      <div class="dynamics-filter-field">
+        <label for="gw-wp-st">{% trans "Workplan status" %}</label>
+        <select id="gw-wp-st" name="workplan_status" class="dynamics-select w-full min-w-[160px] bg-white">
+          <option value="">{% trans "All" %}</option>
           {% for value, label in workplan_status_choices %}
           <option value="{{ value }}" {% if filters.workplan_status == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Responsible department</label>
-        <select name="responsible_department" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
-          <option value="">All</option>
+      <div class="dynamics-filter-field">
+        <label for="gw-dept">{% trans "Responsible department" %}</label>
+        <select id="gw-dept" name="responsible_department" class="dynamics-select w-full min-w-[180px] bg-white">
+          <option value="">{% trans "All" %}</option>
           {% for d in departments %}
           <option value="{{ d }}" {% if filters.responsible_department == d %}selected{% endif %}>{{ d }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Activity status</label>
-        <select name="activity_status" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
-          <option value="">All</option>
+      <div class="dynamics-filter-field">
+        <label for="gw-act-st">{% trans "Activity status" %}</label>
+        <select id="gw-act-st" name="activity_status" class="dynamics-select w-full min-w-[160px] bg-white">
+          <option value="">{% trans "All" %}</option>
           {% for value, label in activity_status_choices %}
           <option value="{{ value }}" {% if filters.activity_status == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Start date</label>
-        <input type="date" name="start_date" value="{{ filters.start_date }}" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      <div class="dynamics-filter-field">
+        <label for="gw-start">{% trans "Start date" %}</label>
+        <input id="gw-start" type="date" name="start_date" value="{{ filters.start_date }}" class="dynamics-input w-full min-w-[140px]" />
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">End date</label>
-        <input type="date" name="end_date" value="{{ filters.end_date }}" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+      <div class="dynamics-filter-field">
+        <label for="gw-end">{% trans "End date" %}</label>
+        <input id="gw-end" type="date" name="end_date" value="{{ filters.end_date }}" class="dynamics-input w-full min-w-[140px]" />
       </div>
-    </div>
-    <div class="flex items-center gap-2">
-      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
-      <a href="{% url 'tenant_portal:grants_grant_workplan' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Reset</a>
-    </div>
-  </form>
-</div>
-
-{# Workplan table #}
-<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
-  <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
+      <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+        <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+        <button type="submit" class="dynamics-btn-primary">
+          <i data-feather="check" class="w-4 h-4"></i>
+          {% trans "Apply" %}
+        </button>
+      </div>
+      <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+        <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+        <a href="{% url 'tenant_portal:grants_grant_workplan' %}" class="dynamics-btn-secondary no-underline text-center">{% trans "Reset" %}</a>
+      </div>
+    </form>
   </div>
-  <div class="overflow-auto">
-    <table class="min-w-full text-sm">
-      <thead style="background:#f3f2f1;">
-        <tr>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Workplan ID</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Grant</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Donor</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Activity</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Component / output</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Budget line</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Procurement</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Responsible dept</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Responsible staff</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Start date</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">End date</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">{% trans "Proj. budget line" %}</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Budget amount</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actual</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Approved for PR</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Activity status</th>
-          <th class="text-left px-4 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for w in workplans %}
-        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-4 py-2 font-mono" style="color:#323130;">{{ w.workplan_code }}</td>
-          <td class="px-4 py-2" style="color:#323130;">{{ w.grant.code|default:"—" }} {{ w.grant.title|truncatewords:4 }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.donor_display|default:"—" }}</td>
-          <td class="px-4 py-2 font-medium" style="color:#323130;">{{ w.activity|truncatewords:6 }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.component_output|default:"—"|truncatewords:4 }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.budget_line|default:"—" }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.procurement_requirement|default:"—"|truncatewords:4 }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.responsible_department|default:"—" }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.responsible_staff|default:"—" }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.start_date|date:"d/m/Y"|default:"—" }}</td>
-          <td class="px-4 py-2" style="color:#605e5c;">{{ w.end_date|date:"d/m/Y"|default:"—" }}</td>
-          <td class="px-4 py-2 text-xs" style="color:#605e5c;">{% if w.project_budget_line %}{{ w.project_budget_line.category }}{% else %}—{% endif %}</td>
-          <td class="px-4 py-2" style="color:#323130;">{% if w.budget_amount %}{{ w.budget_amount|floatformat:0 }}{% else %}—{% endif %}</td>
-          <td class="px-4 py-2 tabular-nums" style="color:#323130;">{% if w.actual_cost %}{{ w.actual_cost|floatformat:0 }}{% else %}0{% endif %}</td>
-          <td class="px-4 py-2">
-            {% if w.approved_for_pr %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style="background:#dff6dd; color:#0b5a0b;">Yes</span>
-            {% else %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs" style="background:#edebe9; color:#605e5c;">No</span>
-            {% endif %}
-          </td>
-          <td class="px-4 py-2">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
-                  style="{% if w.activity_status == 'completed' %}background:#dff6dd; color:#0b5a0b;{% elif w.activity_status == 'in_progress' %}background:#fff4ce; color:#7a5c00;{% else %}background:#eaeaea; color:#605e5c;{% endif %}">
-              {{ w.get_activity_status_display }}
-            </span>
-          </td>
-          <td class="px-4 py-2">
-            <span class="inline-flex items-center gap-1 flex-wrap">
-              <a href="#" class="font-medium hover:underline" style="color:#0078D4;">View</a>
-              <span style="color:#c8c6c4;">|</span>
-              <a href="#" class="font-medium hover:underline" style="color:#0078D4;">Edit</a>
+
+  <div class="dynamics-gfr-panel">
+    <div class="dynamics-gfr-panel-h hidden-print">
+      <span>{% trans "Workplan activities" %}</span>
+      <span class="dynamics-gfr-panel-meta">{{ workplans|length }} {% trans "rows" %}</span>
+    </div>
+    <div class="dynamics-gfr-grid-wrap">
+      <table class="dynamics-gfr-grid">
+        <thead>
+          <tr>
+            <th>{% trans "Workplan ID" %}</th>
+            <th>{% trans "Grant" %}</th>
+            <th>{% trans "Donor" %}</th>
+            <th>{% trans "Activity" %}</th>
+            <th>{% trans "Component / output" %}</th>
+            <th>{% trans "Budget line" %}</th>
+            <th>{% trans "Procurement" %}</th>
+            <th>{% trans "Responsible dept" %}</th>
+            <th>{% trans "Responsible staff" %}</th>
+            <th>{% trans "Start date" %}</th>
+            <th>{% trans "End date" %}</th>
+            <th>{% trans "Proj. budget line" %}</th>
+            <th>{% trans "Budget amount" %}</th>
+            <th>{% trans "Actual" %}</th>
+            <th>{% trans "Approved for PR" %}</th>
+            <th>{% trans "Activity status" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in workplans %}
+          <tr>
+            <td><span class="dynamics-gfr-code">{{ w.workplan_code }}</span></td>
+            <td class="font-semibold" style="color:#201f1e;">{{ w.grant.code|default:"—" }} {{ w.grant.title|truncatewords:4 }}</td>
+            <td style="color:#605e5c;">{{ w.donor_display|default:"—" }}</td>
+            <td style="color:#323130;">{{ w.activity|truncatewords:6 }}</td>
+            <td style="color:#605e5c;">{{ w.component_output|default:"—"|truncatewords:4 }}</td>
+            <td style="color:#605e5c;">{{ w.budget_line|default:"—" }}</td>
+            <td style="color:#605e5c;">{{ w.procurement_requirement|default:"—"|truncatewords:4 }}</td>
+            <td style="color:#605e5c;">{{ w.responsible_department|default:"—" }}</td>
+            <td style="color:#605e5c;">{{ w.responsible_staff|default:"—" }}</td>
+            <td class="tabular-nums" style="color:#605e5c;">{{ w.start_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="tabular-nums" style="color:#605e5c;">{{ w.end_date|date:"Y-m-d"|default:"—" }}</td>
+            <td style="color:#605e5c;">{% if w.project_budget_line %}{{ w.project_budget_line.category }}{% else %}—{% endif %}</td>
+            <td class="tabular-nums font-medium" style="color:#201f1e;">{% if w.budget_amount %}{{ w.budget_amount|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td class="tabular-nums font-medium" style="color:#201f1e;">{% if w.actual_cost %}{{ w.actual_cost|floatformat:0 }}{% else %}0{% endif %}</td>
+            <td class="whitespace-nowrap">
               {% if w.approved_for_pr %}
-              <span style="color:#c8c6c4;">|</span>
-              <a href="{% url 'tenant_portal:grants_pr_create' %}?activity_id={{ w.pk }}" class="font-medium hover:underline" style="color:#0078D4;">PR</a>
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{% trans "Yes" %}</span>
+              {% else %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--neutral">{% trans "No" %}</span>
+              {% endif %}
+            </td>
+            <td class="whitespace-nowrap">
+              {% if w.activity_status == 'completed' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{{ w.get_activity_status_display }}</span>
+              {% elif w.activity_status == 'in_progress' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--warn">{{ w.get_activity_status_display }}</span>
+              {% else %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--info">{{ w.get_activity_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="whitespace-nowrap">
+              <a href="#" class="dynamics-gfr-action-link">{% trans "View" %}</a>
+              <span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>
+              <a href="#" class="dynamics-gfr-action-link">{% trans "Edit" %}</a>
+              {% if w.approved_for_pr %}
+              <span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>
+              <a href="{% url 'tenant_portal:grants_pr_create' %}?activity_id={{ w.pk }}" class="dynamics-gfr-action-link">{% trans "PR" %}</a>
               {% elif can_manage %}
-              <span style="color:#c8c6c4;">|</span>
-              <form method="post" action="" class="inline" onsubmit="return confirm('Approve this activity for raising a PR?');">
+              <span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>
+              <form method="post" action="" class="inline" onsubmit='return confirm("{% trans "Approve this activity for raising a PR?" %}");'>
                 {% csrf_token %}
                 <input type="hidden" name="form_type" value="approve_for_pr" />
                 <input type="hidden" name="activity_id" value="{{ w.pk }}" />
-                <button type="submit" class="font-medium hover:underline text-left p-0 border-0 bg-transparent cursor-pointer" style="color:#107C10;">Approve for PR</button>
+                <button type="submit" class="dynamics-gfr-action-link dynamics-gfr-action-link--success border-0 bg-transparent cursor-pointer p-0 font-semibold text-xs">{% trans "Approve for PR" %}</button>
               </form>
               {% endif %}
-            </span>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="14" class="px-4 py-8 text-center" style="color:#605e5c;">No workplan activities. Use Create workplan to add one.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="17" class="p-0 border-0">
+              <div class="dynamics-gfr-empty">
+                <div class="dynamics-gfr-empty-icon" aria-hidden="true"><i data-feather="layers" class="w-6 h-6"></i></div>
+                <p class="dynamics-gfr-empty-title">{% trans "No workplan activities." %}</p>
+                <p class="text-sm m-0 mb-4" style="color:#8a8886;">{% trans "Use Create workplan to add one." %}</p>
+                <button type="button" @click="createWorkplanOpen = true" class="dynamics-btn-primary">
+                  <i data-feather="plus" class="w-4 h-4"></i>
+                  {% trans "Create workplan" %}
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if workplans %}
+    <div class="px-4 py-2.5 border-t text-xs font-semibold" style="border-color:#edebe9; color:#605e5c;">
+      {% blocktrans count counter=workplans|length %}Showing {{ counter }} entry{% plural %}Showing {{ counter }} entries{% endblocktrans %}
+    </div>
+    {% endif %}
   </div>
-  <div class="px-4 py-2 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ workplans|length }} entries</div>
 </div>
 
-{# PR modal: select approved activity and go to PR create #}
-<div x-ref="raisePRModal" x-show="raisePROpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+{# PR modal #}
+<div x-show="raisePROpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto hidden-print dynamics-financial-report" aria-modal="true">
   <div class="flex min-h-full items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/30" @click="raisePROpen = false"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-5" style="border:1px solid #edebe9;">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold" style="color:#323130;">PR</h3>
-        <button type="button" @click="raisePROpen = false" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;"><i data-feather="x" class="w-5 h-5"></i></button>
+    <div class="relative gw-modal-shell dynamics-gfr-page max-w-md w-full p-0">
+      <div class="gw-modal-h rounded-t">
+        <h3 class="text-base font-bold m-0" style="color:#201f1e;">{% trans "Raise purchase requisition" %}</h3>
+        <button type="button" @click="raisePROpen = false" class="p-1 rounded hover:bg-[#edebe9]" style="color:#605e5c;" aria-label="{% trans 'Close' %}"><i data-feather="x" class="w-5 h-5"></i></button>
       </div>
-      <form method="post" action="">
+      <form method="post" action="" class="p-5 space-y-4">
         {% csrf_token %}
         <input type="hidden" name="form_type" value="raise_pr" />
-        <div class="mb-4">
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Workplan activity (approved for PR)</label>
-          <select name="pr_activity_id" class="w-full px-3 py-2 rounded-lg border text-sm bg-white" style="border-color:#edebe9;">
-            <option value="">Select activity</option>
+        <div class="dynamics-filter-field">
+          <label for="gw-pr-act">{% trans "Workplan activity (approved for PR)" %}</label>
+          <select id="gw-pr-act" name="pr_activity_id" class="dynamics-select w-full bg-white">
+            <option value="">{% trans "Select activity" %}</option>
             {% for a in approved_activities_for_pr %}
             <option value="{{ a.pk }}">{{ a.workplan_code }} — {{ a.activity|truncatewords:5 }}</option>
             {% endfor %}
           </select>
           {% if not approved_activities_for_pr %}
-          <p class="text-xs mt-1" style="color:#605e5c;">No activities approved for PR. Use &quot;Approve for PR&quot; on an activity first.</p>
+          <p class="text-xs m-0 mt-1" style="color:#605e5c;">{% trans "No activities approved for PR. Use \"Approve for PR\" on an activity first." %}</p>
           {% endif %}
         </div>
-        <div class="flex gap-2">
-          <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Continue to PR</button>
-          <button type="button" @click="raisePROpen = false" class="px-4 py-2 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        <div class="flex gap-2 pt-1">
+          <button type="submit" class="dynamics-btn-primary">{% trans "Continue to PR" %}</button>
+          <button type="button" @click="raisePROpen = false" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
         </div>
       </form>
     </div>
@@ -226,130 +461,123 @@
 </div>
 
 {# Create workplan modal #}
-<div x-ref="createWorkplanModal" x-show="createWorkplanOpen" x-cloak
-     class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+<div x-show="createWorkplanOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto hidden-print dynamics-financial-report" aria-modal="true">
   <div class="flex min-h-full items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/30" @click="createWorkplanOpen = false"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style="border:1px solid #edebe9;">
-      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:#edebe9;">
-        <h3 class="text-lg font-semibold" style="color:#323130;">Create workplan</h3>
-        <button type="button" @click="createWorkplanOpen = false" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
-          <i data-feather="x" class="w-5 h-5"></i>
-        </button>
+    <div class="relative gw-modal-shell dynamics-gfr-page max-w-lg w-full max-h-[90vh] overflow-y-auto p-0">
+      <div class="gw-modal-h rounded-t sticky top-0 z-[1]">
+        <h3 class="text-base font-bold m-0" style="color:#201f1e;">{% trans "Create workplan" %}</h3>
+        <button type="button" @click="createWorkplanOpen = false" class="p-1 rounded hover:bg-[#edebe9]" style="color:#605e5c;" aria-label="{% trans 'Close' %}"><i data-feather="x" class="w-5 h-5"></i></button>
       </div>
-      <form method="post" action="" class="p-5 space-y-4">
+      <form method="post" action="" class="p-5 space-y-3">
         {% csrf_token %}
         <input type="hidden" name="form_type" value="create_workplan" />
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant <span style="color:#A4262C;">*</span></label>
-          <select name="grant_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
-            <option value="">Select grant</option>
+        <div class="dynamics-filter-field">
+          <label for="gw-c-grant">{% trans "Grant" %} <span style="color:#A4262C;">*</span></label>
+          <select id="gw-c-grant" name="grant_id" required class="dynamics-select w-full bg-white">
+            <option value="">{% trans "Select grant" %}</option>
             {% for g in grants %}
             <option value="{{ g.pk }}">{{ g.code }} — {{ g.title }}</option>
             {% endfor %}
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Activity name <span style="color:#A4262C;">*</span></label>
-          <input name="workplan_title" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="e.g. Q1 field activities" />
+        <div class="dynamics-filter-field">
+          <label for="gw-c-title">{% trans "Activity name" %} <span style="color:#A4262C;">*</span></label>
+          <input id="gw-c-title" name="workplan_title" required class="dynamics-input w-full" placeholder="{% trans 'e.g. Q1 field activities' %}" />
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor</label>
-          <select name="donor_id" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
-            <option value="">Same as grant</option>
+        <div class="dynamics-filter-field">
+          <label for="gw-c-donor">{% trans "Donor" %}</label>
+          <select id="gw-c-donor" name="donor_id" class="dynamics-select w-full bg-white">
+            <option value="">{% trans "Same as grant" %}</option>
             {% for d in donors %}
             <option value="{{ d.pk }}">{{ d.code }} — {{ d.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Component / output</label>
-          <input name="workplan_component" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Grant output" />
+        <div class="dynamics-filter-field">
+          <label for="gw-c-comp">{% trans "Component / output" %}</label>
+          <input id="gw-c-comp" name="workplan_component" class="dynamics-input w-full" placeholder="{% trans 'Grant output' %}" />
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">{% trans "Project budget line" %}</label>
-          <select name="workplan_project_budget_line" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+        <div class="dynamics-filter-field">
+          <label for="gw-c-pbl">{% trans "Project budget line" %}</label>
+          <select id="gw-c-pbl" name="workplan_project_budget_line" class="dynamics-select w-full bg-white">
             <option value="">{% trans "— (required if project has budget structure)" %}</option>
             {% for bl in project_budget_lines %}
             <option value="{{ bl.pk }}">{{ bl.project_budget.project.code }} · {{ bl.category }}</option>
             {% endfor %}
           </select>
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">{% trans "Budget line (text)" %}</label>
-          <input name="workplan_budget_line" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Optional label / memo' %}" />
+        <div class="dynamics-filter-field">
+          <label for="gw-c-bl">{% trans "Budget line (text)" %}</label>
+          <input id="gw-c-bl" name="workplan_budget_line" class="dynamics-input w-full" placeholder="{% trans 'Optional label / memo' %}" />
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Procurement requirement</label>
-          <textarea name="workplan_procurement" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;" placeholder="Description of procurement need"></textarea>
+        <div class="dynamics-filter-field">
+          <label for="gw-c-proc">{% trans "Procurement requirement" %}</label>
+          <textarea id="gw-c-proc" name="workplan_procurement" rows="2" class="dynamics-input w-full resize-y" style="min-height:3rem;" placeholder="{% trans 'Description of procurement need' %}"></textarea>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Responsible department</label>
-            <input name="workplan_department" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+        <div class="grid grid-cols-2 gap-3">
+          <div class="dynamics-filter-field">
+            <label for="gw-c-dept">{% trans "Responsible department" %}</label>
+            <input id="gw-c-dept" name="workplan_department" class="dynamics-input w-full" />
           </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Responsible staff</label>
-            <input name="workplan_staff" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Activity owner" />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Start date</label>
-            <input name="workplan_start_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
-          </div>
-          <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">End date</label>
-            <input name="workplan_end_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          <div class="dynamics-filter-field">
+            <label for="gw-c-staff">{% trans "Responsible staff" %}</label>
+            <input id="gw-c-staff" name="workplan_staff" class="dynamics-input w-full" placeholder="{% trans 'Activity owner' %}" />
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Budget amount</label>
-          <input name="workplan_budget" type="number" step="0.01" min="0" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="0.00" />
+        <div class="grid grid-cols-2 gap-3">
+          <div class="dynamics-filter-field">
+            <label for="gw-c-sd">{% trans "Start date" %}</label>
+            <input id="gw-c-sd" name="workplan_start_date" type="date" class="dynamics-input w-full" />
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="gw-c-ed">{% trans "End date" %}</label>
+            <input id="gw-c-ed" name="workplan_end_date" type="date" class="dynamics-input w-full" />
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Notes</label>
-          <textarea name="workplan_description" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+        <div class="dynamics-filter-field">
+          <label for="gw-c-bud">{% trans "Budget amount" %}</label>
+          <input id="gw-c-bud" name="workplan_budget" type="number" step="0.01" min="0" class="dynamics-input w-full" placeholder="0.00" />
         </div>
-        <div class="flex gap-2 pt-2">
-          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#0078D4;">Save workplan</button>
-          <button type="button" @click="createWorkplanOpen = false" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        <div class="dynamics-filter-field">
+          <label for="gw-c-notes">{% trans "Notes" %}</label>
+          <textarea id="gw-c-notes" name="workplan_description" rows="2" class="dynamics-input w-full resize-y" style="min-height:3rem;"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2 border-t" style="border-color:#edebe9;">
+          <button type="submit" class="dynamics-btn-primary"><i data-feather="save" class="w-4 h-4"></i> {% trans "Save workplan" %}</button>
+          <button type="button" @click="createWorkplanOpen = false" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-{# Import workplan modal #}
-<div x-show="importWorkplanOpen" x-cloak
-     class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+{# Import modal #}
+<div x-show="importWorkplanOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto hidden-print dynamics-financial-report" aria-modal="true">
   <div class="flex min-h-full items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/30" @click="importWorkplanOpen = false"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full" style="border:1px solid #edebe9;">
-      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:#edebe9;">
-        <h3 class="text-lg font-semibold" style="color:#323130;">Import workplan</h3>
-        <button type="button" @click="importWorkplanOpen = false" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
-          <i data-feather="x" class="w-5 h-5"></i>
-        </button>
+    <div class="relative gw-modal-shell dynamics-gfr-page max-w-lg w-full p-0">
+      <div class="gw-modal-h rounded-t">
+        <h3 class="text-base font-bold m-0" style="color:#201f1e;">{% trans "Import workplan" %}</h3>
+        <button type="button" @click="importWorkplanOpen = false" class="p-1 rounded hover:bg-[#edebe9]" style="color:#605e5c;" aria-label="{% trans 'Close' %}"><i data-feather="x" class="w-5 h-5"></i></button>
       </div>
       <form method="post" action="" enctype="multipart/form-data" class="p-5 space-y-4">
         {% csrf_token %}
         <input type="hidden" name="form_type" value="import_workplan" />
-        <p class="text-sm" style="color:#605e5c;">Upload a CSV or Excel file with columns: Grant (code), Activity, Component/Output, Budget line, Procurement, Responsible department, Responsible staff, Start date, End date, Budget amount. Dates must be within grant period; total activity budgets per grant cannot exceed the grant allocation.</p>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">File <span style="color:#A4262C;">*</span></label>
-          <input type="file" name="workplan_import_file" accept=".csv,.xlsx,.xls" required
-                 class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+        <p class="text-sm m-0" style="color:#605e5c;">{% trans "Upload a CSV or Excel file with columns: Grant (code), Activity, Component/Output, Budget line, Procurement, Responsible department, Responsible staff, Start date, End date, Budget amount. Dates must be within grant period; total activity budgets per grant cannot exceed the grant allocation." %}</p>
+        <div class="dynamics-filter-field">
+          <label for="gw-imp-file">{% trans "File" %} <span style="color:#A4262C;">*</span></label>
+          <input id="gw-imp-file" type="file" name="workplan_import_file" accept=".csv,.xlsx,.xls" required class="dynamics-input w-full py-2" />
         </div>
-        <div class="flex items-center gap-2">
-          <a href="{{ workplan_import_template_url }}" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+        <div>
+          <a href="{{ workplan_import_template_url }}" class="dynamics-btn-secondary no-underline inline-flex">
             <i data-feather="download" class="w-4 h-4"></i>
-            Download template
+            {% trans "Download template" %}
           </a>
         </div>
-        <div class="flex gap-2 pt-2">
-          <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white" style="background:#107C10;">Import</button>
-          <button type="button" @click="importWorkplanOpen = false" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+        <div class="flex gap-2 pt-2 border-t" style="border-color:#edebe9;">
+          <button type="submit" class="dynamics-btn-primary" style="background:#107c10;">{% trans "Import" %}</button>
+          <button type="button" @click="importWorkplanOpen = false" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
         </div>
       </form>
     </div>

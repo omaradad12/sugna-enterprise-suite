@@ -1,0 +1,13 @@
+{% comment %} Expects: form, form_title (optional), submit_label (optional) {% endcomment %}
+<form method="post" class="m-form-card card">
+  {% csrf_token %}
+  {% if form_title %}<h2 class="m-form-card-title">{{ form_title }}</h2>{% endif %}
+  {% for field in form %}
+    <div class="form-group">
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.errors %}<div class="form-errors">{{ field.errors }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <button type="submit" class="btn btn-primary m-form-submit">{{ submit_label|default:"Submit" }}</button>
+</form>

@@ -1,28 +1,299 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Donor Agreements" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}{% trans "Donor agreements" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div x-data="{ createOpen: false, moreFilters: false }" class="contents da-agi-root max-w-[1600px] mx-auto w-full pb-10">
+<div x-data="{ createOpen: false, moreFilters: false }" class="contents">
+{% trans "Donor agreements" as da_official_title %}
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title=da_official_title official_report_period_line=official_report_period_line %}
 {% include "tenant_portal/grants/_donor_agreements_styles.html" %}
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
-{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Donor Agreements" official_report_period_line=official_report_period_line %}
+<style>
+  .dynamics-gfr-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar-spacer {
+    flex: 1;
+    min-width: 0.5rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-strip { margin-bottom: 1.25rem; }
+  .dynamics-gfr-page .dynamics-gfr-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .dynamics-gfr-page .dynamics-gfr-kpi-grid--5 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1024px) {
+    .dynamics-gfr-page .dynamics-gfr-kpi-grid--5 {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-card {
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+    padding: 0.85rem 1rem;
+    text-align: center;
+    border-left: 3px solid #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #201f1e;
+    margin-top: 0.35rem;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-meta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th.text-right {
+    text-align: right;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr.da-row-overlimit td {
+    background: #fff9f4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr.da-row-overlimit:hover td {
+    background: #fff3e8;
+  }
+  .dynamics-gfr-page .dynamics-gfr-code {
+    font-family: "Segoe UI", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grant-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grant-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grant-link .dynamics-gfr-code {
+    color: inherit;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link--muted {
+    color: #605e5c;
+    font-weight: 600;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link--muted:hover {
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-sep {
+    color: #c8c6c4;
+    font-weight: 400;
+    user-select: none;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    letter-spacing: 0.02em;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge--ok { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .dynamics-gfr-page .dynamics-gfr-badge--neutral { background: #f3f2f1; color: #605e5c; border-color: #e1dfdd; }
+  .dynamics-gfr-page .dynamics-gfr-badge--warn { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-gfr-page .dynamics-gfr-badge--info { background: #deecf9; color: #004578; border-color: #c7e0f4; }
+  .dynamics-gfr-page .dynamics-gfr-empty {
+    text-align: center;
+    padding: 3rem 1.5rem 3.25rem;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-sub {
+    font-size: 13px;
+    max-width: 28rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  .dynamics-gfr-page .dynamics-da-search-wrap {
+    position: relative;
+    min-width: 0;
+    width: 100%;
+  }
+  .dynamics-gfr-page .dynamics-da-search-wrap .dynamics-da-search-icon {
+    position: absolute;
+    left: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #605e5c;
+    pointer-events: none;
+    display: flex;
+  }
+  .dynamics-gfr-page .dynamics-da-search-wrap .dynamics-input {
+    width: 100%;
+    padding-left: 2rem;
+  }
+  .dynamics-gfr-page .dynamics-filter-pane .dynamics-filter-subtle {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e1dfdd;
+  }
+  @media print {
+    .dynamics-gfr-page .hidden-print,
+    .dynamics-gfr-page .dynamics-gfr-toolbar,
+    .dynamics-gfr-page .dynamics-filter-pane,
+    .dynamics-gfr-page .dynamics-gfr-kpi-strip,
+    .dynamics-gfr-page .da-agi-alerts-strip {
+      display: none !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-panel {
+      box-shadow: none !important;
+    }
+    .dynamics-gfr-page .dynamics-report-hero {
+      display: none !important;
+    }
+  }
+</style>
 
-  <div class="mb-5 hidden-print">
-    <h1 class="text-2xl font-bold tracking-tight text-[#201f1e]">{% trans "Donor Agreements" %}</h1>
-    <p class="text-sm mt-1 text-[#605e5c] max-w-3xl leading-relaxed">{% trans "Upload and manage signed donor agreements; track terms, funding limits, duration, and linked grants or projects." %}</p>
-    {% if can_manage %}
-    <div class="mt-4">
-      <button type="button" @click="createOpen = true" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold text-white shadow-sm hover:opacity-95 transition-opacity" style="background:#0078D4;">
-        <i data-feather="plus" class="w-4 h-4"></i>
-        {% trans "Create agreement" %}
-      </button>
-    </div>
-    {% endif %}
-  </div>
+<div class="da-agi-root dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Donor management" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Donor agreements" %}</h1>
+    <p class="dynamics-hero-subtitle">{% trans "Upload and manage signed donor agreements; track terms, funding limits, duration, and linked grants or projects." %}</p>
+  </header>
 
   {% if alert_expiring_soon or alert_expired or alert_missing_file or over_limit_ids %}
-  <div class="flex flex-wrap gap-2 mb-4 hidden-print">
+  <div class="da-agi-alerts-strip flex flex-wrap gap-2 mb-4 hidden-print" role="status">
     {% if alert_expiring_soon %}
     <span class="da-agi-alert da-agi-alert-warn">{% blocktrans count n=alert_expiring_soon %}{{ n }} agreement expiring within 90 days{% plural %}{{ n }} agreements expiring within 90 days{% endblocktrans %}</span>
     {% endif %}
@@ -38,29 +309,49 @@
   </div>
   {% endif %}
 
-  <div class="bg-white border rounded-lg p-4 mb-4 shadow-sm hidden-print" style="border-color:#edebe9;">
-    <form method="get" action="" class="space-y-3">
-      <div class="flex flex-wrap items-end gap-3">
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-signed-from">{% trans "Signed from" %}</label>
-          <input id="da-signed-from" type="date" name="signed_from" value="{% if filters.signed_from %}{{ filters.signed_from|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;" />
+  <div class="dynamics-gfr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Commands' %}">
+    <span>{% trans "Export" %}</span>
+    <a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> {% trans "CSV" %}</a>
+    <a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>
+    <a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
+    <span class="dynamics-gfr-toolbar-spacer" aria-hidden="true"></span>
+    {% if can_manage %}
+    <button type="button" class="dynamics-btn-primary" @click="createOpen = true">
+      <i data-feather="plus" class="w-4 h-4"></i>
+      {% trans "Create agreement" %}
+    </button>
+    {% endif %}
+  </div>
+
+  <div class="dynamics-filter-pane hidden-print mb-4">
+    <div class="dynamics-filter-head">
+      <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+      <span class="dynamics-filter-head-title">{% trans "View filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Signed dates, donor, status, type — then Apply. Use Search for keywords." %}</span>
+    </div>
+    <form method="get" action="" class="space-y-0">
+      <div class="dynamics-filter-grid">
+        <div class="dynamics-filter-field">
+          <label for="da-signed-from">{% trans "Signed from" %}</label>
+          <input id="da-signed-from" type="date" name="signed_from" value="{% if filters.signed_from %}{{ filters.signed_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-signed-to">{% trans "Signed to" %}</label>
-          <input id="da-signed-to" type="date" name="signed_to" value="{% if filters.signed_to %}{{ filters.signed_to|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[140px]" style="border-color:#edebe9;" />
+        <div class="dynamics-filter-field">
+          <label for="da-signed-to">{% trans "Signed to" %}</label>
+          <input id="da-signed-to" type="date" name="signed_to" value="{% if filters.signed_to %}{{ filters.signed_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-donor">{% trans "Donor" %}</label>
-          <select id="da-donor" name="donor_id" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[180px]" style="border-color:#edebe9;">
+        <div class="dynamics-filter-field">
+          <label for="da-donor">{% trans "Donor" %}</label>
+          <select id="da-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
             <option value="">{% trans "All donors" %}</option>
             {% for d in donors %}
             <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-st">{% trans "Status" %}</label>
-          <select id="da-st" name="status" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[130px]" style="border-color:#edebe9;">
+        <div class="dynamics-filter-field">
+          <label for="da-st">{% trans "Status" %}</label>
+          <select id="da-st" name="status" class="dynamics-select w-full min-w-[130px]">
             <option value="">{% trans "All" %}</option>
             <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>{% trans "Draft" %}</option>
             <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
@@ -68,9 +359,9 @@
             <option value="closed" {% if filters.status == 'closed' %}selected{% endif %}>{% trans "Closed" %}</option>
           </select>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-at">{% trans "Agreement type" %}</label>
-          <select id="da-at" name="agreement_type" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[170px]" style="border-color:#edebe9;">
+        <div class="dynamics-filter-field">
+          <label for="da-at">{% trans "Agreement type" %}</label>
+          <select id="da-at" name="agreement_type" class="dynamics-select w-full min-w-[170px]">
             <option value="">{% trans "All types" %}</option>
             <option value="grant" {% if filters.agreement_type == 'grant' %}selected{% endif %}>{% trans "Grant agreement" %}</option>
             <option value="framework" {% if filters.agreement_type == 'framework' %}selected{% endif %}>{% trans "Framework agreement" %}</option>
@@ -79,153 +370,183 @@
             <option value="mou" {% if filters.agreement_type == 'mou' %}selected{% endif %}>{% trans "Memorandum of understanding" %}</option>
           </select>
         </div>
-        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Apply" %}</button>
-        <a href="{% url 'tenant_portal:grants_donor_agreements' %}" class="text-sm font-semibold text-[#0078d4] hover:underline py-2 no-underline self-center">{% trans "Clear" %}</a>
-      </div>
-      <div class="flex flex-wrap items-end gap-3 pt-1 border-t" style="border-color:#edebe9;">
-        <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-q">{% trans "Search" %}</label>
-          <input id="da-q" type="search" name="q" value="{{ filters.q }}" class="rounded-md border px-3 py-2 text-sm w-full max-w-md" style="border-color:#edebe9;" placeholder="{% trans 'Code, title, donor, reference…' %}" />
+        <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+          <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+          <button type="submit" class="dynamics-btn-primary">
+            <i data-feather="check" class="w-4 h-4"></i>
+            {% trans "Apply" %}
+          </button>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="text-xs font-semibold text-[#605e5c]" for="da-cur">{% trans "Currency" %}</label>
-          <select id="da-cur" name="currency_id" class="rounded-md border px-3 py-2 text-sm bg-white min-w-[120px]" style="border-color:#edebe9;">
-            <option value="">{% trans "All" %}</option>
-            {% for c in currencies %}
-            <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
-            {% endfor %}
-          </select>
+        <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+          <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+          <a href="{% url 'tenant_portal:grants_donor_agreements' %}" class="dynamics-btn-secondary no-underline text-center">{% trans "Clear" %}</a>
         </div>
       </div>
-      <div class="pt-2">
-        <button type="button" @click="moreFilters = !moreFilters" class="text-xs font-semibold text-[#0078d4] hover:underline">
+
+      <div class="dynamics-filter-subtle">
+        <div class="dynamics-filter-grid">
+          <div class="dynamics-filter-field" style="flex:1 1 240px; min-width:min(100%, 280px);">
+            <label for="da-q">{% trans "Search" %}</label>
+            <div class="dynamics-da-search-wrap">
+              <span class="dynamics-da-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
+              <input id="da-q" type="search" name="q" value="{{ filters.q }}" class="dynamics-input" placeholder="{% trans 'Code, title, donor, reference…' %}" autocomplete="off" />
+            </div>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="da-cur">{% trans "Currency" %}</label>
+            <select id="da-cur" name="currency_id" class="dynamics-select w-full min-w-[120px]">
+              <option value="">{% trans "All" %}</option>
+              {% for c in currencies %}
+              <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="dynamics-filter-subtle">
+        <button type="button" @click="moreFilters = !moreFilters" class="text-xs font-semibold dynamics-gfr-action-link border-0 bg-transparent cursor-pointer p-0">
           <span x-show="!moreFilters">{% trans "More filters" %}</span>
           <span x-show="moreFilters" x-cloak>{% trans "Hide extra date filters" %}</span>
         </button>
-        <div x-show="moreFilters" x-cloak class="mt-3 pt-3 border-t flex flex-wrap gap-3" style="border-color:#edebe9;">
-          <div class="flex flex-col gap-1">
-            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement start from" %}</label>
-            <input type="date" name="ag_start_from" value="{% if filters.ag_start_from %}{{ filters.ag_start_from|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+        <div x-show="moreFilters" x-cloak class="mt-3 dynamics-filter-grid">
+          <div class="dynamics-filter-field">
+            <label for="da-ag-sf">{% trans "Agreement start from" %}</label>
+            <input id="da-ag-sf" type="date" name="ag_start_from" value="{% if filters.ag_start_from %}{{ filters.ag_start_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement start to" %}</label>
-            <input type="date" name="ag_start_to" value="{% if filters.ag_start_to %}{{ filters.ag_start_to|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          <div class="dynamics-filter-field">
+            <label for="da-ag-st">{% trans "Agreement start to" %}</label>
+            <input id="da-ag-st" type="date" name="ag_start_to" value="{% if filters.ag_start_to %}{{ filters.ag_start_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement end from" %}</label>
-            <input type="date" name="ag_end_from" value="{% if filters.ag_end_from %}{{ filters.ag_end_from|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          <div class="dynamics-filter-field">
+            <label for="da-ag-ef">{% trans "Agreement end from" %}</label>
+            <input id="da-ag-ef" type="date" name="ag_end_from" value="{% if filters.ag_end_from %}{{ filters.ag_end_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs font-semibold text-[#605e5c]">{% trans "Agreement end to" %}</label>
-            <input type="date" name="ag_end_to" value="{% if filters.ag_end_to %}{{ filters.ag_end_to|date:'Y-m-d' }}{% endif %}" class="rounded-md border px-3 py-2 text-sm" style="border-color:#edebe9;" />
+          <div class="dynamics-filter-field">
+            <label for="da-ag-et">{% trans "Agreement end to" %}</label>
+            <input id="da-ag-et" type="date" name="ag_end_to" value="{% if filters.ag_end_to %}{{ filters.ag_end_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
           </div>
         </div>
-      </div>
-      <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
-        <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8] no-underline" style="border-color:#edebe9;">{% trans "Export CSV" %}</a>
-        <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8] no-underline" style="border-color:#edebe9;">{% trans "Export Excel" %}</a>
-        <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8] no-underline" style="border-color:#edebe9;">{% trans "Export PDF" %}</a>
-        <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">{% trans "Print" %}</button>
       </div>
     </form>
   </div>
 
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5 hidden-print">
-    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "In view" %}</div>
-      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.total }}</div>
-    </div>
-    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Active" %}</div>
-      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.active }}</div>
-    </div>
-    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Draft" %}</div>
-      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.draft }}</div>
-    </div>
-    <div class="bg-white border rounded-lg p-3 text-center shadow-sm" style="border-color:#edebe9;">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Expired" %}</div>
-      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.expired }}</div>
-    </div>
-    <div class="bg-white border rounded-lg p-3 text-center shadow-sm sm:col-span-2 lg:col-span-1" style="border-color:#edebe9;">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-[#605e5c]">{% trans "Closed" %}</div>
-      <div class="text-xl font-bold text-[#201f1e] tabular-nums mt-1">{{ agreement_kpi.closed }}</div>
+  <div class="dynamics-gfr-kpi-strip hidden-print">
+    <div class="dynamics-gfr-kpi-grid dynamics-gfr-kpi-grid--5">
+      <div class="dynamics-gfr-kpi-card">
+        <div class="dynamics-gfr-kpi-label">{% trans "In view" %}</div>
+        <div class="dynamics-gfr-kpi-value">{{ agreement_kpi.total }}</div>
+      </div>
+      <div class="dynamics-gfr-kpi-card">
+        <div class="dynamics-gfr-kpi-label">{% trans "Active" %}</div>
+        <div class="dynamics-gfr-kpi-value">{{ agreement_kpi.active }}</div>
+      </div>
+      <div class="dynamics-gfr-kpi-card">
+        <div class="dynamics-gfr-kpi-label">{% trans "Draft" %}</div>
+        <div class="dynamics-gfr-kpi-value">{{ agreement_kpi.draft }}</div>
+      </div>
+      <div class="dynamics-gfr-kpi-card">
+        <div class="dynamics-gfr-kpi-label">{% trans "Expired" %}</div>
+        <div class="dynamics-gfr-kpi-value">{{ agreement_kpi.expired }}</div>
+      </div>
+      <div class="dynamics-gfr-kpi-card">
+        <div class="dynamics-gfr-kpi-label">{% trans "Closed" %}</div>
+        <div class="dynamics-gfr-kpi-value">{{ agreement_kpi.closed }}</div>
+      </div>
     </div>
   </div>
 
-  <div class="bg-white border rounded-lg overflow-hidden shadow-sm print-area" style="border-color:#edebe9;">
-    <div class="px-4 py-3 border-b font-semibold text-[#201f1e] flex flex-wrap justify-between items-center gap-2 hidden-print" style="border-color:#edebe9; background:#faf9f8;">
+  <div class="dynamics-gfr-panel print-area">
+    <div class="dynamics-gfr-panel-h hidden-print">
       <span>{% trans "Agreements" %}</span>
-      <span class="text-xs font-medium text-[#605e5c]">{{ agreement_kpi.total }} {% trans "rows" %}</span>
+      <span class="dynamics-gfr-panel-meta">{{ agreement_kpi.total }} {% trans "rows" %}</span>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+    <div class="dynamics-gfr-grid-wrap">
+      <table class="dynamics-gfr-grid">
         <thead>
-          <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Code" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Donor" %}</th>
-            <th class="px-4 py-2.5 font-semibold min-w-[140px]">{% trans "Title" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Type" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Signed" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Start" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "End" %}</th>
-            <th class="px-4 py-2.5 font-semibold text-right whitespace-nowrap">{% trans "Funding limit" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Currency" %}</th>
-            <th class="px-4 py-2.5 font-semibold text-right whitespace-nowrap">{% trans "Grants" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Status" %}</th>
-            <th class="px-4 py-2.5 font-semibold whitespace-nowrap">{% trans "Actions" %}</th>
+          <tr>
+            <th>{% trans "Code" %}</th>
+            <th>{% trans "Donor" %}</th>
+            <th>{% trans "Title" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Signed" %}</th>
+            <th>{% trans "Start" %}</th>
+            <th>{% trans "End" %}</th>
+            <th class="text-right">{% trans "Funding limit" %}</th>
+            <th>{% trans "Currency" %}</th>
+            <th class="text-right">{% trans "Grants" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Actions" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for a in agreements %}
-          <tr class="border-b hover:bg-[#faf9f8] {% if a.pk in over_limit_ids %}bg-amber-50/80{% endif %}" style="border-color:#edebe9;">
-            <td class="px-4 py-2.5 font-mono text-xs font-semibold text-[#0078d4]">{{ a.agreement_code }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ a.donor.name }}</td>
-            <td class="px-4 py-2.5 font-medium text-[#201f1e]">{{ a.title|truncatewords:10 }}</td>
-            <td class="px-4 py-2.5 text-[#605e5c]">{{ a.get_agreement_type_display }}</td>
-            <td class="px-4 py-2.5 tabular-nums text-[#323130]">{{ a.signed_date|date:"Y-m-d"|default:"—" }}</td>
-            <td class="px-4 py-2.5 tabular-nums text-[#323130]">{{ a.start_date|date:"Y-m-d"|default:"—" }}</td>
-            <td class="px-4 py-2.5 tabular-nums text-[#323130]">{{ a.end_date|date:"Y-m-d"|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right tabular-nums font-medium text-[#201f1e]">{% if a.funding_limit %}{% if a.currency and a.currency.symbol %}{{ a.currency.symbol }}{% endif %}{{ a.funding_limit|floatformat:2 }}{% else %}—{% endif %}</td>
-            <td class="px-4 py-2.5 text-[#605e5c]">{{ a.currency.code|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right tabular-nums font-medium">{{ a.linked_grants_count|default:0 }}</td>
-            <td class="px-4 py-2.5">
-              {% if a.status == 'active' %}<span class="st-agi-active">{{ a.get_status_display }}</span>
-              {% elif a.status == 'expired' %}<span class="st-agi-expired">{{ a.get_status_display }}</span>
-              {% elif a.status == 'closed' %}<span class="st-agi-closed">{{ a.get_status_display }}</span>
-              {% else %}<span class="st-agi-draft">{{ a.get_status_display }}</span>
+          <tr class="{% if a.pk in over_limit_ids %}da-row-overlimit{% endif %}">
+            <td>
+              <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}" class="dynamics-gfr-grant-link no-underline"><span class="dynamics-gfr-code">{{ a.agreement_code }}</span></a>
+            </td>
+            <td>{{ a.donor.name }}</td>
+            <td class="font-semibold" style="color:#201f1e;">{{ a.title|truncatewords:10 }}</td>
+            <td style="color:#605e5c;">{{ a.get_agreement_type_display }}</td>
+            <td class="tabular-nums" style="color:#323130;">{{ a.signed_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="tabular-nums" style="color:#323130;">{{ a.start_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="tabular-nums" style="color:#323130;">{{ a.end_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="text-right tabular-nums font-semibold" style="color:#201f1e;">{% if a.funding_limit %}{% if a.currency and a.currency.symbol %}{{ a.currency.symbol }}{% endif %}{{ a.funding_limit|floatformat:2 }}{% else %}—{% endif %}</td>
+            <td style="color:#605e5c;">{{ a.currency.code|default:"—" }}</td>
+            <td class="text-right tabular-nums font-semibold">{{ a.linked_grants_count|default:0 }}</td>
+            <td class="whitespace-nowrap">
+              {% if a.status == 'active' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{{ a.get_status_display }}</span>
+              {% elif a.status == 'expired' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--warn">{{ a.get_status_display }}</span>
+              {% elif a.status == 'closed' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--neutral">{{ a.get_status_display }}</span>
+              {% else %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--info">{{ a.get_status_display }}</span>
               {% endif %}
             </td>
-            <td class="px-4 py-2.5">
-              <div class="flex flex-wrap gap-x-2 gap-y-1 text-xs font-semibold">
-                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}" class="text-[#0078d4] no-underline hover:underline">{% trans "View" %}</a>
-                {% if can_manage %}<a href="{% url 'tenant_portal:grants_donor_agreement_edit' a.pk %}" class="text-[#0078d4] no-underline hover:underline">{% trans "Edit" %}</a>{% endif %}
-                {% if a.file %}<a href="{% url 'tenant_portal:grants_donor_agreement_file' a.pk %}" class="text-[#0078d4] no-underline hover:underline">{% trans "Download" %}</a>{% endif %}
-                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}#grants" class="text-[#605e5c] no-underline hover:underline">{% trans "Grants" %}</a>
-                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}#projects" class="text-[#605e5c] no-underline hover:underline">{% trans "Projects" %}</a>
-                <a href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ a.donor_id }}" class="text-[#605e5c] no-underline hover:underline">{% trans "Utilization" %}</a>
+            <td>
+              <div class="flex flex-wrap gap-x-2 gap-y-1 items-center">
+                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}" class="dynamics-gfr-action-link">{% trans "View" %}</a>
+                <span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>
+                {% if can_manage %}<a href="{% url 'tenant_portal:grants_donor_agreement_edit' a.pk %}" class="dynamics-gfr-action-link">{% trans "Edit" %}</a><span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>{% endif %}
+                {% if a.file %}<a href="{% url 'tenant_portal:grants_donor_agreement_file' a.pk %}" class="dynamics-gfr-action-link">{% trans "Download" %}</a><span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>{% endif %}
+                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}#grants" class="dynamics-gfr-action-link dynamics-gfr-action-link--muted no-underline">{% trans "Grants" %}</a>
+                <span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>
+                <a href="{% url 'tenant_portal:grants_donor_agreement_detail' a.pk %}#projects" class="dynamics-gfr-action-link dynamics-gfr-action-link--muted no-underline">{% trans "Projects" %}</a>
+                <span class="dynamics-gfr-action-sep" aria-hidden="true">|</span>
+                <a href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ a.donor_id }}" class="dynamics-gfr-action-link dynamics-gfr-action-link--muted no-underline">{% trans "Utilization" %}</a>
               </div>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="12" class="da-agi-empty">
-              <p class="mb-3 m-0">{% trans "No donor agreements recorded yet." %}</p>
-              {% if can_manage %}
-              <button type="button" @click="createOpen = true" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold text-white" style="background:#0078D4;">{% trans "Create agreement" %}</button>
-              {% endif %}
+            <td colspan="12" class="p-0 border-0">
+              <div class="dynamics-gfr-empty">
+                <div class="dynamics-gfr-empty-icon" aria-hidden="true"><i data-feather="file-text" class="w-6 h-6"></i></div>
+                <p class="dynamics-gfr-empty-title">{% trans "No donor agreements recorded yet." %}</p>
+                {% if can_manage %}
+                <p class="dynamics-gfr-empty-sub mb-4">{% trans "Create an agreement to attach terms, limits, and files." %}</p>
+                <button type="button" @click="createOpen = true" class="dynamics-btn-primary">{% trans "Create agreement" %}</button>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% if agreements %}
+    <div class="px-4 py-2.5 border-t text-xs font-semibold hidden-print" style="border-color:#edebe9; color:#605e5c;">
+      {% blocktrans count counter=agreements|length %}Showing {{ counter }} entry{% plural %}Showing {{ counter }} entries{% endblocktrans %}
+    </div>
+    {% endif %}
   </div>
 
 {% if can_manage %}
-<div x-show="createOpen" x-cloak class="da-agi-modal-overlay hidden-print" style="display:none;" x-transition.opacity>
-  <div class="da-agi-modal" @click.away="createOpen = false">
-    <div class="da-agi-modal-h">
+<div x-show="createOpen" x-cloak class="da-agi-modal-overlay hidden-print" x-transition.opacity>
+  <div class="da-agi-modal dynamics-financial-report" @click.away="createOpen = false">
+    <div class="da-agi-modal-h da-agi-modal-h--fluent">
       <h2 class="text-base font-bold text-[#201f1e] m-0">{% trans "Create agreement" %}</h2>
       <button type="button" class="p-1.5 rounded-md hover:bg-[#edebe9] text-[#605e5c]" @click="createOpen = false" aria-label="{% trans 'Close' %}"><i data-feather="x" class="w-5 h-5"></i></button>
     </div>
@@ -372,5 +693,6 @@
   </div>
 </div>
 {% endif %}
+</div>
 </div>
 {% endblock %}

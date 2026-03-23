@@ -1,140 +1,394 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Grant Agreements | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Grant agreements" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div x-data="{}" class="contents">
-<div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">Grant Agreements</h1>
-  </div>
-  <div class="flex items-center gap-2">
-    <button type="button" @click="$refs.newGrantModal.classList.remove('hidden')"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow"
-            style="background:#0078D4;">
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
+<style>
+  .dynamics-gfr-page {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-report-hero .dynamics-hero-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #201f1e !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1.25 !important;
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.85rem;
+    background: #ffffff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar > span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin-right: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-toolbar-spacer {
+    flex: 1;
+    min-width: 0.5rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel {
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h {
+    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd;
+    border-left: 3px solid #0078d4;
+    padding: 0.65rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-h span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #201f1e;
+  }
+  .dynamics-gfr-page .dynamics-gfr-panel-meta {
+    font-size: 12px;
+    font-weight: 600;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-weight: 600;
+    color: #201f1e;
+    background: #f3f2f1;
+    border-bottom: 2px solid #e1dfdd;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid thead th.text-right {
+    text-align: right;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody td {
+    padding: 0.5rem 0.65rem;
+    border-bottom: 1px solid #edebe9;
+    vertical-align: middle;
+    color: #323130;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+    background: #f3f9fd;
+  }
+  .dynamics-gfr-page .dynamics-gfr-code {
+    font-family: "Segoe UI", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grant-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grant-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-gfr-page .dynamics-gfr-grant-link .dynamics-gfr-code {
+    color: inherit;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #0078d4;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-link:hover {
+    color: #106ebe;
+    text-decoration: underline;
+  }
+  .dynamics-gfr-page .dynamics-gfr-action-sep {
+    color: #c8c6c4;
+    font-weight: 400;
+    user-select: none;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    letter-spacing: 0.02em;
+  }
+  .dynamics-gfr-page .dynamics-gfr-badge--ok { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
+  .dynamics-gfr-page .dynamics-gfr-badge--neutral { background: #f3f2f1; color: #605e5c; border-color: #e1dfdd; }
+  .dynamics-gfr-page .dynamics-gfr-badge--warn { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-gfr-page .dynamics-gfr-empty {
+    text-align: center;
+    padding: 3rem 1.5rem 3.25rem;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: #f3f2f1;
+    border: 1px solid #e1dfdd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0078d4;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #323130;
+    margin-bottom: 0.35rem;
+  }
+  .dynamics-gfr-page .dynamics-gfr-empty-sub {
+    font-size: 13px;
+    max-width: 28rem;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  .dynamics-gfr-page .dynamics-grants-search-wrap {
+    position: relative;
+    min-width: 0;
+    width: 100%;
+  }
+  .dynamics-gfr-page .dynamics-grants-search-wrap .dynamics-grants-search-icon {
+    position: absolute;
+    left: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #605e5c;
+    pointer-events: none;
+    display: flex;
+  }
+  .dynamics-gfr-page .dynamics-grants-search-wrap .dynamics-input {
+    width: 100%;
+    padding-left: 2rem;
+  }
+  .dynamics-gfr-page .dynamics-grants-modal-h {
+    border-left: 3px solid #0078d4;
+    padding-left: 0.85rem;
+    margin-left: -0.25rem;
+  }
+  @media print {
+    .dynamics-gfr-page .hidden-print,
+    .dynamics-gfr-page .dynamics-gfr-toolbar,
+    .dynamics-gfr-page .dynamics-filter-pane {
+      display: none !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-grid tbody tr:hover td {
+      background: transparent !important;
+    }
+    .dynamics-gfr-page .dynamics-gfr-panel {
+      box-shadow: none !important;
+    }
+    .dynamics-gfr-page .dynamics-report-hero {
+      display: none !important;
+    }
+  }
+</style>
+
+<div class="dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
+  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Grant management" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Grant agreements" %}</h1>
+    <p class="dynamics-hero-subtitle">{% trans "Search, filter by donor, export, and manage signed agreements linked to donors and bank accounts." %}</p>
+  </header>
+
+  <div class="dynamics-gfr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Commands' %}">
+    <span>{% trans "Export" %}</span>
+    {% if export_csv_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> {% trans "CSV" %}</a>{% endif %}
+    {% if export_xlsx_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_xlsx_url }}"><i data-feather="download" class="w-4 h-4"></i> {% trans "Excel" %}</a>{% endif %}
+    {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
+    <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
+    <span class="dynamics-gfr-toolbar-spacer" aria-hidden="true"></span>
+    <button type="button" class="dynamics-btn-primary" @click="$refs.newGrantModal.classList.remove('hidden')">
       <i data-feather="plus" class="w-4 h-4"></i>
-      Create Grant
+      {% trans "Create grant" %}
     </button>
   </div>
-</div>
 
-{# Search and filter bar #}
-<div class="bg-white border rounded-lg p-4 mb-4 hidden-print" style="border-color:#edebe9;">
-  <form method="get" action="" class="flex flex-wrap items-end gap-3">
-    <div class="flex-1 min-w-[200px]">
-      <label for="grants-search" class="sr-only">Search</label>
-      <div class="relative">
-        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:#605e5c;">
-          <i data-feather="search" class="w-4 h-4"></i>
-        </span>
-        <input id="grants-search" name="q" type="search" value="{{ filters.q|default:'' }}"
-               placeholder="Search by code, grant name..."
-               class="w-full pl-10 pr-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+  <div class="dynamics-filter-pane hidden-print mb-4">
+    <div class="dynamics-filter-head">
+      <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+      <span class="dynamics-filter-head-title">{% trans "View filters" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Search by code or name, optionally narrow by donor, then Apply." %}</span>
+    </div>
+    <form method="get" action="" class="dynamics-filter-grid">
+      <div class="dynamics-filter-field" style="flex:1 1 220px; min-width:min(100%, 280px);">
+        <label for="grants-search">{% trans "Search" %}</label>
+        <div class="dynamics-grants-search-wrap">
+          <span class="dynamics-grants-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
+          <input id="grants-search" name="q" type="search" value="{{ filters.q|default:'' }}"
+                 placeholder="{% trans 'Code, grant name…' %}"
+                 class="dynamics-input" autocomplete="off" />
+        </div>
       </div>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <label class="text-xs font-medium" style="color:#605e5c;">Donor</label>
-      <select name="donor_id" class="rounded-lg border px-3 py-2 text-sm min-w-[160px] bg-white" style="border-color:#edebe9;">
-        <option value="">All</option>
-        {% for d in donors %}
-        <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
-  </form>
-  <div class="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style="border-color:#edebe9;">
-    <a href="{{ export_csv_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export CSV</a>
-    <a href="{{ export_xlsx_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export Excel</a>
-    <a href="{{ export_pdf_url }}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Export PDF</a>
-    <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-[#faf9f8]" style="border-color:#edebe9;">Print</button>
+      <div class="dynamics-filter-field">
+        <label for="grants-donor">{% trans "Donor" %}</label>
+        <select id="grants-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
+          <option value="">{% trans "All" %}</option>
+          {% for d in donors %}
+          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if filters.grant_id %}
+      <input type="hidden" name="grant_id" value="{{ filters.grant_id }}" />
+      {% endif %}
+      <div class="dynamics-filter-field flex flex-col justify-end pb-px">
+        <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+        <button type="submit" class="dynamics-btn-primary">
+          <i data-feather="check" class="w-4 h-4"></i>
+          {% trans "Apply" %}
+        </button>
+      </div>
+    </form>
   </div>
-</div>
 
-{# Grants table #}
-<div class="bg-white border rounded-lg overflow-hidden hidden-print" style="border-color:#edebe9;">
-  <div class="px-5 py-4 border-b" style="border-color:#edebe9; background:#faf9f8;">
-    <h2 class="font-semibold text-lg" style="color:#323130;">Grants</h2>
+  <div class="dynamics-gfr-panel">
+    <div class="dynamics-gfr-panel-h">
+      <span>{% trans "Grants" %}</span>
+      <span class="dynamics-gfr-panel-meta">{{ grants|length }} {% trans "rows" %}</span>
+    </div>
+    <div class="dynamics-gfr-grid-wrap">
+      <table class="dynamics-gfr-grid">
+        <thead>
+          <tr>
+            <th>{% trans "Code" %}</th>
+            <th>{% trans "Grant name" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Start date" %}</th>
+            <th>{% trans "End date" %}</th>
+            <th class="text-right">{% trans "Amount" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in grants %}
+          <tr>
+            <td><span class="dynamics-gfr-code">{{ g.code }}</span></td>
+            <td>
+              <a href="?grant_id={{ g.pk }}" class="dynamics-gfr-grant-link no-underline">
+                {{ g.title }}
+              </a>
+            </td>
+            <td class="whitespace-nowrap">
+              {% if g.status == 'active' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{{ g.get_status_display }}</span>
+              {% elif g.status == 'closed' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--neutral">{{ g.get_status_display }}</span>
+              {% else %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--warn">{{ g.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td style="color:#605e5c;">{{ g.start_date|date:"Y-m-d"|default:"—" }}</td>
+            <td style="color:#605e5c;">{{ g.end_date|date:"Y-m-d"|default:"—" }}</td>
+            <td class="text-right tabular-nums font-semibold" style="color:#201f1e;">
+              {% if g.award_amount %}${{ g.award_amount|floatformat:0 }} USD{% else %}—{% endif %}
+            </td>
+            <td>
+              <span class="inline-flex items-center gap-1 flex-wrap">
+                <a href="?grant_id={{ g.pk }}" class="dynamics-gfr-action-link">{% trans "View" %}</a>
+                <span class="dynamics-gfr-action-sep">|</span>
+                <a href="#" class="dynamics-gfr-action-link">{% trans "Edit" %}</a>
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="p-0 border-0">
+              <div class="dynamics-gfr-empty">
+                <div class="dynamics-gfr-empty-icon" aria-hidden="true"><i data-feather="file-text" class="w-6 h-6"></i></div>
+                <p class="dynamics-gfr-empty-title">{% trans "No grant agreements" %}</p>
+                <p class="dynamics-gfr-empty-sub">{% trans "Create one with Create grant, or open" %} <a href="{% url 'tenant_portal:grants_grant_tracking' %}" class="dynamics-gfr-action-link">{% trans "Grant tracking" %}</a> {% trans "to convert a record." %}</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if grants %}
+    <div class="px-4 py-2.5 border-t text-xs font-semibold hidden-print" style="border-color:#edebe9; color:#605e5c;">
+      {% blocktrans count counter=grants|length %}Showing {{ counter }} entry{% plural %}Showing {{ counter }} entries{% endblocktrans %}
+    </div>
+    {% endif %}
   </div>
-  <div class="overflow-auto">
-    <table class="min-w-full text-sm">
-      <thead style="background:#f3f2f1;">
-        <tr>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Code</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Grant Name</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Status</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Start Date</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">End Date</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Amount</th>
-          <th class="text-left px-5 py-3 text-xs font-semibold" style="color:#605e5c;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for g in grants %}
-        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <td class="px-5 py-3 font-mono" style="color:#323130;">{{ g.code }}</td>
-          <td class="px-5 py-3 font-medium" style="color:#323130;">{{ g.title }}</td>
-          <td class="px-5 py-3">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                  style="{% if g.status == 'active' %}background:#dff6dd; color:#0b5a0b;{% elif g.status == 'closed' %}background:#edebe9; color:#605e5c;{% else %}background:#eaeaea; color:#605e5c;{% endif %}">
-              {{ g.status|capfirst }}
-            </span>
-          </td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ g.start_date|date:"d/m/Y"|default:"—" }}</td>
-          <td class="px-5 py-3" style="color:#605e5c;">{{ g.end_date|date:"d/m/Y"|default:"—" }}</td>
-          <td class="px-5 py-3 font-medium" style="color:#323130;">{% if g.award_amount %}${{ g.award_amount|floatformat:0 }} USD{% else %}—{% endif %}</td>
-          <td class="px-5 py-3">
-            <span class="inline-flex items-center gap-1">
-              <a href="?grant_id={{ g.pk }}" class="font-medium hover:underline" style="color:#0078D4;">View</a>
-              <span style="color:#c8c6c4;">|</span>
-              <a href="#" class="font-medium hover:underline" style="color:#0078D4;">Edit</a>
-            </span>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="px-5 py-8 text-center" style="color:#605e5c;">No grant agreements. Create one or convert from <a href="{% url 'tenant_portal:grants_grant_tracking' %}" class="text-[#0078D4] hover:underline">Grant Tracking</a>.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="px-5 py-3 border-t text-xs" style="border-color:#edebe9; color:#605e5c;">Showing {{ grants|length }} of {{ grants|length }} entries</div>
 </div>
 
 {# New Grant Agreement modal #}
 <div x-ref="newGrantModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
   <div class="flex min-h-full items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/30" @click="$refs.newGrantModal.classList.add('hidden')"></div>
-    <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style="border:1px solid #edebe9;">
-      <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color:#edebe9;">
-        <h3 class="text-lg font-semibold" style="color:#323130;">New Grant Agreement</h3>
-        <button type="button" @click="$refs.newGrantModal.classList.add('hidden')" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;">
+    <div class="relative bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto dynamics-financial-report" style="border:1px solid #edebe9; border-radius:4px; box-shadow:0 3.2px 7.2px rgba(0,0,0,0.12);">
+      <div class="flex items-center justify-between px-5 py-4 border-b dynamics-grants-modal-h" style="border-color:#edebe9;">
+        <h3 class="text-base font-bold" style="color:#201f1e;">{% trans "New grant agreement" %}</h3>
+        <button type="button" @click="$refs.newGrantModal.classList.add('hidden')" class="p-1 rounded hover:bg-[#f3f2f1]" style="color:#605e5c;" aria-label="{% trans 'Close' %}">
           <i data-feather="x" class="w-5 h-5"></i>
         </button>
       </div>
       <form method="post" enctype="multipart/form-data" class="p-5 space-y-3 {% if not can_manage %}opacity-60 pointer-events-none{% endif %}">
         {% csrf_token %}
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Code <span style="color:#A4262C;">*</span></label>
-          <input name="code" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="GR-001" />
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Code" %} <span style="color:#A4262C;">*</span></label>
+          <input name="code" required class="dynamics-input w-full" placeholder="GR-001" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant name <span style="color:#A4262C;">*</span></label>
-          <input name="title" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="Grant or project name" />
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Grant name" %} <span style="color:#A4262C;">*</span></label>
+          <input name="title" required class="dynamics-input w-full" placeholder="{% trans 'Grant or project name' %}" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor <span style="color:#A4262C;">*</span></label>
-          <select name="donor_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
-            <option value="">Select donor</option>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Donor" %} <span style="color:#A4262C;">*</span></label>
+          <select name="donor_id" required class="dynamics-select w-full bg-white">
+            <option value="">{% trans "Select donor" %}</option>
             {% for d in donors %}
             <option value="{{ d.pk }}">{{ d.name }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Bank account <span style="color:#A4262C;">*</span></label>
-          <select name="bank_account_id" required class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
-            <option value="">Select bank account</option>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Bank account" %} <span style="color:#A4262C;">*</span></label>
+          <select name="bank_account_id" required class="dynamics-select w-full bg-white">
+            <option value="">{% trans "Select bank account" %}</option>
             {% for ba in bank_accounts %}
             <option value="{{ ba.pk }}">{{ ba.bank_name }} — {{ ba.account_name }}</option>
             {% endfor %}
@@ -142,39 +396,39 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Start date</label>
-            <input name="start_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+            <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Start date" %}</label>
+            <input name="start_date" type="date" class="dynamics-input w-full" />
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">End date</label>
-            <input name="end_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+            <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "End date" %}</label>
+            <input name="end_date" type="date" class="dynamics-input w-full" />
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Grant amount <span style="color:#A4262C;">*</span></label>
-          <input name="award_amount" type="number" step="0.01" min="0.01" required class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" placeholder="0.00" />
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Grant amount" %} <span style="color:#A4262C;">*</span></label>
+          <input name="award_amount" type="number" step="0.01" min="0.01" required class="dynamics-input w-full" placeholder="0.00" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Signed date</label>
-          <input name="signed_date" type="date" class="w-full px-3 py-2 rounded-lg border text-sm" style="border-color:#edebe9;" />
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Signed date" %}</label>
+          <input name="signed_date" type="date" class="dynamics-input w-full" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Reporting rules (optional)</label>
-          <textarea name="reporting_rules" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Reporting rules" %} <span class="font-normal" style="color:#8a8886;">({% trans "optional" %})</span></label>
+          <textarea name="reporting_rules" rows="2" class="dynamics-input w-full resize-y" style="min-height:4rem;"></textarea>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Donor restrictions (optional)</label>
-          <textarea name="donor_restrictions" rows="2" class="w-full px-3 py-2 rounded-lg border text-sm resize-y" style="border-color:#edebe9;"></textarea>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Donor restrictions" %} <span class="font-normal" style="color:#8a8886;">({% trans "optional" %})</span></label>
+          <textarea name="donor_restrictions" rows="2" class="dynamics-input w-full resize-y" style="min-height:4rem;"></textarea>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#605e5c;">Signed contract (optional)</label>
-          <input type="file" name="signed_contract_document" class="w-full text-sm" style="border-color:#edebe9;" />
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Signed contract" %} <span class="font-normal" style="color:#8a8886;">({% trans "optional" %})</span></label>
+          <input type="file" name="signed_contract_document" class="w-full text-sm" style="color:#323130;" />
         </div>
         <div class="flex gap-2 pt-2">
-          <button type="submit" {% if not donors %}disabled{% endif %} class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style="background:#0078D4;">
-            <i data-feather="save" class="w-4 h-4"></i> Save Grant
+          <button type="submit" {% if not donors %}disabled{% endif %} class="dynamics-btn-primary disabled:opacity-50">
+            <i data-feather="save" class="w-4 h-4"></i> {% trans "Save grant" %}
           </button>
-          <button type="button" @click="$refs.newGrantModal.classList.add('hidden')" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border" style="border-color:#edebe9;">Cancel</button>
+          <button type="button" @click="$refs.newGrantModal.classList.add('hidden')" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
         </div>
       </form>
     </div>

@@ -1,0 +1,17 @@
+{% load static %}
+<section class="m-cta-banner" aria-labelledby="{% if cta_id %}{{ cta_id }}{% else %}m-cta-title{% endif %}">
+  <div class="container m-cta-inner">
+    <div class="m-cta-copy">
+      {% if show_icon %}
+      <div class="m-cta-icon-wrap" aria-hidden="true">
+        <svg class="m-icon m-icon--lg"><use href="#mi-play-circle"/></svg>
+      </div>
+      {% endif %}
+      <div>
+        <h2 id="{% if cta_id %}{{ cta_id }}{% else %}m-cta-title{% endif %}" class="m-cta-title">{{ cta_title }}</h2>
+        {% if cta_text %}<p class="m-cta-text">{{ cta_text }}</p>{% endif %}
+      </div>
+    </div>
+    <a class="btn btn-home-primary btn-home-primary--lg" href="{% if cta_url %}{{ cta_url }}{% else %}{% url 'website:demo_request' %}{% endif %}">{{ cta_btn }}{% if cta_arrow %} <svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-arrow-right"/></svg>{% endif %}</a>
+  </div>
+</section>

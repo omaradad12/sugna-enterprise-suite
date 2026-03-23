@@ -1,0 +1,32 @@
+{% extends "website/base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+{% block meta_description %}Sugna Enterprise Suite privacy policy — how we handle data for our marketing site and cloud ERP platform.{% endblock %}
+{% block content %}
+{% now "F j, Y" as legal_updated %}
+<div class="m-hero m-hero--page">
+  <div class="container m-hero-inner">
+    <h1 class="m-hero-title">Privacy Policy</h1>
+    <p class="m-hero-subtitle">Last updated {{ legal_updated }}</p>
+    <p class="m-hero-desc">This policy describes how Sugna Enterprise Suite handles information when you use our website and services.</p>
+  </div>
+</div>
+
+<section class="m-section">
+  <div class="container m-legal">
+    <div class="m-legal-prose">
+      <h2>Information we collect</h2>
+      <p>We may collect information you provide through forms (such as name, email, organization, and message content), technical data from your browser (such as IP address and device type), and usage data to improve our website and services.</p>
+      <h2>How we use information</h2>
+      <p>We use this information to respond to inquiries, deliver demos and support, operate and secure our platform, comply with law, and communicate about products where permitted.</p>
+      <h2>Sharing</h2>
+      <p>We do not sell your personal information. We may share data with service providers who assist our operations under strict agreements, or when required by law.</p>
+      <h2>Security</h2>
+      <p>We implement administrative, technical, and organizational measures designed to protect information appropriate to the nature of our services.</p>
+      <h2>Your choices</h2>
+      <p>You may contact us to access, correct, or delete certain information, or to object to processing where applicable law provides those rights.</p>
+      <h2>Contact</h2>
+      <p>For privacy questions, use our <a href="{% url 'website:contact' %}">contact page</a> and reference “Privacy.”</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

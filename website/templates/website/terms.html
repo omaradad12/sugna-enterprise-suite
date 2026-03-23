@@ -1,0 +1,34 @@
+{% extends "website/base.html" %}
+{% block title %}Terms of Use{% endblock %}
+{% block meta_description %}Terms of use for the Sugna Enterprise Suite website and related services.{% endblock %}
+{% block content %}
+{% now "F j, Y" as legal_updated %}
+<div class="m-hero m-hero--page">
+  <div class="container m-hero-inner">
+    <h1 class="m-hero-title">Terms of Use</h1>
+    <p class="m-hero-subtitle">Last updated {{ legal_updated }}</p>
+    <p class="m-hero-desc">These terms govern your use of our public website. Platform and subscription terms are defined in your order form or agreement.</p>
+  </div>
+</div>
+
+<section class="m-section">
+  <div class="container m-legal">
+    <div class="m-legal-prose">
+      <h2>Acceptance</h2>
+      <p>By accessing this website, you agree to these terms. If you do not agree, please do not use the site.</p>
+      <h2>Use of content</h2>
+      <p>Content on this site is provided for information purposes. We may update features, descriptions, and availability without notice.</p>
+      <h2>Intellectual property</h2>
+      <p>Sugna Enterprise Suite names, logos, and materials are protected. You may not copy or redistribute them without permission except as allowed by law.</p>
+      <h2>Disclaimer</h2>
+      <p>The site is provided “as is” to the extent permitted by law. We disclaim warranties not expressly stated herein.</p>
+      <h2>Limitation of liability</h2>
+      <p>To the maximum extent permitted by applicable law, Sugna and its affiliates shall not be liable for indirect or consequential damages arising from use of this website.</p>
+      <h2>Governing law</h2>
+      <p>These terms are governed by applicable law as set forth in your master agreement for production services, or otherwise by the laws applicable to your jurisdiction as stated in your contract.</p>
+      <h2>Contact</h2>
+      <p>Questions about these terms: <a href="{% url 'website:contact' %}">Contact us</a>.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

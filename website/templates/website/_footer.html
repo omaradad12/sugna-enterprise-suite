@@ -1,12 +1,20 @@
+{% load static %}
 <footer class="site-footer">
   <div class="container">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-brand">Sugna Enterprise Suite</div>
-        <p style="margin:0;line-height:1.6;max-width:280px;">
-          Cloud ERP for NGOs, humanitarian organizations, hospitals, and donor-funded programs — finance, grants, HR, procurement, compliance, and intelligent auditing in one platform.
-        </p>
+    <div class="footer-brand-row">
+      <div class="footer-logo-wrap">
+        <img
+          class="footer-logo"
+          src="{% static 'assets/images/logo.png' %}"
+          width="240"
+          height="72"
+          alt="Sugna Enterprise Suite"
+          decoding="async"
+        />
       </div>
+      <p class="footer-tagline">Cloud ERP for NGOs, humanitarian organizations, hospitals, and donor-funded programs.</p>
+    </div>
+    <div class="footer-columns">
       <div class="footer-col">
         <h4>Product</h4>
         <ul>
@@ -14,23 +22,35 @@
           <li><a href="{% url 'website:pricing' %}">Pricing</a></li>
           <li><a href="{% url 'website:demo_request' %}">Request demo</a></li>
           <li><a href="{% url 'website:solutions' %}">Solutions</a></li>
+          <li><a href="{% url 'website:features' %}">Features</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Solutions</h4>
+        <ul>
+          <li><a href="{% url 'website:industries' %}">Industries</a></li>
+          <li><a href="{% url 'website:training' %}">Training</a></li>
+          <li><a href="{% url 'website:support' %}">Support</a></li>
+          <li><a href="{% url 'website:login_portal' %}">Login portal</a></li>
         </ul>
       </div>
       <div class="footer-col">
         <h4>Company</h4>
         <ul>
           <li><a href="{% url 'website:about' %}">About</a></li>
-          <li><a href="{% url 'website:industries' %}">Industries</a></li>
           <li><a href="{% url 'website:contact' %}">Contact</a></li>
+          <li><a href="{% url 'website:blog' %}">Blog</a></li>
+          <li><a href="{% url 'website:privacy' %}">Privacy Policy</a></li>
+          <li><a href="{% url 'website:terms' %}">Terms of Use</a></li>
+          <li><a href="/platform/">Platform</a></li>
         </ul>
       </div>
       <div class="footer-col">
         <h4>Resources</h4>
         <ul>
-          <li><a href="{% url 'website:training' %}">Training</a></li>
-          <li><a href="{% url 'website:support' %}">Support</a></li>
-          <li><a href="{% url 'website:login_portal' %}">Login portal</a></li>
-          <li><a href="/platform/">Platform</a></li>
+          <li><a href="{% url 'website:home' %}#pricing">Home pricing</a></li>
+          <li><a href="{% url 'website:pricing' %}">Plan comparison</a></li>
+          <li><a href="{% url 'website:support' %}">Help center</a></li>
         </ul>
       </div>
     </div>

@@ -7,11 +7,13 @@
   <title>{% block title %}Sugna Enterprise Suite{% endblock %} | Cloud ERP for NGOs &amp; Enterprises</title>
   <meta name="description" content="{% block meta_description %}Sugna Enterprise Suite unifies finance, grants, HR, procurement, logistics, compliance, hospital operations, and AI auditing in one secure cloud platform.{% endblock %}" />
   <link rel="stylesheet" href="{% static 'website/css/marketing.css' %}" />
+  <link rel="icon" type="image/png" href="{% static 'assets/images/favicon.png' %}" sizes="32x32" />
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
+  {% include "website/_marketing_icons.html" %}
   {% include "website/_nav.html" %}
-  <main>
+  <main class="{% block main_class %}site-main{% endblock %}">
     {% if messages %}
       <div class="container" style="padding-top:1rem;">
         {% for message in messages %}

@@ -1,8 +1,12 @@
 {% extends "website/base.html" %}
 {% block title %}Login portal{% endblock %}
 {% block content %}
-<div class="page-hero">
+<div class="page-hero page-hero--visual">
   <div class="container">
+    <div class="page-hero-icon-row" aria-hidden="true">
+      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-lock"/></svg> Secure sign-in</span>
+      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-grid"/></svg> Choose your portal</span>
+    </div>
     <h1>Login portal</h1>
     <p>Choose the entry point that matches your role. Tenant applications are served under your organization’s configured domain or path.</p>
   </div>
