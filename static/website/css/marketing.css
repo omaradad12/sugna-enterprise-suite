@@ -3372,6 +3372,10 @@ a.nav-item__trigger {
 }
 
 /* ActivityInfo-style pricing subnav: right-aligned, mint pill active */
+.body-marketing-shell .pricing-subnav--site {
+  border-bottom: none;
+}
+
 .body-pricing .pricing-subnav--site .pricing-subnav__inner, .body-marketing-shell .pricing-subnav--site .pricing-subnav__inner {
   justify-content: flex-end;
   gap: 0.35rem 1.75rem;
@@ -10134,18 +10138,7 @@ a.nav-item__trigger {
   overflow: hidden;
 }
 .page-about-premium .about-hero--premium::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(
-    90deg,
-    rgba(var(--brand-teal-rgb), 0.45),
-    rgba(var(--pricing-mint-rgb), 0.95),
-    rgba(var(--brand-blue-rgb), 0.35)
-  );
+  content: none;
 }
 .page-about-premium .about-hero-title {
   font-family: var(--font-pricing-serif);
