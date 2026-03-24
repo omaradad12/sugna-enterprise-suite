@@ -1,0 +1,13 @@
+{% comment %}Secondary nav — Resources hub & related pages{% endcomment %}
+<nav class="pricing-subnav pricing-subnav--site" aria-label="Resources sections">
+  <div class="container">
+    <div class="pricing-subnav__inner">
+      <a href="{% url 'website:resources' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'resources' %} is-active{% endif %}">Hub</a>
+      <a href="{% url 'website:blog' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'blog' %} is-active{% endif %}">Blog</a>
+      <a href="{% url 'website:about' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'about' %} is-active{% endif %}">About</a>
+      <a href="{% url 'website:support' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'support' %} is-active{% endif %}">Support</a>
+      <a href="{% url 'website:privacy' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'privacy' %} is-active{% endif %}">Privacy</a>
+      <a href="{% url 'website:terms' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'terms' %} is-active{% endif %}">Terms</a>
+    </div>
+  </div>
+</nav>

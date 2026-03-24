@@ -1,0 +1,146 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Customer Portal — Workspace Dashboard{% endblock %}
+{% block meta_description %}Overview of your Sugna workspace: organization, modules, subscription, billing, support, activity, quick links, and system health.{% endblock %}
+{% block body_class %}body-marketing-shell page-customer-portal-dashboard{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_customer_portal.html" %}{% endblock %}
+{% block marketing_content %}
+
+<section class="cp-dash-hero cp-portal-hero--premium">
+  <div class="container cp-dash-hero__inner">
+    <nav class="cp-breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'website:home' %}">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="{% url 'website:customer_portal_home' %}">Customer Portal</a>
+      <span aria-hidden="true">/</span>
+      <span class="cp-breadcrumb-current">Workspace Dashboard</span>
+    </nav>
+    <div class="cp-portal-hero__inner cp-portal-hero__inner--dash">
+      <p class="cp-portal-eyebrow">Workspace overview</p>
+      <h1 class="cp-dash-title">Workspace Dashboard</h1>
+      <p class="cp-dash-lead">
+        Overview of your Sugna workspace including subscription status, active modules, system updates, and support information.
+        After sign-in, this view connects to live data in your tenant; below is a <strong>sample layout</strong> for monitoring your workspace.
+      </p>
+      <p class="cp-section-back cp-portal-back">
+        <a href="{% url 'website:customer_portal_home' %}">← Customer portal access</a>
+        <span class="cp-portal-back__sep" aria-hidden="true">·</span>
+        <a href="{% url 'website:customer_portal_section' slug='knowledge-base' %}">Knowledge base</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="cp-dash-section">
+  <div class="container">
+    <h2 class="visually-hidden">Workspace overview</h2>
+    <div class="cp-dash-grid">
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-building"/></svg></span>
+          <h3 class="cp-widget__title">Organization</h3>
+        </div>
+        <div class="cp-widget__body">
+          <p class="cp-widget__value">Sample International NGO</p>
+          <p class="cp-widget__meta">Tenant name and program structure · Multi-site · HQ and field offices</p>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-package"/></svg></span>
+          <h3 class="cp-widget__title">Active modules</h3>
+        </div>
+        <div class="cp-widget__body">
+          <ul class="cp-widget__list">
+            <li>Financial &amp; Grant Management</li>
+            <li>Human Resource Management</li>
+            <li>Procurement &amp; Logistics</li>
+            <li>Fleet Management</li>
+            <li>AI Auditor</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-clipboard-check"/></svg></span>
+          <h3 class="cp-widget__title">Subscription status</h3>
+        </div>
+        <div class="cp-widget__body">
+          <p class="cp-widget__badge cp-widget__badge--ok">Active</p>
+          <p class="cp-widget__value">Enterprise plan</p>
+          <p class="cp-widget__meta">Renews · 15 Apr 2026 · Auto-renew on</p>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-coins"/></svg></span>
+          <h3 class="cp-widget__title">Billing summary</h3>
+        </div>
+        <div class="cp-widget__body">
+          <p class="cp-widget__value">Next invoice · 1 Mar 2026</p>
+          <p class="cp-widget__meta">Billing contact: finance@sample.org · Users: 42 seats in use</p>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></span>
+          <h3 class="cp-widget__title">Support status</h3>
+        </div>
+        <div class="cp-widget__body">
+          <p class="cp-widget__value">Open tickets: 0</p>
+          <p class="cp-widget__meta">SLA: Enterprise · First response within agreed window</p>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-trending-up"/></svg></span>
+          <h3 class="cp-widget__title">Recent activity</h3>
+        </div>
+        <div class="cp-widget__body">
+          <ul class="cp-widget__list cp-widget__list--compact">
+            <li>Grant budget revision approved</li>
+            <li>Payroll export posted</li>
+            <li>New user invited (finance)</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash cp-widget--dash-wide">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-link"/></svg></span>
+          <h3 class="cp-widget__title">Quick links</h3>
+        </div>
+        <div class="cp-widget__body">
+          <ul class="cp-widget__linklist">
+            <li><a class="cp-widget__link" href="{% url 'tenant_portal:login' %}">Enter workspace</a></li>
+            <li><a class="cp-widget__link" href="{% url 'website:customer_portal_section' slug='knowledge-base' %}">Knowledge base</a></li>
+            <li><a class="cp-widget__link" href="{% url 'website:training' %}">Training</a></li>
+            <li><a class="cp-widget__link" href="{% url 'website:customer_portal_section' slug='templates' %}">Templates</a></li>
+            <li><a class="cp-widget__link" href="{% url 'website:support' %}">Contact support</a></li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="cp-widget cp-widget--dash">
+        <div class="cp-widget__head">
+          <span class="cp-widget__icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-monitor"/></svg></span>
+          <h3 class="cp-widget__title">System health</h3>
+        </div>
+        <div class="cp-widget__body">
+          <p class="cp-widget__value cp-widget__value--ok">All systems operational</p>
+          <p class="cp-widget__meta">Uptime per SLA · Last platform update: 12 Feb 2026 · Maintenance window: scheduled</p>
+        </div>
+      </article>
+    </div>
+    <p class="cp-dash-footnote">
+      This dashboard is a marketing preview. Production data appears in your signed-in tenant workspace.
+    </p>
+  </div>
+</section>
+
+{% endblock %}

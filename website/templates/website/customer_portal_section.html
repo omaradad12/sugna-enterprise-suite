@@ -1,0 +1,29 @@
+{% extends "website/marketing_page_base.html" %}
+{% block title %}{{ cp_title }} — Customer Portal{% endblock %}
+{% block body_class %}body-marketing-shell page-customer-portal-section{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_customer_portal.html" %}{% endblock %}
+{% block marketing_content %}
+
+<section class="cp-section-hero">
+  <div class="container">
+    <nav class="cp-breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'website:home' %}">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="{% url 'website:customer_portal_home' %}">Customer Portal</a>
+      <span aria-hidden="true">/</span>
+      <span class="cp-breadcrumb-current">{{ cp_title }}</span>
+    </nav>
+    <h1 class="cp-section-title">{{ cp_title }}</h1>
+    <p class="cp-section-lead">{{ cp_description }}</p>
+    <p class="cp-section-note">
+      Full self-service for this area opens in your <a href="/t/portal/">signed-in customer portal</a> when enabled for your tenant.
+    </p>
+    <p class="cp-section-back">
+      <a href="{% url 'website:customer_portal_home' %}">← Customer portal access</a>
+      ·
+      <a href="{% url 'website:customer_portal_dashboard' %}">Dashboard preview</a>
+    </p>
+  </div>
+</section>
+
+{% endblock %}

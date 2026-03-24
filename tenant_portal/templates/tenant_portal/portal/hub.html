@@ -1,0 +1,43 @@
+{% extends "tenant_portal/portal/layout.html" %}
+{% load i18n %}
+{% block portal_title %}{% trans "Portal hub" %}{% endblock %}
+{% block portal_content %}
+<div class="max-w-5xl">
+  <nav class="text-[13px] text-[#605e5c] mb-4" aria-label="Breadcrumb">
+    <span class="text-[#323130] font-medium">{% trans "Customer portal" %}</span>
+  </nav>
+  <h1 class="text-2xl font-bold text-[#201f1e] tracking-tight mb-2">{% trans "Customer portal" %}</h1>
+  <p class="text-[#605e5c] text-sm max-w-3xl mb-8 leading-relaxed">
+    {% blocktrans trimmed %}
+      Manage your organization profile, subscription, users, security, integrations, and learning resources—aligned
+      to how NGOs, humanitarian organizations, hospitals, and public institutions run finance and grants.
+    {% endblocktrans %}
+  </p>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for row in portal_sections_grid %}
+    <a href="{{ row.section_url }}"
+       class="group block bg-white border rounded-lg p-5 no-underline hover:shadow-md transition-shadow"
+       style="border-color:#edebe9;">
+      <div class="flex items-start gap-3">
+        <span class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background:#eff6fc;">
+          <i data-feather="{{ row.section.icon }}" class="w-5 h-5" style="color:#0078D4;"></i>
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold text-[#201f1e] group-hover:text-[#0078D4] mb-1">{{ row.section.label }}</h2>
+          <p class="text-[13px] text-[#605e5c] leading-snug mb-3">{{ row.section.subtitle }}</p>
+          <ul class="text-[12px] text-[#605e5c] space-y-1">
+            {% for p in row.preview_pages %}
+            <li class="truncate">· {{ p.label }}</li>
+            {% endfor %}
+            {% if row.section.pages|length > 4 %}
+            <li class="text-[#0078D4] font-medium">{% trans "More…" %}</li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

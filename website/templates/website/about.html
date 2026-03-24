@@ -1,34 +1,105 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% load static %}
 {% block title %}About Sugna Enterprise Suite{% endblock %}
-{% block content %}
+{% block meta_description %}Sugna Enterprise Suite is a cloud ERP for NGOs, humanitarian organizations, and healthcare institutions—unifying finance, grants, HR, procurement, and compliance on one auditable platform.{% endblock %}
+{% block body_class %}body-marketing-shell page-about-premium{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_resources.html" %}{% endblock %}
+{% block marketing_content %}
 <main class="about-page">
-  {# 1. Hero — text left, brand mark right (constrained) #}
-  <section class="about-hero" aria-labelledby="about-hero-title">
+  <section class="about-hero about-hero--premium" aria-labelledby="about-hero-title">
     <div class="container about-hero-grid">
       <div class="about-hero-copy">
-        <h1 id="about-hero-title" class="about-hero-title">About Sugna Enterprise Suite</h1>
-        <p class="about-hero-slogan">Simplifying compliance, finance, and operations.</p>
+        <p class="about-hero-eyebrow">About Sugna</p>
+        <h1 id="about-hero-title" class="about-hero-title">Sugna Enterprise Suite</h1>
+        <p class="about-hero-slogan">Simplifying compliance, finance, and operations for mission-driven organizations.</p>
         <p class="about-hero-desc">
-          Sugna Enterprise Suite is a modern cloud-based ERP platform designed for NGOs, humanitarian organizations, hospitals, and donor-funded projects. The platform integrates finance, grants, HR, procurement, logistics, compliance, and intelligent auditing into one secure multi-tenant system.
+          We build a modern, cloud-based ERP so NGOs, humanitarian programs, hospitals, and public institutions can run finance, grants, HR, procurement, logistics, and assurance in one secure system—not a patchwork of spreadsheets and disconnected tools.
         </p>
+        <div class="about-hero-actions">
+          <a class="btn btn-header-cta" href="{% url 'website:demo_request' %}">Request a demo</a>
+          <a class="btn btn-home-outline" href="{% url 'website:contact' %}">Talk to our team</a>
+        </div>
       </div>
       <div class="about-hero-visual">
-        <img
-          class="about-hero-photo"
-          src="{% static 'assets/images/about-team.png' %}"
-          alt="Sugna Enterprise Suite — mission-driven teams"
-          width="960"
-          height="640"
-          decoding="async"
-          loading="lazy"
-        />
+        <figure class="about-hero-figure">
+{% comment %}Final hero image: replace about-team.png with photography of your team or office when ready.{% endcomment %}
+          <img
+            class="about-hero-photo"
+            src="{% static 'assets/images/hero-dashboard.png' %}"
+            alt="Sugna Enterprise Suite workspace view showing finance and operations dashboards."
+            width="1200"
+            height="720"
+            decoding="async"
+            fetchpriority="high"
+          />
+        </figure>
       </div>
     </div>
   </section>
-  <div class="about-hero-divider" aria-hidden="true"></div>
 
-  {# 2. Mission #}
+  <section class="about-stats-bar" aria-label="At a glance">
+    <div class="container about-stats-bar__inner">
+      <div class="about-stat">
+        <span class="about-stat__label">Focus</span>
+        <strong class="about-stat__value">NGOs &amp; humanitarian</strong>
+        <span class="about-stat__meta">Donor reporting, multi-site programs, duty of care</span>
+      </div>
+      <div class="about-stat">
+        <span class="about-stat__label">Architecture</span>
+        <strong class="about-stat__value">Multi-tenant cloud</strong>
+        <span class="about-stat__meta">Isolated tenants, role-based access, audit trails</span>
+      </div>
+      <div class="about-stat">
+        <span class="about-stat__label">Coverage</span>
+        <strong class="about-stat__value">Finance to field</strong>
+        <span class="about-stat__meta">Grants, HR, procurement, fleet, hospitals, AI assurance</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section about-story-section" aria-labelledby="about-story-heading">
+    <div class="container about-story">
+      <div class="about-story__intro">
+        <h2 id="about-story-heading" class="about-section-heading">Our story</h2>
+        <p class="about-story__lead">
+          Mission-driven organizations carry significant responsibility — stewarding public resources, serving vulnerable communities, and meeting strict oversight requirements from donors and regulators. Yet many still operate with fragmented legacy systems or improvised tools that introduce inefficiencies, delay financial visibility, and create uncertainty across teams.
+        </p>
+        <p class="about-story__text">
+          Sugna Enterprise Suite was created to address this challenge with an enterprise-grade platform purpose-built for NGOs, humanitarian programs, hospitals, and public institutions. Our approach emphasizes transparency, segregation of duties, and complete traceability from commitment to disbursement, enabling finance, program, and leadership teams to rely on consistent, auditable data to guide decisions and demonstrate accountability.
+        </p>
+        <p class="about-story__text about-story__text--last">
+          We continuously invest in usability, sector-specific workflows, and intelligent safeguards, including AI-assisted review, ensuring that headquarters and field offices remain aligned without compromising governance, compliance, or operational efficiency.
+        </p>
+      </div>
+      <aside class="about-story__aside" aria-labelledby="about-beliefs-heading">
+        <h3 id="about-beliefs-heading" class="about-story__aside-title">What we believe</h3>
+        <ul class="about-beliefs">
+          <li class="about-beliefs__item">
+            <div class="about-beliefs__main">
+              <span class="about-beliefs__dot" aria-hidden="true"></span>
+              <p class="about-beliefs__desc">Software should make it easier—not harder—to show how resources are used.</p>
+            </div>
+            <p class="about-beliefs__tagline">Accountability is non-negotiable.</p>
+          </li>
+          <li class="about-beliefs__item">
+            <div class="about-beliefs__main">
+              <span class="about-beliefs__dot" aria-hidden="true"></span>
+              <p class="about-beliefs__desc">Integration reduces error, cost, and audit risk across finance and programs.</p>
+            </div>
+            <p class="about-beliefs__tagline">One coherent platform beats fragmented tools.</p>
+          </li>
+          <li class="about-beliefs__item">
+            <div class="about-beliefs__main">
+              <span class="about-beliefs__dot" aria-hidden="true"></span>
+              <p class="about-beliefs__desc">Automation and AI support reviewers; they do not replace governance.</p>
+            </div>
+            <p class="about-beliefs__tagline">Humans stay in charge.</p>
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
   <section class="home-section home-section--alt about-mission-section" aria-labelledby="about-mission-heading">
     <div class="container">
       <div class="about-mission-card">
@@ -38,140 +109,173 @@
           </div>
         </div>
         <div class="about-mission-body">
-          <h2 id="about-mission-heading" class="about-block-title">Our Mission</h2>
+          <h2 id="about-mission-heading" class="about-block-title">Our mission</h2>
           <p class="about-mission-text">
-            Our mission is to empower mission-driven organizations with reliable, transparent, and efficient enterprise software. Sugna helps NGOs, healthcare institutions, and development partners manage funds responsibly, track project performance, and meet donor compliance requirements.
+            To empower mission-driven organizations with reliable, transparent, and efficient enterprise software. Sugna helps NGOs, healthcare institutions, and development partners manage funds responsibly, track program performance, and meet donor and statutory compliance—without slowing down the people doing the work.
           </p>
         </div>
       </div>
     </div>
   </section>
 
-  {# 3. What we solve #}
-  <section class="home-section" aria-labelledby="about-solve-heading">
-    <div class="container">
-      <h2 id="about-solve-heading" class="home-section-title">What Problems We Solve</h2>
-      <p class="home-section-sub">Practical outcomes for finance, programs, and operations teams.</p>
+  <section class="home-section about-solve-section" aria-labelledby="about-solve-heading">
+    <div class="container about-solve-section__inner">
+      <h2 id="about-solve-heading" class="home-section-title about-solve-section__title">What we help you solve</h2>
+      <p class="home-section-sub">Concrete outcomes for finance teams, program managers, and executive leadership.</p>
       <div class="about-solve-grid">
         <article class="home-module-card about-solve-card">
           <div class="home-module-icon" aria-hidden="true">
             <svg class="m-icon m-icon--md m-icon--brand" aria-hidden="true"><use href="#mi-coins"/></svg>
           </div>
           <h3>Financial transparency</h3>
-          <p>Track funds, budgets, and expenses with full audit trail.</p>
+          <p>Trace funds from budget to disbursement with dimensions, projects, and donor restrictions reflected consistently.</p>
         </article>
         <article class="home-module-card about-solve-card">
           <div class="home-module-icon" aria-hidden="true">
             <svg class="m-icon m-icon--md m-icon--brand" aria-hidden="true"><use href="#mi-shield"/></svg>
           </div>
-          <h3>Grant compliance</h3>
-          <p>Meet donor requirements with structured reporting tools.</p>
+          <h3>Grant &amp; compliance readiness</h3>
+          <p>Structured approvals, documentation, and reporting patterns aligned to donor and audit expectations.</p>
         </article>
         <article class="home-module-card about-solve-card">
           <div class="home-module-icon" aria-hidden="true">
             <svg class="m-icon m-icon--md m-icon--brand" aria-hidden="true"><use href="#mi-grid"/></svg>
           </div>
-          <h3>Operational efficiency</h3>
-          <p>Unify HR, procurement, and logistics in one system.</p>
+          <h3>Operational coherence</h3>
+          <p>Unify HR, procurement, logistics, and assets so HQ and field offices share one operational picture.</p>
         </article>
         <article class="home-module-card about-solve-card">
           <div class="home-module-icon" aria-hidden="true">
-            <svg class="m-icon m-icon--md m-icon--brand" aria-hidden="true"><use href="#mi-image"/></svg>
+            <svg class="m-icon m-icon--md m-icon--brand" aria-hidden="true"><use href="#mi-bar-chart"/></svg>
           </div>
-          <h3>Data visibility</h3>
-          <p>Access real-time dashboards and reports.</p>
+          <h3>Leadership visibility</h3>
+          <p>Dashboards and reports designed for boards, donors, and regulators—not just technical users.</p>
         </article>
       </div>
     </div>
   </section>
 
-  {# 4. Platform overview #}
-  <section class="home-section home-section--alt" aria-labelledby="about-platform-heading">
-    <div class="container">
-      <h2 id="about-platform-heading" class="home-section-title">All-in-one platform</h2>
-      <p class="home-section-sub">Core capabilities delivered as integrated modules on a single secure stack.</p>
+  <section class="home-section home-section--alt about-platform-section" aria-labelledby="about-platform-heading">
+    <div class="container about-platform-section__inner">
+      <h2 id="about-platform-heading" class="home-section-title about-platform-section__title">One platform, modular depth</h2>
+      <p class="home-section-sub">Core capabilities delivered as integrated modules on a single secure, multi-tenant stack.</p>
       <div class="about-platform-card">
         <ul class="about-platform-list">
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Financial Management</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Grant Management</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Financial &amp; Grant Management</span></li>
           <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Human Resource Management</span></li>
           <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Procurement &amp; Logistics</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Fleet Management</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>AI Financial Auditor</span></li>
           <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Hospital Management</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>AI Audit &amp; Compliance</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Role-based access control</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Multi-tenant architecture</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Sugna Corporate Management</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Role-based access &amp; segregation of duties</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Multi-tenant architecture &amp; customer workspaces</span></li>
         </ul>
       </div>
     </div>
   </section>
 
-  {# 5. Why Sugna #}
-  <section class="home-section" aria-labelledby="about-why-heading">
-    <div class="container">
-      <h2 id="about-why-heading" class="home-section-title">Why Choose Sugna</h2>
-      <p class="home-section-sub">Built for complex, regulated environments — without enterprise bloat.</p>
+  <section class="home-section about-why-section" aria-labelledby="about-why-heading">
+    <div class="container about-why-section__inner">
+      <h2 id="about-why-heading" class="home-section-title about-why-section__title">Why organizations choose Sugna</h2>
+      <p class="home-section-sub">Enterprise discipline without unnecessary complexity—tuned for regulated, multi-site environments.</p>
       <div class="about-why-grid">
         <article class="about-why-block">
           <div class="about-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-globe"/></svg></div>
-          <h3>Designed for NGOs and donor-funded projects</h3>
-          <p>Workflows, funds, and reporting patterns that match how mission-driven teams actually work.</p>
+          <h3>Built for NGOs &amp; donor-funded work</h3>
+          <p>Budget structures, funds, and narratives that reflect how grants and programs are actually managed.</p>
         </article>
         <article class="about-why-block">
-          <div class="about-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-grid"/></svg></div>
-          <h3>Multi-organization cloud architecture</h3>
-          <p>Isolate tenants and roles while sharing a consistent platform experience across sites and countries.</p>
+          <div class="about-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-building"/></svg></div>
+          <h3>Consistent experience across entities</h3>
+          <p>Standardize policy and reporting while allowing controlled variation by country, project, or cost center.</p>
         </article>
         <article class="about-why-block">
           <div class="about-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-lock"/></svg></div>
-          <h3>Secure and scalable system</h3>
-          <p>Encryption, access control, and auditability designed in — ready to grow with your programs.</p>
+          <h3>Security &amp; auditability by design</h3>
+          <p>Encryption, access control, and trails that support internal control and external assurance.</p>
         </article>
         <article class="about-why-block">
-          <div class="about-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-image"/></svg></div>
-          <h3>Professional reporting and dashboards</h3>
-          <p>Leadership-ready views for finance, donors, and operations without manual spreadsheet gymnastics.</p>
+          <div class="about-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-clipboard-check"/></svg></div>
+          <h3>Implementation partners who know the sector</h3>
+          <p>Structured onboarding with specialists experienced in humanitarian, health, and public-interest contexts.</p>
         </article>
       </div>
     </div>
   </section>
 
-  {# 6. Values #}
+  <section class="about-commitment-band" aria-labelledby="about-commitment-heading">
+    <div class="container about-commitment-band__inner">
+      <h2 id="about-commitment-heading" class="visually-hidden">Our commitment</h2>
+      <p class="about-commitment-band__text">
+        We treat data about programs, staff, and finances with the seriousness it deserves—especially when lives and public trust are involved. Our roadmap prioritizes clarity for users, resilience for operations, and defensibility for audits.
+      </p>
+    </div>
+  </section>
+
   <section class="home-section home-section--alt about-values-section" aria-labelledby="about-values-heading">
     <div class="container">
-      <h2 id="about-values-heading" class="home-section-title">Our Values</h2>
-      <p class="home-section-sub">Principles that guide how we build and support the platform.</p>
+      <h2 id="about-values-heading" class="home-section-title">Our values</h2>
+      <p class="home-section-sub">How we build product, support customers, and measure our own progress.</p>
       <div class="about-values-grid">
         <div class="about-value-pillar">
           <div class="about-value-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-globe"/></svg></div>
           <h3>Transparency</h3>
-          <p>Clear data and traceable processes so stakeholders see how resources are used.</p>
+          <p>Data and workflows should be understandable to the people responsible for stewarding resources.</p>
         </div>
         <div class="about-value-pillar">
           <div class="about-value-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></div>
           <h3>Accountability</h3>
-          <p>Controls and audit trails that reinforce responsibility at every level.</p>
+          <p>Controls and evidence that reinforce ownership—especially under donor and statutory scrutiny.</p>
         </div>
         <div class="about-value-pillar">
           <div class="about-value-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-sparkles"/></svg></div>
           <h3>Innovation</h3>
-          <p>Continuous improvement in usability, automation, and intelligent assistance.</p>
+          <p>Continuous improvement in usability, automation, and intelligent assistance—without cutting corners on governance.</p>
         </div>
         <div class="about-value-pillar">
-          <div class="about-value-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-lock"/></svg></div>
+          <div class="about-value-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-zap"/></svg></div>
           <h3>Reliability</h3>
-          <p>Dependable operations your teams can trust during audits and peak periods.</p>
+          <p>Stable operations your teams can depend on at month-end, grant deadlines, and emergency scale-up.</p>
         </div>
       </div>
     </div>
   </section>
 
-  {# 7. CTA #}
-  <section class="home-cta-banner about-page-cta" aria-labelledby="about-cta-heading">
+  <section class="home-section about-leadership-section" aria-labelledby="about-leadership-heading">
+    <div class="container">
+      <h2 id="about-leadership-heading" class="home-section-title">How we’re organized</h2>
+      <p class="home-section-sub">Cross-functional leadership across product, delivery, and customer trust—not individual biography placeholders.</p>
+      <div class="about-leadership-grid">
+        <article class="about-leadership-card">
+          <div class="about-leadership-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-grid"/></svg></div>
+          <h3>Product &amp; engineering</h3>
+          <p>Defines the roadmap, architecture, and quality bar for the platform—from core ERP modules to AI-assisted assurance.</p>
+        </article>
+        <article class="about-leadership-card">
+          <div class="about-leadership-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-users"/></svg></div>
+          <h3>Customer success &amp; delivery</h3>
+          <p>Guides onboarding, training, and steady-state support so your teams adopt Sugna with confidence.</p>
+        </article>
+        <article class="about-leadership-card">
+          <div class="about-leadership-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></div>
+          <h3>Trust, risk &amp; compliance alignment</h3>
+          <p>Coordinates security practices, data handling, and documentation for institutional procurement and assurance processes.</p>
+        </article>
+      </div>
+      <p class="about-leadership-footnote">
+        For press, partnerships, or enterprise procurement, use our <a href="{% url 'website:contact' %}">contact page</a>; we will route your message to the right team.
+      </p>
+    </div>
+  </section>
+
+  <section class="home-cta-banner about-page-cta about-page-cta--premium" aria-labelledby="about-cta-heading">
     <div class="container about-page-cta-inner">
-      <h2 id="about-cta-heading" class="home-cta-title about-page-cta-title">Transform your organization with Sugna</h2>
-      <p class="about-page-cta-lead">See the platform in a tailored session or reach our team with questions.</p>
+      <h2 id="about-cta-heading" class="home-cta-title about-page-cta-title">See Sugna in your context</h2>
+      <p class="about-page-cta-lead">Walk through finance, grants, HR, and reporting with a session tailored to your programs and governance needs.</p>
       <div class="about-page-cta-actions">
-        <a class="btn btn-home-primary btn-home-primary--lg" href="{% url 'website:demo_request' %}">Request demo</a>
+        <a class="btn btn-header-cta" href="{% url 'website:demo_request' %}">Request demo</a>
+        <a class="btn btn-home-outline btn-lg" href="{% url 'website:pricing' %}">View pricing</a>
         <a class="btn btn-home-outline btn-lg" href="{% url 'website:contact' %}">Contact us</a>
       </div>
     </div>

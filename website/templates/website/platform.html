@@ -1,0 +1,280 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Enterprise platform{% endblock %}
+{% block meta_description %}Sugna Enterprise Suite helps NGOs, hospitals, and companies plan, manage, and monitor finance, HR, procurement, fleet, compliance, and operations on one integrated cloud platform.{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_solutions.html" %}{% endblock %}
+{% block extra_head %}{{ block.super }}
+  <script defer src="{% static 'website/js/platform-manage-modules.js' %}"></script>
+{% endblock %}
+{% block marketing_content %}
+<article class="sugna-platform-page sugna-platform-page--marketing">
+  {# 1. Title / hero #}
+  <header class="sp-hero">
+    <div class="container sp-container sp-container--hero">
+      <p class="sp-hero-eyebrow">Enterprise platform</p>
+      <h1 class="sp-hero-title">Enterprise software for NGOs, hospitals, and companies</h1>
+      <p class="sp-hero-lead">
+        Manage finance, grants, people, procurement, fleet, compliance, and healthcare operations — all in one unified platform built for mission-driven and regulated organizations.
+      </p>
+      <div class="sp-hero-actions">
+        <a class="btn btn-home-primary sp-hero-btn sp-hero-btn--primary" href="{% url 'website:demo_request' %}">Request a demo</a>
+        <a class="btn btn-outline sp-btn-outline sp-hero-btn sp-hero-btn--secondary" href="{% url 'website:modules' %}">Explore modules</a>
+      </div>
+    </div>
+  </header>
+
+  {# 2. What Sugna helps manage #}
+  <section class="sp-section sp-section--alt sp-section--manage-modules" id="what-sugna-manages" aria-labelledby="sp-manage-heading">
+    <div class="container sp-container sp-container--manage">
+      <h2 id="sp-manage-heading" class="sp-section-title sp-section-title--manage">What Sugna helps you manage</h2>
+      <p class="sp-section-lead sp-section-lead--manage">
+        Manage finance, grants, people, procurement, fleet, compliance, healthcare, and business operations — all in one unified platform built for mission-driven and regulated organizations.
+      </p>
+      <ul class="sp-manage-grid" role="list">
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Finance — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-coins"/></svg></span>
+            <span class="sp-manage-label">Finance</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Human Resources — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-users"/></svg></span>
+            <span class="sp-manage-label">Human Resources</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Procurement and Logistics — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-package"/></svg></span>
+            <span class="sp-manage-label">Procurement &amp; Logistics</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Fleet Management — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-truck"/></svg></span>
+            <span class="sp-manage-label">Fleet Management</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Compliance and Audit — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-shield"/></svg></span>
+            <span class="sp-manage-label">Compliance &amp; Audit</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Hospital Management — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-hospital"/></svg></span>
+            <span class="sp-manage-label">Hospital Management</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="sp-manage-item" aria-pressed="false" aria-label="Corporate Management — select module">
+            <span class="sp-icon-wrap" aria-hidden="true"><svg class="m-icon m-icon--md sp-icon"><use href="#mi-building"/></svg></span>
+            <span class="sp-manage-label">Corporate Management</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  {# 3. Core capabilities #}
+  <section class="sp-section sp-section--core-capabilities" aria-labelledby="sp-cap-heading">
+    <div class="container sp-container sp-container--capabilities">
+      <h2 id="sp-cap-heading" class="sp-section-title sp-section-title--capabilities">Core capabilities</h2>
+      <p class="sp-section-lead sp-section-lead--capabilities">A continuous operational cycle from planning to improvement — supported by workflows, controls, and real-time reporting across every module.</p>
+      <ul class="sp-cap-grid" role="list">
+        <li class="sp-cap-card">
+          <span class="sp-cap-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-cap-icon-svg"><use href="#mi-target"/></svg></span>
+          <h3 class="sp-cap-title">Plan</h3>
+          <p class="sp-cap-desc">Plan budgets, projects, and resources with clear structure, accountability, and timelines.</p>
+        </li>
+        <li class="sp-cap-card">
+          <span class="sp-cap-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-cap-icon-svg"><use href="#mi-grid"/></svg></span>
+          <h3 class="sp-cap-title">Manage</h3>
+          <p class="sp-cap-desc">Manage daily operations, transactions, and master data in one unified system.</p>
+        </li>
+        <li class="sp-cap-card">
+          <span class="sp-cap-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-cap-icon-svg"><use href="#mi-bar-chart"/></svg></span>
+          <h3 class="sp-cap-title">Monitor</h3>
+          <p class="sp-cap-desc">Track performance through dashboards, KPIs, and real-time financial and operational insights.</p>
+        </li>
+        <li class="sp-cap-card">
+          <span class="sp-cap-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-cap-icon-svg"><use href="#mi-sliders"/></svg></span>
+          <h3 class="sp-cap-title">Control</h3>
+          <p class="sp-cap-desc">Enforce policies, approvals, and segregation of duties through structured workflows.</p>
+        </li>
+        <li class="sp-cap-card">
+          <span class="sp-cap-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-cap-icon-svg"><use href="#mi-trending-up"/></svg></span>
+          <h3 class="sp-cap-title">Improve</h3>
+          <p class="sp-cap-desc">Use insights and AI-assisted analysis to strengthen performance, compliance, and decision-making.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  {# 4. Modules #}
+  <section class="sp-section sp-section--alt" id="modules" aria-labelledby="sp-mod-heading">
+    <div class="container sp-container">
+      <h2 id="sp-mod-heading" class="sp-section-title">Modules</h2>
+      <p class="sp-section-lead">Purpose-built areas you can adopt in phases—each designed to work with the others on a shared data model.</p>
+      <div class="sp-module-grid">
+        <a class="sp-module-card" href="{% url 'website:module_detail' slug='financial-grant-management' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-coins"/></svg></span>
+          <h3 class="sp-module-title">Financial &amp; Grant Management</h3>
+          <p class="sp-module-text">Fund accounting, donor visibility, grant controls, and financial reporting.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+        <a class="sp-module-card" href="{% url 'website:module_detail' slug='human-resource-management' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-users"/></svg></span>
+          <h3 class="sp-module-title">Human Resource Management</h3>
+          <p class="sp-module-text">Employees, contracts, attendance, leave, and workforce records.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+        <a class="sp-module-card" href="{% url 'website:module_detail' slug='procurement-logistics' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-package"/></svg></span>
+          <h3 class="sp-module-title">Procurement &amp; Logistics</h3>
+          <p class="sp-module-text">Purchasing, suppliers, inventory, warehouses, and distribution.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+        <a class="sp-module-card" href="{% url 'website:module_detail' slug='fleet-management' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-truck"/></svg></span>
+          <h3 class="sp-module-title">Fleet Management</h3>
+          <p class="sp-module-text">Vehicles, maintenance, fuel, drivers, and field mobility.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+        <a class="sp-module-card" href="{% url 'website:module_detail' slug='ai-auditor' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-sparkles"/></svg></span>
+          <h3 class="sp-module-title">AI Auditor</h3>
+          <p class="sp-module-text">Risk detection, anomalies, and compliance monitoring with intelligent review.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+        <a class="sp-module-card" href="{% url 'website:module_detail' slug='hospital-management' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-hospital"/></svg></span>
+          <h3 class="sp-module-title">Hospital Management</h3>
+          <p class="sp-module-text">Patients, clinical workflows, pharmacy, lab, and revenue alignment.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+        <a class="sp-module-card sp-module-card--wide" href="{% url 'website:module_detail' slug='corporate-management' %}">
+          <span class="sp-module-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-building"/></svg></span>
+          <h3 class="sp-module-title">Sugna Corporate Management</h3>
+          <p class="sp-module-text">Corporate structure, customers, services, revenue, and group oversight.</p>
+          <span class="sp-module-more">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {# 5. Use cases #}
+  <section class="sp-section sp-section--use-cases" aria-labelledby="sp-use-heading">
+    <div class="container sp-container sp-container--use-cases">
+      <h2 id="sp-use-heading" class="sp-section-title">Use cases</h2>
+      <p class="sp-section-lead sp-section-lead--use-cases">One unified platform supporting sector-specific financial, operational, and compliance requirements.</p>
+      <ul class="sp-use-grid" role="list">
+        <li class="sp-use-card">
+          <span class="sp-use-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-use-icon-svg"><use href="#mi-globe"/></svg></span>
+          <h3 class="sp-use-title">NGOs &amp; Humanitarian Organizations</h3>
+          <p class="sp-use-text">Manage multi-donor funding, project budgets, procurement, HR, and audit-ready reporting across multiple locations.</p>
+          <div class="sp-use-keys">
+            <p class="sp-use-key-label">Key capabilities</p>
+            <ul class="sp-use-key-list">
+              <li>Fund accounting and grant tracking</li>
+              <li>Multi-project budgeting</li>
+              <li>Donor compliance reporting</li>
+              <li>Field procurement and logistics</li>
+              <li>Audit trails</li>
+            </ul>
+          </div>
+        </li>
+        <li class="sp-use-card">
+          <span class="sp-use-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-use-icon-svg"><use href="#mi-hospital"/></svg></span>
+          <h3 class="sp-use-title">Hospitals &amp; Healthcare Providers</h3>
+          <p class="sp-use-text">Integrate clinical operations, inventory, billing, HR, and finance in one secure system designed for healthcare environments.</p>
+          <div class="sp-use-keys">
+            <p class="sp-use-key-label">Key capabilities</p>
+            <ul class="sp-use-key-list">
+              <li>Patient billing</li>
+              <li>Medical inventory tracking</li>
+              <li>Financial reporting</li>
+              <li>Staff management</li>
+              <li>Compliance tracking</li>
+            </ul>
+          </div>
+        </li>
+        <li class="sp-use-card">
+          <span class="sp-use-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-use-icon-svg"><use href="#mi-building"/></svg></span>
+          <h3 class="sp-use-title">Companies &amp; Corporate Entities</h3>
+          <p class="sp-use-text">Support enterprises with financial management, HR, procurement, and operational reporting.</p>
+          <div class="sp-use-keys">
+            <p class="sp-use-key-label">Key capabilities</p>
+            <ul class="sp-use-key-list">
+              <li>Accounting and reporting</li>
+              <li>HR and payroll</li>
+              <li>Procurement workflows</li>
+              <li>Operational dashboards</li>
+              <li>Budget control</li>
+            </ul>
+          </div>
+        </li>
+        <li class="sp-use-card">
+          <span class="sp-use-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-use-icon-svg"><use href="#mi-landmark"/></svg></span>
+          <h3 class="sp-use-title">Government &amp; Public Sector Projects</h3>
+          <p class="sp-use-text">Improve transparency and accountability for publicly funded programs.</p>
+          <div class="sp-use-keys">
+            <p class="sp-use-key-label">Key capabilities</p>
+            <ul class="sp-use-key-list">
+              <li>Budget control</li>
+              <li>Compliance reporting</li>
+              <li>Audit readiness</li>
+              <li>Approval workflows</li>
+              <li>Governance tracking</li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  {# 6. Why choose Sugna #}
+  <section class="sp-section sp-section--alt sp-section--why" aria-labelledby="sp-why-heading">
+    <div class="container sp-container sp-container--why">
+      <h2 id="sp-why-heading" class="sp-section-title">Why choose Sugna</h2>
+      <p class="sp-section-lead sp-section-lead--why">Designed for organizations that require strong financial control, operational visibility, and reliable compliance across projects, departments, and locations.</p>
+      <ul class="sp-why-grid" role="list">
+        <li class="sp-why-item">
+          <span class="sp-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-why-icon-svg"><use href="#mi-grid"/></svg></span>
+          <h3 class="sp-why-title">Flexible</h3>
+          <p class="sp-why-text">Modular architecture allows phased adoption, configurable workflows, and scalability as your organization grows.</p>
+        </li>
+        <li class="sp-why-item">
+          <span class="sp-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-why-icon-svg"><use href="#mi-shield"/></svg></span>
+          <h3 class="sp-why-title">Secure</h3>
+          <p class="sp-why-text">Role-based access, tenant-level data isolation, and complete audit trails ensure strong internal controls and compliance readiness.</p>
+        </li>
+        <li class="sp-why-item">
+          <span class="sp-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-why-icon-svg"><use href="#mi-link"/></svg></span>
+          <h3 class="sp-why-title">Integrated</h3>
+          <p class="sp-why-text">Finance, HR, procurement, fleet, compliance, and operations share a unified data model — eliminating duplicate systems and manual reconciliation.</p>
+        </li>
+        <li class="sp-why-item">
+          <span class="sp-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md sp-why-icon-svg"><use href="#mi-bar-chart"/></svg></span>
+          <h3 class="sp-why-title">Real-time reporting</h3>
+          <p class="sp-why-text">Access accurate financial and operational insights instantly, enabling better decision-making and improved accountability to donors and stakeholders.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  {# 7. CTA #}
+  <section class="sp-cta" aria-labelledby="sp-cta-heading">
+    <div class="container sp-container sp-cta-inner">
+      <h2 id="sp-cta-heading" class="sp-cta-title">See Sugna in your environment</h2>
+      <p class="sp-cta-lead">Explore how Sugna supports finance, grants, HR, procurement, fleet, and compliance across your projects, offices, and funding structures.</p>
+      <div class="sp-cta-actions">
+        <a class="sp-cta-btn sp-cta-btn--primary" href="{% url 'website:demo_request' %}">Request demo</a>
+        <a class="sp-cta-btn sp-cta-btn--secondary" href="{% url 'website:contact' %}">Contact sales</a>
+      </div>
+      <p class="sp-cta-helper">No obligation • tailored walkthrough • aligned to your workflows</p>
+    </div>
+  </section>
+</article>
+{% endblock %}

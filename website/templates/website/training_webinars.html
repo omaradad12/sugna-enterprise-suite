@@ -1,0 +1,30 @@
+{% extends "website/marketing_page_base.html" %}
+{% block title %}Webinars{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_training.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Training" title="Live webinars" lead="Instructor-led sessions for new releases, sector scenarios, and deep dives—recorded for teams in other time zones when available." %}
+</div>
+<section class="section">
+  <div class="container card-grid">
+    <article class="card">
+      <h3>Release readiness</h3>
+      <p>What changed, how it affects journals and approvals, and how to validate in sandbox before go-live.</p>
+    </article>
+    <article class="card">
+      <h3>Sector scenarios</h3>
+      <p>NGO grant cycles, hospital revenue alignment, fleet and field costs—walkthroughs with realistic data patterns.</p>
+    </article>
+    <article class="card">
+      <h3>Office hours</h3>
+      <p>Open Q&amp;A for administrators configuring users, dimensions, and integrations ahead of period close.</p>
+    </article>
+  </div>
+</section>
+<section class="section section-alt">
+  <div class="container" style="text-align:center;">
+    <p class="section-sub" style="margin-bottom:1rem;">Ask about a private webinar for your tenant</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:training_support' %}">Training support</a>
+  </div>
+</section>
+{% endblock %}

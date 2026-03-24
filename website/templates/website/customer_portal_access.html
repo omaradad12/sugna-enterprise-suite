@@ -1,0 +1,63 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Access Sugna Enterprise Suite{% endblock %}
+{% block meta_description %}Secure login for organization workspaces and platform administration — choose tenant workspace or platform admin access.{% endblock %}
+{% block body_class %}body-marketing-shell page-customer-portal-access{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_customer_portal.html" %}{% endblock %}
+{% block marketing_content %}
+
+<section class="cp-access-hero" aria-labelledby="cp-access-title">
+  <div class="container cp-access-hero__inner">
+    <h1 id="cp-access-title" class="cp-access-title">Access Sugna Enterprise Suite</h1>
+    <p class="cp-access-lead">
+      Secure login for organization workspaces and platform administration.
+    </p>
+    <p class="cp-access-hint">Select your access type based on your role in the system.</p>
+  </div>
+</section>
+
+<section class="cp-access-body" aria-labelledby="cp-access-options">
+  <div class="container">
+    <h2 id="cp-access-options" class="visually-hidden">Sign-in options</h2>
+    <div class="cp-access-grid">
+      <article class="cp-access-card cp-access-card--tenant">
+        <div class="cp-access-card__icon-wrap" aria-hidden="true">
+          <svg class="m-icon m-icon--md cp-access-card__icon"><use href="#mi-building"/></svg>
+        </div>
+        <h3 class="cp-access-card__title">Organization Workspace</h3>
+        <p class="cp-access-card__desc">
+          Access your organization’s ERP environment including finance, grants, HR, procurement, projects, compliance, and dashboards in a secure tenant workspace.
+        </p>
+        <a class="cp-access-btn cp-access-btn--primary" href="{% url 'tenant_portal:login' %}">
+          Login to workspace
+          <svg class="cp-access-btn__arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-7-7l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <p class="cp-access-card__audience">For finance teams, HR teams, procurement officers, program managers, and project staff.</p>
+      </article>
+
+      <article class="cp-access-card cp-access-card--platform">
+        <div class="cp-access-card__icon-wrap cp-access-card__icon-wrap--platform" aria-hidden="true">
+          <svg class="m-icon m-icon--md cp-access-card__icon"><use href="#mi-grid"/></svg>
+        </div>
+        <h3 class="cp-access-card__title">Platform Administration</h3>
+        <p class="cp-access-card__desc">
+          Manage tenants, subscriptions, modules, billing, and system configuration across the Sugna platform.
+        </p>
+        <a class="cp-access-btn cp-access-btn--secondary" href="{% url 'platform_login' %}">
+          Login as platform admin
+          <svg class="cp-access-btn__arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-7-7l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <p class="cp-access-card__audience">For platform administrators, IT teams, and implementation specialists.</p>
+      </article>
+    </div>
+
+    <p class="cp-access-security" role="note">Secure access · role-based permissions · encrypted sessions</p>
+
+    <p class="cp-access-help">
+      Need help accessing your workspace?
+      <a href="{% url 'website:support' %}">Contact support</a>.
+    </p>
+  </div>
+</section>
+
+{% endblock %}

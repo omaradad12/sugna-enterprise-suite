@@ -1,0 +1,30 @@
+{% extends "website/marketing_page_base.html" %}
+{% block title %}Certification{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_training.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Training" title="Certification" lead="Structured paths that evidence competence for audits and donor assurance—mapped to the responsibilities your policies require." %}
+</div>
+<section class="section">
+  <div class="container card-grid">
+    <article class="card">
+      <h3>Core platform</h3>
+      <p>Navigation, security hygiene, approvals, and reporting fundamentals for every certified user.</p>
+    </article>
+    <article class="card">
+      <h3>Finance &amp; compliance</h3>
+      <p>Fund accounting, close, and grant controls for staff who post, review, or sign financial statements.</p>
+    </article>
+    <article class="card">
+      <h3>Administrator track</h3>
+      <p>Provisioning, roles, master data, and change management for those who operate the tenant day to day.</p>
+    </article>
+  </div>
+</section>
+<section class="section section-alt">
+  <div class="container" style="text-align:center;">
+    <p class="section-sub" style="margin-bottom:1rem;">Need a custom certification map?</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:contact' %}">Talk to us</a>
+  </div>
+</section>
+{% endblock %}

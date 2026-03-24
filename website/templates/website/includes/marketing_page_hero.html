@@ -1,0 +1,10 @@
+{% comment %}
+  Pricing-aligned hero: eyebrow (optional), title, optional subtitle, lead paragraph.
+  Pass: title (required), lead=, eyebrow=, subtitle=
+{% endcomment %}
+<header class="pricing-page-intro">
+  {% if eyebrow %}<p class="pricing-page-eyebrow">{{ eyebrow }}</p>{% endif %}
+  <h1 class="pricing-page-intro__title">{{ title }}</h1>
+  {% if subtitle %}<p class="marketing-page-subtitle">{{ subtitle }}</p>{% endif %}
+  {% if lead %}<p class="pricing-logic-lead">{{ lead }}</p>{% endif %}
+</header>

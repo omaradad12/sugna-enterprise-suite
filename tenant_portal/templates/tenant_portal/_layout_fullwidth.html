@@ -376,9 +376,9 @@
               <a href="{% url 'tenant_portal:user_management' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
                 <i data-feather="users" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>User Management</span>
               </a>
-              <button type="button" class="w-full text-left px-4 py-3 flex items-center gap-3 transition-colors focus:outline-none hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
-                <i data-feather="help-circle" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Help Center</span>
-              </button>
+              <a href="{% url 'tenant_portal:customer_portal_hub' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="grid" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Customer portal</span>
+              </a>
             </div>
             <div class="border-t py-2" style="border-color: #e5e7eb;">
               <a href="{% url 'tenant_portal:logout' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
@@ -473,11 +473,10 @@
     <!-- Second topbar: main navigation menu (title case with icons) -->
     <div class="h-9 flex items-center min-w-0 px-4 md:px-6 border-b bg-[#0063B1] shadow-sm" style="border-color:#005a9e;">
       <nav class="topbar-modules flex-1 min-w-0 text-white" role="navigation" aria-label="{% trans 'Main modules' %}">
-        <!-- 1) Financial overview -->
+        <!-- 1) Financial overview — active state from server active_submenu (Alpine :class alone can miss after full page load) -->
         <a href="{% url 'tenant_portal:finance_home' %}"
            @click="subMenu = 'dashboard'"
-           :class="subMenu === 'dashboard' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'dashboard' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="home" class="w-4 h-4"></i>
           <span>Financial overview</span>
         </a>
@@ -485,8 +484,7 @@
         <!-- 2) Core Accounting -->
         <a href="{% url 'tenant_portal:finance_core_accounting_center' %}"
            @click="subMenu = 'core'"
-           :class="subMenu === 'core' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'core' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="briefcase" class="w-4 h-4"></i>
           <span>Core Accounting</span>
         </a>
@@ -494,8 +492,7 @@
         <!-- 3) Funds & Donors -->
         <a href="{% url 'tenant_portal:grants_home' %}"
            @click="subMenu = 'funds'"
-           :class="subMenu === 'funds' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'funds' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="folder" class="w-4 h-4"></i>
           <span>Funds &amp; Donors</span>
         </a>
@@ -503,8 +500,7 @@
         <!-- 4) Budgeting -->
         <a href="{% url 'tenant_portal:budgeting_center' %}"
            @click="subMenu = 'budget'"
-           :class="subMenu === 'budget' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'budget' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="trending-up" class="w-4 h-4"></i>
           <span>Budgeting</span>
         </a>
@@ -512,8 +508,7 @@
         <!-- 5) Cash & Bank (links to module dashboard) -->
         <a href="{% url 'tenant_portal:cash_dashboard' %}"
            @click="subMenu = 'cash'"
-           :class="subMenu === 'cash' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'cash' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="credit-card" class="w-4 h-4"></i>
           <span>Cash &amp; Bank</span>
         </a>
@@ -521,8 +516,7 @@
         <!-- 6) Incoming fund -->
         <a href="{% url 'tenant_portal:incoming_fund_center' %}"
            @click="subMenu = 'receivables'"
-           :class="subMenu === 'receivables' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'receivables' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="arrow-down-circle" class="w-4 h-4"></i>
           <span>Incoming fund</span>
         </a>
@@ -530,8 +524,7 @@
         <!-- 7) Outgoing fund -->
         <a href="{% url 'tenant_portal:outgoing_fund_center' %}"
            @click="subMenu = 'payables'"
-           :class="subMenu === 'payables' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'payables' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="arrow-up-circle" class="w-4 h-4"></i>
           <span>Outgoing fund</span>
         </a>
@@ -539,8 +532,7 @@
         <!-- 8) Multi-donor sharing -->
         <a href="{% url 'tenant_portal:cost_home' %}"
            @click="subMenu = 'cost'"
-           :class="subMenu === 'cost' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'cost' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="sliders" class="w-4 h-4"></i>
           <span>Multi-donor sharing</span>
         </a>
@@ -548,8 +540,7 @@
         <!-- 9) Governance -->
         <a href="{% url 'tenant_portal:controls_home' %}"
            @click="subMenu = 'controls'"
-           :class="subMenu === 'controls' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'controls' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="shield" class="w-4 h-4"></i>
           <span>Governance</span>
         </a>
@@ -557,8 +548,7 @@
         <!-- 10) Reporting -->
         <a href="{% url 'tenant_portal:reporting_center' %}"
            @click="subMenu = 'reports'"
-           :class="subMenu === 'reports' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'reports' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="bar-chart-2" class="w-4 h-4"></i>
           <span>Reporting</span>
         </a>
@@ -566,8 +556,7 @@
         <!-- 11) Financial Setup -->
         <a href="{% url 'tenant_portal:setup_home' %}"
            @click="subMenu = 'setup'"
-           :class="subMenu === 'setup' ? 'bg-white text-[#005a9e]' : 'bg-transparent text-white hover:bg-white/10'"
-           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors">
+           class="inline-flex items-center gap-1.5 rounded-full font-medium transition-colors px-2 py-1 {% if active_submenu == 'setup' %}bg-white text-[#005a9e]{% else %}bg-transparent text-white hover:bg-white/10{% endif %}">
           <i data-feather="settings" class="w-4 h-4"></i>
           <span>Financial Setup</span>
         </a>

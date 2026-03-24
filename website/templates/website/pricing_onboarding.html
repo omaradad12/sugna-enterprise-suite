@@ -1,0 +1,243 @@
+{% extends "website/base.html" %}
+{% block body_class %}body-pricing body-pricing-onboarding{% endblock %}
+{% load static %}
+{% block title %}Pricing — Onboarding{% endblock %}
+{% block extra_head %}
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script defer src="{% static 'website/js/pricing-anchor-scroll.js' %}"></script>
+{% endblock %}
+{% block content %}
+{% include "website/includes/pricing_subnav.html" %}
+
+<section class="section pricing-section pricing-page--onboarding">
+  <div class="container">
+    <div class="pricing-onboarding-hero">
+      <div class="pricing-onboarding-hero__glow" aria-hidden="true"></div>
+      <div class="pricing-onboarding-hero__mesh" aria-hidden="true"></div>
+
+      <nav class="pricing-onboarding-breadcrumb" aria-label="Breadcrumb">
+        <ol class="pricing-onboarding-breadcrumb__list">
+          <li class="pricing-onboarding-breadcrumb__item">
+            <a class="pricing-onboarding-breadcrumb__link" href="{% url 'website:pricing_subscriptions' %}">Pricing</a>
+          </li>
+          <li class="pricing-onboarding-breadcrumb__item pricing-onboarding-breadcrumb__item--current" aria-current="page">Onboarding</li>
+        </ol>
+      </nav>
+
+      <header class="pricing-page-intro pricing-onboarding-hero__intro">
+        <p class="pricing-page-eyebrow">Implementation pricing</p>
+        <h1 class="pricing-page-intro__title">Onboarding</h1>
+      </header>
+
+      <nav class="pricing-onboarding-toc" aria-label="On this page">
+        <p class="pricing-onboarding-toc__title">
+          <span class="pricing-onboarding-toc__title-icon" aria-hidden="true">
+            <svg class="m-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+          </span>
+          Contents
+        </p>
+        <div class="pricing-onboarding-toc__panel">
+          <div class="pricing-onboarding-toc__group">
+            <p class="pricing-onboarding-toc__label">Fees</p>
+            <ul class="pricing-onboarding-toc__links">
+              <li><a href="#packages">Packages &amp; tiers</a></li>
+            </ul>
+          </div>
+          <div class="pricing-onboarding-toc__group">
+            <p class="pricing-onboarding-toc__label">Scope</p>
+            <ul class="pricing-onboarding-toc__links">
+              <li><a href="#setup">Workspace</a></li>
+              <li><a href="#master-data">Master data</a></li>
+              <li><a href="#workflows">Workflows</a></li>
+              <li><a href="#migration">Migration</a></li>
+              <li><a href="#training">Training</a></li>
+              <li><a href="#uat">UAT</a></li>
+              <li><a href="#go-live">Go-live</a></li>
+            </ul>
+          </div>
+          <div class="pricing-onboarding-toc__group">
+            <p class="pricing-onboarding-toc__label">Delivery</p>
+            <ul class="pricing-onboarding-toc__links">
+              <li><a href="#phases">Phases</a></li>
+              <li><a href="#deliverables">Deliverables</a></li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </div>
+
+    {% include "website/includes/pricing_onboarding_packages.html" %}
+
+    <section id="setup" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-monitor"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Workspace setup</h2>
+          <p class="pricing-anchor-section__lead">
+            Tenant provisioning, environment strategy (sandbox vs production), branding where applicable, and baseline security
+            settings aligned to your access policy and segregation of duties.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="master-data" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-database"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Master data configuration</h2>
+          <p class="pricing-anchor-section__lead">
+            Chart of accounts, dimensions, programs, grant structures, suppliers, employees, and items—loaded via controlled templates
+            with validation and reconciliation checks before go-live.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflows" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-sliders"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Workflow configuration</h2>
+          <p class="pricing-anchor-section__lead">
+            Approval rules, delegation, posting controls, and exception flows that match your governance—documented for auditors
+            and adapted for HQ vs field operations.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="migration" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-refresh-cw"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Data migration support</h2>
+          <p class="pricing-anchor-section__lead">
+            Cutover planning, historical balances, open items, and parallel run support where required. Migration scope is priced
+            separately when it exceeds standard templates.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="training" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-graduation"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Role-based training</h2>
+          <p class="pricing-anchor-section__lead">
+            Curricula for finance, grants, HR, procurement, and operations—delivered in waves so super-users and end users are
+            productive before go-live. Materials can be retained for onboarding new staff.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="uat" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-clipboard-check"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">UAT support</h2>
+          <p class="pricing-anchor-section__lead">
+            Test scripts, defect triage, and sign-off packs so leadership can certify readiness. Evidence supports donor and
+            statutory audits where applicable.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="go-live" class="pricing-anchor-section pricing-onboarding-topic" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-zap"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Go-live &amp; hypercare</h2>
+          <p class="pricing-anchor-section__lead">
+            Cutover execution, war-room support, and a stabilization window after launch—then transition to steady-state operations
+            and a backlog for phase-two modules.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="phases" class="pricing-anchor-section pricing-onboarding-topic pricing-onboarding-topic--wide" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-target"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Delivery phases</h2>
+          <p class="pricing-anchor-section__lead">
+            A typical engagement follows four phases from blueprint through enablement—tailored in your statement of work.
+          </p>
+        </div>
+      </div>
+      <div class="pricing-timeline pricing-timeline--onboarding">
+        <article class="pricing-timeline__step">
+          <p class="pricing-timeline__meta">Phase 1</p>
+          <div class="pricing-timeline__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-search"/></svg></div>
+          <h3>Discovery &amp; blueprint</h3>
+          <p>Stakeholder interviews, process maps, chart of accounts and dimensions, grant and program structure, segregation-of-duties model, and integration inventory.</p>
+        </article>
+        <article class="pricing-timeline__step">
+          <p class="pricing-timeline__meta">Phase 2</p>
+          <div class="pricing-timeline__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-settings"/></svg></div>
+          <h3>Build &amp; configure</h3>
+          <p>Tenant setup, master data templates, workflow and approval rules, role assignments, and connector configuration in line with your security baseline.</p>
+        </article>
+        <article class="pricing-timeline__step">
+          <p class="pricing-timeline__meta">Phase 3</p>
+          <div class="pricing-timeline__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-refresh-cw"/></svg></div>
+          <h3>Validate &amp; migrate</h3>
+          <p>Iterative UAT cycles, reconciliations, controlled data migration or cutover planning, and documented sign-offs for audit and donor readiness.</p>
+        </article>
+        <article class="pricing-timeline__step">
+          <p class="pricing-timeline__meta">Phase 4</p>
+          <div class="pricing-timeline__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-sparkles"/></svg></div>
+          <h3>Enable &amp; go-live</h3>
+          <p>Role-based training, hypercare support, issue triage, and handover to steady-state operations with a clear backlog for phase-two modules.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="deliverables" class="pricing-anchor-section pricing-onboarding-topic pricing-onboarding-topic--wide" tabindex="-1">
+      <div class="pricing-onboarding-topic__head">
+        <span class="pricing-onboarding-topic__icon" aria-hidden="true"><svg class="m-icon" focusable="false"><use href="#mi-package"/></svg></span>
+        <div class="pricing-onboarding-topic__body">
+          <h2 class="pricing-anchor-section__title">Deliverables</h2>
+          <p class="pricing-anchor-section__lead">
+            Representative outputs from a structured implementation—exact deliverables are listed in your statement of work.
+          </p>
+        </div>
+      </div>
+      <div class="pricing-checklist pricing-checklist--onboarding">
+        <h3 class="pricing-checklist__title">Typical deliverables <span class="pricing-checklist__hint">(tailored in your SOW)</span></h3>
+        <ul class="pricing-checklist__list">
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Solution design document and configuration workbook</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Master data load templates and validation reports</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Test scripts, UAT evidence pack, and go-live checklist</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Training materials and attendance records by role</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Runbook for month-end, grant reporting, and escalation paths</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="pricing-onboarding-next" role="region" aria-labelledby="onboarding-next-heading">
+      <p class="pricing-onboarding-next__eyebrow">Next steps</p>
+      <h2 class="pricing-onboarding-next__title" id="onboarding-next-heading">Talk with us about timeline, resourcing, and a statement of work that fits your programme.</h2>
+    </div>
+
+    <div class="pricing-subscriptions-footer-cta" role="group" aria-label="Onboarding next steps">
+      <a class="pricing-footer-btn pricing-footer-btn--primary" href="{% url 'website:demo_request' %}">
+        <span class="pricing-footer-btn__icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-play-circle"/></svg></span>
+        <span class="pricing-footer-btn__label">Scope onboarding with us</span>
+      </a>
+      <a class="pricing-footer-btn pricing-footer-btn--secondary" href="{% url 'website:training' %}">
+        <span class="pricing-footer-btn__icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-graduation"/></svg></span>
+        <span class="pricing-footer-btn__label">Training programs</span>
+      </a>
+      <a class="pricing-footer-btn pricing-footer-btn--secondary" href="{% url 'website:contact' %}">
+        <span class="pricing-footer-btn__icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-mail"/></svg></span>
+        <span class="pricing-footer-btn__label">Implementation questions</span>
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

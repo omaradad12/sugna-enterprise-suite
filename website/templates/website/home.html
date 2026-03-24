@@ -1,44 +1,149 @@
 {% extends "website/base.html" %}
 {% load static %}
+{% block body_class %}body-marketing-shell{% endblock %}
 {% block title %}Home{% endblock %}
+{% block extra_head %}
+  <script defer src="{% static 'website/js/home-hero-slider.js' %}"></script>
+{% endblock %}
 {% block content %}
 {# Sway-style sections (hero, logos, modules, industries, features, dashboard, pricing, demo form, CTA) — Microsoft Dynamics–inspired layout #}
 
-{# 1. Hero — large headline + dashboard preview #}
-<section class="home-hero">
-  <div class="container home-hero-grid">
-    <div class="home-hero-copy">
-      <p class="home-hero-eyebrow">Cloud ERP for NGOs, hospitals &amp; donor-funded programs</p>
-      <h1 class="home-hero-title">Sugna Enterprise Suite</h1>
-      <p class="home-hero-slogan">Simplifying compliance, finance, and operations.</p>
-      <p class="home-hero-desc">
-        Sugna Enterprise Suite is a modern cloud-based ERP platform designed for NGOs, humanitarian organizations, hospitals, and donor-funded projects. Manage finance, grants, HR, procurement, logistics, and compliance in one secure and scalable system.
-      </p>
-      <div class="home-hero-ctas">
-        <a class="btn btn-home-primary" href="{% url 'website:demo_request' %}">Request demo</a>
-        <a class="btn btn-home-outline" href="{% url 'website:modules' %}">Explore modules</a>
-        <a class="btn btn-home-dark" href="{% url 'website:login_portal' %}">Login</a>
-      </div>
-      <div class="home-hero-badges">
-        <span class="home-badge">Multi-tenant</span>
-        <span class="home-badge">Fund accounting</span>
-        <span class="home-badge">Grant compliance</span>
-        <span class="home-badge">Role-based security</span>
+{# 1. Hero — Sway-style slider (fade, 6s), Dynamics look #}
+<section class="home-hero home-hero--slider" data-home-hero-slider aria-roledescription="carousel" aria-label="Sugna Enterprise Suite highlights">
+  <div class="home-hero-slider-viewport" id="home-hero-slider-viewport">
+    {# Slide 1 #}
+    <div class="home-hero-slide is-active" role="group" aria-roledescription="slide" aria-label="Slide 1 of 4" aria-hidden="false" id="home-hero-slide-0">
+      <div class="container home-hero-grid">
+        <div class="home-hero-copy">
+          <p class="home-hero-eyebrow">Cloud ERP for NGOs, hospitals &amp; donor-funded programs</p>
+          <h1 class="home-hero-title">Sugna Enterprise Suite</h1>
+          <p class="home-hero-slogan">Simplifying compliance, finance, and operations.</p>
+          <p class="home-hero-desc">A modern cloud ERP for NGOs, humanitarian organizations, hospitals, and donor-funded projects — financial &amp; grant management, HR, procurement &amp; logistics, fleet, AI Auditor, hospital, and corporate governance in one secure system.</p>
+          <div class="home-hero-ctas home-hero-ctas--slider">
+            <a class="btn btn-home-primary" href="{% url 'website:demo_request' %}">Request demo</a>
+          </div>
+          <div class="home-hero-badges">
+            <span class="home-badge">Multi-tenant</span>
+            <span class="home-badge">Fund accounting</span>
+            <span class="home-badge">Grant compliance</span>
+            <span class="home-badge">Role-based security</span>
+          </div>
+        </div>
+        <div class="home-hero-shot">
+          <div class="home-hero-shot-bg">
+            <figure class="home-laptop">
+              <div class="home-laptop-lid">
+                <div class="home-laptop-camera" aria-hidden="true"></div>
+                <div class="home-laptop-screen">
+                  <img class="home-laptop-screen-img" src="{% static 'assets/images/hero-dashboard.svg' %}" alt="Executive overview dashboard with KPIs and approvals" width="1200" height="720" decoding="async" loading="eager" fetchpriority="high" />
+                </div>
+              </div>
+              <div class="home-laptop-base" aria-hidden="true"><div class="home-laptop-notch"></div></div>
+            </figure>
+            <p class="home-hero-shot-caption">Executive overview — KPIs, spend trends, and approvals.</p>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="home-hero-shot">
-      <div class="home-hero-shot-bg">
-        <figure class="home-laptop">
-          <div class="home-laptop-lid">
-            <div class="home-laptop-camera" aria-hidden="true"></div>
-            <div class="home-laptop-screen">
-              <img class="home-laptop-screen-img" src="{% static 'assets/images/hero-dashboard.svg' %}" alt="Dashboard preview: executive overview with KPIs, spend chart, and approvals" width="1200" height="720" decoding="async" loading="eager" fetchpriority="high" />
-            </div>
+    {# Slide 2 #}
+    <div class="home-hero-slide" role="group" aria-roledescription="slide" aria-label="Slide 2 of 4" aria-hidden="true" id="home-hero-slide-1">
+      <div class="container home-hero-grid">
+        <div class="home-hero-copy">
+          <p class="home-hero-eyebrow">Finance &amp; grant stewardship</p>
+          <h2 class="home-hero-title">Financial control donors can rely on</h2>
+          <p class="home-hero-slogan">Fund dimensions, multi-currency, and funder-ready reporting.</p>
+          <p class="home-hero-desc">Align budgets, burn rates, and compliance checkpoints to donor rules — with audit trails your finance and program teams share.</p>
+          <div class="home-hero-ctas home-hero-ctas--slider">
+            <a class="btn btn-home-primary" href="{% url 'website:modules' %}">Explore modules</a>
           </div>
-          <div class="home-laptop-base" aria-hidden="true"><div class="home-laptop-notch"></div></div>
-        </figure>
-        <p class="home-hero-shot-caption">Live-style dashboard — finance, grants, and approvals in one place.</p>
+        </div>
+        <div class="home-hero-shot">
+          <div class="home-hero-shot-bg">
+            <figure class="home-laptop">
+              <div class="home-laptop-lid">
+                <div class="home-laptop-camera" aria-hidden="true"></div>
+                <div class="home-laptop-screen">
+                  <img class="home-laptop-screen-img" src="{% static 'assets/images/dashboard-preview.png' %}" alt="Finance and reporting dashboard preview" width="1200" height="750" decoding="async" loading="lazy" />
+                </div>
+              </div>
+              <div class="home-laptop-base" aria-hidden="true"><div class="home-laptop-notch"></div></div>
+            </figure>
+            <p class="home-hero-shot-caption">Finance &amp; reporting — tailored in your deployment.</p>
+          </div>
+        </div>
       </div>
+    </div>
+    {# Slide 3 #}
+    <div class="home-hero-slide" role="group" aria-roledescription="slide" aria-label="Slide 3 of 4" aria-hidden="true" id="home-hero-slide-2">
+      <div class="container home-hero-grid">
+        <div class="home-hero-copy">
+          <p class="home-hero-eyebrow">Operations on one stack</p>
+          <h2 class="home-hero-title">HR, procurement, and logistics connected</h2>
+          <p class="home-hero-slogan">From requisition to warehouse — with approvals and traceability.</p>
+          <p class="home-hero-desc">Unify people, purchasing, and inventory so country offices and headquarters operate on the same policies and data model.</p>
+          <div class="home-hero-ctas home-hero-ctas--slider">
+            <a class="btn btn-home-primary" href="{% url 'website:solutions' %}">View solutions</a>
+          </div>
+        </div>
+        <div class="home-hero-shot">
+          <div class="home-hero-shot-bg">
+            <figure class="home-laptop">
+              <div class="home-laptop-lid">
+                <div class="home-laptop-camera" aria-hidden="true"></div>
+                <div class="home-laptop-screen">
+                  <img class="home-laptop-screen-img" src="{% static 'assets/images/hero-dashboard.png' %}" alt="Operations dashboard preview" width="1200" height="720" decoding="async" loading="lazy" />
+                </div>
+              </div>
+              <div class="home-laptop-base" aria-hidden="true"><div class="home-laptop-notch"></div></div>
+            </figure>
+            <p class="home-hero-shot-caption">Operations visibility across programs and sites.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {# Slide 4 #}
+    <div class="home-hero-slide" role="group" aria-roledescription="slide" aria-label="Slide 4 of 4" aria-hidden="true" id="home-hero-slide-3">
+      <div class="container home-hero-grid">
+        <div class="home-hero-copy">
+          <p class="home-hero-eyebrow">Enterprise-ready</p>
+          <h2 class="home-hero-title">Security, tenancy, and audit-ready insight</h2>
+          <p class="home-hero-slogan">Role-based access, segregation of duties, and intelligent review.</p>
+          <p class="home-hero-desc">Deploy with confidence for audits and peak periods — multi-tenant isolation, encryption, and optional AI-assisted compliance signals.</p>
+          <div class="home-hero-ctas home-hero-ctas--slider">
+            <a class="btn btn-home-primary" href="{% url 'website:features' %}">Explore features</a>
+          </div>
+        </div>
+        <div class="home-hero-shot">
+          <div class="home-hero-shot-bg">
+            <figure class="home-laptop">
+              <div class="home-laptop-lid">
+                <div class="home-laptop-camera" aria-hidden="true"></div>
+                <div class="home-laptop-screen">
+                  <img class="home-laptop-screen-img" src="{% static 'assets/images/hero-security-dashboard.svg' %}" alt="Security and audit readiness dashboard showing tenant isolation, encryption, segregation of duties, and audit trail" width="1200" height="720" decoding="async" loading="lazy" />
+                </div>
+              </div>
+              <div class="home-laptop-base" aria-hidden="true"><div class="home-laptop-notch"></div></div>
+            </figure>
+            <p class="home-hero-shot-caption">Dashboards leadership and auditors expect.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="container home-hero-slider-controls-wrap">
+    <div class="home-hero-slider-controls">
+      <button type="button" class="home-hero-slider-arrow home-hero-slider-prev" aria-controls="home-hero-slider-viewport" aria-label="Previous slide">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="home-hero-slider-dots" role="tablist" aria-label="Choose slide">
+        <button type="button" class="home-hero-slider-dot is-active" role="tab" aria-selected="true" aria-controls="home-hero-slide-0" id="home-hero-tab-0" data-slide-index="0"><span class="visually-hidden">Slide 1</span></button>
+        <button type="button" class="home-hero-slider-dot" role="tab" aria-selected="false" aria-controls="home-hero-slide-1" id="home-hero-tab-1" data-slide-index="1"><span class="visually-hidden">Slide 2</span></button>
+        <button type="button" class="home-hero-slider-dot" role="tab" aria-selected="false" aria-controls="home-hero-slide-2" id="home-hero-tab-2" data-slide-index="2"><span class="visually-hidden">Slide 3</span></button>
+        <button type="button" class="home-hero-slider-dot" role="tab" aria-selected="false" aria-controls="home-hero-slide-3" id="home-hero-tab-3" data-slide-index="3"><span class="visually-hidden">Slide 4</span></button>
+      </div>
+      <button type="button" class="home-hero-slider-arrow home-hero-slider-next" aria-controls="home-hero-slider-viewport" aria-label="Next slide">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
     </div>
   </div>
 </section>
@@ -111,54 +216,62 @@
       <h2 id="home-modules-title" class="home-modules-title">Modules overview</h2>
       <p class="home-modules-sub">Purpose-built capabilities for finance, programs, and operations in one integrated suite.</p>
     </header>
-    <div class="home-modules-grid home-modules-grid--six">
+    <div class="home-modules-grid home-modules-grid--seven">
       <article class="home-module-card">
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/finance-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
-        <h3>Financial</h3>
-        <p>Ledger, funds, multi-currency, budgets, and reporting aligned to how your organization runs.</p>
-        <a class="home-module-link" href="{% url 'website:modules' %}#finance">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
-      </article>
-      <article class="home-module-card">
-        <div class="home-module-thumb">
-          <img src="{% static 'assets/images/grants-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
-        </div>
-        <h3>Grants</h3>
-        <p>Donor rules, grant budgets, compliance checkpoints, and funder-ready reporting.</p>
-        <a class="home-module-link" href="{% url 'website:modules' %}#finance">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+        <h3>Financial &amp; Grant Management</h3>
+        <p>Fund accounting, donor visibility, grant controls, multi-currency, and funder-ready reporting in one discipline.</p>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='financial-grant-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/hr-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
-        <h3>HR</h3>
+        <h3>Human Resource Management</h3>
         <p>People records, attendance, leave, payroll hooks, and workforce visibility.</p>
-        <a class="home-module-link" href="{% url 'website:modules' %}#hr">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='human-resource-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/procurement-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
-        <h3>Procurement</h3>
-        <p>Requisitions, approvals, POs, inventory, and warehouse tracking with audit trails.</p>
-        <a class="home-module-link" href="{% url 'website:modules' %}#procurement">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+        <h3>Procurement &amp; Logistics</h3>
+        <p>Requisitions, approvals, POs, inventory, warehouse, and traceability with audit trails.</p>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='procurement-logistics' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
         <div class="home-module-thumb">
-          <img src="{% static 'assets/images/hospital-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
+          <img src="{% static 'assets/images/dashboard-preview.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
-        <h3>Hospital</h3>
-        <p>Clinical and operational workflows with disciplined revenue cycle and stock where you need it.</p>
-        <a class="home-module-link" href="{% url 'website:modules' %}#hospital">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+        <h3>Fleet Management</h3>
+        <p>Vehicles, drivers, maintenance, and field costs connected to programs and supply chain.</p>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='fleet-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/ai-auditor.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
-        <h3>AI Audit</h3>
+        <h3>AI Auditor</h3>
         <p>Anomaly detection, duplicate checks, compliance signals, and intelligent review queues.</p>
-        <a class="home-module-link" href="{% url 'website:modules' %}#ai-auditor">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='ai-auditor' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+      </article>
+      <article class="home-module-card">
+        <div class="home-module-thumb">
+          <img src="{% static 'assets/images/hospital-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
+        </div>
+        <h3>Hospital Management</h3>
+        <p>Clinical and operational workflows with disciplined revenue cycle and stock where you need it.</p>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='hospital-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
+      </article>
+      <article class="home-module-card">
+        <div class="home-module-thumb">
+          <img src="{% static 'assets/images/hero-dashboard.svg' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
+        </div>
+        <h3>Sugna Corporate Management</h3>
+        <p>Group governance, consolidation, executive dashboards, and policy across entities.</p>
+        <a class="home-module-link" href="{% url 'website:module_detail' slug='corporate-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
     </div>
   </div>
@@ -295,27 +408,36 @@
 <section class="home-section home-pricing" id="pricing">
   <div class="container">
     <h2 class="home-section-title">Pricing</h2>
-    <p class="home-section-sub">Flexible tiers for growing organizations. Final pricing depends on modules, users, and deployment — request a quote for your footprint.</p>
+    <p class="home-section-sub">Flexible plans that scale with your organization from core financial management to full enterprise operations across multiple entities and countries.</p>
     <div class="home-price-grid">
       <div class="home-price-card">
-        <h3 class="home-price-name">Starter</h3>
-        <p class="home-price-tag">From —</p>
-        <p class="home-price-lead">Single country / small teams starting with core finance.</p>
+        <h3 class="home-price-name">Basic</h3>
+        <p class="home-price-tag home-price-tag--saas"><span class="price-saas__amount">$29</span><span class="price-saas__period">/mo</span></p>
+        <p class="home-price-lead">Finance, grants, and budgeting on one legal entity.</p>
         <ul class="home-price-list">
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Core Financial &amp; Grant Management</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Limited users &amp; entities</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Standard support</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>3 users · 1 legal entity</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Core support</span></li>
           <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Cloud-hosted</span></li>
+        </ul>
+        <a class="btn btn-home-price-outline" href="{% url 'website:contact' %}">Get quote</a>
+      </div>
+      <div class="home-price-card">
+        <h3 class="home-price-name">Standard</h3>
+        <p class="home-price-tag home-price-tag--saas"><span class="price-saas__amount">$59</span><span class="price-saas__period">/mo</span></p>
+        <p class="home-price-lead">Adds multi-project tracking and approval workflows.</p>
+        <ul class="home-price-list">
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>7 users · 1 legal entity</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Enhanced support</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Guided onboarding</span></li>
         </ul>
         <a class="btn btn-home-price-outline" href="{% url 'website:contact' %}">Get quote</a>
       </div>
       <div class="home-price-card home-price-card--featured">
         <h3 class="home-price-name">Professional</h3>
-        <p class="home-price-tag">From —</p>
-        <p class="home-price-lead">Multi-program NGOs and mid-size hospitals.</p>
+        <p class="home-price-tag home-price-tag--saas"><span class="price-saas__amount">$99</span><span class="price-saas__period">/mo</span></p>
+        <p class="home-price-lead">Adds HR, procurement, and audit trail.</p>
         <ul class="home-price-list">
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Expanded modules (HR, Procurement)</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>More users &amp; sites</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>20 users · 1 legal entity</span></li>
           <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Priority support</span></li>
           <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Implementation onboarding</span></li>
         </ul>
@@ -323,42 +445,52 @@
       </div>
       <div class="home-price-card">
         <h3 class="home-price-name">Enterprise</h3>
-        <p class="home-price-tag">Custom</p>
-        <p class="home-price-lead">Large INGOs, hospital groups, multi-country operations.</p>
+        <p class="home-price-tag home-price-tag--saas"><span class="price-saas__amount">$249</span><span class="price-saas__period">/mo</span></p>
+        <p class="home-price-lead">Fleet, AI Auditor, hospital, multi-country, unlimited users.</p>
         <ul class="home-price-list">
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Full module suite + AI Auditor</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Hospital Management option</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Advanced security &amp; SLAs</span></li>
-          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Dedicated success team</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Unlimited users · unlimited entities</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Enterprise SLAs</span></li>
+          <li><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-check"/></svg><span>Dedicated success</span></li>
         </ul>
         <a class="btn btn-home-price-outline" href="{% url 'website:contact' %}">Contact sales</a>
       </div>
     </div>
     <div class="home-pricing-table-wrap">
-      <h3 class="home-pricing-table-title">Compare at a glance</h3>
-      <p class="home-pricing-table-sub">Representative capabilities — final entitlements are defined in your order.</p>
-      <div class="compare-table-wrap home-compare-table">
-        <table class="compare-table">
+      <h3 class="home-pricing-table-title">Compare Editions</h3>
+      <p class="home-pricing-table-sub">Modules, users, entities, support, and multi-country at a glance.</p>
+      <div class="compare-table-wrap home-compare-table home-compare-table--editions">
+        <table class="compare-table compare-table--editions">
           <thead>
             <tr>
-              <th>Capability</th>
-              <th>Starter</th>
-              <th>Professional</th>
-              <th>Enterprise</th>
+              <th scope="col">Feature</th>
+              <th scope="col">Basic</th>
+              <th scope="col">Standard</th>
+              <th scope="col">Professional</th>
+              <th scope="col">Enterprise</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>Financial &amp; Grant Management</td><td>✓</td><td>✓</td><td>✓</td></tr>
-            <tr><td>HR Management</td><td>—</td><td>✓</td><td>✓</td></tr>
-            <tr><td>Procurement &amp; Logistics</td><td>Add-on</td><td>✓</td><td>✓</td></tr>
-            <tr><td>AI Auditor</td><td>—</td><td>Add-on</td><td>✓</td></tr>
-            <tr><td>Hospital Management</td><td>—</td><td>—</td><td>✓</td></tr>
-            <tr><td>Multi-entity / multi-country</td><td>Limited</td><td>✓</td><td>✓</td></tr>
+            <tr class="compare-table__row-price"><th scope="row">List price</th><td>$29/mo</td><td>$59/mo</td><td>$99/mo</td><td>$249/mo</td></tr>
+            <tr><th scope="row">Users (included)</th><td>3</td><td>7</td><td>20</td><td>Unlimited</td></tr>
+            <tr><th scope="row">Legal entities (included)</th><td>1</td><td>1</td><td>1</td><td>Unlimited</td></tr>
+            <tr><th scope="row">Support level</th><td>Core</td><td>Enhanced</td><td>Priority</td><td>Enterprise SLAs</td></tr>
+            <tr><th scope="row">Multi-country</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><th scope="row">Financial management</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Grant tracking</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Budgeting</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Multi-project tracking</th><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Approval workflows</th><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">HR</th><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Procurement</th><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Audit trail</th><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Fleet</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><th scope="row">AI Auditor</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><th scope="row">Hospital module</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
           </tbody>
         </table>
       </div>
     </div>
-    <p class="home-pricing-foot"><a href="{% url 'website:pricing' %}">Full plan comparison</a></p>
+    <p class="home-pricing-foot"><a href="{% url 'website:pricing_subscriptions' %}#compare">Full plan comparison</a></p>
   </div>
 </section>
 
@@ -371,7 +503,7 @@
     <div class="home-cta-copy">
       <div>
         <h2 class="home-cta-title">See Sugna Enterprise Suite in action</h2>
-        <p class="home-cta-text">Schedule a tailored walkthrough — finance, grants, HR, procurement, or hospital workflows.</p>
+        <p class="home-cta-text">Schedule a tailored walkthrough — any of our seven modules, from finance and fleet to hospital and corporate.</p>
       </div>
     </div>
     <a class="btn btn-home-primary btn-home-primary--lg" href="{% url 'website:demo_request' %}">Request a demo</a>

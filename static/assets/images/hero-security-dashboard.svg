@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" fill="none" role="img" aria-labelledby="secDashTitle">
+  <title id="secDashTitle">Sugna Enterprise Suite  security, tenancy, and audit readiness dashboard preview</title>
+  <defs>
+    <linearGradient id="secBg" x1="0" y1="0" x2="1200" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EEF2F7"/>
+    </linearGradient>
+    <linearGradient id="secHdr" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F4C81"/>
+      <stop offset="1" stop-color="#1B6EC8"/>
+    </linearGradient>
+    <linearGradient id="secCardGlow" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <filter id="secSh" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.07"/>
+    </filter>
+    <filter id="secShSm" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.05"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="720" fill="url(#secBg)"/>
+  <rect width="1200" height="54" fill="url(#secHdr)"/>
+  <text x="28" y="35" fill="#FFFFFF" font-family="Inter, system-ui, Segoe UI, sans-serif" font-size="15" font-weight="600">Sugna Enterprise Suite</text>
+  <text x="240" y="35" fill="rgba(255,255,255,0.75)" font-family="Inter, system-ui, sans-serif" font-size="12">Trust &amp; assurance</text>
+  <rect x="1060" y="16" width="112" height="24" rx="4" fill="rgba(255,255,255,0.15)"/>
+  <text x="1076" y="33" fill="#FFFFFF" font-family="Inter, system-ui, sans-serif" font-size="11">Audit mode</text>
+  <rect x="0" y="54" width="76" height="666" fill="#E2E8F0"/>
+  <rect x="22" y="80" width="32" height="32" rx="6" fill="#FFFFFF" filter="url(#secShSm)"/>
+  <rect x="27" y="86" width="22" height="3" rx="1" fill="#1B6EC8"/>
+  <rect x="27" y="94" width="16" height="3" rx="1" fill="#94A3B8"/>
+  <rect x="22" y="126" width="32" height="32" rx="6" fill="#FFFFFF" opacity="0.65"/>
+  <rect x="22" y="168" width="32" height="32" rx="6" fill="#FFFFFF" opacity="0.65"/>
+  <text x="104" y="100" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="600">Security &amp; audit center</text>
+  <text x="104" y="128" fill="#0D6F77" font-family="Inter, system-ui, sans-serif" font-size="13">Multi-tenant ù Encrypted ù Segregation of duties</text>
+  <g filter="url(#secSh)">
+    <rect x="104" y="152" width="260" height="102" rx="8" fill="url(#secCardGlow)" stroke="#CBD5E1"/>
+    <text x="120" y="188" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="12">Tenant isolation</text>
+    <text x="120" y="224" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="600">Active</text>
+    <text x="120" y="244" fill="#2A9D4F" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600">Dedicated workspace</text>
+  </g>
+  <g filter="url(#secSh)">
+    <rect x="380" y="152" width="260" height="102" rx="8" fill="url(#secCardGlow)" stroke="#CBD5E1"/>
+    <text x="396" y="188" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="12">Encryption</text>
+    <text x="396" y="224" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="600">AES-256</text>
+    <text x="396" y="244" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11">At rest &amp; in transit</text>
+  </g>
+  <g filter="url(#secSh)">
+    <rect x="656" y="152" width="260" height="102" rx="8" fill="url(#secCardGlow)" stroke="#CBD5E1"/>
+    <text x="672" y="188" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="12">SoD conflicts (open)</text>
+    <text x="672" y="224" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="600">0</text>
+    <text x="672" y="244" fill="#2A9D4F" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600">Within policy</text>
+  </g>
+  <g filter="url(#secSh)">
+    <rect x="932" y="152" width="252" height="102" rx="8" fill="url(#secCardGlow)" stroke="#CBD5E1"/>
+    <text x="948" y="188" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="12">AI-assisted review</text>
+    <text x="948" y="224" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="600">12</text>
+    <text x="948" y="244" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11">Transactions queued</text>
+  </g>
+  <rect x="104" y="278" width="568" height="396" rx="8" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#secSh)"/>
+  <text x="120" y="316" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="15" font-weight="600">Audit trail  postings &amp; approvals</text>
+  <text x="120" y="340" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="12">Last 48 hours ù Immutable log</text>
+  <rect x="120" y="356" width="536" height="36" rx="4" fill="#F1F5F9"/>
+  <text x="132" y="380" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600">TIMESTAMP</text>
+  <text x="260" y="380" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600">USER / ROLE</text>
+  <text x="420" y="380" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600">EVENT</text>
+  <text x="580" y="380" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600">STATUS</text>
+  <rect x="120" y="400" width="536" height="40" rx="4" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="132" y="426" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">16:42 UTC</text>
+  <text x="260" y="426" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">J. Okon / Approver</text>
+  <text x="420" y="426" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">JV posted  GR-0841</text>
+  <text x="580" y="426" fill="#2A9D4F" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Recorded</text>
+  <rect x="120" y="448" width="536" height="40" rx="4" fill="#FAFBFC" stroke="#E2E8F0"/>
+  <text x="132" y="474" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">15:08 UTC</text>
+  <text x="260" y="474" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">M. Reyes / Finance</text>
+  <text x="420" y="474" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">Role change  read-only</text>
+  <text x="580" y="474" fill="#2A9D4F" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Verified</text>
+  <rect x="120" y="496" width="536" height="40" rx="4" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <text x="132" y="522" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">11:55 UTC</text>
+  <text x="260" y="522" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">System / Policy engine</text>
+  <text x="420" y="522" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">SoD rule evaluated</text>
+  <text x="580" y="522" fill="#2A9D4F" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Passed</text>
+  <rect x="688" y="278" width="496" height="396" rx="8" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#secSh)"/>
+  <text x="704" y="316" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="15" font-weight="600">Access &amp; roles snapshot</text>
+  <rect x="704" y="336" width="464" height="1" fill="#E2E8F0"/>
+  <text x="704" y="368" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">Finance controllers</text>
+  <text x="1128" y="368" fill="#1B6EC8" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Segregated</text>
+  <text x="704" y="404" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">Grant managers</text>
+  <text x="1128" y="404" fill="#1B6EC8" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Scoped</text>
+  <text x="704" y="440" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">Field purchasers</text>
+  <text x="1128" y="440" fill="#1B6EC8" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Approval paths</text>
+  <text x="704" y="476" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="12">Auditors (read-only)</text>
+  <text x="1128" y="476" fill="#1B6EC8" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Exported</text>
+  <rect x="704" y="508" width="464" height="140" rx="6" fill="#F8FAFC" stroke="#E2E8F0"/>
+  <text x="720" y="542" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600">Assurance posture</text>
+  <text x="720" y="568" fill="#64748B" font-family="Inter, system-ui, sans-serif" font-size="11">Leadership and donor-grade reporting without exposing sensitive credentials.</text>
+  <circle cx="736" cy="612" r="4" fill="#2A9D4F"/>
+  <text x="748" y="616" fill="#475569" font-family="Inter, system-ui, sans-serif" font-size="11">Last external sync: verified</text>
+  <circle cx="736" cy="634" r="4" fill="#1B6EC8"/>
+  <text x="748" y="638" fill="#475569" font-family="Inter, system-ui, sans-serif" font-size="11">Drill-down ready for audits</text>
+  <text x="704" y="668" fill="#94A3B8" font-family="Inter, system-ui, sans-serif" font-size="10">Illustrative dashboard  your deployment may vary.</text>
+</svg>

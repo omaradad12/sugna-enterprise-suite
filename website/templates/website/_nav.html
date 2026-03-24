@@ -1,33 +1,32 @@
 {% load static %}
-<header class="site-header">
-  <div class="site-header-shell">
+<header class="site-header" id="site-header">
+  <div class="site-header-accent" aria-hidden="true"></div>
+  <div class="site-header-shell navbar">
     <div class="container header-inner">
-      <div class="header-brand-row">
-        <a class="logo logo--asset" href="{% url 'website:home' %}" aria-label="Sugna Enterprise Suite">
-          <img class="logo-mark" src="{% static 'assets/images/logo.png' %}" width="260" height="72" alt="Sugna Enterprise Suite" />
+      <div class="header-brand">
+        <a class="logo logo--asset" href="{% url 'website:home' %}" aria-label="Sugna Enterprise Suite — Home">
+          <img
+            class="logo-mark"
+            src="{% static 'assets/images/logo.png' %}"
+            width="300"
+            height="84"
+            alt="Sugna Enterprise Suite"
+            decoding="async"
+          />
         </a>
+      </div>
+
+      <div class="header-nav-center">
+        {% include "website/includes/_site_nav.html" %}
+      </div>
+
+      <div class="header-end">
+        <div class="header-actions">
+          <a class="btn btn-header-cta" href="{% url 'website:demo_request' %}">Request Demo</a>
+        </div>
         <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-main" aria-label="Open menu" id="nav-toggle">
           <span></span><span></span><span></span>
         </button>
-      </div>
-      <nav class="nav-main" id="nav-main" aria-label="Primary">
-        <a href="{% url 'website:home' %}">Home</a>
-        <a href="{% url 'website:about' %}">About</a>
-        <a href="{% url 'website:modules' %}">Modules</a>
-        <a href="{% url 'website:solutions' %}">Solutions</a>
-        <a href="{% url 'website:features' %}">Features</a>
-        <a href="{% url 'website:industries' %}">Industries</a>
-        <a href="{% url 'website:pricing' %}">Pricing</a>
-        <a href="{% url 'website:training' %}">Training</a>
-        <a href="{% url 'website:blog' %}">Blog</a>
-        <a href="{% url 'website:demo_request' %}">Demo</a>
-        <a href="{% url 'website:support' %}">Support</a>
-      </nav>
-      <div class="header-end">
-        <div class="header-actions">
-          <a class="header-signin" href="{% url 'website:login_portal' %}">Sign in</a>
-          <a class="btn btn-header-cta" href="{% url 'website:demo_request' %}">Request demo</a>
-        </div>
       </div>
     </div>
   </div>
@@ -41,6 +40,24 @@
       var open = nav.classList.toggle("is-open");
       btn.setAttribute("aria-expanded", open ? "true" : "false");
     });
+  }
+  var mq = window.matchMedia("(max-width: 1099px)");
+  document.addEventListener("click", function (e) {
+    if (!mq.matches) return;
+    if (!nav || nav.contains(e.target) || (btn && btn.contains(e.target))) return;
+    nav.classList.remove("is-open");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  });
+  function onMqChange() {
+    if (!mq.matches && nav) {
+      nav.classList.remove("is-open");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
+  }
+  if (mq.addEventListener) {
+    mq.addEventListener("change", onMqChange);
+  } else if (mq.addListener) {
+    mq.addListener(onMqChange);
   }
 })();
 </script>

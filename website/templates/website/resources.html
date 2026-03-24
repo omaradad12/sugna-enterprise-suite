@@ -1,0 +1,88 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Resources{% endblock %}
+{% block meta_description %}Documentation, implementation guidance, compliance resources, training, insights, and legal information for Sugna Enterprise Suite—built for NGOs, hospitals, and public institutions.{% endblock %}
+{% block body_class %}body-marketing-shell page-resources-hub{% endblock %}
+{% block extra_head %}
+  {{ block.super }}
+  <script src="{% static 'website/js/resources-hub.js' %}" defer></script>
+{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_resources.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="resources-hub" data-resources-hub>
+  <div class="container">
+    <header class="resources-hub__hero pricing-page-intro">
+      <p class="pricing-page-eyebrow">Library</p>
+      <h1 class="pricing-page-intro__title">Resources</h1>
+      <p class="marketing-page-subtitle">Documentation, insights, and legal information for Sugna Enterprise Suite—built for NGOs, hospitals, and public institutions.</p>
+      <p class="pricing-logic-lead resources-hub__intro-links">
+        Browse the <a href="{% url 'website:blog' %}">blog</a>, visit <a href="{% url 'website:support' %}">support</a>,
+        review <a href="{% url 'website:privacy' %}">privacy</a> and <a href="{% url 'website:terms' %}">terms</a>,
+        or <a href="{% url 'website:contact' %}">contact us</a> for tailored materials.
+      </p>
+      <label class="resources-hub__search">
+        <span class="visually-hidden">Search resources</span>
+        <svg class="m-icon m-icon--sm resources-hub__search-icon" aria-hidden="true" focusable="false"><use href="#mi-search"/></svg>
+        <input type="search" class="resources-hub__search-input" placeholder="Search by topic (e.g. grants, HR, audit, training…)" autocomplete="off" data-resources-search />
+      </label>
+    </header>
+  </div>
+
+  <section class="resources-hub__section" aria-label="Resource categories">
+    <div class="container">
+      <p class="resources-hub__empty" hidden data-resources-empty>No categories match your search. Try another keyword.</p>
+      <div class="resources-hub__grid" data-resources-grid>
+        <article class="resources-hub-card" data-resources-item>
+          <div class="resources-hub-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-monitor"/></svg>
+          </div>
+          <h2 class="resources-hub-card__title">Product documentation</h2>
+          <p class="resources-hub-card__desc">User guides, configuration instructions, and module explanations for finance, grants, HR, procurement, and more.</p>
+          <a class="resources-hub-card__link" href="{% url 'website:customer_portal_section' slug='knowledge-base' %}">Browse knowledge base</a>
+        </article>
+        <article class="resources-hub-card" data-resources-item>
+          <div class="resources-hub-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-target"/></svg>
+          </div>
+          <h2 class="resources-hub-card__title">Implementation guides</h2>
+          <p class="resources-hub-card__desc">Step-by-step patterns for deploying Sugna in NGOs, hospitals, and multi-entity organizations—from discovery to go-live.</p>
+          <a class="resources-hub-card__link" href="{% url 'website:pricing_onboarding' %}">View onboarding &amp; packages</a>
+        </article>
+        <article class="resources-hub-card" data-resources-item>
+          <div class="resources-hub-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-shield"/></svg>
+          </div>
+          <h2 class="resources-hub-card__title">Compliance &amp; donor standards</h2>
+          <p class="resources-hub-card__desc">Best practices for financial controls, audit readiness, segregation of duties, and donor reporting expectations.</p>
+          <a class="resources-hub-card__link" href="{% url 'website:customer_portal_section' slug='templates' %}">View templates &amp; standards</a>
+        </article>
+        <article class="resources-hub-card" data-resources-item>
+          <div class="resources-hub-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-graduation"/></svg>
+          </div>
+          <h2 class="resources-hub-card__title">Training materials</h2>
+          <p class="resources-hub-card__desc">Onboarding paths, tutorials, webinars, and certification-oriented learning for HQ and field teams.</p>
+          <a class="resources-hub-card__link" href="{% url 'website:training' %}">Explore training</a>
+        </article>
+        <article class="resources-hub-card" data-resources-item>
+          <div class="resources-hub-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-bar-chart"/></svg>
+          </div>
+          <h2 class="resources-hub-card__title">Blog &amp; insights</h2>
+          <p class="resources-hub-card__desc">Articles on ERP, grants management, internal controls, and digital transformation for mission-driven organizations.</p>
+          <a class="resources-hub-card__link" href="{% url 'website:blog' %}">Read insights</a>
+        </article>
+        <article class="resources-hub-card" data-resources-item>
+          <div class="resources-hub-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-landmark"/></svg>
+          </div>
+          <h2 class="resources-hub-card__title">Legal &amp; policies</h2>
+          <p class="resources-hub-card__desc">Privacy policy, terms of use, and data-protection information. Review how we handle information about your organization.</p>
+          <a class="resources-hub-card__link" href="{% url 'website:privacy' %}">Privacy policy</a>
+          <a class="resources-hub-card__link resources-hub-card__link--secondary" href="{% url 'website:terms' %}">Terms of use</a>
+        </article>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

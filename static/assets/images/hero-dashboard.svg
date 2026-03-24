@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" fill="none" role="img" aria-labelledby="heroDashTitle">
-  <title id="heroDashTitle">Sugna Enterprise Suite  finance and operations dashboard preview</title>
+  <title id="heroDashTitle">Sugna Enterprise Suite - finance and operations dashboard preview</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="720" gradientUnits="userSpaceOnUse">
       <stop stop-color="#FAF9F8"/>
       <stop offset="1" stop-color="#F3F2F1"/>
     </linearGradient>
     <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0078D4"/>
-      <stop offset="1" stop-color="#106EBE"/>
+      <stop stop-color="#1B6EC8"/>
+      <stop offset="1" stop-color="#155AAC"/>
     </linearGradient>
     <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0078D4" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#0078D4" stop-opacity="0.02"/>
+      <stop stop-color="#1B6EC8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#1B6EC8" stop-opacity="0.02"/>
     </linearGradient>
     <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.08"/>
@@ -22,70 +22,63 @@
     </filter>
   </defs>
   <rect width="1200" height="720" fill="url(#bg)"/>
-  <!-- App chrome -->
   <rect x="0" y="0" width="1200" height="52" fill="url(#hdr)"/>
-  <text x="24" y="34" fill="white" font-family="Segoe UI, system-ui, sans-serif" font-size="15" font-weight="600">Sugna Enterprise Suite</text>
+  <text x="24" y="34" fill="white" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="15" font-weight="600">Sugna Enterprise Suite</text>
   <rect x="1050" y="14" width="126" height="24" rx="2" fill="rgba(255,255,255,0.2)"/>
-  <text x="1062" y="31" fill="white" font-family="Segoe UI, system-ui, sans-serif" font-size="11" opacity="0.95">Search</text>
-  <!-- Sidebar -->
+  <text x="1062" y="31" fill="white" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="11" opacity="0.95">Search</text>
   <rect x="0" y="52" width="72" height="668" fill="#EDEBE9"/>
-  <rect x="20" y="76" width="32" height="4" rx="1" fill="#0078D4" opacity="0.35"/>
+  <rect x="20" y="76" width="32" height="4" rx="1" fill="#1B6EC8" opacity="0.35"/>
   <rect x="22" y="96" width="28" height="28" rx="4" fill="#FFFFFF" filter="url(#sh2)"/>
   <rect x="22" y="136" width="28" height="28" rx="4" fill="#FFFFFF" opacity="0.7"/>
   <rect x="22" y="176" width="28" height="28" rx="4" fill="#FFFFFF" opacity="0.7"/>
   <rect x="22" y="216" width="28" height="28" rx="4" fill="#FFFFFF" opacity="0.7"/>
-  <!-- Main -->
-  <text x="96" y="92" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="22" font-weight="600">Executive overview</text>
-  <text x="96" y="118" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="13">Finance ù Grants ù Operations</text>
-  <!-- KPI row -->
+  <text x="96" y="92" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="22" font-weight="600">Executive overview</text>
+  <text x="96" y="118" fill="#0D6F77" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="13">Finance - Grants - Operations</text>
   <g filter="url(#sh)">
     <rect x="96" y="142" width="252" height="96" rx="2" fill="#FFFFFF" stroke="#EDEBE9"/>
-    <text x="112" y="176" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="12">YTD revenue</text>
-    <text x="112" y="210" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">$4.2M</text>
-    <rect x="112" y="218" width="64" height="6" rx="1" fill="#107C10" opacity="0.85"/>
-    <text x="182" y="226" fill="#107C10" font-family="Segoe UI, system-ui, sans-serif" font-size="11" font-weight="600">+12%</text>
+    <text x="112" y="176" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="12">YTD revenue</text>
+    <text x="112" y="210" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">$4.2M</text>
+    <rect x="112" y="218" width="64" height="6" rx="1" fill="#2A9D4F" opacity="0.9"/>
+    <text x="182" y="226" fill="#2A9D4F" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="11" font-weight="600">+12%</text>
   </g>
   <g filter="url(#sh)">
     <rect x="364" y="142" width="252" height="96" rx="2" fill="#FFFFFF" stroke="#EDEBE9"/>
-    <text x="380" y="176" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="12">Active grants</text>
-    <text x="380" y="210" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">38</text>
-    <text x="380" y="232" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="11">7 closing this quarter</text>
+    <text x="380" y="176" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="12">Active grants</text>
+    <text x="380" y="210" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">38</text>
+    <text x="380" y="232" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="11">7 closing this quarter</text>
   </g>
   <g filter="url(#sh)">
     <rect x="632" y="142" width="252" height="96" rx="2" fill="#FFFFFF" stroke="#EDEBE9"/>
-    <text x="648" y="176" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="12">Budget utilization</text>
-    <text x="648" y="210" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">78%</text>
+    <text x="648" y="176" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="12">Budget utilization</text>
+    <text x="648" y="210" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">78%</text>
     <rect x="648" y="218" width="200" height="8" rx="1" fill="#EDEBE9"/>
-    <rect x="648" y="218" width="156" height="8" rx="1" fill="#0078D4" opacity="0.85"/>
+    <rect x="648" y="218" width="156" height="8" rx="1" fill="#1B6EC8" opacity="0.85"/>
   </g>
   <g filter="url(#sh)">
     <rect x="900" y="142" width="276" height="96" rx="2" fill="#FFFFFF" stroke="#EDEBE9"/>
-    <text x="916" y="176" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="12">Compliance</text>
-    <text x="916" y="210" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">On track</text>
-    <text x="916" y="232" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="11">0 critical findings</text>
+    <text x="916" y="176" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="12">Compliance</text>
+    <text x="916" y="210" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="24" font-weight="600">On track</text>
+    <text x="916" y="232" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="11">0 critical findings</text>
   </g>
-  <!-- Chart panel -->
   <rect x="96" y="262" width="700" height="380" rx="2" fill="#FFFFFF" stroke="#EDEBE9" filter="url(#sh)"/>
-  <text x="112" y="298" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="15" font-weight="600">Program spend vs. plan</text>
-  <text x="112" y="322" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="12">Last 12 months ù USD</text>
-  <!-- Simple area chart -->
-  <path d="M112 520 L180 480 L260 500 L340 420 L420 440 L500 380 L580 400 L660 360 L740 390 L796 410" stroke="#0078D4" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="112" y="298" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="15" font-weight="600">Program spend vs. plan</text>
+  <text x="112" y="322" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="12">Last 12 months - USD</text>
+  <path d="M112 520 L180 480 L260 500 L340 420 L420 440 L500 380 L580 400 L660 360 L740 390 L796 410" stroke="#1B6EC8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M112 520 L180 480 L260 500 L340 420 L420 440 L500 380 L580 400 L660 360 L740 390 L796 410 L796 560 L112 560 Z" fill="url(#areaFill)"/>
   <line x1="112" y1="560" x2="796" y2="560" stroke="#EDEBE9" stroke-width="1"/>
   <line x1="112" y1="400" x2="796" y2="400" stroke="#EDEBE9" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-  <!-- Right list -->
   <rect x="812" y="262" width="364" height="380" rx="2" fill="#FFFFFF" stroke="#EDEBE9" filter="url(#sh)"/>
-  <text x="828" y="298" fill="#201F1E" font-family="Segoe UI, system-ui, sans-serif" font-size="15" font-weight="600">Approvals</text>
+  <text x="828" y="298" fill="#23284B" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="15" font-weight="600">Approvals</text>
   <rect x="828" y="318" width="332" height="1" fill="#EDEBE9"/>
-  <g font-family="Segoe UI, system-ui, sans-serif" font-size="12">
-    <text x="828" y="348" fill="#323130">PR-2041 ù Medical supplies</text>
-    <text x="1100" y="348" fill="#0078D4" text-anchor="end" font-weight="600">Review</text>
-    <text x="828" y="378" fill="#323130">JV-883 ù Grant reallocation</text>
-    <text x="1100" y="378" fill="#0078D4" text-anchor="end" font-weight="600">Review</text>
-    <text x="828" y="408" fill="#323130">TS-441 ù Field travel</text>
+  <g font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="12">
+    <text x="828" y="348" fill="#323130">PR-2041 - Medical supplies</text>
+    <text x="1100" y="348" fill="#1B6EC8" text-anchor="end" font-weight="600">Review</text>
+    <text x="828" y="378" fill="#323130">JV-883 - Grant reallocation</text>
+    <text x="1100" y="378" fill="#1B6EC8" text-anchor="end" font-weight="600">Review</text>
+    <text x="828" y="408" fill="#323130">TS-441 - Field travel</text>
     <text x="1100" y="408" fill="#605E5C" text-anchor="end">Approved</text>
-    <text x="828" y="438" fill="#323130">PO-992 ù Warehouse stock</text>
+    <text x="828" y="438" fill="#323130">PO-992 - Warehouse stock</text>
     <text x="1100" y="438" fill="#605E5C" text-anchor="end">Approved</text>
   </g>
-  <text x="828" y="620" fill="#605E5C" font-family="Segoe UI, system-ui, sans-serif" font-size="11">Data shown is illustrative.</text>
+  <text x="828" y="620" fill="#605E5C" font-family="Inter, Segoe UI, system-ui, sans-serif" font-size="11">Data shown is illustrative.</text>
 </svg>

@@ -1,0 +1,30 @@
+{% extends "tenant_portal/portal/layout.html" %}
+{% load i18n %}
+{% block portal_title %}{{ portal_page_title }}{% endblock %}
+{% block portal_content %}
+<div class="max-w-2xl">
+  <nav class="text-[13px] text-[#605e5c] mb-4" aria-label="Breadcrumb">
+    <a href="{{ portal_hub_url }}" class="hover:underline" style="color:#0078D4;">{% trans "Customer portal" %}</a>
+    <span class="mx-1" aria-hidden="true">/</span>
+    <a href="{{ portal_section_url }}" class="hover:underline" style="color:#0078D4;">{{ portal_section.label }}</a>
+    <span class="mx-1" aria-hidden="true">/</span>
+    <span class="text-[#323130] font-medium">{{ portal_page_title }}</span>
+  </nav>
+  <h1 class="text-2xl font-bold text-[#201f1e] tracking-tight mb-3">{{ portal_page_title }}</h1>
+  <p class="text-sm text-[#605e5c] leading-relaxed mb-6">{{ portal_page_description }}</p>
+  <div class="erp-section">
+    <div class="erp-section-header px-4 py-2">
+      <span class="text-xs font-semibold uppercase tracking-wide">{% trans "Coming next" %}</span>
+    </div>
+    <div class="erp-section-body px-4 py-4 text-sm text-[#323130] leading-relaxed">
+      {% blocktrans trimmed %}
+        This page is part of the customer portal roadmap. Content and integrations will appear here as services
+        are connected for your tenant. Use the sidebar to open areas that already link to the operational workspace.
+      {% endblocktrans %}
+    </div>
+  </div>
+  <p class="mt-6 text-[13px]">
+    <a href="{{ portal_section_url }}" class="font-medium no-underline hover:underline" style="color:#0078D4;">← {% trans "Back to section" %}</a>
+  </p>
+</div>
+{% endblock %}

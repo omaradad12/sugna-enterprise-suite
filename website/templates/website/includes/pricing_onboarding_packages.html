@@ -1,0 +1,147 @@
+{# Onboarding packages comparison — reusable block for pricing_onboarding #}
+<section id="packages" class="pricing-anchor-section pricing-packages-section" tabindex="-1">
+  <h2 class="visually-hidden">Onboarding packages comparison</h2>
+
+  <div class="pricing-packages-panel">
+    <div class="pricing-packages-table-scroll" role="region" aria-label="Onboarding packages by subscription tier" tabindex="0">
+      <table class="pricing-packages-table">
+        <caption class="visually-hidden">Onboarding by subscription tier (Basic through Enterprise), pricing in US dollars per single legal entity, feature comparison</caption>
+        <thead>
+          <tr class="pricing-packages-table__row-titles">
+            <th scope="col" class="pricing-packages-table__corner"><span class="visually-hidden">Feature</span></th>
+            <th scope="col" class="pricing-packages-table__pkg-title">Basic</th>
+            <th scope="col" class="pricing-packages-table__pkg-title">Standard</th>
+            <th scope="col" class="pricing-packages-table__pkg-title">Professional</th>
+            <th scope="col" class="pricing-packages-table__pkg-title">Enterprise</th>
+          </tr>
+          <tr class="pricing-packages-table__row-pricing">
+            <th scope="row" class="pricing-packages-table__corner pricing-packages-table__corner--muted">Investment</th>
+            <td class="pricing-packages-table__pkg-head">
+              <span class="pricing-packages-table__price">$3,000</span>
+              <span class="pricing-packages-table__duration">7 days</span>
+            </td>
+            <td class="pricing-packages-table__pkg-head">
+              <span class="pricing-packages-table__price">$5,500</span>
+              <span class="pricing-packages-table__duration">14 days</span>
+            </td>
+            <td class="pricing-packages-table__pkg-head">
+              <span class="pricing-packages-table__price">$10,000</span>
+              <span class="pricing-packages-table__duration">21 days</span>
+            </td>
+            <td class="pricing-packages-table__pkg-head">
+              <span class="pricing-packages-table__price">$15,000</span>
+              <span class="pricing-packages-table__duration">30 days</span>
+            </td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Duration</th>
+            <td>7 days</td>
+            <td>14 days</td>
+            <td>21 days</td>
+            <td>30 days</td>
+          </tr>
+          <tr>
+            <th scope="row">Projects included</th>
+            <td>1–2 projects</td>
+            <td>up to 5 projects</td>
+            <td>up to 10 projects</td>
+            <td>10+ projects</td>
+          </tr>
+          <tr>
+            <th scope="row">Legal entities</th>
+            <td>1 entity</td>
+            <td>1 entity</td>
+            <td>1 entity</td>
+            <td>1 entity</td>
+          </tr>
+          <tr>
+            <th scope="row">Dedicated implementation specialist</th>
+            <td>Shared</td>
+            <td>Shared</td>
+            <td>Senior specialist</td>
+            <td>Dedicated</td>
+          </tr>
+          <tr>
+            <th scope="row">Workspace setup</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Chart of accounts setup</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Projects &amp; grants structure</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Budget structure configuration</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Approval workflow configuration</th>
+            <td class="pricing-packages-table__cell-no">{% include "website/includes/_pkg_no.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Role &amp; permission setup</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Data import templates</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">User training sessions</th>
+            <td>1 session</td>
+            <td>2 sessions</td>
+            <td>3 sessions</td>
+            <td>4 sessions</td>
+          </tr>
+          <tr>
+            <th scope="row">UAT support</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Go-live support</th>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+            <td class="pricing-packages-table__cell-check">{% include "website/includes/_pkg_yes.html" %}</td>
+          </tr>
+          <tr>
+            <th scope="row">Hypercare period</th>
+            <td>1 week</td>
+            <td>2 weeks</td>
+            <td>3 weeks</td>
+            <td>4 weeks</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

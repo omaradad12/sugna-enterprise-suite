@@ -1,0 +1,33 @@
+{% load i18n %}
+<aside class="w-64 flex-shrink-0 border-r flex flex-col h-full overflow-hidden bg-[#f7f9fc]" style="border-color:#e5e7eb;" aria-label="{% trans 'Customer portal navigation' %}">
+  <div class="px-3 py-3 border-b shrink-0" style="border-color:#e5e7eb;">
+    <a href="{{ portal_hub_url }}"
+       class="flex items-center gap-2 px-2 py-2 rounded-md text-[13px] font-semibold no-underline {% if not portal_current_section %}portal-sidebar-link--active{% else %}text-[#323130] hover:bg-[#eef3ff]{% endif %}"
+       style="{% if not portal_current_section %}border-left:4px solid #2563eb;{% endif %}">
+      <i data-feather="home" class="w-4 h-4 flex-shrink-0"></i>
+      <span>{% trans "Portal hub" %}</span>
+    </a>
+  </div>
+  <nav class="flex-1 overflow-y-auto py-2 px-2">
+    {% for nav in portal_nav %}
+    <div class="mb-1">
+      <a href="{{ nav.href }}"
+         class="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] font-semibold uppercase tracking-wide no-underline portal-sidebar-link {% if nav.is_section_landing_active %}portal-sidebar-link--active{% else %}text-[#605e5c]{% endif %}">
+        <i data-feather="{{ nav.icon }}" class="w-3.5 h-3.5 flex-shrink-0"></i>
+        <span class="truncate normal-case tracking-normal">{{ nav.label }}</span>
+      </a>
+      <ul class="mt-0.5 ml-1 pl-2 border-l border-[#e5e7eb] space-y-0.5">
+        {% for c in nav.children %}
+        <li>
+          <a href="{{ c.href }}"
+             class="block pl-2 pr-2 py-1.5 rounded-md text-[13px] no-underline portal-sidebar-link {% if c.is_active %}portal-sidebar-link--active{% else %}text-[#374151]{% endif %}"
+             {% if c.is_external_route %}title="{% trans 'Opens operational workspace' %}"{% endif %}>
+            {{ c.label }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </nav>
+</aside>

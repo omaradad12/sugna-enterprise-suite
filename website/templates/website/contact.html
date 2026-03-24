@@ -1,15 +1,10 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% load static %}
 {% block title %}Contact{% endblock %}
-{% block content %}
-<div class="page-hero page-hero--visual">
-  <div class="container">
-    <div class="page-hero-icon-row" aria-hidden="true">
-      <span class="page-hero-pill">Sales &amp; support</span>
-    </div>
-    <h1>Contact</h1>
-    <p>Reach sales, partnerships, or general inquiries. We typically respond within one business day.</p>
-  </div>
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_support.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Get in touch" title="Contact" lead="Reach sales, partnerships, or general inquiries. We typically respond within one business day." %}
 </div>
 <section class="section contact-page-sway">
   <div class="container two-col contact-page-grid">

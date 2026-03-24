@@ -1,0 +1,48 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}{{ module.title }}{% endblock %}
+{% block meta_description %}{{ module.meta_description }}{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_features.html" %}{% endblock %}
+{% block marketing_content %}
+<article class="modules-page modules-page--detail">
+  <div class="container">
+    <nav class="modules-page__breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'website:modules' %}">Modules</a>
+      <span class="modules-page__breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="modules-page__breadcrumb-current">{{ module.title }}</span>
+    </nav>
+    <header class="modules-page__detail-hero">
+      <p class="modules-page__detail-eyebrow">Product suite · Module {{ module.index }}</p>
+      <div class="modules-page__detail-title-row">
+        <span class="modules-page__detail-icon" aria-hidden="true">
+          <svg class="m-icon m-icon--lg"><use href="#{{ module.icon }}"/></svg>
+        </span>
+        <h1 class="modules-page__detail-title">{{ module.title }}</h1>
+      </div>
+      <p class="modules-page__detail-tagline">{{ module.tagline }}</p>
+    </header>
+  </div>
+
+  <section class="section modules-page__detail-body" aria-labelledby="module-cap-heading">
+    <div class="container">
+      <h2 id="module-cap-heading" class="visually-hidden">Capabilities</h2>
+      <div class="modules-page__groups">
+        {% for group in module.feature_groups %}
+        <div class="modules-page__group card">
+          <h3 class="modules-page__group-title">{{ group.heading }}</h3>
+          <ul class="modules-page__group-list">
+            {% for line in group.items %}
+            <li>{{ line }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="modules-page__detail-actions">
+        <a class="btn btn-outline" href="{% url 'website:modules' %}">All modules</a>
+        <a class="btn btn-primary" href="{% url 'website:demo_request' %}">Request a demo</a>
+      </p>
+    </div>
+  </section>
+</article>
+{% endblock %}

@@ -1,16 +1,10 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% load static %}
 {% block title %}Request a demo{% endblock %}
-{% block content %}
-<div class="page-hero page-hero--visual">
-  <div class="container">
-    <div class="page-hero-icon-row" aria-hidden="true">
-      <span class="page-hero-pill">Live walkthrough</span>
-      <span class="page-hero-pill">Tailored to your org</span>
-    </div>
-    <h1>Request a demo</h1>
-    <p>Share a few details and we’ll schedule a session tailored to your programs, regions, and modules of interest.</p>
-  </div>
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_support.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Product tour" title="Request a demo" lead="Share a few details and we’ll schedule a session tailored to your programs, regions, and modules of interest." %}
 </div>
 <section class="section demo-page-sway">
   <div class="container demo-page-grid">

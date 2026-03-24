@@ -1,0 +1,10 @@
+{% comment %}Secondary nav — Help center, contact, updates (blog){% endcomment %}
+<nav class="pricing-subnav pricing-subnav--site" aria-label="Support sections">
+  <div class="container">
+    <div class="pricing-subnav__inner">
+      <a href="{% url 'website:support' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'support' %} is-active{% endif %}">Help center</a>
+      <a href="{% url 'website:contact' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'contact' %} is-active{% endif %}">Contact</a>
+      <a href="{% url 'website:blog' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'blog' %} is-active{% endif %}">Updates</a>
+    </div>
+  </div>
+</nav>

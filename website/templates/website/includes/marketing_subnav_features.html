@@ -1,0 +1,10 @@
+{% comment %}Secondary nav — Platform, Modules, Features{% endcomment %}
+<nav class="pricing-subnav pricing-subnav--site" aria-label="Features sections">
+  <div class="container">
+    <div class="pricing-subnav__inner">
+      <a href="{% url 'website:platform' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'platform' %} is-active{% endif %}">Platform</a>
+      <a href="{% url 'website:modules' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'modules' or request.resolver_match and request.resolver_match.url_name == 'module_detail' %} is-active{% endif %}">Modules</a>
+      <a href="{% url 'website:features' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'features' %} is-active{% endif %}">Features</a>
+    </div>
+  </div>
+</nav>

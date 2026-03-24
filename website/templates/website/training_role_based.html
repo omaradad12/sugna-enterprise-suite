@@ -1,0 +1,34 @@
+{% extends "website/marketing_page_base.html" %}
+{% block title %}Role-based learning{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_training.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Training" title="Role-based learning" lead="Curricula scoped to finance, grants, programs, approvers, and auditors—so every cohort practices the workflows they own in production." %}
+</div>
+<section class="section">
+  <div class="container card-grid">
+    <article class="card">
+      <h3>Finance &amp; grants</h3>
+      <p>Journals, funds, restrictions, budgets, period close, and donor reporting routines aligned to your chart and policies.</p>
+    </article>
+    <article class="card">
+      <h3>Program &amp; field</h3>
+      <p>Requisitions, commitments, activity costs, and narrative evidence that tie spend to outcomes and donor rules.</p>
+    </article>
+    <article class="card">
+      <h3>Approvers &amp; audit</h3>
+      <p>Separation of duties, escalation, sampling, and how to read AI-assisted signals without bypassing controls.</p>
+    </article>
+    <article class="card">
+      <h3>Administrators</h3>
+      <p>Users, roles, master data, environments, and safe release practices across HQ and country offices.</p>
+    </article>
+  </div>
+</section>
+<section class="section section-alt">
+  <div class="container" style="text-align:center;">
+    <p class="section-sub" style="margin-bottom:1rem;">Tailor a cohort plan for rollout</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:contact' %}">Contact us</a>
+  </div>
+</section>
+{% endblock %}

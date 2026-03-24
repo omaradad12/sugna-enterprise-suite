@@ -1,0 +1,191 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Support — Customer Portal{% endblock %}
+{% block meta_description %}Technical assistance, SLA details, onboarding guidance, and help resources for Sugna Enterprise Suite.{% endblock %}
+{% block body_class %}body-marketing-shell page-customer-portal-section page-customer-portal-support{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_customer_portal.html" %}{% endblock %}
+{% block marketing_content %}
+
+<section class="cp-section-hero cp-support-hero cp-portal-hero--premium">
+  <div class="container">
+    <nav class="cp-breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'website:home' %}">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="{% url 'website:customer_portal_home' %}">Customer Portal</a>
+      <span aria-hidden="true">/</span>
+      <span class="cp-breadcrumb-current">{{ cp_title }}</span>
+    </nav>
+    <div class="cp-portal-hero__inner">
+      <p class="cp-portal-eyebrow">Help center</p>
+      <h1 class="cp-section-title cp-section-title--portal">{{ cp_title }}</h1>
+      <p class="cp-section-lead cp-portal-lead">{{ sup_lead }}</p>
+      <p class="cp-section-note cp-portal-note">{{ sup_portal_note }}</p>
+      <p class="cp-section-back cp-portal-back">
+        <a href="{% url 'website:customer_portal_home' %}">← Customer portal access</a>
+        <span class="cp-portal-back__sep" aria-hidden="true">·</span>
+        <a href="{% url 'website:customer_portal_dashboard' %}">Dashboard preview</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="cp-kb-section" aria-labelledby="cp-support-options-heading">
+  <div class="container cp-kb-section__inner">
+    <h2 id="cp-support-options-heading" class="cp-kb-heading">Support options</h2>
+
+    <div class="cp-kb-search-wrap" role="search">
+      <label class="cp-kb-search-label" for="cp-support-search">Search for help</label>
+      <div class="cp-kb-search-field cp-kb-search-field--with-btn">
+        <div class="cp-kb-search-input-wrap">
+          <svg class="cp-kb-search-icon m-icon" aria-hidden="true"><use href="#mi-search"/></svg>
+          <input
+            type="search"
+            id="cp-support-search"
+            class="cp-kb-search-input cp-kb-search-input--in-group"
+            name="q"
+            autocomplete="off"
+            placeholder="Search topics, SLA, tickets, training…"
+            aria-controls="cp-support-filter-root"
+          />
+        </div>
+        <button type="button" class="cp-kb-search-submit" id="cp-support-search-btn">Search</button>
+      </div>
+    </div>
+
+    <p id="cp-support-empty" class="cp-kb-empty" hidden>No results match your search. Try another term or clear the search box.</p>
+
+    <div id="cp-support-filter-root">
+    <div class="cp-kb-grid">
+      {% for opt in sup_options %}
+      <article class="cp-kb-card cp-support-option-card cp-support-filterable">
+        <div class="cp-kb-card__head">
+          <span class="cp-kb-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md"><use href="#{{ opt.icon }}"/></svg>
+          </span>
+          <h3 class="cp-kb-card__title">{{ opt.title }}</h3>
+        </div>
+        <p class="cp-kb-card__desc">{{ opt.description }}</p>
+        <div class="cp-support-card-footer">
+          <a class="btn btn-header-cta" href="{{ opt.href }}">{{ opt.cta_label }}</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    </div>
+  </div>
+</section>
+
+<section class="cp-support-panel" aria-labelledby="cp-support-faq-heading">
+  <div class="container cp-kb-section__inner">
+    <h2 id="cp-support-faq-heading" class="cp-support-block-heading">Frequently asked questions</h2>
+    <div class="cp-support-faq">
+      {% for item in sup_faq %}
+      <details class="cp-support-faq-item cp-support-filterable">
+        <summary>{{ item.question }}</summary>
+        <div class="cp-support-faq-answer">
+          <p>{{ item.answer }}</p>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="cp-support-sla" class="cp-support-panel cp-support-panel--alt" aria-labelledby="cp-support-sla-heading">
+  <div class="container cp-kb-section__inner">
+    <h2 id="cp-support-sla-heading" class="cp-support-block-heading">SLA information</h2>
+    <p class="cp-support-panel-lead cp-support-filterable">
+      Standard targets for support requests. Your contract may define different terms, regions, or critical-incident handling.
+    </p>
+    <div class="cp-support-table-wrap">
+      <table class="cp-support-table">
+        <thead>
+          <tr>
+            <th scope="col">Priority</th>
+            <th scope="col">Initial response</th>
+            <th scope="col">Resolution target</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in sup_sla_rows %}
+          <tr class="cp-support-filterable">
+            <td>{{ row.priority }}</td>
+            <td>{{ row.initial_response }}</td>
+            <td>{{ row.resolution_target }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="cp-support-status" class="cp-support-panel" aria-labelledby="cp-support-status-heading">
+  <div class="container cp-kb-section__inner">
+    <h2 id="cp-support-status-heading" class="cp-support-block-heading">System status</h2>
+    <div class="cp-support-status-card cp-support-filterable">
+      <p class="cp-support-status-lead">
+        Live availability, incident history, and scheduled maintenance are published in your signed-in customer portal when enabled.
+      </p>
+      <p class="cp-support-status-meta">
+        This public page does not show real-time telemetry. Use <strong>View status</strong> in Support options above to jump here, or sign in for tenant-specific notices.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="cp-support-panel cp-support-panel--alt" aria-labelledby="cp-support-contact-heading">
+  <div class="container cp-kb-section__inner">
+    <h2 id="cp-support-contact-heading" class="cp-support-block-heading">Contact options</h2>
+    <div class="cp-support-contact-grid">
+      {% for ch in sup_contact_channels %}
+      <article class="cp-kb-card cp-support-contact-card cp-support-filterable">
+        <h3 class="cp-support-contact-title">{{ ch.label }}</h3>
+        <p class="cp-kb-card__desc">{{ ch.value }}</p>
+        <p class="cp-support-contact-note">{{ ch.note }}</p>
+        <div class="cp-support-card-footer">
+          <a class="btn btn-header-cta" href="{{ ch.href }}">Open</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    <p class="cp-support-hours cp-support-filterable">{{ sup_contact_hours }}</p>
+  </div>
+</section>
+
+<script>
+(function () {
+  var input = document.getElementById("cp-support-search");
+  if (!input) return;
+  var nodes = document.querySelectorAll(".cp-support-filterable");
+  var empty = document.getElementById("cp-support-empty");
+  function run() {
+    var q = (input.value || "").trim().toLowerCase();
+    var any = false;
+    nodes.forEach(function (el) {
+      var show = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      if (el.tagName === "TR") {
+        el.style.display = show ? "" : "none";
+      } else {
+        el.hidden = !show;
+      }
+      if (show) {
+        any = true;
+      }
+    });
+    if (empty) {
+      empty.hidden = any;
+    }
+  }
+  input.addEventListener("input", run);
+  var btn = document.getElementById("cp-support-search-btn");
+  if (btn) {
+    btn.addEventListener("click", function () {
+      run();
+      input.focus();
+    });
+  }
+})();
+</script>
+
+{% endblock %}

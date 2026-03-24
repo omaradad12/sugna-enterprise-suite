@@ -1,0 +1,109 @@
+{% extends "website/base.html" %}
+{% block body_class %}body-pricing{% endblock %}
+{% load static %}
+{% block title %}Pricing — Partnerships{% endblock %}
+{% block extra_head %}
+  <script defer src="{% static 'website/js/pricing-anchor-scroll.js' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="page-hero page-hero--pricing">
+  <div class="container">
+    <div class="pricing-hero__text">
+      <div class="page-hero-icon-row" aria-hidden="true">
+        <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-globe"/></svg> Ecosystem</span>
+        <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-shield"/></svg> Trust</span>
+      </div>
+      <h1>Partnerships</h1>
+      <p class="pricing-hero__lead">Programs for implementation, consulting, technology, integration, and strategic alliances—built on enablement and joint success.</p>
+    </div>
+  </div>
+</div>
+
+{% include "website/includes/pricing_subnav.html" %}
+
+<section class="section pricing-section">
+  <div class="container">
+    <div class="pricing-prose">
+      <p class="pricing-prose__lead">
+        Sugna grows through partners who share our standards for security, ethics, and delivery quality. Explore each track below
+        or start a conversation with our team.
+      </p>
+    </div>
+
+    <section id="implementation-partners" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Implementation partners</h2>
+      <p class="pricing-anchor-section__lead">
+        Systems integrators that lead discovery, configuration, data migration, and organizational change for multi-entity and
+        multi-country clients—supported by playbooks, estimation guides, and escalation to Sugna specialists.
+      </p>
+    </section>
+
+    <section id="consulting-partners" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Consulting partners</h2>
+      <p class="pricing-anchor-section__lead">
+        Advisory firms that align finance, grants, and operations strategy to Sugna’s model—often ahead of a formal implementation
+        or as ongoing optimization and audit readiness.
+      </p>
+    </section>
+
+    <section id="technology-partners" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Technology partners</h2>
+      <p class="pricing-anchor-section__lead">
+        ISVs and platforms extending analytics, identity, payments, mobility, or vertical depth alongside Sugna’s core modules,
+        with documented APIs and joint roadmap alignment.
+      </p>
+    </section>
+
+    <section id="integration-partners" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Integration partners</h2>
+      <p class="pricing-anchor-section__lead">
+        Partners who implement supported integration patterns—ETL, iPaaS, field data capture, and donor systems—with test tenants
+        and co-marketing for validated, supportable solutions.
+      </p>
+    </section>
+
+    <section id="alliances" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Strategic alliances</h2>
+      <p class="pricing-anchor-section__lead">
+        Networks, funders, associations, and government programs that want consistent reporting and responsible scale—framework
+        agreements, bulk enablement, and thought leadership on digital transformation in the social sector.
+      </p>
+    </section>
+
+    <div class="pricing-partner-detail-grid">
+      <article class="pricing-partner-detail">
+        <h3>What partners receive</h3>
+        <p>Enablement, deal registration, and repeatable deployment assets so your teams can propose and deliver Sugna with confidence.</p>
+        <ul>
+          <li>Solution playbooks and architecture patterns</li>
+          <li>Partner manager coverage and product escalation</li>
+          <li>Joint business planning for sectors and geographies</li>
+          <li>Referral and reseller mechanics where appropriate</li>
+        </ul>
+      </article>
+      <article class="pricing-partner-detail">
+        <h3>Ethics &amp; compliance</h3>
+        <p>Partners uphold data protection, anti-corruption, and honest representation of Sugna capabilities—especially in donor-funded contexts.</p>
+        <ul>
+          <li>Security and privacy expectations in shared pursuits</li>
+          <li>Accurate scoping and handover to steady-state support</li>
+        </ul>
+      </article>
+    </div>
+
+    <h3 class="pricing-prose__subtitle">How we engage</h3>
+    <ul class="pricing-step-list">
+      <li><strong>Introductory call</strong> — fit, geography, sector focus, and capacity.</li>
+      <li><strong>Program alignment</strong> — commercial model, training path, and reference expectations.</li>
+      <li><strong>Enablement</strong> — technical and functional certification tracks for your leads.</li>
+      <li><strong>First joint opportunity</strong> — supported pursuit with clear roles and success metrics.</li>
+    </ul>
+
+    <p class="pricing-prose__cta">
+      <a class="btn btn-primary" href="{% url 'website:contact' %}">Partner with Sugna</a>
+      <a class="btn btn-outline" href="{% url 'website:about' %}">About Sugna</a>
+      <a class="btn btn-outline" href="{% url 'website:demo_request' %}">Request a partner demo</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

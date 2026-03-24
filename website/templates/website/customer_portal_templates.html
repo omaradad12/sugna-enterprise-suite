@@ -1,0 +1,102 @@
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Templates — Customer Portal{% endblock %}
+{% block meta_description %}Professional template packs for finance, grants, HR, procurement, compliance, and hospital management—aligned to NGO and humanitarian standards.{% endblock %}
+{% block body_class %}body-marketing-shell page-customer-portal-section page-customer-portal-templates{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_customer_portal.html" %}{% endblock %}
+{% block marketing_content %}
+
+<section class="cp-section-hero cp-tpl-hero cp-portal-hero--premium">
+  <div class="container">
+    <nav class="cp-breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'website:home' %}">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="{% url 'website:customer_portal_home' %}">Customer Portal</a>
+      <span aria-hidden="true">/</span>
+      <span class="cp-breadcrumb-current">{{ cp_title }}</span>
+    </nav>
+    <div class="cp-portal-hero__inner">
+      <p class="cp-portal-eyebrow">Template catalog</p>
+      <h1 class="cp-section-title cp-section-title--portal">{{ cp_title }}</h1>
+      <p class="cp-section-lead cp-portal-lead">{{ tpl_lead }}</p>
+      <p class="cp-tpl-standards cp-tpl-standards--hero">{{ tpl_standards }}</p>
+      <p class="cp-section-note cp-portal-note">{{ tpl_account_note }}</p>
+      <p class="cp-section-back cp-portal-back">
+        <a href="{% url 'website:customer_portal_home' %}">← Customer portal access</a>
+        <span class="cp-portal-back__sep" aria-hidden="true">·</span>
+        <a href="{% url 'website:customer_portal_dashboard' %}">Dashboard preview</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="cp-kb-section cp-tpl-section" aria-labelledby="cp-tpl-heading">
+  <div class="container cp-kb-section__inner">
+    <h2 id="cp-tpl-heading" class="cp-kb-heading">Template categories</h2>
+
+    <div class="cp-kb-search-wrap" role="search">
+      <label class="cp-kb-search-label" for="cp-tpl-search">Search templates</label>
+      <div class="cp-kb-search-field cp-kb-search-field--with-btn">
+        <div class="cp-kb-search-input-wrap">
+          <svg class="cp-kb-search-icon m-icon" aria-hidden="true"><use href="#mi-search"/></svg>
+          <input
+            type="search"
+            id="cp-tpl-search"
+            class="cp-kb-search-input cp-kb-search-input--in-group"
+            name="q"
+            autocomplete="off"
+            placeholder="Filter by category or keyword…"
+            aria-controls="cp-tpl-grid"
+          />
+        </div>
+        <button type="button" class="cp-kb-search-submit" id="cp-tpl-search-btn">Search</button>
+      </div>
+    </div>
+
+    <p id="cp-tpl-empty" class="cp-kb-empty" hidden>No categories match your search. Try another term or clear the search box.</p>
+
+    <div id="cp-tpl-grid" class="cp-kb-grid">
+      {% for cat in tpl_categories %}
+      <article class="cp-kb-card cp-tpl-card" id="tpl-{{ cat.slug }}">
+        <div class="cp-kb-card__head">
+          <span class="cp-kb-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md"><use href="#{{ cat.icon }}"/></svg>
+          </span>
+          <h3 class="cp-kb-card__title">{{ cat.title }}</h3>
+        </div>
+        <p class="cp-kb-card__desc">{{ cat.description }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  var input = document.getElementById("cp-tpl-search");
+  var btn = document.getElementById("cp-tpl-search-btn");
+  var grid = document.getElementById("cp-tpl-grid");
+  if (!input || !grid) return;
+  var cards = grid.querySelectorAll(".cp-kb-card");
+  var empty = document.getElementById("cp-tpl-empty");
+  function runFilter() {
+    var q = (input.value || "").trim().toLowerCase();
+    var n = 0;
+    cards.forEach(function (card) {
+      var show = !q || card.textContent.toLowerCase().indexOf(q) !== -1;
+      card.hidden = !show;
+      if (show) n++;
+    });
+    if (empty) empty.hidden = n > 0;
+  }
+  input.addEventListener("input", runFilter);
+  if (btn) {
+    btn.addEventListener("click", function () {
+      runFilter();
+      input.focus();
+    });
+  }
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,12 @@
+{% comment %}Customer Portal — Access | Workspace Dashboard | Knowledge Base | Templates | Support (Pricing-style pills){% endcomment %}
+<nav class="pricing-subnav pricing-subnav--site" aria-label="Customer portal sections">
+  <div class="container">
+    <div class="pricing-subnav__inner">
+      <a href="{% url 'website:customer_portal_home' %}" class="pricing-subnav__tab{% if request.resolver_match %}{% if request.resolver_match.url_name == 'customer_portal_home' or request.resolver_match.url_name == 'login_portal' %} is-active{% endif %}{% endif %}">Access</a>
+      <a href="{% url 'website:customer_portal_dashboard' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'customer_portal_dashboard' %} is-active{% endif %}">Workspace Dashboard</a>
+      <a href="{% url 'website:customer_portal_section' slug='knowledge-base' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'customer_portal_section' and request.resolver_match.kwargs.slug == 'knowledge-base' %} is-active{% endif %}">Knowledge Base</a>
+      <a href="{% url 'website:customer_portal_section' slug='templates' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'customer_portal_section' and request.resolver_match.kwargs.slug == 'templates' %} is-active{% endif %}">Templates</a>
+      <a href="{% url 'website:customer_portal_section' slug='support-center' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'customer_portal_section' and request.resolver_match.kwargs.slug == 'support-center' %} is-active{% endif %}">Support</a>
+    </div>
+  </div>
+</nav>

@@ -1,31 +1,254 @@
-{% extends "website/base.html" %}
-{% block title %}Blog{% endblock %}
-{% block meta_description %}Insights on ERP, grant management, compliance, and operations for mission-driven organizations.{% endblock %}
-{% block content %}
-{% include "website/includes/hero_marketing.html" with title="Insights &amp; updates" subtitle="Stories on finance, grants, and accountable operations." description="Practical guidance for NGOs, hospitals, and donor-funded programs. New articles are added regularly." %}
-
-<section class="m-section m-section--soft">
-  <div class="container">
-    <div class="m-blog-grid">
-      <article class="m-blog-card">
-        <p class="m-blog-meta">Coming soon</p>
-        <h2 class="m-blog-title">Grant reporting without the spreadsheet maze</h2>
-        <p class="m-blog-excerpt">How unified finance and grant data speeds donor reporting and audits.</p>
-      </article>
-      <article class="m-blog-card">
-        <p class="m-blog-meta">Coming soon</p>
-        <h2 class="m-blog-title">Segregation of duties in cloud ERP</h2>
-        <p class="m-blog-excerpt">Designing approvals and roles that satisfy auditors and stay usable in the field.</p>
-      </article>
-      <article class="m-blog-card">
-        <p class="m-blog-meta">Coming soon</p>
-        <h2 class="m-blog-title">Multi-entity consolidation for INGOs</h2>
-        <p class="m-blog-excerpt">One platform view across countries, programs, and funding sources.</p>
-      </article>
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Insights &amp; updates{% endblock %}
+{% block meta_description %}Practical guidance on finance, grants, HR, procurement, compliance, and ERP operations for NGOs, hospitals, and donor-funded organizations.{% endblock %}
+{% block body_class %}body-marketing-shell page-insights-hub{% endblock %}
+{% block extra_head %}
+  {{ block.super }}
+  <script src="{% static 'website/js/insights-hub.js' %}" defer></script>
+{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_resources.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="insights-hub" data-insights-hub>
+  <section class="insights-hero" aria-labelledby="insights-hero-title">
+    <div class="container insights-hero__inner">
+      <header class="insights-hero__header">
+        <p class="insights-hero__eyebrow">Insights</p>
+        <h1 id="insights-hero-title" class="insights-hero__title">Insights &amp; updates</h1>
+        <p class="insights-hero__subtitle">Stories on finance, grants, and accountable operations</p>
+        <p class="insights-hero__lead">Practical guidance for NGOs, hospitals, and donor-funded programs. New articles are added regularly.</p>
+      </header>
+      <div class="insights-hero__toolbar">
+        <label class="insights-search">
+          <span class="visually-hidden">Search articles</span>
+          <svg class="m-icon m-icon--sm insights-search__icon" aria-hidden="true" focusable="false"><use href="#mi-search"/></svg>
+          <input type="search" class="insights-search__input" placeholder="Search by topic, title, or keyword…" autocomplete="off" data-insights-search />
+        </label>
+        <div class="insights-chips" role="tablist" aria-label="Article categories">
+          <button type="button" class="insights-chip is-active" role="tab" aria-selected="true" data-insights-filter="all">All</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="financial">Financial &amp; Grant Management</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="hr">Human Resource Management</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="procurement">Procurement &amp; Logistics</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="fleet">Fleet Management</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="ai-auditor">AI Auditor</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="hospital">Hospital Management</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="compliance">Compliance &amp; Risk</button>
+          <button type="button" class="insights-chip" role="tab" aria-selected="false" data-insights-filter="erp-practices">ERP Best Practices</button>
+        </div>
+      </div>
     </div>
-    <p class="m-blog-note">Subscribe to product updates via our <a href="{% url 'website:contact' %}">contact form</a> — mention “newsletter.”</p>
-  </div>
-</section>
+  </section>
 
-{% include "website/includes/cta_banner.html" with cta_id="blog-cta-title" cta_title="See the platform live" cta_text="Schedule a guided session with our team." cta_btn="Request demo" cta_arrow=1 show_icon=1 %}
+  <section class="insights-featured-wrap" aria-labelledby="insights-featured-heading">
+    <div class="container">
+      <div class="insights-featured-group" data-insights-featured-group>
+      <h2 id="insights-featured-heading" class="insights-section-label">Featured</h2>
+      <article class="insights-featured" data-insights-item data-category="financial" data-insights-text>
+        <div class="insights-featured__body">
+          <span class="insights-badge">Financial &amp; Grant Management</span>
+          <h3 class="insights-featured__title">Grant reporting readiness under multi-donor rules</h3>
+          <p class="insights-featured__excerpt">How dimension-aware accounting, restricted funds, and auditable workflows shorten the path from field transactions to donor-ready narratives—without reconciling spreadsheets at month-end.</p>
+          <div class="insights-meta">
+            <time class="insights-meta__date" datetime="2025-01-18">Jan 18, 2025</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__read">8 min read</span>
+          </div>
+          <a class="btn btn-header-cta insights-card__cta" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=grant-reporting-readiness">Read article</a>
+        </div>
+        <div class="insights-featured__aside" aria-hidden="true">
+          <div class="insights-featured__figure">ERP insights for mission-driven finance teams</div>
+        </div>
+      </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="insights-grid-wrap" aria-labelledby="insights-latest-heading">
+    <div class="container">
+      <h2 id="insights-latest-heading" class="insights-section-label">Latest articles</h2>
+      <div class="insights-grid" data-insights-grid>
+        <article class="insights-card" data-insights-item data-category="compliance" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Compliance &amp; Risk</span>
+          <h3 class="insights-card__title">Segregation of duties that auditors accept—and teams can follow</h3>
+          <p class="insights-card__excerpt">Mapping approvals, role conflicts, and emergency overrides so controls hold up in HQ and country offices.</p>
+          <div class="insights-meta">
+            <time datetime="2024-12-03">Dec 3, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>6 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=sod-cloud-erp">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="hr" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Human Resource Management</span>
+          <h3 class="insights-card__title">HR master data governance for distributed payroll</h3>
+          <p class="insights-card__excerpt">Keeping positions, contracts, and cost allocation consistent when staff move between projects or entities.</p>
+          <div class="insights-meta">
+            <time datetime="2024-11-20">Nov 20, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>7 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=hr-master-data">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="procurement" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Procurement &amp; Logistics</span>
+          <h3 class="insights-card__title">Purchase thresholds, three-way match, and donor visibility</h3>
+          <p class="insights-card__excerpt">Structured matching from requisition to payment with documentation that satisfies procurement policies and audits.</p>
+          <div class="insights-meta">
+            <time datetime="2024-11-08">Nov 8, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>5 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=procurement-three-way">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="fleet" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Fleet Management</span>
+          <h3 class="insights-card__title">Fleet utilization metrics that align with program narratives</h3>
+          <p class="insights-card__excerpt">Linking vehicles, fuel, and maintenance to projects so vehicles are defensible in donor reports.</p>
+          <div class="insights-meta">
+            <time datetime="2024-10-30">Oct 30, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>6 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=fleet-donor-alignment">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="ai-auditor" data-insights-text>
+          <span class="insights-badge insights-badge--compact">AI Auditor</span>
+          <h3 class="insights-card__title">AI-assisted review before period close: what to automate first</h3>
+          <p class="insights-card__excerpt">Prioritizing anomaly detection and policy checks where human reviewers add the most judgment.</p>
+          <div class="insights-meta">
+            <time datetime="2024-10-14">Oct 14, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>9 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=ai-period-close">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="hospital" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Hospital Management</span>
+          <h3 class="insights-card__title">Patient revenue cycles alongside grant cost centers</h3>
+          <p class="insights-card__excerpt">Keeping clinical operations finance separate but reconciled with institutional grants and restricted funding.</p>
+          <div class="insights-meta">
+            <time datetime="2024-09-28">Sep 28, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>8 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=hospital-grants">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="financial" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Financial &amp; Grant Management</span>
+          <h3 class="insights-card__title">Chart of accounts design for restricted funds and segments</h3>
+          <p class="insights-card__excerpt">Balancing simplicity for users with the dimensions donors and regulators expect to see.</p>
+          <div class="insights-meta">
+            <time datetime="2024-09-12">Sep 12, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>7 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=coa-restricted-funds">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="erp-practices" data-insights-text>
+          <span class="insights-badge insights-badge--compact">ERP Best Practices</span>
+          <h3 class="insights-card__title">Change control when donor reporting rules shift mid-year</h3>
+          <p class="insights-card__excerpt">Versioning master data and templates while preserving an audit trail for what changed—and why.</p>
+          <div class="insights-meta">
+            <time datetime="2024-08-22">Aug 22, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>6 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=donor-rule-change-control">Read article</a>
+        </article>
+        <article class="insights-card" data-insights-item data-category="procurement" data-insights-text>
+          <span class="insights-badge insights-badge--compact">Procurement &amp; Logistics</span>
+          <h3 class="insights-card__title">Last-mile inventory visibility for field programs</h3>
+          <p class="insights-card__excerpt">Tracing goods from central warehouse to implementation sites without losing accountability.</p>
+          <div class="insights-meta">
+            <time datetime="2024-08-05">Aug 5, 2024</time>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span>5 min read</span>
+            <span class="insights-meta__sep" aria-hidden="true">·</span>
+            <span class="insights-meta__author">Sugna Team</span>
+          </div>
+          <a class="insights-card__link" href="{% url 'website:contact' %}?topic=insights-article&amp;ref=last-mile-inventory">Read article</a>
+        </article>
+      </div>
+      <p class="insights-empty" hidden data-insights-empty>No articles match your filters. Try another category or clear the search.</p>
+    </div>
+  </section>
+
+  <section class="insights-resources" aria-labelledby="insights-resources-heading">
+    <div class="container">
+      <h2 id="insights-resources-heading" class="insights-resources__title">Resource library</h2>
+      <p class="insights-resources__sub">Curated materials for implementation, compliance, and adoption—designed for NGO, hospital, and donor-funded contexts.</p>
+      <div class="insights-resources__grid">
+        <article class="insights-resource-card">
+          <div class="insights-resource-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-target"/></svg>
+          </div>
+          <h3 class="insights-resource-card__title">Implementation guides</h3>
+          <p class="insights-resource-card__desc">Phased rollout patterns for finance, grants, and operations teams moving from legacy tools to a single ERP.</p>
+          <a class="insights-resource-card__cta" href="{% url 'website:contact' %}?topic=implementation-guide">Request guide</a>
+        </article>
+        <article class="insights-resource-card">
+          <div class="insights-resource-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-shield"/></svg>
+          </div>
+          <h3 class="insights-resource-card__title">Compliance templates</h3>
+          <p class="insights-resource-card__desc">Checklists and control mapping starters aligned to segregation of duties, approvals, and audit evidence.</p>
+          <a class="insights-resource-card__cta" href="{% url 'website:contact' %}?topic=compliance-templates">Request templates</a>
+        </article>
+        <article class="insights-resource-card">
+          <div class="insights-resource-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-graduation"/></svg>
+          </div>
+          <h3 class="insights-resource-card__title">Training resources</h3>
+          <p class="insights-resource-card__desc">Role-based learning paths for headquarters, country offices, and hospital finance—from month-end to grant close.</p>
+          <a class="insights-resource-card__cta" href="{% url 'website:training' %}">View training</a>
+        </article>
+        <article class="insights-resource-card">
+          <div class="insights-resource-card__icon" aria-hidden="true">
+            <svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-refresh-cw"/></svg>
+          </div>
+          <h3 class="insights-resource-card__title">Product updates</h3>
+          <p class="insights-resource-card__desc">Release highlights, module enhancements, and governance features—summarized for executives and system owners.</p>
+          <a class="insights-resource-card__cta" href="{% url 'website:contact' %}?topic=product-updates">Subscribe to updates</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="insights-newsletter" aria-labelledby="insights-newsletter-heading">
+    <div class="container">
+      <div class="insights-newsletter__inner">
+        <div class="insights-newsletter__copy">
+          <h2 id="insights-newsletter-heading" class="insights-newsletter__title">Stay informed</h2>
+          <p class="insights-newsletter__lead">Occasional insights on ERP governance, donor reporting, and product capability—no clutter. We’ll route your email to our team to confirm preferences.</p>
+        </div>
+        <form class="insights-newsletter__form" action="{% url 'website:contact' %}" method="get">
+          <input type="hidden" name="topic" value="newsletter" />
+          <label class="visually-hidden" for="insights-newsletter-email">Work email</label>
+          <input id="insights-newsletter-email" class="insights-newsletter__input" type="email" name="email" required placeholder="Work email" autocomplete="email" />
+          <button type="submit" class="btn btn-header-cta insights-newsletter__btn">Subscribe</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div class="insights-hub__demo">
+    {% include "website/includes/cta_banner.html" with cta_id="blog-cta-title" cta_title="See the platform live" cta_text="Schedule a guided session with our team." cta_btn="Request demo" cta_arrow=1 show_icon=1 %}
+  </div>
+</div>
 {% endblock %}

@@ -480,7 +480,12 @@ def tenant_home_view(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "tenant_portal/home.html",
-        {"tenant": tenant, "tenant_user": user, "modules": visible_modules},
+        {
+            "tenant": tenant,
+            "tenant_user": user,
+            "modules": visible_modules,
+            "active_submenu": "dashboard",
+        },
     )
 
 

@@ -1,0 +1,27 @@
+{% comment %}Primary navigation — single row, Dynamics-style (order: Solutions → Customer Portal){% endcomment %}
+<nav class="nav-main nav-menu site-nav" id="nav-main" aria-label="Primary">
+  <div class="nav-item">
+    <a href="{% url 'website:solutions' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'solutions' or request.resolver_match.url_name == 'platform' %} nav-item__link--section-active{% endif %}{% endif %}">Solutions</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:industries' %}" class="nav-item__link{% if request.resolver_match and request.resolver_match.url_name == 'industries' %} nav-item__link--section-active{% endif %}">Industries</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:features' %}" class="nav-item__link{% if request.resolver_match and request.resolver_match.url_name == 'features' or request.resolver_match and request.resolver_match.url_name == 'modules' or request.resolver_match and request.resolver_match.url_name == 'module_detail' %} nav-item__link--section-active{% endif %}">Features</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:pricing_subscriptions' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'pricing_subscriptions' or request.resolver_match.url_name == 'pricing_onboarding' %} nav-item__link--section-active{% endif %}{% endif %}">Pricing</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:training' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'training' or request.resolver_match.url_name == 'training_role_based' or request.resolver_match.url_name == 'training_webinars' or request.resolver_match.url_name == 'training_certification' or request.resolver_match.url_name == 'training_support' %} nav-item__link--section-active{% endif %}{% endif %}">Training</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:resources' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'resources' or request.resolver_match.url_name == 'blog' or request.resolver_match.url_name == 'about' or request.resolver_match.url_name == 'privacy' or request.resolver_match.url_name == 'terms' %} nav-item__link--section-active{% endif %}{% endif %}">Resources</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:support' %}" class="nav-item__link nav-item__link--support{% if request.resolver_match %}{% if request.resolver_match.url_name == 'support' or request.resolver_match.url_name == 'contact' or request.resolver_match.url_name == 'demo_request' %} nav-item__link--section-active{% endif %}{% endif %}">Support</a>
+  </div>
+  <div class="nav-item">
+    <a href="{% url 'website:customer_portal_home' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'customer_portal_home' or request.resolver_match.url_name == 'customer_portal_dashboard' or request.resolver_match.url_name == 'customer_portal_section' or request.resolver_match.url_name == 'login_portal' %} nav-item__link--section-active{% endif %}{% endif %}">Customer Portal</a>
+  </div>
+</nav>

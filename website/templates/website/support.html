@@ -1,51 +1,231 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% block title %}Support{% endblock %}
-{% block content %}
-<div class="page-hero page-hero--visual">
+{% block meta_description %}Sugna Enterprise Suite support hub — help resources, documentation, training, SLAs, and contact channels for NGOs and humanitarian organizations.{% endblock %}
+{% block body_class %}body-marketing-shell page-support-hub{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_support.html" %}{% endblock %}
+{% block marketing_content %}
+<article class="support-hub-page">
   <div class="container">
-    <div class="page-hero-icon-row" aria-hidden="true">
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-mail"/></svg> Channels &amp; SLAs</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-shield"/></svg> Production-grade</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-sparkles"/></svg> Guided success</span>
-    </div>
-    <h1>Support</h1>
-    <p>Resources and channels to keep your Sugna environment healthy from go-live through steady-state operations.</p>
+    {% include "website/includes/marketing_page_hero.html" with eyebrow="Customer success" title="Support" lead="Resources and channels to keep your Sugna environment healthy from go-live through steady-state operations — designed for NGOs and humanitarian teams who need clarity, accountability, and predictable response times." %}
   </div>
-</div>
-<section class="section">
-  <div class="container card-grid">
-    <article class="card">
-      <h3>Help center</h3>
-      <p>Searchable answers for common tasks, configuration tips, and troubleshooting — updated as the product evolves.</p>
-    </article>
-    <article class="card">
-      <h3>Documentation</h3>
-      <p>Technical and functional references for administrators and power users integrating Sugna with your policies.</p>
-    </article>
-    <article class="card">
-      <h3>Implementation support</h3>
-      <p>Guided configuration, data migration planning, and cutover rehearsal with consultants who know your sector.</p>
-    </article>
-    <article class="card">
-      <h3>Technical assistance</h3>
-      <p>Structured ticketing and severity-based response for production issues, aligned to your support tier.</p>
-    </article>
-    <article class="card">
-      <h3>FAQs</h3>
-      <p>Security, hosting, backups, upgrades, and integration questions — consolidated for leadership and IT reviewers.</p>
-    </article>
-  </div>
-</section>
-<section class="section section-alt">
-  <div class="container two-col">
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--sugna-navy);">Open a ticket</h3>
-      <p style="margin:0;color:var(--sugna-muted);">Existing customers: use your designated support portal or email provided in your welcome pack.</p>
+
+  <section class="support-hub-section" aria-labelledby="support-resources-heading">
+    <div class="container">
+      <h2 id="support-resources-heading" class="support-hub-heading">Browse resources</h2>
+      <p class="support-hub-intro">
+        Search across topics or explore the cards below. Signed-in customers can open tickets and view live status in the customer portal when enabled for your tenant.
+      </p>
+
+      <div class="support-hub-search" role="search">
+        <label class="support-hub-search__label" for="support-hub-search-input">Search support resources</label>
+        <div class="support-hub-search__row">
+          <div class="support-hub-search__field">
+            <svg class="support-hub-search__icon m-icon" aria-hidden="true"><use href="#mi-search"/></svg>
+            <input
+              type="search"
+              id="support-hub-search-input"
+              class="support-hub-search__input"
+              autocomplete="off"
+              placeholder="Try “ticket”, “training”, “SLA”, “backup”, “grant reporting”…"
+              aria-controls="support-hub-card-list"
+            />
+          </div>
+          <button type="button" class="btn btn-header-cta support-hub-search__btn" id="support-hub-search-btn">Search</button>
+        </div>
+      </div>
+
+      <p id="support-hub-empty" class="support-hub-empty" hidden>No resources match your search. Try another term or clear the search box.</p>
+
+      <ul id="support-hub-card-list" class="support-hub__grid" role="list">
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-search"/></svg></div>
+            <h3 class="support-hub-card__title">Help center</h3>
+            <p class="support-hub-card__text">Searchable answers for common tasks, configuration tips, and troubleshooting — updated as the product evolves.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:customer_portal_section' slug='knowledge-base' %}">Open knowledge base</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-database"/></svg></div>
+            <h3 class="support-hub-card__title">Documentation</h3>
+            <p class="support-hub-card__text">Technical and functional references for administrators and power users integrating Sugna with your policies and donor rules.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:resources' %}">View resources</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-graduation"/></svg></div>
+            <h3 class="support-hub-card__title">Implementation support</h3>
+            <p class="support-hub-card__text">Guided configuration, data migration planning, and cutover rehearsal with consultants who understand NGO and humanitarian operating models.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:pricing_onboarding' %}">Implementation options</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-mail"/></svg></div>
+            <h3 class="support-hub-card__title">Technical assistance</h3>
+            <p class="support-hub-card__text">Structured ticketing and severity-based response for production issues, aligned to your support tier and contractual commitments.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:customer_portal_section' slug='support-center' %}">Support center</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-clipboard-check"/></svg></div>
+            <h3 class="support-hub-card__title">FAQs</h3>
+            <p class="support-hub-card__text">Security, hosting, backups, upgrades, and integration questions — consolidated for leadership, finance, and IT reviewers.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="#support-faq-preview">Read FAQ preview</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-monitor"/></svg></div>
+            <h3 class="support-hub-card__title">System status</h3>
+            <p class="support-hub-card__text">Availability, incident history, and scheduled maintenance — published in your signed-in portal when enabled for your environment.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:customer_portal_section' slug='support-center' %}#cp-support-status">View status</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-play-circle"/></svg></div>
+            <h3 class="support-hub-card__title">Training resources</h3>
+            <p class="support-hub-card__text">Role-based learning paths, webinars, and certification tracks so field and HQ teams can adopt Sugna with confidence.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:training' %}">Explore training</a>
+          </article>
+        </li>
+        <li>
+          <article class="support-hub-card support-hub-filterable">
+            <div class="support-hub-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-refresh-cw"/></svg></div>
+            <h3 class="support-hub-card__title">Release updates</h3>
+            <p class="support-hub-card__text">Highlights from recent releases, deprecations, and roadmap context — aligned to how your sector uses Finance, Grants, HR, and compliance modules.</p>
+            <a class="btn btn-header-cta support-hub-card__cta" href="{% url 'website:blog' %}">Read updates</a>
+          </article>
+        </li>
+      </ul>
     </div>
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--sugna-navy);">Not yet a customer?</h3>
-      <p style="margin:0;color:var(--sugna-muted);">We’re happy to answer pre-sales and security questionnaires through <a href="{% url 'website:contact' %}">Contact</a>.</p>
+  </section>
+
+  <section class="support-hub-section support-hub-section--alt" aria-labelledby="support-tiers-heading">
+    <div class="container">
+      <h2 id="support-tiers-heading" class="support-hub-heading">Support levels</h2>
+      <p class="support-hub-intro support-hub-filterable">
+        Response targets depend on your subscription and order form. The table below summarizes typical tiers for production environments; your contract may define different hours, regions, or escalation paths for humanitarian deployments.
+      </p>
+      <div class="support-hub-tiers">
+        <article class="support-hub-tier support-hub-filterable">
+          <h3 class="support-hub-tier__name">Standard</h3>
+          <p class="support-hub-tier__for">Growing teams and single-country programs</p>
+          <ul class="support-hub-tier__list">
+            <li>Business-hours coverage in your agreed region</li>
+            <li>Web and email channels; severity-based prioritization</li>
+            <li>Documented workarounds for non-critical defects</li>
+          </ul>
+        </article>
+        <article class="support-hub-tier support-hub-tier--featured support-hub-filterable">
+          <p class="support-hub-tier__badge">Popular</p>
+          <h3 class="support-hub-tier__name">Priority</h3>
+          <p class="support-hub-tier__for">Multi-site NGOs with active grant cycles</p>
+          <ul class="support-hub-tier__list">
+            <li>Extended coverage windows and faster initial response</li>
+            <li>Named escalation path for P1 / P2 production issues</li>
+            <li>Coordination with implementation partners where applicable</li>
+          </ul>
+        </article>
+        <article class="support-hub-tier support-hub-filterable">
+          <h3 class="support-hub-tier__name">Enterprise SLA</h3>
+          <p class="support-hub-tier__for">Large federations and regulated environments</p>
+          <ul class="support-hub-tier__list">
+            <li>Custom response and resolution targets in your agreement</li>
+            <li>Options for dedicated technical account alignment</li>
+            <li>Runbooks for donor audits, payroll peaks, and year-end close</li>
+          </ul>
+        </article>
+      </div>
+      <p class="support-hub-footnote support-hub-filterable">
+        Exact hours, holidays, and languages are defined in your support addendum. Ask your account team if you need 24×7 coverage or in-country escalation for field offices.
+      </p>
     </div>
-  </div>
-</section>
+  </section>
+
+  <section class="support-hub-section" id="support-faq-preview" aria-labelledby="support-faq-heading">
+    <div class="container">
+      <h2 id="support-faq-heading" class="support-hub-heading">FAQ preview</h2>
+      <p class="support-hub-intro">Quick answers for common questions from NGO finance and IT teams. For full documentation, use the <a href="{% url 'website:customer_portal_section' slug='knowledge-base' %}">knowledge base</a>.</p>
+      <div class="support-hub-faq">
+        <details class="support-hub-faq__item support-hub-filterable">
+          <summary>Where is my data hosted, and can we restrict regions?</summary>
+          <div class="support-hub-faq__body">
+            <p>Hosting geography and residency options depend on your subscription and contractual terms. Your order form or data processing schedule should specify regions and subprocessors; your Sugna account team can confirm the current map for your tenant.</p>
+          </div>
+        </details>
+        <details class="support-hub-faq__item support-hub-filterable">
+          <summary>How do backups and disaster recovery work?</summary>
+          <div class="support-hub-faq__body">
+            <p>We maintain backup and recovery procedures appropriate to a cloud ERP platform. Specific RPO/RPO-style commitments, if any, are stated in your agreement or technical schedule — not on this marketing page alone.</p>
+          </div>
+        </details>
+        <details class="support-hub-faq__item support-hub-filterable">
+          <summary>Can Sugna support donor reporting and audit seasons?</summary>
+          <div class="support-hub-faq__body">
+            <p>Yes. Many customers align cutover, training, and hypercare windows with grant reporting and audit periods. Discuss peak-load support and freeze windows with your implementation lead or customer success contact.</p>
+          </div>
+        </details>
+        <details class="support-hub-faq__item support-hub-filterable">
+          <summary>How do I open a ticket if I’m already a customer?</summary>
+          <div class="support-hub-faq__body">
+            <p>Use the channel identified in your welcome pack or contract — typically your customer portal or a dedicated support mailbox. Including tenant name, module, and impact helps us route severity correctly.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="support-hub-section support-hub-section--alt" aria-labelledby="support-contact-heading">
+    <div class="container">
+      <h2 id="support-contact-heading" class="support-hub-heading">Contact support</h2>
+      <div class="support-hub-contact">
+        <div class="support-hub-contact__card support-hub-filterable">
+          <h3 class="support-hub-contact__title">Email</h3>
+          <p class="support-hub-contact__text">
+            For general product and support inquiries, contact us at
+            <a class="support-hub-contact__email" href="mailto:support@sugna.com">support@sugna.com</a>
+            <span class="support-hub-contact__placeholder">(placeholder — replace with your production support address)</span>
+          </p>
+        </div>
+        <div class="support-hub-contact__card support-hub-filterable">
+          <h3 class="support-hub-contact__title">Contact form</h3>
+          <p class="support-hub-contact__text">For new inquiries, security questionnaires, and partnership questions, use our contact form — we typically respond within one business day.</p>
+          <a class="btn btn-header-cta support-hub-contact__cta" href="{% url 'website:contact' %}">Go to contact</a>
+        </div>
+        <div class="support-hub-contact__card support-hub-filterable">
+          <h3 class="support-hub-contact__title">Existing customers</h3>
+          <p class="support-hub-contact__text">Use your designated support portal or email from your welcome pack so tickets attach to the correct tenant and SLA.</p>
+          <a class="btn btn-header-cta support-hub-contact__cta" href="{% url 'website:customer_portal_section' slug='support-center' %}">Customer portal support</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</article>
+
+<script>
+(function () {
+  var input = document.getElementById("support-hub-search-input");
+  var btn = document.getElementById("support-hub-search-btn");
+  var empty = document.getElementById("support-hub-empty");
+  if (!input) return;
+  var nodes = document.querySelectorAll(".support-hub-filterable");
+  function run() {
+    var q = (input.value || "").trim().toLowerCase();
+    var any = false;
+    nodes.forEach(function (el) {
+      var show = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      el.hidden = !show;
+      if (show) any = true;
+    });
+    if (empty) empty.hidden = any;
+  }
+  input.addEventListener("input", run);
+  if (btn) btn.addEventListener("click", function () { run(); input.focus(); });
+})();
+</script>
 {% endblock %}

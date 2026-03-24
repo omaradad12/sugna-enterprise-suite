@@ -1,0 +1,9 @@
+{% comment %}Pricing section tabs — Subscriptions & Onboarding{% endcomment %}
+<nav class="pricing-subnav pricing-subnav--site" aria-label="Pricing sections">
+  <div class="container">
+    <div class="pricing-subnav__inner">
+      <a href="{% url 'website:pricing_subscriptions' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'pricing_subscriptions' %} is-active{% endif %}">Subscriptions</a>
+      <a href="{% url 'website:pricing_onboarding' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'pricing_onboarding' %} is-active{% endif %}">Onboarding</a>
+    </div>
+  </div>
+</nav>

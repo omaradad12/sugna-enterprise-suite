@@ -1,16 +1,90 @@
-<section class="m-section m-module-showcase" aria-labelledby="m-showcase-title">
-  <div class="container">
-    <header class="m-section-head">
-      <h2 id="m-showcase-title" class="m-section-title">Platform modules</h2>
-      <p class="m-section-lead">Adopt capabilities in phases — finance, grants, HR, procurement, hospital, and intelligent assurance.</p>
+<section class="m-module-showcase" aria-labelledby="m-showcase-title">
+  <div class="container m-module-showcase__inner">
+    <header class="m-module-showcase__head">
+      <h2 id="m-showcase-title" class="m-module-showcase__title">Platform modules</h2>
+      <p class="m-module-showcase__lead">Adopt capabilities in phases — finance &amp; grants, HR, procurement &amp; logistics, fleet, AI Auditor, hospital, and corporate management.</p>
     </header>
-    <div class="m-showcase-grid">
-      <a class="m-showcase-card" href="{% url 'website:modules' %}#finance"><span class="m-showcase-name">Financial &amp; Grants</span><span class="m-showcase-arrow" aria-hidden="true">→</span></a>
-      <a class="m-showcase-card" href="{% url 'website:modules' %}#hr"><span class="m-showcase-name">Human Resources</span><span class="m-showcase-arrow" aria-hidden="true">→</span></a>
-      <a class="m-showcase-card" href="{% url 'website:modules' %}#procurement"><span class="m-showcase-name">Procurement &amp; Logistics</span><span class="m-showcase-arrow" aria-hidden="true">→</span></a>
-      <a class="m-showcase-card" href="{% url 'website:modules' %}#hospital"><span class="m-showcase-name">Hospital Management</span><span class="m-showcase-arrow" aria-hidden="true">→</span></a>
-      <a class="m-showcase-card" href="{% url 'website:modules' %}#ai-auditor"><span class="m-showcase-name">AI Audit &amp; Compliance</span><span class="m-showcase-arrow" aria-hidden="true">→</span></a>
-      <a class="m-showcase-card" href="{% url 'website:modules' %}"><span class="m-showcase-name">View all modules</span><span class="m-showcase-arrow" aria-hidden="true">→</span></a>
-    </div>
+    <ul class="m-showcase-grid">
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='financial-grant-management' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-coins"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">Financial &amp; Grant Management</h3>
+          <p class="m-showcase-card__desc">Fund accounting, budgeting, donor reporting, and financial statements.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='human-resource-management' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-users"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">Human Resource Management</h3>
+          <p class="m-showcase-card__desc">Employee records, payroll, contracts, and performance tracking.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='procurement-logistics' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-package"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">Procurement &amp; Logistics</h3>
+          <p class="m-showcase-card__desc">Purchasing workflows, supplier management, and inventory tracking.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='fleet-management' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-truck"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">Fleet Management</h3>
+          <p class="m-showcase-card__desc">Vehicle tracking, fuel monitoring, and maintenance management.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='ai-auditor' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-sparkles"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">AI Auditor</h3>
+          <p class="m-showcase-card__desc">Automated audit checks, anomaly detection, and compliance insights.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='hospital-management' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-hospital"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">Hospital Management</h3>
+          <p class="m-showcase-card__desc">Patient billing, pharmacy inventory, and healthcare financial control.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card" href="{% url 'website:module_detail' slug='corporate-management' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-building"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">Corporate Management</h3>
+          <p class="m-showcase-card__desc">Business accounting, operational management, and financial reporting.</p>
+        </a>
+      </li>
+      <li>
+        <a class="m-showcase-card m-showcase-card--all" href="{% url 'website:modules' %}">
+          <div class="m-showcase-card__head">
+            <span class="m-showcase-icon" aria-hidden="true"><svg class="m-icon m-showcase-icon-svg"><use href="#mi-grid"/></svg></span>
+            <span class="m-showcase-arrow" aria-hidden="true"><svg class="m-icon m-showcase-arrow-icon"><use href="#mi-arrow-right"/></svg></span>
+          </div>
+          <h3 class="m-showcase-card__title">View all modules</h3>
+          <p class="m-showcase-card__desc">Explore the full catalog of capabilities, integrations, and adoption paths.</p>
+        </a>
+      </li>
+    </ul>
   </div>
 </section>

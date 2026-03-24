@@ -1,41 +1,47 @@
-{% extends "website/base.html" %}
-{% block title %}Login portal{% endblock %}
-{% block content %}
-<div class="page-hero page-hero--visual">
-  <div class="container">
-    <div class="page-hero-icon-row" aria-hidden="true">
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-lock"/></svg> Secure sign-in</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-grid"/></svg> Choose your portal</span>
-    </div>
-    <h1>Login portal</h1>
-    <p>Choose the entry point that matches your role. Tenant applications are served under your organization’s configured domain or path.</p>
-  </div>
-</div>
-<section class="section">
-  <div class="container portal-grid">
-    <div class="portal-card">
-      <h3>Main application (tenant)</h3>
-      <p>End users accessing finance, grants, HR, procurement, or hospital modules for their organization.</p>
-      <p style="font-size:0.85rem;color:var(--sugna-muted);margin-bottom:1rem;">Production tenants are typically reached via your assigned domain or <code style="background:var(--sugna-surface);padding:0.15rem 0.35rem;border-radius:4px;">/t/…</code> path where configured.</p>
-      <a class="btn btn-primary" href="/t/">Open tenant app</a>
-    </div>
-    <div class="portal-card">
-      <h3>Platform &amp; administration</h3>
-      <p>Platform operators and staff managing tenants, domains, and cross-tenant administration.</p>
-      <a class="btn btn-navy" href="/platform/login/">Platform login</a>
-    </div>
-    <div class="portal-card">
-      <h3>Django admin</h3>
-      <p>Superuser access to the Django admin interface (models, users, and system configuration as exposed).</p>
-      <a class="btn btn-outline" href="/admin/login/">Admin login</a>
-    </div>
-  </div>
-  <div class="container" style="margin-top:2rem;">
-    <div class="card" style="max-width:720px;margin:0 auto;text-align:center;">
-      <h3 style="margin-top:0;color:var(--sugna-navy);">Training &amp; sandbox</h3>
-      <p style="color:var(--sugna-muted);margin-bottom:1rem;">If your organization provides a separate training or UAT tenant, use the URL and credentials issued by your administrator — not your production login.</p>
-      <a class="btn btn-outline" href="{% url 'website:training' %}">Training overview</a>
+{% extends "website/marketing_page_base.html" %}
+{% load static %}
+{% block title %}Customer Portal — Sign in{% endblock %}
+{% block body_class %}body-marketing-shell page-customer-portal-login{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_customer_portal.html" %}{% endblock %}
+{% block marketing_content %}
+
+<section class="cp-login-section" aria-labelledby="cp-login-title">
+  <div class="container cp-login-wrap">
+    <div class="cp-login-card">
+      <div class="cp-login-card__brand">
+        <img class="cp-login-logo" src="{% static 'assets/images/logo.png' %}" width="200" height="56" alt="Sugna Enterprise Suite" />
+      </div>
+      <h1 id="cp-login-title" class="cp-login-title">Customer Portal</h1>
+      <p class="cp-login-subtitle">Secure access to your Sugna Enterprise workspace</p>
+      <p class="cp-login-purpose">
+        Organizations use this portal to sign in, manage subscription and support, and administer users—
+        with tenant-isolated data for NGOs, humanitarian programs, hospitals, and institutions.
+      </p>
+
+      <form class="cp-login-form" method="post" action="/t/login/">
+        {% csrf_token %}
+        <div class="cp-field">
+          <label class="cp-label" for="cp-email">Email</label>
+          <input id="cp-email" class="cp-input" name="email" type="email" autocomplete="username" required placeholder="you@organization.org" />
+        </div>
+        <div class="cp-field">
+          <div class="cp-label-row">
+            <label class="cp-label" for="cp-password">Password</label>
+            <a class="cp-forgot" href="{% url 'website:support' %}">Forgot password</a>
+          </div>
+          <input id="cp-password" class="cp-input" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password" />
+        </div>
+        <div class="cp-actions">
+          <button type="submit" class="btn cp-btn-signin">Sign in</button>
+        </div>
+      </form>
+
+      <p class="cp-login-hint">
+        Tenant sign-in uses your organization’s Sugna workspace. If you need <strong>platform administration</strong> or
+        <strong>Django admin</strong>, use the links on the <a href="{% url 'website:home' %}">homepage</a> footer or contact your operator.
+      </p>
     </div>
   </div>
 </section>
+
 {% endblock %}

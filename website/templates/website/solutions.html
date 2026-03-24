@@ -1,43 +1,117 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% block title %}Solutions{% endblock %}
-{% block content %}
-<div class="page-hero page-hero--visual">
+{% block meta_description %}How Sugna enables organizations to manage finance, grants, compliance, and operations across projects, entities, and locations with confidence.{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_solutions.html" %}{% endblock %}
+{% block marketing_content %}
+<article class="solutions-page solutions-page--marketing">
   <div class="container">
-    <div class="page-hero-icon-row" aria-hidden="true">
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-sparkles"/></svg> Program outcomes</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-shield"/></svg> Audit-ready</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-globe"/></svg> Multi-site scale</span>
+    {% include "website/includes/marketing_page_hero.html" with eyebrow="Solutions" title="Solutions" lead="How Sugna enables organizations to manage finance, grants, compliance, and operations across projects, entities, and locations with confidence." %}
+  </div>
+  <section class="section section-alt solutions-page__section" aria-labelledby="solutions-grid-heading">
+    <div class="container">
+      <h2 id="solutions-grid-heading" class="visually-hidden">Solution areas</h2>
+      <ul class="solutions-page__grid" role="list">
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-coins"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Donor &amp; grant reporting</h3>
+            <p class="solutions-card__text">
+              Align financial data with donor requirements, budget structures, and narrative reporting — reducing reconciliation effort and improving funding transparency.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-globe"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Multi-entity &amp; multi-site operations</h3>
+            <p class="solutions-card__text">
+              Standardize financial and operational processes across countries, projects, branches, and field offices while maintaining controlled flexibility.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Audit &amp; compliance readiness</h3>
+            <p class="solutions-card__text">
+              Maintain complete audit trails, segregation of duties, approval workflows, and AI-assisted anomaly detection across all modules.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-hospital"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Healthcare financial integrity</h3>
+            <p class="solutions-card__text">
+              Connect clinical services, pharmacy inventory, billing, and finance to improve revenue capture, reduce leakage, and support accreditation.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-cloud"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Digital transformation for NGOs</h3>
+            <p class="solutions-card__text">
+              Replace fragmented spreadsheets and disconnected tools with an integrated platform designed for program accountability and operational efficiency.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-clipboard-check"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Structured implementation support</h3>
+            <p class="solutions-card__text">
+              Guided onboarding with specialists experienced in NGO, humanitarian, healthcare, and regulated environments.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-sliders"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Budget control &amp; cost allocation</h3>
+            <p class="solutions-card__text">
+              Control budgets across multiple donors and projects with structured allocation rules and real-time variance monitoring.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-lock"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Role-based accountability</h3>
+            <p class="solutions-card__text">
+              Ensure segregation of duties with controlled permissions, approval hierarchies, and complete traceability of transactions.
+            </p>
+          </article>
+        </li>
+        <li>
+          <article class="solutions-card">
+            <div class="solutions-card__icon" aria-hidden="true">
+              <svg class="m-icon m-icon--md"><use href="#mi-bar-chart"/></svg>
+            </div>
+            <h3 class="solutions-card__title">Integrated operational intelligence</h3>
+            <p class="solutions-card__text">
+              Combine finance, HR, procurement, fleet, and compliance data into unified dashboards for leadership decision-making.
+            </p>
+          </article>
+        </li>
+      </ul>
     </div>
-    <h1>Solutions</h1>
-    <p>How Sugna helps your teams deliver programs, pass audits, and scale with confidence.</p>
-  </div>
-</div>
-<section class="section">
-  <div class="container card-grid">
-    <article class="card">
-      <h3>Donor &amp; grant reporting</h3>
-      <p>Align financial data to donor requirements, narrative reports, and grant budgets — reduce last-minute reconciliation.</p>
-    </article>
-    <article class="card">
-      <h3>Multi-site operations</h3>
-      <p>Standardize processes across countries and field offices while preserving local flexibility where policy allows.</p>
-    </article>
-    <article class="card">
-      <h3>Audit readiness</h3>
-      <p>Immutable trails, segregation of duties, and AI-assisted checks help you respond to internal and external audits faster.</p>
-    </article>
-    <article class="card">
-      <h3>Hospital revenue integrity</h3>
-      <p>Connect clinical activity to billing and stock — improve capture, reduce leakage, and support accreditation cycles.</p>
-    </article>
-    <article class="card">
-      <h3>Digital transformation</h3>
-      <p>Move off fragmented spreadsheets and legacy tools with a phased rollout mapped to your change capacity.</p>
-    </article>
-    <article class="card">
-      <h3>Implementation support</h3>
-      <p>Work with specialists who understand NGO, humanitarian, and healthcare operating contexts — not generic retail ERP.</p>
-    </article>
-  </div>
-</section>
+  </section>
+</article>
 {% endblock %}

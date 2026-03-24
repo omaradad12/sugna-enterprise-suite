@@ -1,0 +1,10 @@
+{% comment %}Secondary nav — Platform, Solutions, Industries (Pricing-style pills){% endcomment %}
+<nav class="pricing-subnav pricing-subnav--site" aria-label="Industries sections">
+  <div class="container">
+    <div class="pricing-subnav__inner">
+      <a href="{% url 'website:platform' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'platform' %} is-active{% endif %}">Platform</a>
+      <a href="{% url 'website:solutions' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'solutions' %} is-active{% endif %}">Solutions</a>
+      <a href="{% url 'website:industries' %}" class="pricing-subnav__tab{% if request.resolver_match and request.resolver_match.url_name == 'industries' %} is-active{% endif %}">Industries</a>
+    </div>
+  </div>
+</nav>

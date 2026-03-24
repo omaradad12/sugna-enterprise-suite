@@ -1,0 +1,244 @@
+{% extends "website/base.html" %}
+{% block body_class %}body-pricing{% endblock %}
+{% load static %}
+{% block title %}Pricing — Subscriptions{% endblock %}
+{% block extra_head %}
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script defer src="{% static 'website/js/pricing-anchor-scroll.js' %}"></script>
+{% endblock %}
+{% block content %}
+{% include "website/includes/pricing_subnav.html" %}
+
+<section class="section pricing-section pricing-page--subscriptions">
+  <div class="container">
+    <header class="pricing-page-intro">
+      <p class="pricing-page-eyebrow">Subscriptions</p>
+      <h1 class="pricing-page-intro__title">Pricing</h1>
+      <p class="pricing-logic-lead">
+        Flexible plans that scale with your organization from core financial management to full enterprise operations across multiple entities and countries.
+      </p>
+    </header>
+
+    <section id="tiers" class="pricing-anchor-section" tabindex="-1">
+      <div class="pricing-quote-grid pricing-quote-grid--4">
+        <article class="pricing-quote-card">
+          <h3>Basic</h3>
+          <p>Finance, grants, and budgeting—3 users on one legal entity with core support.</p>
+        </article>
+        <article class="pricing-quote-card">
+          <h3>Standard</h3>
+          <p>Adds multi-project tracking and approval workflows—7 users on one entity, enhanced support.</p>
+        </article>
+        <article class="pricing-quote-card">
+          <h3>Professional</h3>
+          <p>Adds HR, procurement, and audit trail—20 users on one entity with priority support.</p>
+        </article>
+        <article class="pricing-quote-card">
+          <h3>Enterprise</h3>
+          <p>Adds fleet, AI Auditor, and hospital—multi-country, unlimited users, and enterprise SLAs.</p>
+        </article>
+      </div>
+    </section>
+
+    {% include "website/includes/pricing_how_it_works.html" %}
+
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Basic</h3>
+        <div class="price-tag price-tag--saas"><span class="price-saas__amount">$29</span><span class="price-saas__period">/mo</span></div>
+        <p class="price-card-lead">Finance, grants, and budgeting—foundation for a single legal entity.</p>
+        <ul>
+          <li>Finance, grant tracking &amp; budgeting</li>
+          <li>3 users · 1 legal entity</li>
+          <li>Core support</li>
+          <li>Cloud subscription</li>
+        </ul>
+        <a class="btn btn-outline" href="{% url 'website:contact' %}">Get quote</a>
+      </div>
+      <div class="price-card">
+        <h3>Standard</h3>
+        <div class="price-tag price-tag--saas"><span class="price-saas__amount">$59</span><span class="price-saas__period">/mo</span></div>
+        <p class="price-card-lead">Everything in Basic, plus programme controls and more seats on one entity.</p>
+        <ul>
+          <li>Multi-project tracking &amp; approval workflows</li>
+          <li>7 users · 1 legal entity</li>
+          <li>Enhanced support</li>
+          <li>Guided onboarding</li>
+        </ul>
+        <a class="btn btn-outline" href="{% url 'website:contact' %}">Get quote</a>
+      </div>
+      <div class="price-card featured">
+        <h3>Professional</h3>
+        <div class="price-tag price-tag--saas"><span class="price-saas__amount">$99</span><span class="price-saas__period">/mo</span></div>
+        <p class="price-card-lead">Adds people, spend, and controls—still on one consolidated entity.</p>
+        <ul>
+          <li>HR, procurement &amp; audit trail</li>
+          <li>20 users · 1 legal entity</li>
+          <li>Priority support</li>
+          <li>Implementation onboarding</li>
+        </ul>
+        <a class="btn btn-primary" href="{% url 'website:demo_request' %}">Request demo</a>
+      </div>
+      <div class="price-card">
+        <h3>Enterprise</h3>
+        <div class="price-tag price-tag--saas"><span class="price-saas__amount">$249</span><span class="price-saas__period">/mo</span></div>
+        <p class="price-card-lead">Full operations stack for global programmes, audits, and regulated care.</p>
+        <ul>
+          <li>Fleet, AI Auditor &amp; hospital module</li>
+          <li>Multi-country capability</li>
+          <li>Unlimited users · unlimited legal entities</li>
+          <li>Enterprise SLAs &amp; dedicated success</li>
+        </ul>
+        <a class="btn btn-outline" href="{% url 'website:contact' %}">Contact sales</a>
+      </div>
+    </div>
+
+    <section id="modules" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Modules by edition</h2>
+      <p class="pricing-anchor-section__lead">
+        Each step up adds modules, scale, support, and geography—exact entitlements are confirmed in your order.
+      </p>
+      <div class="compare-table-wrap compare-table-wrap--modules">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th scope="col">Module</th>
+              <th scope="col">Basic</th>
+              <th scope="col">Standard</th>
+              <th scope="col">Professional</th>
+              <th scope="col">Enterprise</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Financial management</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Grant tracking</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Budgeting</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Multi-project tracking</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Approval workflows</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><td>HR</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Procurement</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Audit trail</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><td>Fleet</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><td>AI Auditor</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><td>Hospital module</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><td>Multi-country</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="scale" class="pricing-anchor-section" tabindex="-1">
+      <h2 class="pricing-anchor-section__title">Scale with your organization</h2>
+      <p class="pricing-anchor-section__lead">
+        Start with core finance and expand into HR, procurement, fleet, compliance, AI audit, healthcare, and corporate management — as your programs, entities, and reporting requirements grow.
+      </p>
+      <div class="pricing-scale-panel">
+        <ul class="pricing-scale-list pricing-scale-list--icons pricing-scale-list--grid" role="list">
+          <li>
+            <span class="pricing-scale-list__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-package"/></svg></span>
+            <span class="pricing-scale-list__body">
+              <strong class="pricing-scale-list__label">Modules expansion</strong>
+              <span class="pricing-scale-list__desc">Begin with Financial &amp; Grant Management, then expand into HR, procurement &amp; logistics, fleet, AI Auditor, hospital management, and corporate operations as your needs evolve.</span>
+            </span>
+          </li>
+          <li>
+            <span class="pricing-scale-list__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-users"/></svg></span>
+            <span class="pricing-scale-list__body">
+              <strong class="pricing-scale-list__label">Users &amp; legal entities</strong>
+              <span class="pricing-scale-list__desc">Scale from a single organization to multiple entities, projects, countries, and reporting structures with controlled access and consolidated visibility.</span>
+            </span>
+          </li>
+          <li>
+            <span class="pricing-scale-list__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-sparkles"/></svg></span>
+            <span class="pricing-scale-list__body">
+              <strong class="pricing-scale-list__label">Advanced capabilities</strong>
+              <span class="pricing-scale-list__desc">Add structured workflows, approvals, budget controls, audit trails, compliance monitoring, and operational intelligence as complexity increases.</span>
+            </span>
+          </li>
+          <li>
+            <span class="pricing-scale-list__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></span>
+            <span class="pricing-scale-list__body">
+              <strong class="pricing-scale-list__label">Support &amp; service levels</strong>
+              <span class="pricing-scale-list__desc">Choose support tiers aligned to your operational criticality — from standard onboarding support to enterprise SLAs and dedicated success management.</span>
+            </span>
+          </li>
+          <li>
+            <span class="pricing-scale-list__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-globe"/></svg></span>
+            <span class="pricing-scale-list__body">
+              <strong class="pricing-scale-list__label">Multi-country operations</strong>
+              <span class="pricing-scale-list__desc">Support cross-border programmes, multi-currency accounting, donor compliance rules, and centralized governance across regional offices.</span>
+            </span>
+          </li>
+          <li id="sla">
+            <span class="pricing-scale-list__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-cloud"/></svg></span>
+            <span class="pricing-scale-list__body">
+              <strong class="pricing-scale-list__label">Cloud platform &amp; SLAs</strong>
+              <span class="pricing-scale-list__desc">Sugna operates as a secure managed cloud platform with defined availability, backup, and support commitments aligned with donor, regulatory, and audit expectations.</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="compare" class="pricing-anchor-section" tabindex="-1">
+      <div class="pricing-prose-card">
+        <div class="pricing-prose-card__icon" aria-hidden="true">
+          <svg class="m-icon m-icon--lg"><use href="#mi-bar-chart"/></svg>
+        </div>
+        <div class="pricing-prose-card__main">
+          <h2 class="pricing-anchor-section__title pricing-anchor-section__title--card">Compare Editions</h2>
+          <p class="pricing-anchor-section__lead pricing-anchor-section__lead--card">
+            Price, scale, support, modules, and multi-country capability in one view. Final contract terms may vary.
+          </p>
+        </div>
+      </div>
+      <div class="compare-table-wrap compare-table-wrap--compare-editions">
+        <table class="compare-table compare-table--editions">
+          <thead>
+            <tr>
+              <th scope="col">Feature</th>
+              <th scope="col">Basic</th>
+              <th scope="col">Standard</th>
+              <th scope="col">Professional</th>
+              <th scope="col">Enterprise</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="compare-table__row-price"><th scope="row">List price</th><td>$29/mo</td><td>$59/mo</td><td>$99/mo</td><td>$249/mo</td></tr>
+            <tr><th scope="row">Users (included)</th><td>3</td><td>7</td><td>20</td><td>Unlimited</td></tr>
+            <tr><th scope="row">Legal entities (included)</th><td>1</td><td>1</td><td>1</td><td>Unlimited</td></tr>
+            <tr><th scope="row">Support level</th><td>Core</td><td>Enhanced</td><td>Priority</td><td>Enterprise SLAs</td></tr>
+            <tr><th scope="row">Multi-country</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><th scope="row">Financial management</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Grant tracking</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Budgeting</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Multi-project tracking</th><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Approval workflows</th><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">HR</th><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Procurement</th><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Audit trail</th><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th scope="row">Fleet</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><th scope="row">AI Auditor</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+            <tr><th scope="row">Hospital module</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="pricing-subscriptions-footer-cta" role="group" aria-label="Pricing next steps">
+      <a class="pricing-footer-btn pricing-footer-btn--primary" href="{% url 'website:contact' %}">
+        <span class="pricing-footer-btn__icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-mail"/></svg></span>
+        <span class="pricing-footer-btn__label">Request a formal quote</span>
+      </a>
+      <a class="pricing-footer-btn pricing-footer-btn--secondary" href="{% url 'website:demo_request' %}">
+        <span class="pricing-footer-btn__icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-play-circle"/></svg></span>
+        <span class="pricing-footer-btn__label">Book a pricing walkthrough</span>
+      </a>
+      <a class="pricing-footer-btn pricing-footer-btn--secondary" href="#modules">
+        <span class="pricing-footer-btn__icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-grid"/></svg></span>
+        <span class="pricing-footer-btn__label">Modules by edition</span>
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "tenant_portal/portal/layout.html" %}
+{% load i18n %}
+{% block portal_title %}{{ portal_section.label }}{% endblock %}
+{% block portal_content %}
+<div class="max-w-3xl">
+  <nav class="text-[13px] text-[#605e5c] mb-4" aria-label="Breadcrumb">
+    <a href="{{ portal_hub_url }}" class="hover:underline" style="color:#0078D4;">{% trans "Customer portal" %}</a>
+    <span class="mx-1" aria-hidden="true">/</span>
+    <span class="text-[#323130] font-medium">{{ portal_section.label }}</span>
+  </nav>
+  <h1 class="text-2xl font-bold text-[#201f1e] tracking-tight mb-2">{{ portal_section.label }}</h1>
+  <p class="text-[#605e5c] text-sm mb-8 leading-relaxed">{{ portal_section.subtitle }}</p>
+
+  <ul class="space-y-2">
+    {% for row in portal_section_pages %}
+    <li>
+      <a href="{{ row.href }}"
+         class="flex items-center justify-between gap-4 bg-white border rounded-lg px-4 py-3 no-underline hover:bg-[#faf9f8] transition-colors"
+         style="border-color:#edebe9;">
+        <div class="min-w-0">
+          <span class="text-sm font-semibold text-[#201f1e] block">{{ row.page.label }}</span>
+          <span class="text-[12px] text-[#605e5c] leading-snug">{{ row.page.description }}</span>
+        </div>
+        {% if row.is_redirect %}
+        <span class="text-[11px] font-semibold uppercase tracking-wide shrink-0 text-[#0078D4]">{% trans "Live" %}</span>
+        {% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

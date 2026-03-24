@@ -1,16 +1,9 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% block title %}Training{% endblock %}
-{% block content %}
-<div class="page-hero page-hero--visual">
-  <div class="container">
-    <div class="page-hero-icon-row" aria-hidden="true">
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-graduation"/></svg> Learning paths</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-grid"/></svg> Role-based</span>
-      <span class="page-hero-pill"><svg class="m-icon m-icon--sm" aria-hidden="true"><use href="#mi-sparkles"/></svg> Go-live ready</span>
-    </div>
-    <h1>Training</h1>
-    <p>Enable your teams with structured learning paths aligned to how Sugna is rolled out in your organization.</p>
-  </div>
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_training.html" %}{% endblock %}
+{% block marketing_content %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Training" title="Training overview" lead="Enable your teams with structured learning paths aligned to how Sugna is rolled out in your organization." %}
 </div>
 <section class="section">
   <div class="container card-grid">
@@ -43,7 +36,7 @@
 <section class="section section-alt">
   <div class="container" style="text-align:center;">
     <p class="section-sub" style="margin-bottom:1rem;">Need a training plan for rollout?</p>
-    <a class="btn btn-primary" href="{% url 'website:contact' %}">Contact us</a>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:contact' %}">Contact us</a>
   </div>
 </section>
 {% endblock %}

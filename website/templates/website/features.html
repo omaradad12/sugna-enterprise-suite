@@ -1,40 +1,135 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% block title %}Features{% endblock %}
-{% block meta_description %}Explore Sugna Enterprise Suite capabilities: multi-tenant architecture, fund accounting, grant compliance, role security, integrations, and AI-assisted auditing.{% endblock %}
-{% block content %}
-{% include "website/includes/hero_marketing.html" with title="Platform features" subtitle="Enterprise foundations for finance, grants, and operations." description="Everything you need to run accountable programs — from tenant isolation and fund accounting to donor compliance and intelligent audit signals." %}
+{% block meta_description %}Explore Sugna Enterprise Suite capabilities by module: platform architecture, finance and grants, HR, procurement, fleet, compliance and AI audit, hospital, and corporate management.{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_features.html" %}{% endblock %}
+{% block marketing_content %}
+<section class="features-page-hero-band">
+  <div class="container features-page-hero-band__inner">
+    {% include "website/includes/marketing_page_hero.html" with eyebrow="Platform" title="Platform features" subtitle="Enterprise-grade foundations for finance, grants, and operations." lead="Sugna Enterprise Suite provides a secure and scalable platform designed for organizations that require transparency, control, and compliance, supporting multi-entity operations, fund accounting, workflow governance, and intelligent audit readiness." %}
+  </div>
+</section>
 
-<section class="m-section">
-  <div class="container">
-    <div class="m-feature-pillars">
-      <article class="m-pillar-card">
-        <div class="m-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-grid"/></svg></div>
-        <h2 class="m-pillar-title">Architecture &amp; scale</h2>
-        <p class="m-pillar-lead">Multi-tenant cloud delivery with logical isolation, encryption, and centralized platform lifecycle.</p>
-        <ul class="m-pillar-list">
-          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Dedicated tenant configuration</li>
+<section class="pf-features-section" aria-labelledby="pf-features-heading">
+  <div class="container pf-features-section__inner">
+    <h2 id="pf-features-heading" class="visually-hidden">Features by module</h2>
+    <div class="pf-modules-grid" role="list">
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:platform' %}">Sugna platform</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-grid"/></svg></div>
+        <h3 class="pf-module-card__title">Architecture &amp; Scale</h3>
+        <p class="pf-module-card__desc">Multi-tenant cloud delivery with logical isolation, encryption, and a centralized platform lifecycle.</p>
+        <ul class="pf-module-card__list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Dedicated tenant configuration &amp; isolation</li>
           <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> High availability &amp; monitored SLAs</li>
-          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> API-ready for integrations</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> API-ready integrations &amp; extension points</li>
         </ul>
       </article>
-      <article class="m-pillar-card">
-        <div class="m-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-coins"/></svg></div>
-        <h2 class="m-pillar-title">Finance &amp; funds</h2>
-        <p class="m-pillar-lead">Fund-aware ledger, multi-currency, budgets, and period governance built for NGOs and hospitals.</p>
-        <ul class="m-pillar-list">
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='financial-grant-management' %}">Financial &amp; Grant Management</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-coins"/></svg></div>
+        <h3 class="pf-module-card__title">Finance &amp; Grant Management</h3>
+        <p class="pf-module-card__desc">Fund-aware ledger, multi-currency, budgets, and period governance built for NGOs and hospitals.</p>
+        <ul class="pf-module-card__list">
           <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Restricted &amp; unrestricted funds</li>
           <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Controlled rates &amp; translation</li>
           <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Audit-ready journals &amp; close</li>
         </ul>
       </article>
-      <article class="m-pillar-card">
-        <div class="m-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md m-icon--brand"><use href="#mi-shield"/></svg></div>
-        <h2 class="m-pillar-title">Compliance &amp; assurance</h2>
-        <p class="m-pillar-lead">Grant rules, approvals, segregation of duties, and AI-assisted checks across modules.</p>
-        <ul class="m-pillar-list">
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='human-resource-management' %}">Human Resource Management</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-users"/></svg></div>
+        <h3 class="pf-module-card__title">Human Resource Management</h3>
+        <p class="pf-module-card__desc">People data, workforce processes, and governance in one integrated system.</p>
+        <ul class="pf-module-card__list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Employee records &amp; organizational structure</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Leave, attendance, &amp; payroll preparation</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Performance &amp; policy-aligned workflows</li>
+        </ul>
+      </article>
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='procurement-logistics' %}">Procurement &amp; Logistics</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-package"/></svg></div>
+        <h3 class="pf-module-card__title">Procurement &amp; Logistics</h3>
+        <p class="pf-module-card__desc">From need to payment — sourcing, inventory, and logistics with traceability and controls.</p>
+        <ul class="pf-module-card__list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Supplier master &amp; purchase workflows</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Inventory, warehousing, &amp; receiving</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Approval matrices aligned to policy</li>
+        </ul>
+      </article>
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='fleet-management' %}">Fleet Management</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-truck"/></svg></div>
+        <h3 class="pf-module-card__title">Fleet Management</h3>
+        <p class="pf-module-card__desc">Vehicles, drivers, and field mobility aligned with procurement, programs, and cost accountability.</p>
+        <ul class="pf-module-card__list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Registry, assignments, &amp; utilization</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Maintenance, fuel, &amp; operating costs</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Integration with logistics &amp; approvals</li>
+        </ul>
+      </article>
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='ai-auditor' %}">AI Auditor</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></div>
+        <h3 class="pf-module-card__title">Compliance &amp; Audit</h3>
+        <p class="pf-module-card__desc">Grant rules, approvals, segregation of duties, and AI-assisted checks across modules.</p>
+        <ul class="pf-module-card__list">
           <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Donor &amp; policy checkpoints</li>
-          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Workflow &amp; delegation</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Workflow, delegation, &amp; duty separation</li>
           <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Anomaly &amp; duplicate signals</li>
+        </ul>
+      </article>
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='hospital-management' %}">Hospital Management</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-hospital"/></svg></div>
+        <h3 class="pf-module-card__title">Hospital Management</h3>
+        <p class="pf-module-card__desc">Clinical and administrative workflows with pharmacy, lab, and finance alignment.</p>
+        <ul class="pf-module-card__list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Patient flow, billing, &amp; clinical records</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Pharmacy, lab, &amp; medical inventory</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Revenue recognition &amp; costing hooks</li>
+        </ul>
+      </article>
+
+      <article class="pf-module-card" role="listitem">
+        <p class="pf-module-card__module">
+          <span class="pf-module-card__module-label">Module</span>
+          <a class="pf-module-card__module-link" href="{% url 'website:module_detail' slug='corporate-management' %}">Sugna Corporate Management</a>
+        </p>
+        <div class="pf-module-card__icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-building"/></svg></div>
+        <h3 class="pf-module-card__title">Corporate Management</h3>
+        <p class="pf-module-card__desc">Group governance, consolidation, and executive oversight across entities and programs.</p>
+        <ul class="pf-module-card__list">
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Corporate structure &amp; consolidation</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Executive KPIs &amp; board-ready reporting</li>
+          <li><svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-check"/></svg> Group-wide policies &amp; controls</li>
         </ul>
       </article>
     </div>
@@ -45,5 +140,5 @@
 {% include "website/includes/section_testimonials.html" %}
 {% include "website/includes/section_faq.html" %}
 
-{% include "website/includes/cta_banner.html" with cta_title="See features in your environment" cta_text="Walk through finance, grants, or operations with our team." cta_btn="Request demo" cta_arrow=1 show_icon=1 %}
+{% include "website/includes/cta_banner.html" with cta_title="See Sugna in your environment" cta_text="Explore how Sugna supports finance, grants, HR, procurement, compliance, and operational workflows in a guided product demonstration." cta_btn="Request a demo" cta_arrow=1 show_icon=1 %}
 {% endblock %}

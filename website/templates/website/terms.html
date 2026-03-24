@@ -1,33 +1,162 @@
-{% extends "website/base.html" %}
+{% extends "website/marketing_page_base.html" %}
 {% block title %}Terms of Use{% endblock %}
-{% block meta_description %}Terms of use for the Sugna Enterprise Suite website and related services.{% endblock %}
-{% block content %}
+{% block meta_description %}Terms of use for the Sugna Enterprise Suite public website. Platform access, subscriptions, and production services are governed by separate agreements.{% endblock %}
+{% block marketing_subnav %}{% include "website/includes/marketing_subnav_resources.html" %}{% endblock %}
+{% block marketing_content %}
 {% now "F j, Y" as legal_updated %}
-<div class="m-hero m-hero--page">
-  <div class="container m-hero-inner">
-    <h1 class="m-hero-title">Terms of Use</h1>
-    <p class="m-hero-subtitle">Last updated {{ legal_updated }}</p>
-    <p class="m-hero-desc">These terms govern your use of our public website. Platform and subscription terms are defined in your order form or agreement.</p>
-  </div>
+{% with legal_line="Last updated "|add:legal_updated %}
+<div class="container">
+  {% include "website/includes/marketing_page_hero.html" with eyebrow="Legal" title="Terms of Use" subtitle=legal_line %}
 </div>
+{% endwith %}
 
-<section class="m-section">
-  <div class="container m-legal">
-    <div class="m-legal-prose">
-      <h2>Acceptance</h2>
-      <p>By accessing this website, you agree to these terms. If you do not agree, please do not use the site.</p>
-      <h2>Use of content</h2>
-      <p>Content on this site is provided for information purposes. We may update features, descriptions, and availability without notice.</p>
-      <h2>Intellectual property</h2>
-      <p>Sugna Enterprise Suite names, logos, and materials are protected. You may not copy or redistribute them without permission except as allowed by law.</p>
-      <h2>Disclaimer</h2>
-      <p>The site is provided “as is” to the extent permitted by law. We disclaim warranties not expressly stated herein.</p>
-      <h2>Limitation of liability</h2>
-      <p>To the maximum extent permitted by applicable law, Sugna and its affiliates shall not be liable for indirect or consequential damages arising from use of this website.</p>
-      <h2>Governing law</h2>
-      <p>These terms are governed by applicable law as set forth in your master agreement for production services, or otherwise by the laws applicable to your jurisdiction as stated in your contract.</p>
-      <h2>Contact</h2>
-      <p>Questions about these terms: <a href="{% url 'website:contact' %}">Contact us</a>.</p>
+<section class="m-section legal-terms-section">
+  <div class="container legal-terms-wrap">
+    <aside class="legal-toc" aria-label="Table of contents">
+      <nav class="legal-toc__nav">
+        <p class="legal-toc__title">On this page</p>
+        <ol class="legal-toc__list">
+          <li><a href="#acceptance">Acceptance of terms</a></li>
+          <li><a href="#scope">Scope of terms</a></li>
+          <li><a href="#website-content">Website content</a></li>
+          <li><a href="#intellectual-property">Intellectual property</a></li>
+          <li><a href="#acceptable-use">Acceptable use</a></li>
+          <li><a href="#third-party-links">Third-party links</a></li>
+          <li><a href="#disclaimer">Disclaimer of warranties</a></li>
+          <li><a href="#limitation">Limitation of liability</a></li>
+          <li><a href="#privacy">Privacy</a></li>
+          <li><a href="#changes">Changes to terms</a></li>
+          <li><a href="#governing-law">Governing law</a></li>
+          <li><a href="#contact">Contact information</a></li>
+        </ol>
+      </nav>
+    </aside>
+
+    <div class="legal-terms-main">
+      <div class="legal-notice" role="note">
+        <p class="legal-notice__title">Important</p>
+        <p class="legal-notice__body">
+          These Terms of Use apply only to your use of this <strong>public marketing website</strong> (pages under our public domain). Access to the Sugna Enterprise Suite <strong>platform</strong>, <strong>cloud services</strong>, <strong>subscriptions</strong>, <strong>professional services</strong>, and <strong>customer portals</strong> is governed by separate agreements—such as your order form, subscription agreement, statement of work, data processing terms, or other written contract with Sugna—not by this page alone.
+        </p>
+      </div>
+
+      <article class="m-legal-prose legal-terms-prose">
+        <section id="acceptance" class="legal-terms-block">
+          <h2>1. Acceptance of terms</h2>
+          <p>
+            By accessing or using this website, you confirm that you have read, understood, and agree to be bound by these Terms of Use and our
+            <a href="{% url 'website:privacy' %}">Privacy Policy</a>, which is incorporated by reference. If you do not agree, you must not use this site.
+          </p>
+          <p>
+            If you are using this website on behalf of an organization, you represent that you have authority to accept these terms on its behalf.
+          </p>
+        </section>
+
+        <section id="scope" class="legal-terms-block">
+          <h2>2. Scope of terms</h2>
+          <p>
+            These terms govern your access to and use of the information, graphics, and materials made available on this public website. They do not grant you any right to use the Sugna Enterprise Suite software, APIs, hosted environments, or tenant data—those rights are defined exclusively in your applicable commercial or subscription agreement with Sugna.
+          </p>
+          <p>
+            Sugna may offer demos, downloads, or links to other resources through this site. Any trial, pilot, or production use of software remains subject to the terms presented at the time you register or execute an order.
+          </p>
+        </section>
+
+        <section id="website-content" class="legal-terms-block">
+          <h2>3. Website content</h2>
+          <p>
+            Content on this website (including product descriptions, screenshots, diagrams, and performance or roadmap statements) is provided for general information and marketing purposes. Features, availability, pricing, and integrations may change. Sugna may update or remove content at any time without notice, except where a specific commitment is set out in a signed agreement with you.
+          </p>
+          <p>
+            Nothing on this website constitutes legal, financial, or professional advice. You are responsible for your own compliance obligations in your sector and jurisdiction.
+          </p>
+        </section>
+
+        <section id="intellectual-property" class="legal-terms-block">
+          <h2>4. Intellectual property</h2>
+          <p>
+            The Sugna Enterprise Suite name, logos, trade dress, and other branding, as well as the selection and arrangement of website content, are owned by Sugna or its licensors and are protected by applicable intellectual property laws.
+          </p>
+          <p>
+            You may view and print reasonable portions of this website for your internal, non-commercial evaluation of Sugna, provided you do not remove proprietary notices. You may not copy, modify, distribute, publicly display, scrape, frame, mirror, or create derivative works from this website except as expressly permitted by law or with Sugna’s prior written consent.
+          </p>
+        </section>
+
+        <section id="acceptable-use" class="legal-terms-block">
+          <h2>5. Acceptable use</h2>
+          <p>You agree not to use this website in any way that:</p>
+          <ul class="legal-terms-list">
+            <li>violates applicable law or regulation;</li>
+            <li>infringes the rights of others, including privacy and intellectual property rights;</li>
+            <li>introduces malware, attempts unauthorized access, or interferes with the security or availability of our systems;</li>
+            <li>uses automated means (such as bots or scrapers) in a manner that places unreasonable load on the site or circumvents technical limits; or</li>
+            <li>harasses, abuses, or impersonates Sugna personnel or other persons.</li>
+          </ul>
+          <p>
+            Sugna may suspend or block access where it reasonably believes these rules have been violated.
+          </p>
+        </section>
+
+        <section id="third-party-links" class="legal-terms-block">
+          <h2>6. Third-party links</h2>
+          <p>
+            This website may contain links to third-party sites or resources. Those sites are not under Sugna’s control. Sugna provides links for convenience only and does not endorse or assume responsibility for third-party content, products, or practices. Your use of third-party sites is at your own risk and subject to their terms and privacy policies.
+          </p>
+        </section>
+
+        <section id="disclaimer" class="legal-terms-block">
+          <h2>7. Disclaimer of warranties</h2>
+          <p>
+            To the fullest extent permitted by applicable law, this website and all content are provided on an “as is” and “as available” basis. Sugna disclaims all warranties of any kind, whether express, implied, or statutory, including implied warranties of merchantability, fitness for a particular purpose, title, and non-infringement, except where such disclaimers cannot apply by law.
+          </p>
+          <p>
+            Sugna does not warrant that the website will be uninterrupted, error-free, or free of harmful components. You are responsible for implementing appropriate safeguards before downloading any files or following any guidance published here.
+          </p>
+        </section>
+
+        <section id="limitation" class="legal-terms-block">
+          <h2>8. Limitation of liability</h2>
+          <p>
+            To the maximum extent permitted by applicable law, in no event shall Sugna, its affiliates, or their respective directors, officers, employees, or suppliers be liable for any indirect, incidental, special, consequential, exemplary, or punitive damages, or any loss of profits, revenue, goodwill, or data, arising out of or in connection with your use of this public website—even if advised of the possibility of such damages.
+          </p>
+          <p>
+            To the extent permitted by law, Sugna’s aggregate liability for any claim arising from your use of this website shall not exceed the greater of (a) one hundred U.S. dollars (USD $100) or (b) the amount you paid Sugna specifically for access to this marketing website in the twelve (12) months preceding the claim (typically zero for casual visitors). Some jurisdictions do not allow certain limitations; in those cases, Sugna’s liability is limited to the fullest extent permitted.
+          </p>
+        </section>
+
+        <section id="privacy" class="legal-terms-block">
+          <h2>9. Privacy</h2>
+          <p>
+            Our collection and use of personal information in connection with this website is described in the
+            <a href="{% url 'website:privacy' %}">Privacy Policy</a>. By using the site, you acknowledge that you have reviewed that policy.
+          </p>
+        </section>
+
+        <section id="changes" class="legal-terms-block">
+          <h2>10. Changes to terms</h2>
+          <p>
+            Sugna may revise these Terms of Use from time to time. The “Last updated” date at the top of this page reflects the effective date of the current version. Your continued use of the website after changes constitutes acceptance of the revised terms. If changes are material, we may provide additional notice where appropriate (for example, a banner on this page or an update in our resources section).
+          </p>
+        </section>
+
+        <section id="governing-law" class="legal-terms-block">
+          <h2>11. Governing law</h2>
+          <p>
+            These Terms of Use are governed by the laws specified in your master agreement, order form, or other written contract with Sugna, if any. If you do not have such an agreement with Sugna, these terms shall be governed by the laws applicable in the jurisdiction of Sugna’s principal place of business, excluding its conflict-of-law rules, except where mandatory consumer or local protections apply that cannot be waived.
+          </p>
+          <p>
+            Subject to mandatory law, you agree that the courts of that jurisdiction shall have exclusive jurisdiction over disputes arising from these website terms, unless Sugna elects another forum permitted by law.
+          </p>
+        </section>
+
+        <section id="contact" class="legal-terms-block legal-terms-block--contact">
+          <h2>12. Contact information</h2>
+          <p>
+            For questions about these Terms of Use or to report misuse of this website, contact Sugna through our
+            <a href="{% url 'website:contact' %}">contact page</a> and reference “Terms of Use.” For matters related to an existing subscription or production environment, please use the support channel identified in your agreement or customer documentation.
+          </p>
+        </section>
+      </article>
     </div>
   </div>
 </section>

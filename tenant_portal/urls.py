@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import views_adjusting as vaj
 from . import views_audit_risk as ar
+from . import views_customer_portal as vcp
 from . import views_users as vu
 from . import views_roles as vr
 
@@ -26,6 +27,10 @@ urlpatterns = [
     path("settings/roles/<int:pk>/edit/", vr.roles_permissions_edit_view, name="roles_permissions_edit"),
     path("settings/roles/assign/", vr.roles_permissions_assign_view, name="roles_permissions_assign"),
     path("", views.tenant_home_view, name="home"),
+    # Customer portal (enterprise SaaS hub: billing, KB, training, etc.)
+    path("portal/", vcp.customer_portal_hub_view, name="customer_portal_hub"),
+    path("portal/<slug:section>/", vcp.customer_portal_section_view, name="customer_portal_section"),
+    path("portal/<slug:section>/<slug:page>/", vcp.customer_portal_page_view, name="customer_portal_page"),
     # Finance
     path("finance/", views.finance_home_view, name="finance_home"),
     path("finance/core-accounting/", views.core_accounting_center_view, name="finance_core_accounting_center"),

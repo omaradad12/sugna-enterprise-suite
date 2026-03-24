@@ -1,0 +1,12 @@
+{% extends "website/base.html" %}
+{% load static %}
+{% block body_class %}body-marketing-shell{% endblock %}
+{% block extra_head %}
+  {% include "website/includes/marketing_fonts.html" %}
+{% endblock %}
+{% block content %}
+  {% block marketing_subnav %}{% endblock %}
+  <div class="marketing-page-wrap">
+    {% block marketing_content %}{% endblock %}
+  </div>
+{% endblock %}
