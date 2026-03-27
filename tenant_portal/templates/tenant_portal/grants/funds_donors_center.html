@@ -304,18 +304,10 @@
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
-        <a class="fdc-card" href="{% url 'tenant_portal:grants_funding_sources' %}">
-          <span class="fdc-card-icon-wrap"><i data-feather="database"></i></span>
-          <span class="fdc-card-main">
-            <span class="fdc-card-title">{% trans "Funding sources" %}</span>
-            <span class="fdc-card-desc">{% trans "Funding types linked to donors and projects." %}</span>
-          </span>
-          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
-        </a>
         <a class="fdc-card" href="{% url 'tenant_portal:grants_donor_agreements' %}">
           <span class="fdc-card-icon-wrap"><i data-feather="file-text"></i></span>
           <span class="fdc-card-main">
-            <span class="fdc-card-title">{% trans "Donor agreements" %}</span>
+            <span class="fdc-card-title">{% trans "Donor contracts" %}</span>
             <span class="fdc-card-desc">{% trans "Signed agreements, terms, and limits." %}</span>
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
@@ -328,21 +320,29 @@
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_funding_sources' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="database"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Funding modalities" %}</span>
+            <span class="fdc-card-desc">{% trans "Payment modalities: receivables, retention, reimbursement." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
       </div>
     </div>
   </section>
 
   <section class="fdc-section-panel" aria-labelledby="fdc-sec-grant">
     <div class="fdc-section-head">
-      <h2 id="fdc-sec-grant" class="fdc-section-title">{% trans "Grant management" %}</h2>
+      <h2 id="fdc-sec-grant" class="fdc-section-title">{% trans "Project grants" %}</h2>
     </div>
     <div class="fdc-section-body">
       <div class="fdc-grid">
         <a class="fdc-card" href="{% url 'tenant_portal:grants_grants' %}">
           <span class="fdc-card-icon-wrap"><i data-feather="file-plus"></i></span>
           <span class="fdc-card-main">
-            <span class="fdc-card-title">{% trans "Grant agreements" %}</span>
-            <span class="fdc-card-desc">{% trans "Post-award contracts and award amounts." %}</span>
+            <span class="fdc-card-title">{% trans "Project grants" %}</span>
+            <span class="fdc-card-desc">{% trans "Project-level allocations linked to donor contracts, projects, and approved budgets. Planned amounts flow to Grant income tracking (Receivables) for received vs balance." %}</span>
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -365,16 +365,8 @@
         <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_allocation' %}">
           <span class="fdc-card-icon-wrap"><i data-feather="share-2"></i></span>
           <span class="fdc-card-main">
-            <span class="fdc-card-title">{% trans "Grant allocation (multi-donor)" %}</span>
+            <span class="fdc-card-title">{% trans "Grant allocation (shared funding)" %}</span>
             <span class="fdc-card-desc">{% trans "Split awards across donors." %}</span>
-          </span>
-          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
-        </a>
-        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_tracking' %}">
-          <span class="fdc-card-icon-wrap"><i data-feather="map"></i></span>
-          <span class="fdc-card-main">
-            <span class="fdc-card-title">{% trans "Grant tracking" %}</span>
-            <span class="fdc-card-desc">{% trans "Pre-award pipeline and stages." %}</span>
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -386,6 +378,14 @@
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_tracking' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="map"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant tracking" %}</span>
+            <span class="fdc-card-desc">{% trans "Pre-award pipeline and stages." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
         <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_utilization' %}">
           <span class="fdc-card-icon-wrap"><i data-feather="pie-chart"></i></span>
           <span class="fdc-card-main">
@@ -394,15 +394,12 @@
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
-        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_timeline' %}">
-          <span class="fdc-card-icon-wrap"><i data-feather="calendar"></i></span>
-          <span class="fdc-card-main">
-            <span class="fdc-card-title">{% trans "Grant start & end periods" %}</span>
-            <span class="fdc-card-desc">{% trans "Timeline and period extensions." %}</span>
-          </span>
-          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
-        </a>
       </div>
+      <p class="fdc-section-footnote" style="margin: 14px 0 0; font-size: 12px; color: #605e5c; line-height: 1.5;">
+        {% trans "Receivables:" %}
+        <a href="{% url 'tenant_portal:recv_grant_income_tracking' %}" style="color: #0078d4; font-weight: 600;">{% trans "Grant income tracking" %}</a>
+        — {% trans "planned amounts come from project grants; received totals from posted receipts." %}
+      </p>
     </div>
   </section>
 
@@ -467,6 +464,14 @@
           <span class="fdc-card-main">
             <span class="fdc-card-title">{% trans "Grant financial reports" %}</span>
             <span class="fdc-card-desc">{% trans "Official period reports for grants and donors." %}</span>
+          </span>
+          <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="fdc-card" href="{% url 'tenant_portal:grants_grant_timeline' %}">
+          <span class="fdc-card-icon-wrap"><i data-feather="calendar"></i></span>
+          <span class="fdc-card-main">
+            <span class="fdc-card-title">{% trans "Grant start & end periods" %}</span>
+            <span class="fdc-card-desc">{% trans "Timeline and period extensions." %}</span>
           </span>
           <span class="fdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>

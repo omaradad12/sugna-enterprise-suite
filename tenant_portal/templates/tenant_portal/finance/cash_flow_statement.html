@@ -82,8 +82,6 @@
     margin-bottom: 0.35rem;
   }
   .cfs-kpi-value {
-    font-size: 1.35rem;
-    font-weight: 700;
     color: #201f1e;
     line-height: 1.2;
     font-variant-numeric: tabular-nums;
@@ -223,7 +221,7 @@
   </div>
   <div class="cfs-kpi-card {% if report_validation.cfs_roll_forward_ok and report_validation.cfs_bucket_ok %}cfs-kpi-card--ok{% else %}cfs-kpi-card--warn{% endif %}">
     <div class="cfs-kpi-label">{% trans "Roll-forward" %}</div>
-    <div class="cfs-kpi-value" style="font-size:1rem;">
+    <div class="cfs-kpi-value">
       {% if report_validation.cfs_roll_forward_ok and report_validation.cfs_bucket_ok %}
         {% trans "In balance" %}
       {% else %}
@@ -237,7 +235,7 @@
 <div class="cfs-kpi-grid cfs-report-wrap hidden-print">
   <div class="cfs-kpi-card cfs-kpi-card--warn" style="grid-column: 1 / -1;">
     <div class="cfs-kpi-label">{% trans "Cash scope" %}</div>
-    <div class="cfs-kpi-value" style="font-size:1rem;">{% trans "Link bank books or CASH/BANK chart categories" %}</div>
+    <div class="cfs-kpi-value">{% trans "Link bank books or CASH/BANK chart categories" %}</div>
     <div class="cfs-kpi-hint">{% trans "This report only includes defined cash and bank GL accounts." %}</div>
   </div>
 </div>

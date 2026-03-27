@@ -1,0 +1,31 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Storage settings" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[720px] mx-auto">
+  <div class="erp-section">
+    <div class="erp-section-header px-4 py-3">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Storage settings" %}</h1>
+      <p class="text-[13px] text-[#6b7280] m-0 mt-1">{% trans "Select target provider; local Django media is fully supported today. Other providers are reserved for future configuration." %}</p>
+    </div>
+    <div class="erp-section-body px-4 py-4">
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Provider" %}</label>
+          <select name="provider" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]">
+            {% for v, lbl in provider_choices %}
+            <option value="{{ v }}" {% if config.provider == v %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Notes" %}</label>
+          <textarea name="config_notes" rows="4" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]">{{ config.config_notes }}</textarea>
+        </div>
+        <button type="submit" class="px-4 py-2 rounded text-[13px] font-medium bg-[#0f5ba7] text-white border-0">{% trans "Save" %}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

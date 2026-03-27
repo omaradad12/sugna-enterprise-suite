@@ -60,6 +60,11 @@
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
     {% endif %}
 
+    <!-- Suite UI font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
     {% block extrastyle %} {% endblock %}
     {% block extrahead %} {% endblock %}
 </head>
@@ -451,6 +456,16 @@
     {% endif %}
 
     {% block extrajs %}{% endblock %}
+
+    <!-- Feather (suite-wide outline icons) -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        if (window.feather && typeof window.feather.replace === 'function') {
+          window.feather.replace({ 'stroke-width': 1.6 });
+        }
+      });
+    </script>
 
 </body>
 </html>

@@ -5,14 +5,32 @@
 <div class="w-full mx-auto px-0">
   <div class="flex items-start justify-between gap-4 mb-4">
     <div>
-      <h1 class="page-title">Account Ledger</h1>
-      <p class="page-subtitle mt-1">View transactions for a single account. Filter by date and project.</p>
+      <h1 class="page-title">{% if selected_bank %}Bank Ledger{% else %}Account Ledger{% endif %}</h1>
+      <p class="page-subtitle mt-1">
+        {% if selected_bank %}
+        {{ selected_bank.bank_name }} — {{ selected_bank.account_name }} ({{ selected_bank.account_number }})
+        {% else %}
+        View transactions for a single account. Filter by date and project.
+        {% endif %}
+      </p>
     </div>
   </div>
 
   <div class="bg-white border rounded-lg overflow-hidden shadow-sm mb-4" style="border-color:#edebe9;">
+    {% if selected_bank %}
+    <div class="px-4 pt-3">
+      <div class="inline-flex rounded-md border overflow-hidden" style="border-color:#e5e7eb;">
+        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}tab=transactions" class="px-3 py-2 text-[13px] {% if active_bank_tab == 'transactions' %}font-semibold text-white{% else %}font-medium bg-white{% endif %}" {% if active_bank_tab == 'transactions' %}style="background:#0078D4;"{% else %}style="color:#374151;"{% endif %}>Transactions</a>
+        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}tab=reconciliation" class="px-3 py-2 text-[13px] {% if active_bank_tab == 'reconciliation' %}font-semibold text-white{% else %}font-medium bg-white{% endif %}" {% if active_bank_tab == 'reconciliation' %}style="background:#0078D4;"{% else %}style="color:#374151;"{% endif %}>Reconciliation</a>
+        <a href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}tab=details" class="px-3 py-2 text-[13px] {% if active_bank_tab == 'details' %}font-semibold text-white{% else %}font-medium bg-white{% endif %}" {% if active_bank_tab == 'details' %}style="background:#0078D4;"{% else %}style="color:#374151;"{% endif %}>Details</a>
+      </div>
+    </div>
+    {% endif %}
     <div class="px-4 py-3 border-b flex flex-wrap items-end justify-between gap-3" style="border-color:#edebe9; background:#faf9f8;">
       <form method="get" class="flex flex-wrap items-end gap-3">
+        {% if selected_bank %}
+        <input type="hidden" name="bank_account_id" value="{{ selected_bank.id }}" />
+        {% endif %}
         <div class="flex flex-col gap-1">
           <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">From</label>
           <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
@@ -43,6 +61,26 @@
           </select>
         </div>
         {% endif %}
+        {% if selected_bank %}
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">Project</label>
+          <select name="project_id" class="rounded border px-2 py-1.5 text-sm bg-white h-8" style="border-color:#edebe9; min-width:160px;">
+            <option value="">All</option>
+            {% for p in projects %}
+            <option value="{{ p.pk }}" {% if selected_project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">Transaction type</label>
+          <select name="transaction_type" class="rounded border px-2 py-1.5 text-sm bg-white h-8" style="border-color:#edebe9; min-width:180px;">
+            <option value="">All</option>
+            {% for val, lbl in transaction_type_choices %}
+            <option value="{{ val }}" {% if selected_transaction_type == val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <button type="submit" class="h-8 px-4 rounded text-sm font-medium text-white" style="background:#0078D4;">Apply</button>
       </form>
       {% if export_csv_url %}
@@ -54,19 +92,51 @@
     </div>
   </div>
 
+  {% if selected_bank and active_bank_tab == "reconciliation" %}
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm p-5 text-[13px]" style="border-color:#edebe9;">
+    <h3 class="font-semibold text-[#323130] mb-2">Reconciliation</h3>
+    <p class="text-[#6b7280]">Reconciliation details for this bank account will appear here.</p>
+  </div>
+  {% elif selected_bank and active_bank_tab == "details" %}
+  <div class="bg-white border rounded-lg overflow-hidden shadow-sm p-5 text-[13px]" style="border-color:#edebe9;">
+    <h3 class="font-semibold text-[#323130] mb-2">Bank Account Details</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div><span class="text-[#6b7280]">Bank:</span> {{ selected_bank.bank_name }}</div>
+      <div><span class="text-[#6b7280]">Account name:</span> {{ selected_bank.account_name }}</div>
+      <div><span class="text-[#6b7280]">Account number:</span> {{ selected_bank.account_number }}</div>
+      <div><span class="text-[#6b7280]">Currency:</span> {{ selected_bank.currency.code }}</div>
+    </div>
+  </div>
+  {% else %}
   <div class="bg-white border rounded-lg overflow-hidden shadow-sm" style="border-color:#edebe9;">
     <div class="px-4 py-2.5 border-b flex items-center" style="border-color:#edebe9; background:#faf9f8;">
       <span class="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">Transactions</span>
     </div>
+    {% if selected_bank %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 px-4 py-3 border-b text-[13px]" style="border-color:#edebe9; background:#fff;">
+      <div><span class="text-[#6b7280]">Opening before period:</span> <span class="font-semibold">{{ opening_before_period|floatformat:2 }}</span></div>
+      <div><span class="text-[#6b7280]">Closing balance:</span> <span class="font-semibold">{{ closing_balance|floatformat:2 }}</span></div>
+      <div><span class="text-[#6b7280]">Current bank balance:</span> <span class="font-semibold">{{ current_bank_balance|floatformat:2 }}</span></div>
+    </div>
+    {% endif %}
     <div class="overflow-x-auto">
       <table class="erp-table w-full text-sm">
         <thead>
           <tr>
             <th class="px-4 py-2.5">Date</th>
             <th class="px-4 py-2.5">Reference</th>
+            {% if selected_bank %}
+            <th class="px-4 py-2.5">Transaction type</th>
+            <th class="px-4 py-2.5">Description</th>
+            <th class="px-4 py-2.5">Project/Grant</th>
+            {% else %}
             <th class="px-4 py-2.5">Memo</th>
+            {% endif %}
             <th class="px-4 py-2.5 text-right">Debit</th>
             <th class="px-4 py-2.5 text-right">Credit</th>
+            {% if selected_bank %}
+            <th class="px-4 py-2.5 text-right">Running balance</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -74,16 +144,26 @@
           <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
             <td class="px-4 py-2">{{ row.date|date:"d/m/Y" }}</td>
             <td class="px-4 py-2 font-mono text-[13px]">{{ row.ref }}</td>
+            {% if selected_bank %}
+            <td class="px-4 py-2 text-[#323130]">{{ row.transaction_type }}</td>
+            <td class="px-4 py-2 text-[#323130]">{{ row.description|truncatewords:10 }}</td>
+            <td class="px-4 py-2 text-[#323130]">{{ row.project_grant }}</td>
+            {% else %}
             <td class="px-4 py-2 text-[#323130]">{{ row.memo|truncatewords:8 }}</td>
+            {% endif %}
             <td class="px-4 py-2 text-right font-mono" style="color:#a4262c;">{{ row.debit|floatformat:2 }}</td>
             <td class="px-4 py-2 text-right font-mono" style="color:#107c10;">{{ row.credit|floatformat:2 }}</td>
+            {% if selected_bank %}
+            <td class="px-4 py-2 text-right font-mono text-[#323130]">{{ row.running_balance|floatformat:2 }}</td>
+            {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="px-4 py-8 text-center page-subtitle">No transactions. Select an account and period.</td></tr>
+          <tr><td colspan="{% if selected_bank %}8{% else %}5{% endif %}" class="px-4 py-8 text-center page-subtitle">No transactions. Select filters and period.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endblock %}

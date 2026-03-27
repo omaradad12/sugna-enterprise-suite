@@ -16,9 +16,17 @@
         <h4>Solutions</h4>
         <ul>
           <li><a href="{% url 'website:industries' %}">Industries</a></li>
-          <li><a href="{% url 'website:training' %}">Training</a></li>
           <li><a href="{% url 'website:support' %}">Support</a></li>
           <li><a href="{% url 'website:customer_portal_home' %}">Customer portal</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learning</h4>
+        <ul>
+          <li><a href="{% url 'website:academy_home' %}">Sugna Academy</a></li>
+          <li><a href="{% url 'website:academy_courses' %}">Courses</a></li>
+          <li><a href="{% url 'website:academy_learning_paths' %}">Learning paths</a></li>
+          <li><a href="{% url 'website:academy_documentation' %}">Documentation</a></li>
         </ul>
       </div>
       <div class="footer-col">
@@ -34,7 +42,8 @@
       <div class="footer-col">
         <h4>Resources</h4>
         <ul>
-          <li><a href="{% url 'website:home' %}#pricing">Home pricing</a></li>
+          <li><a href="{% url 'website:resources' %}">Resources hub</a></li>
+          <li><a href="{% url 'website:home' %}#pricing">Pricing on home</a></li>
           <li><a href="{% url 'website:pricing_subscriptions' %}#compare">Plan comparison</a></li>
           <li><a href="{% url 'website:support' %}">Help center</a></li>
         </ul>

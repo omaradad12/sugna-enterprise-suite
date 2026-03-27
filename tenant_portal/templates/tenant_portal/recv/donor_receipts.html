@@ -1,134 +1,635 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Donor Receipts | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}Grant Funding Receipts | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Donor receipts</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Receipt vouchers related to donor and grant income.</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
+<div class="gfr-root" x-data="{ search: '', amount: '', selectedGrantCode: '', selectedGrantTitle: '' }">
+<style>
+  .gfr-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .gfr-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .gfr-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .gfr-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .gfr-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: min(100%, 280px);
+  }
+  .gfr-search-wrap {
+    position: relative;
+    flex: 1;
+    max-width: 22rem;
+    min-width: 180px;
+  }
+  .gfr-search-wrap i {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .gfr-search-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.65rem 0.5rem 2.25rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .gfr-search-wrap input::placeholder { color: #8a8886; }
+  .gfr-search-wrap input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+  }
+  .gfr-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .gfr-export-btn:hover {
+    background: #faf9f8;
+    border-color: #d2d0ce;
+  }
+  .gfr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .gfr-export-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .gfr-filters-details {
+    flex: 1 1 520px;
+    min-width: min(100%, 280px);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .gfr-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .gfr-filters-details summary::-webkit-details-marker { display: none; }
+  .gfr-filters-details[open] summary { border-bottom-color: #edebe9; }
+  .gfr-filters-details summary:hover { background: #f3f2f1; }
+  .gfr-filters-body { padding: 1rem 1rem 1.1rem; }
+  .gfr-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .gfr-filters-body input,
+  .gfr-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .gfr-filters-body input:focus,
+  .gfr-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .gfr-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .gfr-btn-primary:hover { background: #106ebe; }
+  .gfr-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .gfr-btn-ghost:hover { background: #faf9f8; }
+  .recv-register-print-header__inner {
+    text-align: center;
+    border-bottom: 1px solid #e1dfdd;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.65rem;
+  }
+  .recv-register-print-logo {
+    max-height: 40px;
+    width: auto;
+    display: block;
+    margin: 0 auto 0.35rem;
+  }
+  .recv-register-print-org {
+    font-size: 13px;
+    font-weight: 600;
+    color: #201f1e;
+  }
+  .recv-register-print-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #323130;
+    margin-top: 0.35rem;
+  }
+  .gfr-kpi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    background: #ffffff;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .gfr-kpi-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #605e5c;
+    letter-spacing: 0.01em;
+  }
+  .gfr-kpi-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    color: #0b5c0b;
+  }
+  .gfr-kpi-value.is-zero { color: #605e5c; }
+  .gfr-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .gfr-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .gfr-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .gfr-table-wrap { overflow-x: auto; }
+  .gfr-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .gfr-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .gfr-table-wrap thead th.text-center { text-align: center; }
+  .gfr-table-wrap thead th.text-right,
+  .gfr-table-wrap tbody td.text-right { text-align: right; }
+  .gfr-table-wrap tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .gfr-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .gfr-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .gfr-table-wrap tbody td a {
+    color: #0078d4;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .gfr-table-wrap tbody td a:hover { text-decoration: underline; }
+  .gfr-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .gfr-empty {
+    padding: 2.75rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+  }
+  .gfr-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.75rem;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #94a3b8;
+  }
+  .gfr-empty p { margin: 0; font-size: 0.875rem; }
+  .gfr-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .gfr-badge--posted { background: #ecfdf5; color: #047857; }
+  .gfr-badge--draft { background: #fffbeb; color: #b45309; }
+  .gfr-badge--other { background: #f1f5f9; color: #475569; }
+  .gfr-create-card {
+    background: #fff;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .gfr-create-card h2 {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #475569;
+    margin: 0 0 1rem;
+  }
+</style>
+
+  {% if not create_mode %}
+  {% include "tenant_portal/recv/_recv_register_print_header.html" with report_title="Grant funding receipts" %}
+  {% include "tenant_portal/_print_query_filters_summary.html" %}
+  <header class="gfr-hero hidden-print">
+    <h1>Grant funding receipts</h1>
+    <div class="gfr-hero-actions">
+      <div class="gfr-search-wrap">
+        <i data-feather="search"></i>
         <input type="text"
                x-model="search"
-               placeholder="Search voucher, donor, project..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
+               placeholder="Search voucher, donor, project…"
+               autocomplete="off"
+               aria-label="Filter table" />
       </div>
+    </div>
+  </header>
+  {% else %}
+  <header class="gfr-hero hidden-print mb-4">
+    <h1>Grant funding receipts</h1>
+  </header>
+  {% endif %}
+
+  {% if can_create and create_mode %}
+  <div class="gfr-create-card mb-4">
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+      {% csrf_token %}
+
+      <section>
+        <h2>Voucher details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Voucher number</label>
+            <input type="text" value="Auto-generated on post" readonly class="w-full px-3 py-2.5 rounded-lg border text-sm bg-[#f9fafb] text-[#6b7280]" style="border-color:#e5e7eb;">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Voucher date</label>
+            <input type="date" name="voucher_date" required class="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Received from</label>
+            <input type="text" name="received_from" required class="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Reference</label>
+            <input type="text" name="reference_no" class="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+          </div>
+        </div>
+      </section>
+
+      <section class="pt-2 border-t" style="border-color:#f0f2f5;">
+        <h2>Account details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Bank account (debit)</label>
+            <select name="deposit_account_id" required class="w-full px-3 py-2.5 rounded-lg border bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+              <option value="">Select</option>
+              {% for b in bank_accounts %}
+              <option value="{{ b.id }}">{{ b.bank_name }} — {{ b.account_number }} ({{ b.account.code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Income account (credit)</label>
+            <select name="income_account_id" required class="w-full px-3 py-2.5 rounded-lg border bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+              <option value="">Select</option>
+              {% for a in income_accounts %}
+              <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Amount</label>
+            <input type="number" name="amount" step="0.01" min="0.01" required @input="amount = $event.target.value" class="w-full px-3 py-2.5 rounded-lg border text-sm text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+            <input type="hidden" name="allocation_total" :value="amount || ''">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Currency</label>
+            <input type="text" value="USD" readonly class="w-full px-3 py-2.5 rounded-lg border text-sm bg-[#f9fafb] text-[#6b7280]" style="border-color:#e5e7eb;">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Receipt method</label>
+            <select name="receipt_method" required class="w-full px-3 py-2.5 rounded-lg border bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+              <option value="">Select</option>
+              <option value="bank">Bank</option>
+              <option value="cash">Cash</option>
+              <option value="transfer">Transfer</option>
+              <option value="cheque">Cheque</option>
+              <option value="mobile_money">Mobile money</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="pt-2 border-t" style="border-color:#f0f2f5;">
+        <h2>Funding details</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Project</label>
+            <select name="grant_id" required @change="selectedGrantCode = $event.target.selectedOptions[0]?.dataset.code || ''; selectedGrantTitle = $event.target.selectedOptions[0]?.dataset.title || ''" class="w-full px-3 py-2.5 rounded-lg border bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+              <option value="">Select project</option>
+              {% for g in grants %}
+              <option value="{{ g.id }}" data-code="{{ g.code }}" data-title="{{ g.title }}">{{ g.title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Grant</label>
+            <input type="text" :value="selectedGrantCode" readonly class="w-full px-3 py-2.5 rounded-lg border text-sm bg-[#f9fafb] text-[#6b7280]" style="border-color:#e5e7eb;">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Donor</label>
+            <select name="donor_name" required class="w-full px-3 py-2.5 rounded-lg border bg-white text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+              <option value="">Select donor</option>
+              {% for d in donors %}
+              <option value="{{ d.name }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="pt-2 border-t" style="border-color:#f0f2f5;">
+        <h2>Additional info</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Description</label>
+            <input type="text" name="description" class="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-[#93c5fd]" style="border-color:#e5e7eb;">
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium mb-1.5 text-[#4b5563]">Attachment</label>
+            <input type="file" name="attachment" class="w-full px-3 py-2.5 rounded-lg border text-sm bg-white" style="border-color:#e5e7eb;">
+          </div>
+        </div>
+      </section>
+
+      <div class="pt-4 border-t flex items-center gap-3" style="border-color:#f0f2f5;">
+        <button type="submit" name="action" value="save_draft" class="px-5 py-2.5 rounded-lg text-sm font-semibold border bg-white text-[#111827] hover:bg-[#f9fafb]" style="border-color:#e5e7eb;">Save draft</button>
+        <button type="submit" name="action" value="post" class="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#0a6ed1] hover:bg-[#095cb0]">Post</button>
+      </div>
+    </form>
+  </div>
+  {% else %}
+  <div class="gfr-toolbar hidden-print">
+    <details class="gfr-filters-details" {% if request.GET %}open{% endif %}>
+      <summary>
+        <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+        <span>Filters</span>
+      </summary>
+      <div class="gfr-filters-body">
+        <form method="get" class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+          <div>
+            <label>Donor</label>
+            <input type="text" name="donor" value="{{ request.GET.donor }}" placeholder="Donor name" autocomplete="off" />
+          </div>
+          <div>
+            <label>Project</label>
+            <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Grant code</label>
+            <input type="text" name="grant" value="{{ request.GET.grant }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Bank / Cash account</label>
+            <input type="text" name="bank" value="{{ request.GET.bank }}" placeholder="Bank name or account" autocomplete="off" />
+          </div>
+          <div>
+            <label>Receipt method</label>
+            <select name="method">
+              <option value="">All</option>
+              <option value="bank" {% if request.GET.method == 'bank' %}selected{% endif %}>Bank</option>
+              <option value="cash" {% if request.GET.method == 'cash' %}selected{% endif %}>Cash</option>
+              <option value="transfer" {% if request.GET.method == 'transfer' %}selected{% endif %}>Transfer</option>
+              <option value="cheque" {% if request.GET.method == 'cheque' %}selected{% endif %}>Cheque</option>
+              <option value="mobile_money" {% if request.GET.method == 'mobile_money' %}selected{% endif %}>Mobile money</option>
+            </select>
+          </div>
+          <div>
+            <label>Voucher no.</label>
+            <input type="text" name="ref" value="{{ request.GET.ref }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Reference no.</label>
+            <input type="text" name="ref_no" value="{{ request.GET.ref_no }}" autocomplete="off" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label>From date</label>
+              <input type="date" name="from" value="{{ request.GET.from }}" />
+            </div>
+            <div>
+              <label>To date</label>
+              <input type="date" name="to" value="{{ request.GET.to }}" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label>Amount from</label>
+              <input type="text" name="amount_from" value="{{ request.GET.amount_from }}" />
+            </div>
+            <div>
+              <label>Amount to</label>
+              <input type="text" name="amount_to" value="{{ request.GET.amount_to }}" />
+            </div>
+          </div>
+          <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 pt-1">
+            <button type="submit" class="gfr-btn-primary">
+              <i data-feather="filter" class="w-4 h-4"></i>
+              Apply filters
+            </button>
+            <a href="{% url 'tenant_portal:recv_donor_receipts' %}" class="gfr-btn-ghost">Reset</a>
+          </div>
+        </form>
+      </div>
+    </details>
+    <div class="gfr-export-group">
+      <a href="{{ export_xlsx_url }}" class="gfr-export-btn">
+        <i data-feather="download" class="w-4 h-4"></i>
+        Excel
+      </a>
+      <button type="button" onclick="window.print()" class="gfr-export-btn">
+        <i data-feather="printer" class="w-4 h-4"></i>
+        PDF
+      </button>
     </div>
   </div>
-
-  <!-- Primary filter bar -->
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
-        <input type="text" name="ref" value="{{ request.GET.ref }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
-        <input type="text" name="donor" value="{{ request.GET.donor }}" list="donor-options" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        <datalist id="donor-options">
-          {% for d in donors %}
-          <option value="{{ d }}"></option>
-          {% endfor %}
-        </datalist>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant</label>
-        <input type="text" name="grant" value="{{ request.GET.grant }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
-          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
-          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Bank / Cash account</label>
-        <input type="text" name="bank" value="{{ request.GET.bank }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Bank name or account" />
-      </div>
-      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_donor_receipts' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
+  <div class="gfr-kpi">
+    <span class="gfr-kpi-label">Total posted grant funding receipts</span>
+    <span class="gfr-kpi-value {% if total_amount == 0 %}is-zero{% endif %}">{{ total_amount|floatformat:2 }}</span>
+  </div>
+  <div class="gfr-table-card">
+    <div class="gfr-table-head">
+      <span>Posted register</span>
     </div>
-  </form>
-
-  <!-- Donor receipts table -->
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Donor receipts</span>
-    </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+    <div class="gfr-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Voucher no.</th>
-            <th class="px-4 py-2.5">Date</th>
-            <th class="px-4 py-2.5">Donor</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Grant</th>
-            <th class="px-4 py-2.5">Reference</th>
-            <th class="px-4 py-2.5">Bank / Cash account</th>
-            <th class="px-4 py-2.5 text-right">Amount</th>
-            <th class="px-4 py-2.5">Status</th>
+            <th>Voucher</th>
+            <th class="text-center">Date</th>
+            <th>Donor</th>
+            <th>Project</th>
+            <th>Grant</th>
+            <th>Reference</th>
+            <th>Bank/Cash account</th>
+            <th class="text-right">Amount</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
-              data-search="{{ r.reference|lower }} {{ r.donor|lower }} {{ r.project|lower }} {{ r.grant_code|lower }} {{ r.bank_account }}"
+          <tr
+              data-search="{{ r.reference|default:''|lower }} {{ r.donor|default:''|lower }} {{ r.project|default:''|lower }} {{ r.grant_code|default:''|lower }}"
               x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5">
-              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}?focus={{ r.id }}" class="text-[#0078D4] font-medium hover:underline">
-                {{ r.reference }}
-              </a>
+            <td>
+              <a href="{% url 'tenant_portal:recv_donor_receipts' %}?mode=create&focus={{ r.id }}">{{ r.reference }}</a>
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.donor|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.grant_code|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.user_reference|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">
-              {% if r.bank_account %}
-                {{ r.bank_account.code }} — {{ r.bank_account.name }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.amount }}</td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                {% if r.status == 'Posted' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+            <td class="text-center tabular-nums">{{ r.date|date:"d/m/Y" }}</td>
+            <td>{{ r.donor|default:"—" }}</td>
+            <td>{{ r.project|default:"—" }}</td>
+            <td>{{ r.grant_code|default:"—" }}</td>
+            <td>{{ r.user_reference|default:"—" }}</td>
+            <td>{% if r.bank_account %}{{ r.bank_account.code }} — {{ r.bank_account.name }}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.amount|floatformat:2 }}</td>
+            <td>
+              <span class="gfr-badge {% if r.status == 'Posted' %}gfr-badge--posted{% elif r.status == 'Draft' %}gfr-badge--draft{% else %}gfr-badge--other{% endif %}">
                 {{ r.status }}
               </span>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="px-4 py-10 text-center text-sm text-[#605e5c]">No donor receipts found.</td>
+            <td colspan="9" class="gfr-empty">
+              <div class="gfr-empty-icon"><i data-feather="inbox" class="w-7 h-7"></i></div>
+              <p>No posted grant funding receipts found.</p>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+  {% endif %}
+
 </div>
 {% endblock %}
-

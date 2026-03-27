@@ -47,17 +47,40 @@
     if (!nav || nav.contains(e.target) || (btn && btn.contains(e.target))) return;
     nav.classList.remove("is-open");
     if (btn) btn.setAttribute("aria-expanded", "false");
+    nav.querySelectorAll(".nav-item--has-mega.nav-item--open").forEach(function (el) {
+      el.classList.remove("nav-item--open");
+    });
   });
   function onMqChange() {
     if (!mq.matches && nav) {
       nav.classList.remove("is-open");
       if (btn) btn.setAttribute("aria-expanded", "false");
+      nav.querySelectorAll(".nav-item--has-mega.nav-item--open").forEach(function (el) {
+        el.classList.remove("nav-item--open");
+      });
     }
   }
   if (mq.addEventListener) {
     mq.addEventListener("change", onMqChange);
   } else if (mq.addListener) {
     mq.addListener(onMqChange);
+  }
+  /* Academy megamenu: first tap opens submenu on small screens; second tap follows link */
+  if (nav) {
+    nav.querySelectorAll(".nav-item--has-mega > .nav-item__trigger").forEach(function (trigger) {
+      trigger.addEventListener("click", function (e) {
+        if (!mq.matches) return;
+        var item = trigger.closest(".nav-item--has-mega");
+        if (!item) return;
+        if (!item.classList.contains("nav-item--open")) {
+          e.preventDefault();
+          nav.querySelectorAll(".nav-item--has-mega.nav-item--open").forEach(function (o) {
+            if (o !== item) o.classList.remove("nav-item--open");
+          });
+          item.classList.add("nav-item--open");
+        }
+      });
+    });
   }
 })();
 </script>

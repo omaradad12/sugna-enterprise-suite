@@ -1,0 +1,154 @@
+{% extends "website/academy_page_base.html" %}
+{% load static %}
+{% block title %}Sugna Academy{% endblock %}
+{% block meta_description %}Sugna Academy — official training for Sugna Enterprise Suite: courses, learning paths, certifications, tutorials, and NGO professional capacity building.{% endblock %}
+{% block marketing_content %}
+<section class="academy-hero" aria-labelledby="academy-hero-title">
+  <div class="container academy-hero__grid">
+    <div class="academy-hero__copy">
+      <p class="academy-eyebrow">Learning &amp; enablement</p>
+      <h1 id="academy-hero-title" class="academy-hero__title">Sugna Academy</h1>
+      <p class="academy-hero__subtitle">Practical training for finance, compliance, operations, and digital transformation</p>
+      <div class="academy-hero__actions">
+        <a class="btn btn-primary btn-lg" href="{% url 'website:academy_courses' %}">Explore Courses</a>
+        <a class="btn btn-outline btn-lg" href="{% url 'website:academy_learning_paths' %}">Start Learning</a>
+      </div>
+      <ul class="academy-hero__trust" aria-label="Academy scope">
+        <li>{% include "website/includes/academy_icon_check.html" %}<span>Software &amp; onboarding</span></li>
+        <li>{% include "website/includes/academy_icon_check.html" %}<span>Video &amp; guided tutorials</span></li>
+        <li>{% include "website/includes/academy_icon_check.html" %}<span>Certifications &amp; paths</span></li>
+        <li>{% include "website/includes/academy_icon_check.html" %}<span>NGO &amp; regulated sectors</span></li>
+      </ul>
+    </div>
+    <div class="academy-hero__panel" role="presentation">
+      <div class="academy-hero__panel-inner">
+        <div class="academy-hero__preview">
+          <div class="academy-hero__preview-frame">
+            <img src="{% static 'assets/images/hero-dashboard.svg' %}" alt="Sugna Academy dashboard preview" width="1200" height="720" decoding="async" loading="lazy" />
+          </div>
+          <p class="academy-hero__preview-caption">Dashboard-led learning — practical workflows your teams can adopt.</p>
+        </div>
+        <p class="academy-hero__panel-label">Training umbrella</p>
+        <p class="academy-hero__panel-text">One structured place for tenant users, rollout teams, and public short courses — expandable as your programs grow.</p>
+        <ul class="academy-hero__panel-list">
+          <li>Onboarding programs</li>
+          <li>Module-specific depth</li>
+          <li>Internal staff enablement</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="academy-section academy-section--alt" aria-labelledby="academy-categories-heading">
+  <div class="container">
+    <div class="academy-section__head">
+      <h2 id="academy-categories-heading" class="academy-h2">Training categories</h2>
+      <p class="academy-lead">Aligned to Sugna modules and professional NGO practice — from core ERP skills to AI and digital literacy.</p>
+    </div>
+    <div class="academy-category-grid">
+      {% for cat in training_categories %}
+      <article class="academy-category-card">
+        <div class="academy-category-card__icon" aria-hidden="true">
+          <svg class="m-icon academy-category-card__icon-svg"><use href="#{{ cat.icon }}"/></svg>
+        </div>
+        <h3 class="academy-category-card__title">{{ cat.title }}</h3>
+        <p class="academy-category-card__desc">{{ cat.summary }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="academy-section" aria-labelledby="academy-featured-courses-heading">
+  <div class="container">
+    <div class="academy-section__head academy-section__head--row">
+      <div>
+        <h2 id="academy-featured-courses-heading" class="academy-h2">Featured courses</h2>
+        <p class="academy-lead">Structured lessons with clear levels and duration — ready for LMS or instructor-led delivery.</p>
+      </div>
+      <a class="academy-text-link" href="{% url 'website:academy_courses' %}">View all courses <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="academy-course-grid">
+      {% for course in featured_courses %}
+        {% include "website/includes/academy_course_card.html" with course=course %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="academy-section" aria-labelledby="academy-paths-heading">
+  <div class="container">
+    <div class="academy-section__head academy-section__head--row">
+      <div>
+        <h2 id="academy-paths-heading" class="academy-h2">Learning paths</h2>
+        <p class="academy-lead">Role-based sequences that mirror how finance, HR, procurement, and IT teams work with Sugna.</p>
+      </div>
+      <a class="academy-text-link" href="{% url 'website:academy_learning_paths' %}">Browse paths <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="academy-path-grid">
+      {% for path in learning_paths_preview %}
+      <article class="academy-path-card">
+        <h3 class="academy-path-card__title">{{ path.title }}</h3>
+        <p class="academy-path-card__desc">{{ path.summary }}</p>
+        <p class="academy-path-card__meta"><span>{{ path.level }}</span> · <span>{{ path.duration }}</span></p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="academy-section academy-section--alt" aria-labelledby="academy-cert-heading">
+  <div class="container">
+    <div class="academy-section__head academy-section__head--row">
+      <div>
+        <h2 id="academy-cert-heading" class="academy-h2">Professional certifications</h2>
+        <p class="academy-lead">Credentials designed for auditors, donors, and boards who need evidence of structured competency.</p>
+      </div>
+      <a class="academy-text-link" href="{% url 'website:academy_certifications' %}">Certification details <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="academy-cert-grid">
+      {% for cert in certifications_preview %}
+      <article class="academy-cert-card">
+        <h3 class="academy-cert-card__title">{{ cert.title }}</h3>
+        <p class="academy-cert-card__desc">{{ cert.description }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="academy-section academy-section--integrations" aria-labelledby="academy-integrate-heading">
+  <div class="container">
+    <h2 id="academy-integrate-heading" class="academy-h2">Built to scale with your organization</h2>
+    <p class="academy-lead academy-lead--center">Sugna Academy is the single training umbrella for every module — supporting onboarding, tenant users, certifications, internal staff programs, and public short courses as you expand.</p>
+    <div class="academy-integration-grid">
+      <div class="academy-integration-card">
+        <h3 class="academy-integration-card__title">Tenant &amp; user training</h3>
+        <p>Targeted tracks for country offices, HQ, and shared service centers with role-appropriate scope.</p>
+      </div>
+      <div class="academy-integration-card">
+        <h3 class="academy-integration-card__title">Hospitals &amp; NGOs</h3>
+        <p>Content tone and examples suited to regulated healthcare and donor-funded program contexts.</p>
+      </div>
+      <div class="academy-integration-card">
+        <h3 class="academy-integration-card__title">Future-ready</h3>
+        <p>Room to plug in your LMS, SSO, and completion records when you are ready to operationalize.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="academy-cta">
+  <div class="container academy-cta__inner">
+    <div>
+      <h2 class="academy-cta__title">Plan enablement with your rollout</h2>
+      <p class="academy-cta__text">Ask our team to align Academy paths with your implementation timeline and audit calendar.</p>
+    </div>
+    <div class="academy-cta__actions">
+      <a class="btn btn-primary btn-lg" href="{% url 'website:contact' %}?topic=academy">Talk to us</a>
+      <a class="btn btn-outline btn-lg" href="{% url 'website:academy_help' %}">Help center</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

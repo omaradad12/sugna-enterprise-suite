@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
       '<td class="px-2 py-2"><button type="button" class="remove-line px-2 py-1 rounded text-xs border" style="border-color:#edebe9; color:#605e5c;">Remove</button></td>';
     tbody.appendChild(tr);
     updateGrandTotal();
-    if (window.feather) feather.replace();
+    if (window.feather) feather.replace({ 'stroke-width': 1.6 });
   });
 
   tbody.addEventListener('click', function(e) {

@@ -1,0 +1,15 @@
+{% comment %}
+  Print / PDF letterhead: organization logo, legal name (from Organization Settings), report title.
+  Uses layout .print-only (hidden on screen, visible when printing).
+{% endcomment %}
+<div class="recv-register-print-header print-only">
+  <div class="recv-register-print-header__inner">
+    {% if org_settings and org_settings.organization_logo %}
+      <img src="{{ org_settings.organization_logo.url }}" alt="" class="recv-register-print-logo" />
+    {% elif tenant.brand_logo_url %}
+      <img src="{{ tenant.brand_logo_url }}" alt="" class="recv-register-print-logo" />
+    {% endif %}
+    <div class="recv-register-print-org">{{ tenant_display_name|default:tenant.name }}</div>
+    <div class="recv-register-print-title">{{ report_title }}</div>
+  </div>
+</div>

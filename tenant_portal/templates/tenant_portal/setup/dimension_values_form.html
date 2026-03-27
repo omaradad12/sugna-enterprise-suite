@@ -1,0 +1,73 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-page-shell { max-width: 980px; margin: 0 auto; }
+  .dyn-form-wrap { max-width: 760px; margin: 0 auto; }
+  .dyn-command-bar { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:14px 16px; margin-bottom:14px; border:1px solid #e5e7eb; border-radius:12px; background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%); box-shadow:0 2px 10px rgba(15,23,42,.04); }
+  .dyn-back-link { color:#0f548c; font-size:13px; font-weight:600; text-decoration:none; padding:6px 10px; border:1px solid #dbe3f0; border-radius:999px; background:#fff; }
+  .dyn-back-link:hover { background:#f4f9ff; border-color:#bcd4f4; }
+  .dyn-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(15,23,42,.04); }
+  .dyn-card-head { padding:12px 16px; border-bottom:1px solid #e5e7eb; background:#f8fafc; font-size:12px; font-weight:700; color:#334155; text-transform:uppercase; letter-spacing:.06em; }
+  .dyn-card-body { padding:16px; }
+  .dyn-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .dyn-field label { display:block; font-size:12px; font-weight:600; color:#5f6b7a; margin-bottom:6px; }
+  .dyn-input, .dyn-select, .dyn-textarea { width:100%; border:1px solid #dbe3f0; border-radius:8px; font-size:13px; padding:9px 10px; background:#fff; color:#323130; }
+  .dyn-input:focus, .dyn-select:focus, .dyn-textarea:focus { outline:none; border-color:#0078d4; box-shadow:0 0 0 2px rgba(0,120,212,.12); }
+  .dyn-textarea { min-height:110px; resize:vertical; }
+  .dyn-actions { display:flex; align-items:center; gap:8px; border-top:1px solid #e5e7eb; background:#fafcff; padding:12px 16px; }
+  .dyn-btn-primary { height:34px; padding:0 14px; font-size:13px; font-weight:600; border:none; border-radius:8px; background:#0078d4; color:#fff; }
+  .dyn-btn-primary:hover { background:#106ebe; }
+  .dyn-btn-secondary { height:34px; padding:0 14px; font-size:13px; font-weight:600; border:1px solid #dbe3f0; border-radius:8px; background:#fff; color:#344054; text-decoration:none; display:inline-flex; align-items:center; }
+  .dyn-btn-secondary:hover { background:#f8fafc; color:#1f2937; }
+  @media (max-width: 767px) { .dyn-grid { grid-template-columns:1fr; } }
+</style>
+
+<div class="dyn-page-shell">
+  <div class="dyn-command-bar">
+    <a href="{% url list_url_name %}" class="dyn-back-link">Back to values</a>
+  </div>
+
+  <div class="dyn-form-wrap">
+    <form method="post" class="dyn-card">
+      {% csrf_token %}
+      <div class="dyn-card-head">{{ dimension_label }} value details</div>
+      <div class="dyn-card-body space-y-3">
+        <div class="dyn-grid">
+          <div class="dyn-field">
+            <label>Dimension</label>
+            <input type="text" class="dyn-input bg-[#f8fafc]" value="{{ dimension_code }} — {{ dimension_label }}" readonly />
+          </div>
+          <div class="dyn-field">
+            <label>Status</label>
+            <select name="status" class="dyn-select">
+              {% for value_opt, label_opt in status_choices %}
+              <option value="{{ value_opt }}" {% if value and value.status == value_opt %}selected{% elif not value and value_opt == 'active' %}selected{% endif %}>{{ label_opt }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="dyn-grid">
+          <div class="dyn-field">
+            <label>Code <span style="color:#a4262c;">*</span></label>
+            <input type="text" name="code" maxlength="30" required class="dyn-input" value="{% if value %}{{ value.code }}{% endif %}" />
+          </div>
+          <div class="dyn-field">
+            <label>Name <span style="color:#a4262c;">*</span></label>
+            <input type="text" name="name" maxlength="120" required class="dyn-input" value="{% if value %}{{ value.name }}{% endif %}" />
+          </div>
+        </div>
+        <div class="dyn-field">
+          <label>Description</label>
+          <textarea name="description" class="dyn-textarea">{% if value %}{{ value.description }}{% endif %}</textarea>
+        </div>
+      </div>
+      <div class="dyn-actions">
+        <button type="submit" class="dyn-btn-primary">Save</button>
+        <a href="{% url list_url_name %}" class="dyn-btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

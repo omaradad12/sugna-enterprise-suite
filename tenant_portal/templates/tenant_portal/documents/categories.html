@@ -1,0 +1,59 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Document categories" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[960px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Document categories" %}</h1>
+    </div>
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Code" %}</th>
+            <th>{% trans "Sort" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in categories %}
+          <tr>
+            <td class="text-[13px]">{{ c.name }}</td>
+            <td class="text-[13px]">{{ c.code|default:"—" }}</td>
+            <td class="text-[13px]">{{ c.sort_order }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-[13px] text-[#6b7280]">{% trans "No categories yet." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if dm_can_manage %}
+  <div class="erp-section">
+    <div class="erp-section-header px-4 py-2">
+      <span class="text-[13px] font-semibold text-[#323130]">{% trans "Add category" %}</span>
+    </div>
+    <div class="erp-section-body px-4 py-4">
+      <form method="post" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        {% csrf_token %}
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Name" %}</label>
+          <input name="name" required class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]" />
+        </div>
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Code" %}</label>
+          <input name="code" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]" />
+        </div>
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Sort order" %}</label>
+          <input name="sort_order" type="number" value="0" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]" />
+        </div>
+        <button type="submit" class="px-3 py-2 rounded text-[13px] font-medium bg-[#0f5ba7] text-white border-0">{% trans "Add" %}</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

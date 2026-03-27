@@ -1,154 +1,368 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Income Register | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Income register" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Income register</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Posted income transactions from receipt vouchers.</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
-        <input type="text"
-               x-model="search"
-               placeholder="Search voucher, income, project..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
-      </div>
-    </div>
-  </div>
+<div class="ireg-root" x-data="{ search: '' }">
+<style>
+  .ireg-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .ireg-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .ireg-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .ireg-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .ireg-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 22rem;
+  }
+  .ireg-search-wrap i {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .ireg-search-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.65rem 0.5rem 2.25rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ireg-search-wrap input::placeholder { color: #8a8886; }
+  .ireg-search-wrap input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+  }
+  .ireg-filters-details {
+    margin-bottom: 1rem;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .ireg-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .ireg-filters-details summary::-webkit-details-marker { display: none; }
+  .ireg-filters-details[open] summary { border-bottom-color: #edebe9; }
+  .ireg-filters-details summary:hover { background: #f3f2f1; }
+  .ireg-filters-body { padding: 1rem 1rem 1.1rem; }
+  .ireg-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .ireg-filters-body input,
+  .ireg-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ireg-filters-body input:focus,
+  .ireg-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .ireg-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ireg-btn-primary:hover { background: #106ebe; }
+  .ireg-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .ireg-btn-ghost:hover { background: #faf9f8; }
+  .ireg-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .ireg-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .ireg-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .ireg-table-wrap { overflow-x: auto; }
+  .ireg-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .ireg-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .ireg-table-wrap thead th.text-center { text-align: center; }
+  .ireg-table-wrap thead th.text-right,
+  .ireg-table-wrap tbody td.text-right { text-align: right; }
+  .ireg-table-wrap tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .ireg-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .ireg-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .ireg-table-wrap tbody td a {
+    color: #0078d4;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .ireg-table-wrap tbody td a:hover { text-decoration: underline; }
+  .ireg-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .ireg-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+    font-size: 0.875rem;
+  }
+  .ireg-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .ireg-badge--posted { background: #ecfdf5; color: #047857; }
+  .ireg-badge--draft { background: #fffbeb; color: #b45309; }
+  .ireg-badge--other { background: #f1f5f9; color: #475569; }
+</style>
 
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
-        <input type="text" name="ref" value="{{ request.GET.ref }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Income account</label>
-        <input type="text" name="income" value="{{ request.GET.income }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Code or name" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Received from</label>
-        <input type="text" name="received_from" value="{{ request.GET.received_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
-        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Bank / Cash account</label>
-        <input type="text" name="bank" value="{{ request.GET.bank }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
-          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
-          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount from</label>
-          <input type="text" name="amount_from" value="{{ request.GET.amount_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount to</label>
-          <input type="text" name="amount_to" value="{{ request.GET.amount_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
-        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">Posted only</option>
-          {% for code, label in status_choices %}
-          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_income_register' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
+  <header class="ireg-hero">
+    <h1>{% trans "Income register" %}</h1>
+    <div class="ireg-search-wrap">
+      <i data-feather="search"></i>
+      <input type="text"
+             x-model="search"
+             placeholder="{% trans 'Search voucher, account, project…' %}"
+             autocomplete="off"
+             aria-label="{% trans 'Filter table' %}" />
     </div>
-  </form>
+  </header>
 
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Income register</span>
+  <p class="text-[12px] text-[#605e5c] mb-3 max-w-[52rem] leading-relaxed">
+    {% trans "Read-only register. Rows are created automatically when receipt vouchers are posted. Voucher numbers are system-generated and unique. The credit-side GL account is income or receivable (grant funding). Amounts are positive. Draft receipts never appear here." %}
+  </p>
+
+  <details class="ireg-filters-details" {% if request.GET %}open{% endif %}>
+    <summary>
+      <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+      <span>Filters</span>
+    </summary>
+    <div class="ireg-filters-body">
+      <form method="get" class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+        <div>
+          <label>Voucher no.</label>
+          <input type="text" name="ref" value="{{ request.GET.ref }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Income account</label>
+          <input type="text" name="income" value="{{ request.GET.income }}" placeholder="Code or name" autocomplete="off" />
+        </div>
+        <div>
+          <label>Received from</label>
+          <input type="text" name="received_from" value="{{ request.GET.received_from }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Project</label>
+          <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Fund / Donor</label>
+          <input type="text" name="donor" value="{{ request.GET.donor }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Bank / Cash account</label>
+          <input type="text" name="bank" value="{{ request.GET.bank }}" autocomplete="off" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>From date</label>
+            <input type="date" name="from" value="{{ request.GET.from }}" />
+          </div>
+          <div>
+            <label>To date</label>
+            <input type="date" name="to" value="{{ request.GET.to }}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Amount from</label>
+            <input type="text" name="amount_from" value="{{ request.GET.amount_from }}" />
+          </div>
+          <div>
+            <label>Amount to</label>
+            <input type="text" name="amount_to" value="{{ request.GET.amount_to }}" />
+          </div>
+        </div>
+        <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 pt-1">
+          <button type="submit" class="ireg-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply filters
+          </button>
+          <a href="{% url 'tenant_portal:recv_income_register' %}" class="ireg-btn-ghost">Reset</a>
+        </div>
+      </form>
     </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+  </details>
+
+  <div class="ireg-table-card">
+    <div class="ireg-table-head">
+      <span>Posted income lines</span>
+    </div>
+    <div class="ireg-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Voucher no.</th>
-            <th class="px-4 py-2.5">Date</th>
-            <th class="px-4 py-2.5">Income account</th>
-            <th class="px-4 py-2.5">Received from</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Fund / Donor</th>
-            <th class="px-4 py-2.5">Receipt method</th>
-            <th class="px-4 py-2.5">Bank / Cash account</th>
-            <th class="px-4 py-2.5">Reference no.</th>
-            <th class="px-4 py-2.5 text-right">Amount</th>
-            <th class="px-4 py-2.5">Status</th>
+            <th>{% trans "Voucher no." %}</th>
+            <th class="text-center">{% trans "Date" %}</th>
+            <th>{% trans "Source" %}</th>
+            <th>{% trans "Credit account (GL)" %}</th>
+            <th>{% trans "Received from" %}</th>
+            <th>{% trans "Project" %}</th>
+            <th>{% trans "Fund / Donor" %}</th>
+            <th>{% trans "Receipt method" %}</th>
+            <th>{% trans "Bank / Cash account" %}</th>
+            <th>{% trans "Reference no." %}</th>
+            <th class="text-right">{% trans "Amount" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
-              data-search="{{ r.reference|lower }} {{ r.received_from|lower }} {{ r.project|lower }} {{ r.fund|lower }}"
+          <tr
+              data-search="{{ r.reference|lower }} {{ r.received_from|lower }} {{ r.project|lower }} {{ r.fund|lower }} {{ r.source_label|lower }} {% if r.credit_account %}{{ r.credit_account.code|lower }} {{ r.credit_account.name|lower }}{% endif %}"
               x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5">
-              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}?focus={{ r.id }}" class="text-[#0078D4] font-medium hover:underline">
-                {{ r.reference }}
-              </a>
+            <td>
+              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}?focus={{ r.id }}">{{ r.reference }}</a>
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">
-              {% if r.income_account %}
-                {{ r.income_account.code }} — {{ r.income_account.name }}
+            <td class="text-center tabular-nums">{{ r.date|date:"d/m/Y" }}</td>
+            <td>{{ r.source_label }}</td>
+            <td>
+              {% if r.credit_account %}
+                {{ r.credit_account.code }} — {{ r.credit_account.name }}
               {% else %}
                 —
               {% endif %}
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.received_from|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.fund|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.receipt_method }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">
+            <td>{{ r.received_from|default:"—" }}</td>
+            <td>{{ r.project|default:"—" }}</td>
+            <td>{{ r.fund|default:"—" }}</td>
+            <td>{{ r.receipt_method }}</td>
+            <td>
               {% if r.bank_account %}
                 {{ r.bank_account.code }} — {{ r.bank_account.name }}
               {% else %}
                 —
               {% endif %}
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.reference_no|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.amount }}</td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                {% if r.status == 'Posted' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
-                {{ r.status }}
-              </span>
-            </td>
+            <td>{{ r.reference_no|default:"—" }}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.amount_fmt }}</td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="11" class="px-4 py-10 text-center text-sm text-[#605e5c]">No income transactions found.</td>
+            <td colspan="11" class="ireg-empty">{% trans "No posted receipt transactions found." %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -157,4 +371,3 @@
   </div>
 </div>
 {% endblock %}
-

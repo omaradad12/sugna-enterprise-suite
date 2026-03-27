@@ -1,0 +1,12 @@
+{% load i18n %}
+{# Print-only: list active query parameters (excludes navigation / export tokens). #}
+{% if request.GET %}
+<div class="print-only erp-print-filters">
+  <div class="erp-print-filters__label">{% trans "Filters applied" %}</div>
+  {% for key, value in request.GET.items %}
+    {% if value and key != 'format' and key != 'mode' and key != 'focus' and key != 'open_manual' and key != 'src' and key != 'page' %}
+      <div class="erp-print-filters__row">{{ key|cut:'_'|title }}: {{ value }}</div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

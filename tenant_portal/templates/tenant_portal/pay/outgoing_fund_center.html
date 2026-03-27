@@ -1,175 +1,276 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Outgoing Fund Center" %} | {% trans "Finance" %}{% endblock %}
+{% block title %}{% trans "Payables" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
+{% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
 <div class="ofc-dynamics-root dynamics-financial-report">
 <style>
+  /* Payables center — Dynamics / NetSuite SaaS: Inter, soft borders, no gradients */
   .ofc-dynamics-root {
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    font-family: Inter, var(--font-family-sans, "Segoe UI"), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: #323130;
-    max-width: 1240px;
+    color: #111827;
+    max-width: 1180px;
     margin: 0 auto;
-    padding-bottom: 2rem;
+    padding-bottom: 0.5rem;
   }
   .ofc-hero {
-    position: relative;
-    background: linear-gradient(135deg, #faf9f8 0%, #ffffff 42%, #f5f9fc 100%);
-    border: 1px solid #e1dfdd;
-    border-radius: 6px;
-    border-left: 4px solid #0078d4;
-    box-shadow:
-      0 0.6px 1.8px rgba(0, 0, 0, 0.06),
-      0 4px 14px rgba(0, 0, 0, 0.04);
-    padding: 1.35rem 1.5rem 1.4rem;
-    margin-bottom: 1.35rem;
-    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    padding: 0.625rem 1rem;
+    margin-bottom: 0.375rem;
   }
-  .ofc-hero::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 40%;
-    max-width: 320px;
-    height: 100%;
-    background: radial-gradient(ellipse at top right, rgba(0, 120, 212, 0.07) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .ofc-hero-inner { position: relative; z-index: 1; }
+  .ofc-hero-inner { position: relative; }
   .ofc-hero h1 {
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #201f1e;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
     letter-spacing: -0.02em;
-    line-height: 1.2;
+    line-height: 1.25;
   }
   .ofc-hero p {
-    margin: 0.5rem 0 0;
-    font-size: 14px;
-    color: #605e5c;
-    line-height: 1.55;
-    max-width: 42rem;
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #6b7280;
+    line-height: 1.45;
+    max-width: 44rem;
   }
-  .ofc-kpi-board {
-    background: #faf9f8;
-    border: 1px solid #edebe9;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 1.5rem;
-    overflow: hidden;
+  .ofc-kpi-dash {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    padding: 0.625rem 0.75rem 0.75rem;
+    margin-bottom: 0.375rem;
   }
-  .ofc-kpi-board-head {
+  .ofc-kpi-dash-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #faf9f8 100%);
-    border-bottom: 1px solid #e1dfdd;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
   }
-  .ofc-kpi-board-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #323130;
+  .ofc-kpi-dash-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #4b5563;
   }
-  .ofc-kpi-board-hint {
-    font-size: 12px;
-    color: #8a8886;
+  .ofc-kpi-dash-title svg {
+    flex-shrink: 0;
+    width: 1rem !important;
+    height: 1rem !important;
+    color: #9ca3af;
+    stroke-width: 2;
   }
-  .ofc-kpi-grid {
+  .ofc-kpi-dash-hint {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #9ca3af;
+  }
+  .ofc-kpi-primary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
-    gap: 1px;
-    padding: 1px;
-    background: #edebe9;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    align-items: stretch;
   }
-  .ofc-kpi {
-    position: relative;
-    padding: 14px 14px 16px;
-    background: #ffffff;
-    min-height: 5.25rem;
+  @media (min-width: 640px) {
+    .ofc-kpi-primary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1024px) {
+    .ofc-kpi-primary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  .ofc-kpi-hero {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
-    transition: background 0.15s ease;
+    gap: 0.25rem;
+    min-height: 5.75rem;
+    height: 100%;
+    padding: 0.75rem 1rem;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    position: relative;
   }
-  .ofc-kpi:hover { background: #fafdff; }
-  .ofc-kpi::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 12px;
-    bottom: 12px;
-    width: 3px;
-    border-radius: 0 2px 2px 0;
-    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
-    opacity: 0.85;
+  a.ofc-kpi-hero:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   }
-  .ofc-kpi-value {
-    padding-left: 10px;
-    font-size: 1.0625rem;
-    font-weight: 700;
-    color: #201f1e;
+  a.ofc-kpi-hero:focus-visible {
+    outline: 2px solid #d1d5db;
+    outline-offset: 2px;
+  }
+  .ofc-kpi-hero--static { cursor: default; }
+  .ofc-kpi-hero--static:hover {
+    border-color: #e5e7eb;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  }
+  .ofc-kpi-hero-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    flex: 1;
+    min-height: 0;
+  }
+  .ofc-kpi-hero-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6b7280;
+    line-height: 1.3;
+  }
+  .ofc-kpi-hero-value {
+    font-size: 1.1875rem;
+    font-weight: 600;
+    color: #111827;
     font-variant-numeric: tabular-nums;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+  }
+  .ofc-kpi-hero-sub {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #6b7280;
+    line-height: 1.35;
+  }
+  .ofc-kpi-hero-cta {
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .ofc-kpi-hero-cta svg {
+    width: 0.875rem !important;
+    height: 0.875rem !important;
+    color: #9ca3af;
+    stroke-width: 2;
+  }
+  a.ofc-kpi-hero:hover .ofc-kpi-hero-cta { color: #4b5563; text-decoration: underline; }
+  .ofc-kpi-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  .ofc-kpi-compact {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.25rem;
+    min-height: 4.25rem;
+    height: 100%;
+    padding: 0.625rem 0.75rem;
+    box-sizing: border-box;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ofc-kpi-compact:hover { border-color: #d1d5db; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); }
+  .ofc-kpi-compact-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
     word-break: break-word;
   }
-  .ofc-kpi-label {
-    padding-left: 10px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.07em;
+  .ofc-kpi-compact-label {
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #605e5c;
+    color: #6b7280;
     line-height: 1.35;
   }
   .ofc-section-panel {
-    background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-    margin-bottom: 1.35rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    margin-bottom: 0.375rem;
     overflow: hidden;
+  }
+  /* Very light tint + subtle top border (almost white; no strong fill) */
+  .ofc-section-panel--payments {
+    background: #f9fbfd;
+    border-top: 1px solid #e2ecf6;
+  }
+  .ofc-section-panel--expense {
+    background: #f9fcfa;
+    border-top: 1px solid #e4f0ea;
+  }
+  .ofc-section-panel--payables {
+    background: #faf9fc;
+    border-top: 1px solid #ebe7f4;
+  }
+  .ofc-section-panel--neutral {
+    background: #fafafa;
+    border-top: 1px solid #e5e7eb;
   }
   .ofc-section-head {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 11px 18px;
-    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
-    border-bottom: 1px solid #e1dfdd;
-    border-left: 3px solid #0078d4;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
   }
-  .ofc-section-head::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, #e1dfdd 0%, transparent 100%);
-    margin-left: 4px;
-    opacity: 0.7;
+  .ofc-section-head-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    color: #9ca3af;
+  }
+  .ofc-section-head-icon svg {
+    width: 1rem !important;
+    height: 1rem !important;
+    stroke-width: 2;
   }
   .ofc-section-title {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #323130;
-    white-space: nowrap;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #111827;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
   }
-  .ofc-section-body { padding: 1rem 1rem 1.15rem; }
+  .ofc-section-body {
+    padding: 0.5rem 0.75rem 0.625rem;
+    background: transparent;
+  }
   .ofc-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 0.5rem;
+    align-items: stretch;
   }
   @media (min-width: 640px) {
     .ofc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -181,33 +282,25 @@
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 14px;
-    padding: 14px 14px 14px 16px;
+    gap: 0.75rem;
+    min-height: 5.75rem;
+    height: 100%;
+    padding: 0.75rem 1rem;
+    box-sizing: border-box;
     background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     text-decoration: none;
     color: inherit;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    transition:
-      border-color 0.18s ease,
-      box-shadow 0.18s ease,
-      background 0.18s ease,
-      transform 0.15s ease;
-    min-height: 5.25rem;
-    position: relative;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .ofc-card:hover {
-    border-color: #c7e0f4;
-    box-shadow:
-      0 2px 8px rgba(0, 120, 212, 0.1),
-      0 0 0 1px rgba(0, 120, 212, 0.08);
-    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
-    transform: translateY(-1px);
+    border-color: #d1d5db;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   }
-  .ofc-card:active { transform: translateY(0); }
   .ofc-card:focus-visible {
-    outline: 2px solid #0078d4;
+    outline: 2px solid #d1d5db;
     outline-offset: 2px;
   }
   .ofc-card-icon-wrap {
@@ -215,133 +308,175 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 6px;
-    background: linear-gradient(145deg, #e8f4ff 0%, #deecf9 100%);
-    color: #0078d4;
-    border: 1px solid rgba(0, 120, 212, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    width: 2rem;
+    height: 2rem;
+    margin-top: 0.0625rem;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #9ca3af;
+    transition: border-color 0.15s ease;
   }
+  .ofc-card:hover .ofc-card-icon-wrap { border-color: #d1d5db; color: #6b7280; }
   .ofc-card-icon-wrap svg {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
-    stroke-width: 2.1px;
+    width: 1rem !important;
+    height: 1rem !important;
+    stroke-width: 2;
   }
   .ofc-card-main {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding-top: 2px;
+    gap: 0.1875rem;
+    justify-content: flex-start;
+    padding-top: 0;
   }
   .ofc-card-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #201f1e;
-    line-height: 1.3;
-    letter-spacing: 0.01em;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #111827;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
   }
   .ofc-card-desc {
-    font-size: 12px;
-    color: #605e5c;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #6b7280;
     line-height: 1.45;
   }
   .ofc-card-chevron {
     flex-shrink: 0;
     align-self: center;
-    color: #c8c6c4;
+    margin-top: 0.375rem;
+    color: #d1d5db;
     opacity: 0;
-    transform: translateX(-4px);
-    transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
+    transition: opacity 0.15s ease, color 0.15s ease;
   }
   .ofc-card:hover .ofc-card-chevron {
     opacity: 1;
-    transform: translateX(0);
-    color: #0078d4;
+    color: #9ca3af;
   }
   .ofc-card-chevron svg {
-    width: 1.15rem !important;
-    height: 1.15rem !important;
-    stroke-width: 2.2px;
+    width: 1rem !important;
+    height: 1rem !important;
+    stroke-width: 2;
   }
   .ofc-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .ofc-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 0.8125rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
   .ofc-table th {
     text-align: left;
-    padding: 8px 10px;
-    background: #faf9f8;
-    color: #605e5c;
+    padding: 0.5rem 0.625rem;
+    background: #f9fafb;
+    color: #6b7280;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 0.625rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    border-bottom: 1px solid #edebe9;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
   }
   .ofc-table td {
-    padding: 10px;
-    border-bottom: 1px solid #f3f2f1;
-    color: #323130;
+    padding: 0.5rem 0.625rem;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
   }
   .ofc-table tr:last-child td { border-bottom: none; }
   .ofc-empty {
     margin: 0;
-    font-size: 13px;
-    color: #8a8886;
+    font-size: 0.8125rem;
+    color: #9ca3af;
   }
   .ofc-trend-foot {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #edebe9;
-    font-size: 13px;
-    color: #605e5c;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #6b7280;
   }
   .ofc-trend-foot a {
-    color: #0078d4;
-    font-weight: 600;
-    text-decoration: none;
+    color: #4b5563;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
-  .ofc-trend-foot a:hover { text-decoration: underline; }
+  .ofc-trend-foot a:hover { color: #111827; }
 </style>
 
   <header class="ofc-hero" role="banner">
     <div class="ofc-hero-inner">
-      <h1>{% trans "Outgoing Fund Center" %}</h1>
-      <p>{% trans "Record, control, and monitor all outgoing payments and expenses." %}</p>
+      <h1>{% trans "Payables" %}</h1>
+      <p>{% trans "Disburse and track payments by project, donor, grant, and budget line—with NGO compliance and payables control." %}</p>
     </div>
   </header>
 
-  <section class="ofc-kpi-board" aria-label="{% trans 'Key metrics' %}">
-    <div class="ofc-kpi-board-head">
-      <span class="ofc-kpi-board-title">{% trans "At a glance" %}</span>
-      <span class="ofc-kpi-board-hint">{% trans "Finance dashboard period" %}: {{ outgoing_period_hint }}</span>
+  <section class="ofc-kpi-dash" aria-label="{% trans 'KPI dashboard' %}">
+    <div class="ofc-kpi-dash-head">
+      <span class="ofc-kpi-dash-title">
+        <i data-feather="bar-chart-2"></i>
+        {% trans "KPI dashboard" %}
+      </span>
+      <span class="ofc-kpi-dash-hint">{% trans "Finance dashboard period" %}: {{ outgoing_period_hint }}</span>
     </div>
-    <div class="ofc-kpi-grid">
-      {% for k in outgoing_kpis %}
-      <div class="ofc-kpi">
-        <span class="ofc-kpi-value">{{ k.value }}</span>
-        <span class="ofc-kpi-label">{{ k.label }}</span>
+
+    <div class="ofc-kpi-primary-grid">
+      {% for k in kpi_primary %}
+      {% if k.href %}
+      <a class="ofc-kpi-hero ofc-kpi-hero--tone-{{ k.tone }}" href="{{ k.href }}">
+        <div class="ofc-kpi-hero-inner">
+          <span class="ofc-kpi-hero-label">{{ k.label }}</span>
+          <span class="ofc-kpi-hero-value">{{ k.value }}</span>
+          <span class="ofc-kpi-hero-sub">{{ k.hint }}</span>
+          {% if k.id == 'pending_approvals' %}
+          <span class="ofc-kpi-hero-cta">{% trans "Open approval queue" %} <i data-feather="arrow-right"></i></span>
+          {% elif k.id == 'outstanding_payables' %}
+          <span class="ofc-kpi-hero-cta">{% trans "Review payables" %} <i data-feather="arrow-right"></i></span>
+          {% endif %}
+        </div>
+      </a>
+      {% else %}
+      <div class="ofc-kpi-hero ofc-kpi-hero--static ofc-kpi-hero--tone-{{ k.tone }}" role="status">
+        <div class="ofc-kpi-hero-inner">
+          <span class="ofc-kpi-hero-label">{{ k.label }}</span>
+          <span class="ofc-kpi-hero-value">{{ k.value }}</span>
+          <span class="ofc-kpi-hero-sub">{{ k.hint }}</span>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="ofc-kpi-compact-grid" role="list">
+      {% for k in outgoing_kpis_other %}
+      <div class="ofc-kpi-compact" role="listitem">
+        <span class="ofc-kpi-compact-value">{{ k.value }}</span>
+        <span class="ofc-kpi-compact-label">{{ k.label }}</span>
       </div>
       {% endfor %}
     </div>
   </section>
 
-  <section class="ofc-section-panel" aria-labelledby="ofc-sec-payments">
+  <section class="ofc-section-panel ofc-section-panel--payments" aria-labelledby="ofc-sec-payments">
     <div class="ofc-section-head">
+      <span class="ofc-section-head-icon" aria-hidden="true"><i data-feather="send"></i></span>
       <h2 id="ofc-sec-payments" class="ofc-section-title">{% trans "Payments" %}</h2>
     </div>
     <div class="ofc-section-body">
       <div class="ofc-grid">
-        <a class="ofc-card" href="{% url 'tenant_portal:pay_payment_vouchers' %}">
+        <a class="ofc-card" href="{% url 'tenant_portal:pay_payment_vouchers' %}#pv-posting">
           <span class="ofc-card-icon-wrap"><i data-feather="file-minus"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Payment vouchers" %}</span>
-            <span class="ofc-card-desc">{% trans "Create, approve, and post payment vouchers." %}</span>
+            <span class="ofc-card-desc">{% trans "Create payment vouchers; saving creates balanced journal entries tagged with project, donor, grant, and budget line." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -349,15 +484,15 @@
           <span class="ofc-card-icon-wrap"><i data-feather="truck"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Vendor payments" %}</span>
-            <span class="ofc-card-desc">{% trans "Supplier and vendor disbursements." %}</span>
+            <span class="ofc-card-desc">{% trans "Supplier disbursements tied to project, grant, donor, and budget line." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
         <a class="ofc-card" href="{% url 'tenant_portal:pay_non_vendor_payments' %}">
-          <span class="ofc-card-icon-wrap"><i data-feather="file-text"></i></span>
+          <span class="ofc-card-icon-wrap"><i data-feather="users"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Non-vendor payments" %}</span>
-            <span class="ofc-card-desc">{% trans "Staff, partners, and other payees." %}</span>
+            <span class="ofc-card-desc">{% trans "Staff, partners, and other payees outside vendor master data." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -365,7 +500,23 @@
           <span class="ofc-card-icon-wrap"><i data-feather="credit-card"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Disbursement form" %}</span>
-            <span class="ofc-card-desc">{% trans "Structured disbursement requests and signing." %}</span>
+            <span class="ofc-card-desc">{% trans "Structured requests, approvals, and signing for donor-funded spend." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:pay_payment_batches' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="layers"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Payment batches" %}</span>
+            <span class="ofc-card-desc">{% trans "Batch vouchers for approval and posting with consistent project, donor, grant, and budget line tagging." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:finance_recurring_journals' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="refresh-cw"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Recurring payments" %} <span class="text-[11px] font-normal text-[#9ca3af]">({% trans "optional" %})</span></span>
+            <span class="ofc-card-desc">{% trans "Use recurring journals for scheduled vendor or grant-related disbursement patterns." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -373,9 +524,10 @@
     </div>
   </section>
 
-  <section class="ofc-section-panel" aria-labelledby="ofc-sec-expense">
+  <section class="ofc-section-panel ofc-section-panel--expense" aria-labelledby="ofc-sec-expense">
     <div class="ofc-section-head">
-      <h2 id="ofc-sec-expense" class="ofc-section-title">{% trans "Expense tracking" %}</h2>
+      <span class="ofc-section-head-icon" aria-hidden="true"><i data-feather="layers"></i></span>
+      <h2 id="ofc-sec-expense" class="ofc-section-title">{% trans "Expense management" %}</h2>
     </div>
     <div class="ofc-section-body">
       <div class="ofc-grid">
@@ -383,15 +535,15 @@
           <span class="ofc-card-icon-wrap"><i data-feather="clipboard-list"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Expense register" %}</span>
-            <span class="ofc-card-desc">{% trans "Chronological expense and payment register." %}</span>
+            <span class="ofc-card-desc">{% trans "Chronological expense and payment register by project, grant, donor, and budget line." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
         <a class="ofc-card" href="{% url 'tenant_portal:pay_expense_allocation' %}">
           <span class="ofc-card-icon-wrap"><i data-feather="share-2"></i></span>
           <span class="ofc-card-main">
-            <span class="ofc-card-title">{% trans "Expense allocation (project & donor)" %}</span>
-            <span class="ofc-card-desc">{% trans "Split costs across projects, grants, and donors." %}</span>
+            <span class="ofc-card-title">{% trans "Expense allocation (project, donor, grant)" %}</span>
+            <span class="ofc-card-desc">{% trans "Split costs across projects, donors, and grant budget lines." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -399,7 +551,31 @@
           <span class="ofc-card-icon-wrap"><i data-feather="shield"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Budget control checks" %}</span>
-            <span class="ofc-card-desc">{% trans "Validate spend against budgets before payment." %}</span>
+            <span class="ofc-card-desc">{% trans "Validate spend against grant budgets before payment." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:finance_account_categories' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="tag"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Expense categories" %}</span>
+            <span class="ofc-card-desc">{% trans "Map account categories to expense types for reporting by project, donor, grant, and budget line." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:pay_supporting_documents' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="paperclip"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Supporting documents" %}</span>
+            <span class="ofc-card-desc">{% trans "Upload and link invoices, memos, and donor evidence to payment vouchers (not on the voucher form)." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:finance_pending_approvals' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="check-square"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Expense approvals" %} <span class="text-[11px] font-normal text-[#9ca3af]">({% trans "optional" %})</span></span>
+            <span class="ofc-card-desc">{% trans "Pending financial approvals including expenses and vouchers with grant and project context." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -407,8 +583,9 @@
     </div>
   </section>
 
-  <section class="ofc-section-panel" aria-labelledby="ofc-sec-payables">
+  <section class="ofc-section-panel ofc-section-panel--payables" aria-labelledby="ofc-sec-payables">
     <div class="ofc-section-head">
+      <span class="ofc-section-head-icon" aria-hidden="true"><i data-feather="book"></i></span>
       <h2 id="ofc-sec-payables" class="ofc-section-title">{% trans "Payables" %}</h2>
     </div>
     <div class="ofc-section-body">
@@ -417,7 +594,7 @@
           <span class="ofc-card-icon-wrap"><i data-feather="book-open"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Payables ledger" %}</span>
-            <span class="ofc-card-desc">{% trans "Activity on accounts payable and liabilities." %}</span>
+            <span class="ofc-card-desc">{% trans "Accounts payable and liability activity for donor-funded operations." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -425,7 +602,31 @@
           <span class="ofc-card-icon-wrap"><i data-feather="alert-circle"></i></span>
           <span class="ofc-card-main">
             <span class="ofc-card-title">{% trans "Outstanding payables" %}</span>
-            <span class="ofc-card-desc">{% trans "Open vendor and accrual balances." %}</span>
+            <span class="ofc-card-desc">{% trans "Open vendor balances and accruals; use project, donor, and grant tags where applied." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:pay_advances_prepayments' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="package"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Advances & prepayments" %}</span>
+            <span class="ofc-card-desc">{% trans "Staff advances and vendor prepayments; clear to project, grant, donor, and budget line." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:pay_payables_aging' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="calendar"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Payables aging" %}</span>
+            <span class="ofc-card-desc">{% trans "Open payables over time; combine with grant and vendor views for NGO control." %}</span>
+          </span>
+          <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
+        </a>
+        <a class="ofc-card" href="{% url 'tenant_portal:finance_accounts' %}">
+          <span class="ofc-card-icon-wrap"><i data-feather="briefcase"></i></span>
+          <span class="ofc-card-main">
+            <span class="ofc-card-title">{% trans "Supplier balances" %} <span class="text-[11px] font-normal text-[#9ca3af]">({% trans "optional" %})</span></span>
+            <span class="ofc-card-desc">{% trans "Chart of accounts and payable balances; cross-check with vendor payments and budget lines." %}</span>
           </span>
           <span class="ofc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
@@ -433,8 +634,9 @@
     </div>
   </section>
 
-  <section class="ofc-section-panel" aria-labelledby="ofc-sec-recent">
+  <section class="ofc-section-panel ofc-section-panel--neutral" aria-labelledby="ofc-sec-recent">
     <div class="ofc-section-head">
+      <span class="ofc-section-head-icon" aria-hidden="true"><i data-feather="clock"></i></span>
       <h2 id="ofc-sec-recent" class="ofc-section-title">{% trans "Recent payments" %}</h2>
     </div>
     <div class="ofc-section-body">

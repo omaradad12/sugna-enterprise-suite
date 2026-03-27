@@ -1,0 +1,29 @@
+{% extends "website/academy_page_base.html" %}
+{% block title %}Tutorials{% endblock %}
+{% block meta_description %}Short video tutorials and quick guides for Sugna Enterprise Suite — navigation, approvals, grants, and operations.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Quick wins</p>
+    <h1 class="academy-page-title">Tutorials</h1>
+    <p class="academy-page-lead">Focused walkthroughs you can assign before go-live or embed in your internal knowledge base. Formats expand as the catalog grows.</p>
+  </div>
+</div>
+<section class="academy-section">
+  <div class="container">
+    <div class="academy-tutorial-grid">
+      {% for t in tutorials %}
+      <article class="academy-tutorial-card">
+        <div class="academy-tutorial-card__top">
+          <span class="academy-pill academy-pill--format">{{ t.format }}</span>
+          <span class="academy-tutorial-card__duration">{{ t.duration }}</span>
+        </div>
+        <h2 class="academy-tutorial-card__title">{{ t.title }}</h2>
+        <p class="academy-tutorial-card__desc">{{ t.description }}</p>
+        <span class="academy-tutorial-card__soon">Content scheduling — contact us for early access</span>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

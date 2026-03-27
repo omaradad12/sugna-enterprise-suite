@@ -1,0 +1,109 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Program Dimension Values | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-page-title { font-size: 22px; font-weight: 600; color: #323130; letter-spacing: -0.01em; }
+  .dyn-page-desc { font-size: 13px; color: #605e5c; margin-top: 2px; }
+  .dyn-command-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px 16px; margin:0 -16px 16px; border-bottom:1px solid #edebe9; background:linear-gradient(90deg,#f3f2f1 0,#faf9f8 40%,#fff 100%); }
+  .dyn-section { background:#fff; border:1px solid #edebe9; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,.02); }
+  .dyn-section-body { padding:12px 16px 16px; }
+  .dyn-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px; }
+  .dyn-toolbar input[type="text"], .dyn-toolbar select { height:32px; padding:0 8px; border:1px solid #edebe9; border-radius:2px; font-size:13px; }
+  .dyn-toolbar input[type="text"] { width:240px; }
+  .dyn-btn-primary { height:32px; padding:0 12px; font-size:13px; font-weight:500; border:none; border-radius:2px; background:#0078d4; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .dyn-btn-primary:hover { background:#106ebe; color:#fff; }
+  .dyn-btn-secondary { height:32px; padding:0 12px; font-size:13px; font-weight:500; border:1px solid #edebe9; border-radius:2px; background:#fff; color:#323130; text-decoration:none; display:inline-flex; align-items:center; }
+  .dyn-btn-secondary:hover { background:#f3f2f1; color:#323130; }
+  .dyn-link { color:#0078d4; text-decoration:none; font-size:13px; }
+  .dyn-link:hover { text-decoration:underline; }
+  .dyn-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .dyn-table th { text-align:left; font-weight:600; color:#323130; background:#f3f2f1; padding:8px 12px; border:1px solid #edebe9; }
+  .dyn-table td { padding:8px 12px; border:1px solid #edebe9; background:#fff; }
+  .dyn-table tbody tr:nth-child(even) td { background:#fbfbfb; }
+  .dyn-badge-active,.dyn-badge-inactive { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:500; }
+  .dyn-badge-active { background:#dff6dd; color:#0b5a0b; }
+  .dyn-badge-inactive { background:#f3f2f1; color:#605e5c; }
+  .dyn-pagination { margin-top:12px; font-size:13px; color:#605e5c; display:flex; align-items:center; gap:12px; }
+  .dyn-pagination a { color:#0078d4; text-decoration:none; }
+  .dyn-empty { text-align:center; padding:32px 16px; color:#605e5c; font-size:13px; }
+</style>
+
+<div class="dyn-command-bar">
+  <div>
+    <h1 class="dyn-page-title">Program Dimension Values</h1>
+    <p class="dyn-page-desc">Financial Setup → Dimensions → Program ({{ prog_dimension.dimension_code }}) → Values</p>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+    <a href="{% url 'tenant_portal:setup_dimensions_list' %}" class="dyn-link">Back to Dimensions</a>
+    {% if can_manage %}
+    <a href="{% url 'tenant_portal:setup_program_dimension_values_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> New value</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="dyn-section">
+  <div class="dyn-section-body">
+    <form method="get" class="dyn-toolbar">
+      <input type="text" name="q" value="{{ filter_q }}" placeholder="Search code, name, description…" />
+      <select name="status">
+        <option value="">All statuses</option>
+        {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="dyn-btn-primary">Filter</button>
+      <a href="{% url 'tenant_portal:setup_program_dimension_values_list' %}" class="dyn-btn-secondary">Clear</a>
+    </form>
+
+    <div class="overflow-x-auto">
+      <table class="dyn-table">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th style="width:100px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in values_page %}
+          <tr>
+            <td style="font-family: Consolas, monospace;">{{ row.dimension.dimension_code }}</td>
+            <td style="font-family: Consolas, monospace;">{{ row.code }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.description|default:"—" }}</td>
+            <td><span class="{% if row.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">{{ row.get_status_display }}</span></td>
+            <td>
+              {% if can_manage %}
+              <a href="{% url 'tenant_portal:setup_program_dimension_values_edit' row.pk %}" class="dyn-link">Edit</a>
+              <span style="color:#c8c6c4;">|</span>
+              <a href="{% url 'tenant_portal:setup_program_dimension_values_delete' row.pk %}" class="dyn-link" style="color:#a4262c;">Delete</a>
+              {% else %}
+              <a href="{% url 'tenant_portal:setup_program_dimension_values_edit' row.pk %}" class="dyn-link">View</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="dyn-empty">No program values found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if values_page.has_other_pages %}
+    <div class="dyn-pagination">
+      {% if values_page.has_previous %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page={{ values_page.previous_page_number }}">Previous</a>
+      {% endif %}
+      <span>Page {{ values_page.number }} of {{ values_page.paginator.num_pages }}</span>
+      {% if values_page.has_next %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page={{ values_page.next_page_number }}">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -80,6 +80,10 @@ def post_receipt_voucher(
     amount: Decimal,
     description: str,
     status: str,
+    external_reference_no: str = "",
+    receipt_method: str = "",
+    received_from: str = "",
+    receipt_stream: str = "",
 ):
     """
     Create receipt voucher journal + lines (draft or posted).
@@ -91,20 +95,25 @@ def post_receipt_voucher(
     )
 
     with transaction.atomic(using=using):
+        rs = (receipt_stream or "").strip().lower()
+        valid_rs = {c[0] for c in JournalEntry.ReceiptStream.choices}
         entry = JournalEntry.objects.using(using).create(
             entry_date=entry_date,
             memo=memo,
             grant=grant,
             status=JournalEntry.Status.DRAFT,
             created_by=user,
+            payment_method=(receipt_method or "").strip(),
+            payee_name=(received_from or "").strip(),
             source=JournalEntry.SourceType.RECEIPT_VOUCHER,
             source_type=JournalEntry.SourceType.RECEIPT_VOUCHER,
             journal_type="receipt_voucher",
             is_system_generated=True,
+            receipt_stream=rs if rs in valid_rs else "",
         )
         reference = f"RV-{entry.id:05d}"
         entry.reference = reference
-        entry.source_document_no = reference
+        entry.source_document_no = (external_reference_no or "").strip() or reference
         entry.source_id = entry.pk
         entry.save(using=using, update_fields=["reference", "source_document_no", "source_id"])
 
@@ -124,6 +133,14 @@ def post_receipt_voucher(
         )
 
         if status == JournalEntry.Status.POSTED:
+            if grant is not None:
+                from tenant_grants.services.receipt_grant_validation import (
+                    assert_grant_receipt_posting_allowed,
+                )
+
+                assert_grant_receipt_posting_allowed(
+                    using=using, grant=grant, receipt_amount=amount
+                )
             entry.status = JournalEntry.Status.POSTED
             entry.approved_by_id = getattr(user, "id", None)
             entry.save(using=using)

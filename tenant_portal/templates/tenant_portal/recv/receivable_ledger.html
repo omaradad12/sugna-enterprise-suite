@@ -2,155 +2,379 @@
 {% block title %}Receivable Ledger | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Receivable ledger</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Full movement history for all receivable transactions.</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
-        <input type="text"
-               x-model="search"
-               placeholder="Search receivable, debtor, project..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
-      </div>
-    </div>
-  </div>
+<div class="rl-ledger-root" x-data="{ search: '' }">
+<style>
+  .rl-ledger-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .rl-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .rl-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .rl-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .rl-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 22rem;
+  }
+  .rl-search-wrap i {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .rl-search-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.65rem 0.5rem 2.25rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .rl-search-wrap input::placeholder { color: #8a8886; }
+  .rl-search-wrap input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+  }
+  .rl-filters-details {
+    margin-bottom: 1rem;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .rl-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .rl-filters-details summary::-webkit-details-marker { display: none; }
+  .rl-filters-details[open] summary { border-bottom-color: #edebe9; }
+  .rl-filters-details summary:hover { background: #f3f2f1; }
+  .rl-filters-body { padding: 1rem 1rem 1.1rem; }
+  .rl-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .rl-filters-body input,
+  .rl-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .rl-filters-body input:focus,
+  .rl-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .rl-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .rl-btn-primary:hover { background: #106ebe; }
+  .rl-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .rl-btn-ghost:hover { background: #faf9f8; }
+  .rl-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .rl-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .rl-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .rl-table-wrap { overflow-x: auto; }
+  .rl-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .rl-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .rl-table-wrap thead th.text-right,
+  .rl-table-wrap tbody td.text-right { text-align: right; }
+  .rl-table-wrap tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .rl-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .rl-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .rl-table-wrap tbody td a {
+    color: #0078d4;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .rl-table-wrap tbody td a:hover { text-decoration: underline; }
+  .rl-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .rl-ledger-root .rl-table-wrap tbody td.text-right,
+  .rl-ledger-root .rl-table-wrap tbody td.tabular-nums {
+    font-size: 12px;
+  }
+  .rl-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+    font-size: 0.875rem;
+  }
+  .rl-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #475569;
+  }
+</style>
 
-  <!-- Filter bar -->
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Receivable no.</label>
-        <input type="text" name="ref" value="{{ request.GET.ref }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Debtor name</label>
-        <input type="text" name="debtor" value="{{ request.GET.debtor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Type</label>
-        <select name="type" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">All</option>
-          <option value="invoice" {% if request.GET.type == 'invoice' %}selected{% endif %}>Invoice</option>
-          <option value="collection" {% if request.GET.type == 'collection' %}selected{% endif %}>Collection</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
-        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
-        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">All</option>
-          {% for code, label in status_choices %}
-          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Entry from</label>
-          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Entry to</label>
-          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Due from</label>
-          <input type="date" name="due_from" value="{{ request.GET.due_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Due to</label>
-          <input type="date" name="due_to" value="{{ request.GET.due_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Balance from</label>
-          <input type="text" name="balance_from" value="{{ request.GET.balance_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Balance to</label>
-          <input type="text" name="balance_to" value="{{ request.GET.balance_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_receivable_ledger' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
+  <header class="rl-hero">
+    <h1>Receivable ledger</h1>
+    <div class="rl-search-wrap">
+      <i data-feather="search"></i>
+      <input type="text"
+             x-model="search"
+             placeholder="Search receivable, debtor, project…"
+             autocomplete="off"
+             aria-label="Filter table" />
     </div>
-  </form>
+  </header>
 
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Receivable ledger</span>
+  <details class="rl-filters-details" {% if request.GET %}open{% endif %}>
+    <summary>
+      <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+      <span>Filters</span>
+    </summary>
+    <div class="rl-filters-body">
+      <form method="get" class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+        <div>
+          <label>Receivable no.</label>
+          <input type="text" name="ref" value="{{ request.GET.ref }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Debtor name</label>
+          <input type="text" name="debtor" value="{{ request.GET.debtor }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Type</label>
+          <select name="type">
+            <option value="">All</option>
+            <option value="invoice" {% if request.GET.type == 'invoice' %}selected{% endif %}>Invoice</option>
+            <option value="collection" {% if request.GET.type == 'collection' %}selected{% endif %}>Collection</option>
+          </select>
+        </div>
+        <div>
+          <label>Project</label>
+          <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Fund / Donor</label>
+          <input type="text" name="donor" value="{{ request.GET.donor }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Status</label>
+          <select name="status">
+            <option value="">All</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Entry from</label>
+            <input type="date" name="from" value="{{ request.GET.from }}" />
+          </div>
+          <div>
+            <label>Entry to</label>
+            <input type="date" name="to" value="{{ request.GET.to }}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Due from</label>
+            <input type="date" name="due_from" value="{{ request.GET.due_from }}" />
+          </div>
+          <div>
+            <label>Due to</label>
+            <input type="date" name="due_to" value="{{ request.GET.due_to }}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Balance from</label>
+            <input type="text" name="balance_from" value="{{ request.GET.balance_from }}" />
+          </div>
+          <div>
+            <label>Balance to</label>
+            <input type="text" name="balance_to" value="{{ request.GET.balance_to }}" />
+          </div>
+        </div>
+        <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 pt-1">
+          <button type="submit" class="rl-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply filters
+          </button>
+          <a href="{% url 'tenant_portal:recv_receivable_ledger' %}" class="rl-btn-ghost">Reset</a>
+        </div>
+      </form>
     </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+  </details>
+
+  <div class="rl-table-card">
+    <div class="rl-table-head">
+      <span>Posted movements</span>
+    </div>
+    <div class="rl-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Entry date</th>
-            <th class="px-4 py-2.5">Receivable no.</th>
-            <th class="px-4 py-2.5">Debtor name</th>
-            <th class="px-4 py-2.5">Type</th>
-            <th class="px-4 py-2.5">Description</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Fund / Donor</th>
-            <th class="px-4 py-2.5 text-right">Debit</th>
-            <th class="px-4 py-2.5 text-right">Credit / collected</th>
-            <th class="px-4 py-2.5 text-right">Balance</th>
-            <th class="px-4 py-2.5">Due date</th>
-            <th class="px-4 py-2.5">Status</th>
-            <th class="px-4 py-2.5">Reference no.</th>
+            <th>Entry date</th>
+            <th>Receivable no.</th>
+            <th>Debtor name</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Project</th>
+            <th>Fund / Donor</th>
+            <th>Income account</th>
+            <th>Receivable account</th>
+            <th class="text-right">Debit</th>
+            <th class="text-right">Credit / collected</th>
+            <th class="text-right">Balance</th>
+            <th>Due date</th>
+            <th>Status</th>
+            <th>Reference no.</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
-              data-search="{{ r.receivable_no|lower }} {{ r.debtor_name|lower }} {{ r.project|lower }} {{ r.fund_donor|lower }}"
+          <tr
+              data-search="{{ r.receivable_no|lower }} {{ r.debtor_name|lower }} {{ r.project|lower }} {{ r.fund_donor|lower }} {% if r.income_account %}{{ r.income_account.code|lower }} {{ r.income_account.name|lower }}{% endif %} {% if r.receivable_account %}{{ r.receivable_account.code|lower }} {{ r.receivable_account.name|lower }}{% endif %}"
               x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.entry_date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5">
-              <a href="{% url transaction_url_name %}?focus={{ r.entry_id }}" class="text-[#0078D4] font-medium hover:underline">
-                {{ r.receivable_no }}
-              </a>
+            <td class="tabular-nums">{{ r.entry_date|date:"d/m/Y" }}</td>
+            <td>
+              <a href="{% url transaction_url_name %}?focus={{ r.entry_id }}">{{ r.receivable_no }}</a>
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.debtor_name|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.receivable_type }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.description|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.fund_donor|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.debit_amount }}</td>
-            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.credit_amount }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.balance }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.due_date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
-                {{ r.status }}
-              </span>
-            </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.reference_no|default:"—" }}</td>
+            <td>{{ r.debtor_name|default:"—" }}</td>
+            <td>{{ r.receivable_type }}</td>
+            <td>{{ r.description|default:"—" }}</td>
+            <td>{{ r.project|default:"—" }}</td>
+            <td>{{ r.fund_donor|default:"—" }}</td>
+            <td>{% if r.income_account %}{{ r.income_account.code }} — {{ r.income_account.name }}{% else %}—{% endif %}</td>
+            <td>{% if r.receivable_account %}{{ r.receivable_account.code }} — {{ r.receivable_account.name }}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{{ r.debit_fmt }}</td>
+            <td class="text-right tabular-nums">{{ r.credit_fmt }}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.balance_fmt }}</td>
+            <td class="tabular-nums">{{ r.due_date|date:"d/m/Y" }}</td>
+            <td><span class="rl-badge">{{ r.status }}</span></td>
+            <td>{{ r.reference_no|default:"—" }}</td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="13" class="px-4 py-6 text-center text-sm text-[#605e5c]">No receivable transactions found.</td>
+            <td colspan="15" class="rl-empty">No receivable transactions found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -159,4 +383,3 @@
   </div>
 </div>
 {% endblock %}
-

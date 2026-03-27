@@ -1,0 +1,37 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">{{ page_title }}</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">{{ page_subtitle }}</p>
+</div>
+
+<div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+  <div class="overflow-auto">
+    <table class="min-w-full text-sm">
+      <thead style="background:#f3f2f1;">
+        <tr>
+          {% for h in table_headers %}
+          <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in table_rows %}
+        <tr class="border-b last:border-0 hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+          {% for c in row %}
+          <td class="px-4 py-3 text-xs text-[#323130]">{{ c }}</td>
+          {% endfor %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td class="px-4 py-8 text-[#605e5c]" colspan="{{ table_headers|length }}">{{ empty_message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

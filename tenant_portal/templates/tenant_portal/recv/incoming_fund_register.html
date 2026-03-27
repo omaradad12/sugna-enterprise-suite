@@ -1,116 +1,354 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Incoming Fund Register | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Receivables register" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Incoming fund register</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Summary of donor and project funding versus receipts.</p>
+<div class="rreg-root" x-data="{ search: '' }">
+<style>
+  .rreg-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .rreg-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .rreg-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .rreg-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .rreg-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 22rem;
+  }
+  .rreg-search-wrap i {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .rreg-search-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.65rem 0.5rem 2.25rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .rreg-search-wrap input::placeholder { color: #8a8886; }
+  .rreg-search-wrap input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+  }
+  .rreg-filters-details {
+    margin-bottom: 1rem;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .rreg-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .rreg-filters-details summary::-webkit-details-marker { display: none; }
+  .rreg-filters-details[open] summary { border-bottom-color: #edebe9; }
+  .rreg-filters-details summary:hover { background: #f3f2f1; }
+  .rreg-filters-body { padding: 1rem 1rem 1.1rem; }
+  .rreg-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .rreg-filters-body input,
+  .rreg-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .rreg-filters-body input:focus,
+  .rreg-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .rreg-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .rreg-btn-primary:hover { background: #106ebe; }
+  .rreg-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .rreg-btn-ghost:hover { background: #faf9f8; }
+  .rreg-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .rreg-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .rreg-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .rreg-table-wrap { overflow-x: auto; }
+  .rreg-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .rreg-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .rreg-table-wrap thead th.text-right,
+  .rreg-table-wrap tbody td.text-right { text-align: right; }
+  .rreg-table-wrap tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .rreg-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .rreg-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .rreg-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .rreg-root .rreg-table-wrap tbody td.text-right,
+  .rreg-root .rreg-table-wrap tbody td.tabular-nums {
+    font-size: 12px;
+  }
+  .rreg-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+    font-size: 0.875rem;
+  }
+  .rreg-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .rreg-badge--active { background: #ecfdf5; color: #047857; }
+  .rreg-badge--closed { background: #f1f5f9; color: #475569; }
+  .rreg-badge--other { background: #f1f5f9; color: #475569; }
+</style>
+
+  <header class="rreg-hero">
+    <h1>{% trans "Receivables register" %}</h1>
+    <div class="rreg-search-wrap">
+      <i data-feather="search"></i>
+      <input type="text"
+             x-model="search"
+             placeholder="{% trans 'Search donor, project, grant…' %}"
+             autocomplete="off"
+             aria-label="{% trans 'Filter table' %}" />
     </div>
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
-        <input type="text"
-               x-model="search"
-               placeholder="Search donor, project, grant..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
-      </div>
+  </header>
+
+  <p class="text-[12px] text-[#605e5c] mb-3 max-w-[52rem] leading-relaxed">
+    {% trans "Ceiling and eligible receivable are maintained on each grant; funding method and tranches (under Project / Grant dimensions) can further limit claimable amounts. Posted receipt amounts and dates are read-only (draft excluded). Total received is the sum of income lines on posted receipt vouchers. Remaining claimable uses effective eligible (manual eligible capped by unlocked tranches when applicable) minus received. Unused grant balance is grant ceiling minus eligible receivable entered on the grant. Register status is Active while remaining claimable is greater than zero." %}
+  </p>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    <div class="rounded-lg border border-[#e8e6e3] bg-white px-4 py-3 shadow-sm">
+      <div class="text-[0.6875rem] font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Total eligible receivable" %}</div>
+      <div class="text-lg font-semibold tabular-nums text-[#201f1e] mt-1">{{ sum_eligible_receivable|floatformat:2 }}</div>
+    </div>
+    <div class="rounded-lg border border-[#e8e6e3] bg-white px-4 py-3 shadow-sm">
+      <div class="text-[0.6875rem] font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Total received" %}</div>
+      <div class="text-lg font-semibold tabular-nums text-[#201f1e] mt-1">{{ sum_total_received|floatformat:2 }}</div>
+    </div>
+    <div class="rounded-lg border border-[#e8e6e3] bg-white px-4 py-3 shadow-sm">
+      <div class="text-[0.6875rem] font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Remaining claimable" %}</div>
+      <div class="text-lg font-semibold tabular-nums text-[#047857] mt-1">{{ sum_remaining_claimable|floatformat:2 }}</div>
+    </div>
+    <div class="rounded-lg border border-[#e8e6e3] bg-white px-4 py-3 shadow-sm">
+      <div class="text-[0.6875rem] font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Total grant ceiling" %}</div>
+      <div class="text-lg font-semibold tabular-nums text-[#201f1e] mt-1">{{ sum_grant_ceiling|floatformat:2 }}</div>
     </div>
   </div>
 
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
-        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant / Agreement</label>
-        <input type="text" name="grant" value="{{ request.GET.grant }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div class="grid grid-cols-2 gap-2">
+  <details class="rreg-filters-details" {% if request.GET %}open{% endif %}>
+    <summary>
+      <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+      <span>{% trans "Filters" %}</span>
+    </summary>
+    <div class="rreg-filters-body">
+      <form method="get" class="grid grid-cols-1 lg:grid-cols-4 gap-3 items-end">
         <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
-          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <label>{% trans "Donor" %}</label>
+          <input type="text" name="donor" value="{{ request.GET.donor }}" autocomplete="off" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
-          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <label>{% trans "Project" %}</label>
+          <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
         </div>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
-        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">All</option>
-          {% for code, label in status_choices %}
-          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="lg:col-span-5 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
+        <div>
+          <label>{% trans "Grant / Agreement" %}</label>
+          <input type="text" name="grant" value="{{ request.GET.grant }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>{% trans "Register status" %}</label>
+          <select name="status">
+            {% for code, label in register_status_choices %}
+            <option value="{{ code }}" {% if request.GET.status|default:''|lower == code|lower %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lg:col-span-4 flex flex-wrap justify-end gap-2 pt-1">
+          <button type="submit" class="rreg-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            {% trans "Apply filters" %}
+          </button>
+          <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}" class="rreg-btn-ghost">{% trans "Reset" %}</a>
+        </div>
+      </form>
     </div>
-  </form>
+  </details>
 
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Incoming fund register</span>
+  <div class="rreg-table-card">
+    <div class="rreg-table-head">
+      <span>{% trans "By grant" %}</span>
     </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+    <div class="rreg-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Donor</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Grant / Agreement</th>
-            <th class="px-4 py-2.5 text-right">Total grant amount</th>
-            <th class="px-4 py-2.5 text-right">Total received</th>
-            <th class="px-4 py-2.5 text-right">Remaining balance</th>
-            <th class="px-4 py-2.5">First receipt date</th>
-            <th class="px-4 py-2.5">Latest receipt date</th>
-            <th class="px-4 py-2.5">Status</th>
+            <th>{% trans "Donor" %}</th>
+            <th>{% trans "Project" %}</th>
+            <th>{% trans "Grant / Agreement" %}</th>
+            <th class="text-right">{% trans "Grant ceiling" %}</th>
+            <th class="text-right">{% trans "Eligible receivable" %}</th>
+            <th class="text-right">{% trans "Unused grant balance" %}</th>
+            <th class="text-right">{% trans "Total received" %}</th>
+            <th class="text-right">{% trans "Remaining claimable" %}</th>
+            <th>{% trans "First receipt date" %}</th>
+            <th>{% trans "Latest receipt date" %}</th>
+            <th>{% trans "Register status" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
+          <tr
               data-search="{{ r.donor|lower }} {{ r.project|lower }} {{ r.grant_code|lower }}"
               x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.donor }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.grant_code }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.total_grant }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.total_received }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.remaining }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">
+            <td>{{ r.donor }}</td>
+            <td>{{ r.project }}</td>
+            <td>{{ r.grant_code }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.grant_ceiling|floatformat:2 }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.eligible_receivable|floatformat:2 }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.unused_grant_balance|floatformat:2 }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.total_received|floatformat:2 }}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.remaining_claimable|floatformat:2 }}</td>
+            <td class="tabular-nums">
               {% if r.first_date %}{{ r.first_date|date:"d/m/Y" }}{% else %}—{% endif %}
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">
+            <td class="tabular-nums">
               {% if r.latest_date %}{{ r.latest_date|date:"d/m/Y" }}{% else %}—{% endif %}
             </td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                {% if r.status == 'Active' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
-                {{ r.status }}
+            <td>
+              <span class="rreg-badge {% if r.register_status == 'active' %}rreg-badge--active{% else %}rreg-badge--closed{% endif %}">
+                {% if r.register_status == 'active' %}{% trans "Active" %}{% else %}{% trans "Closed" %}{% endif %}
               </span>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="px-4 py-10 text-center text-sm text-[#605e5c]">No incoming fund records found.</td>
+            <td colspan="11" class="rreg-empty">{% trans "No receivables register records found." %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -119,4 +357,3 @@
   </div>
 </div>
 {% endblock %}
-

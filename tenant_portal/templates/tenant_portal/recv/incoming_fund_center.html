@@ -1,6 +1,6 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Incoming Fund Center" %} | {% trans "Finance" %}{% endblock %}
+{% block title %}{% trans "Receivables" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
 <div class="ifc-dynamics-root dynamics-financial-report">
@@ -16,15 +16,12 @@
   }
   .ifc-hero {
     position: relative;
-    background: linear-gradient(135deg, #faf9f8 0%, #ffffff 42%, #f5f9fc 100%);
-    border: 1px solid #e1dfdd;
-    border-radius: 6px;
-    border-left: 4px solid #0078d4;
-    box-shadow:
-      0 0.6px 1.8px rgba(0, 0, 0, 0.06),
-      0 4px 14px rgba(0, 0, 0, 0.04);
-    padding: 1.35rem 1.5rem 1.4rem;
-    margin-bottom: 1.35rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: none;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
     overflow: hidden;
   }
   .ifc-hero::before {
@@ -41,10 +38,10 @@
   .ifc-hero-inner { position: relative; z-index: 1; }
   .ifc-hero h1 {
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 500;
     color: #201f1e;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     line-height: 1.2;
   }
   .ifc-hero p {
@@ -55,11 +52,11 @@
     max-width: 42rem;
   }
   .ifc-kpi-board {
-    background: #faf9f8;
-    border: 1px solid #edebe9;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    margin-bottom: 1.5rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: none;
+    margin-bottom: 1rem;
     overflow: hidden;
   }
   .ifc-kpi-board-head {
@@ -69,14 +66,13 @@
     flex-wrap: wrap;
     gap: 8px;
     padding: 10px 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #faf9f8 100%);
-    border-bottom: 1px solid #e1dfdd;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
   }
   .ifc-kpi-board-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
     color: #323130;
   }
   .ifc-kpi-board-hint {
@@ -88,7 +84,7 @@
     grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
     gap: 1px;
     padding: 1px;
-    background: #edebe9;
+    background: #e5e7eb;
   }
   .ifc-kpi {
     position: relative;
@@ -101,22 +97,21 @@
     gap: 6px;
     transition: background 0.15s ease;
   }
-  .ifc-kpi:hover { background: #fafdff; }
+  .ifc-kpi:hover { background: #ffffff; }
   .ifc-kpi::before {
     content: "";
     position: absolute;
     left: 0;
     top: 12px;
     bottom: 12px;
-    width: 3px;
+    width: 2px;
     border-radius: 0 2px 2px 0;
-    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
-    opacity: 0.85;
+    background: #9ca3af;
+    opacity: 0.35;
   }
   .ifc-kpi-value {
     padding-left: 10px;
-    font-size: 1.0625rem;
-    font-weight: 700;
+    font-weight: 500;
     color: #201f1e;
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
@@ -125,29 +120,27 @@
   }
   .ifc-kpi-label {
     padding-left: 10px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
     color: #605e5c;
     line-height: 1.35;
   }
   .ifc-section-panel {
     background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-    margin-bottom: 1.35rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: none;
+    margin-bottom: 1rem;
     overflow: hidden;
   }
   .ifc-section-head {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 11px 18px;
-    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
-    border-bottom: 1px solid #e1dfdd;
-    border-left: 3px solid #0078d4;
+    padding: 10px 14px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
   }
   .ifc-section-head::after {
     content: "";
@@ -159,17 +152,17 @@
   }
   .ifc-section-title {
     font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-weight: 500;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
     color: #323130;
     white-space: nowrap;
   }
-  .ifc-section-body { padding: 1rem 1rem 1.15rem; }
+  .ifc-section-body { padding: 0.9rem; }
   .ifc-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
   }
   @media (min-width: 640px) {
     .ifc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -182,28 +175,26 @@
     flex-direction: row;
     align-items: flex-start;
     gap: 14px;
-    padding: 14px 14px 14px 16px;
+    padding: 12px 12px 12px 13px;
     background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     text-decoration: none;
     color: inherit;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: none;
     transition:
       border-color 0.18s ease,
       box-shadow 0.18s ease,
       background 0.18s ease,
       transform 0.15s ease;
-    min-height: 5.25rem;
+    min-height: 4.75rem;
     position: relative;
   }
   .ifc-card:hover {
-    border-color: #c7e0f4;
-    box-shadow:
-      0 2px 8px rgba(0, 120, 212, 0.1),
-      0 0 0 1px rgba(0, 120, 212, 0.08);
-    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
-    transform: translateY(-1px);
+    border-color: #d1d5db;
+    box-shadow: none;
+    background: #ffffff;
+    transform: none;
   }
   .ifc-card:active { transform: translateY(0); }
   .ifc-card:focus-visible {
@@ -215,18 +206,18 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 6px;
-    background: linear-gradient(145deg, #e8f4ff 0%, #deecf9 100%);
-    color: #0078d4;
-    border: 1px solid rgba(0, 120, 212, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+    background: #f9fafb;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    box-shadow: none;
   }
   .ifc-card-icon-wrap svg {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
-    stroke-width: 2.1px;
+    width: 1rem !important;
+    height: 1rem !important;
+    stroke-width: 2px;
   }
   .ifc-card-main {
     flex: 1;
@@ -237,8 +228,8 @@
     padding-top: 2px;
   }
   .ifc-card-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: #201f1e;
     line-height: 1.3;
     letter-spacing: 0.01em;
@@ -259,7 +250,7 @@
   .ifc-card:hover .ifc-card-chevron {
     opacity: 1;
     transform: translateX(0);
-    color: #0078d4;
+    color: #9ca3af;
   }
   .ifc-card-chevron svg {
     width: 1.15rem !important;
@@ -298,8 +289,8 @@
 
   <header class="ifc-hero" role="banner">
     <div class="ifc-hero-inner">
-      <h1>{% trans "Incoming Fund Center" %}</h1>
-      <p>{% trans "Record and track all incoming funds from donors, grants, and other income sources." %}</p>
+      <h1>{% trans "Receivables" %}</h1>
+      <p>{% trans "Record receipts, income, and receivable balances from donors, grants, and other sources." %}</p>
     </div>
   </header>
 
@@ -324,26 +315,26 @@
     </div>
     <div class="ifc-section-body">
       <div class="ifc-grid">
-        <a class="ifc-card" href="{% url 'tenant_portal:recv_receipt_vouchers' %}">
+        <a class="ifc-card" href="{% url 'tenant_portal:recv_receipt_entry' %}?receipt_type=other_income">
           <span class="ifc-card-icon-wrap"><i data-feather="file-plus"></i></span>
           <span class="ifc-card-main">
-            <span class="ifc-card-title">{% trans "Receipt vouchers" %}</span>
-            <span class="ifc-card-desc">{% trans "Create and post official receipt vouchers." %}</span>
+            <span class="ifc-card-title">{% trans "Other income receipts" %}</span>
+            <span class="ifc-card-desc">{% trans "Create and post non-grant income receipts." %}</span>
           </span>
           <span class="ifc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
-        <a class="ifc-card" href="{% url 'tenant_portal:recv_donor_receipts' %}">
+        <a class="ifc-card" href="{% url 'tenant_portal:recv_receipt_entry' %}?receipt_type=grant_funding">
           <span class="ifc-card-icon-wrap"><i data-feather="users"></i></span>
           <span class="ifc-card-main">
-            <span class="ifc-card-title">{% trans "Donor receipts" %}</span>
-            <span class="ifc-card-desc">{% trans "Grant and donor-linked receipt activity." %}</span>
+            <span class="ifc-card-title">{% trans "Grant funding receipts" %}</span>
+            <span class="ifc-card-desc">{% trans "Grant and donor-linked funding receipts." %}</span>
           </span>
           <span class="ifc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>
-        <a class="ifc-card" href="{% url 'tenant_portal:recv_bank_cash_receipts' %}">
+        <a class="ifc-card" href="{% url 'tenant_portal:recv_receipt_entry' %}?receipt_type=cashbook">
           <span class="ifc-card-icon-wrap"><i data-feather="credit-card"></i></span>
           <span class="ifc-card-main">
-            <span class="ifc-card-title">{% trans "Bank & cash receipt entries" %}</span>
+            <span class="ifc-card-title">{% trans "Cashbook receipts" %}</span>
             <span class="ifc-card-desc">{% trans "Deposits and cash receipt journals." %}</span>
           </span>
           <span class="ifc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
@@ -369,8 +360,8 @@
         <a class="ifc-card" href="{% url 'tenant_portal:recv_incoming_fund_register' %}">
           <span class="ifc-card-icon-wrap"><i data-feather="book-open"></i></span>
           <span class="ifc-card-main">
-            <span class="ifc-card-title">{% trans "Incoming fund register" %}</span>
-            <span class="ifc-card-desc">{% trans "All incoming fund movements." %}</span>
+            <span class="ifc-card-title">{% trans "Receivables register" %}</span>
+            <span class="ifc-card-desc">{% trans "Funding and receipt movements by grant and donor." %}</span>
           </span>
           <span class="ifc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
         </a>

@@ -1,132 +1,334 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Grant Income Tracking | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Grant income tracking" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Grant income tracking</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Detailed grant and tranche receipt tracking from receipt vouchers.</p>
-    </div>
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
-        <input type="text"
-               x-model="search"
-               placeholder="Search donor, project, grant..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
-      </div>
-    </div>
-  </div>
+<div class="ginc-root" x-data="{ search: '' }">
+<style>
+  .ginc-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .ginc-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .ginc-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .ginc-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .ginc-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 22rem;
+  }
+  .ginc-search-wrap i {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .ginc-search-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.65rem 0.5rem 2.25rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ginc-search-wrap input::placeholder { color: #8a8886; }
+  .ginc-search-wrap input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+  }
+  .ginc-filters-details {
+    margin-bottom: 1rem;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .ginc-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .ginc-filters-details summary::-webkit-details-marker { display: none; }
+  .ginc-filters-details[open] summary { border-bottom-color: #edebe9; }
+  .ginc-filters-details summary:hover { background: #f3f2f1; }
+  .ginc-filters-body { padding: 1rem 1rem 1.1rem; }
+  .ginc-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .ginc-filters-body input,
+  .ginc-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ginc-filters-body input:focus,
+  .ginc-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .ginc-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ginc-btn-primary:hover { background: #106ebe; }
+  .ginc-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .ginc-btn-ghost:hover { background: #faf9f8; }
+  .ginc-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .ginc-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .ginc-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .ginc-table-wrap { overflow-x: auto; }
+  .ginc-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .ginc-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .ginc-table-wrap thead th.text-right,
+  .ginc-table-wrap tbody td.text-right { text-align: right; }
+  .ginc-table-wrap tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .ginc-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .ginc-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .ginc-table-wrap tbody td a {
+    color: #0078d4;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .ginc-table-wrap tbody td a:hover { text-decoration: underline; }
+  .ginc-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .ginc-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+    font-size: 0.875rem;
+  }
+  .ginc-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .ginc-badge--posted { background: #ecfdf5; color: #047857; }
+  .ginc-badge--draft { background: #fffbeb; color: #b45309; }
+  .ginc-badge--other { background: #f1f5f9; color: #475569; }
+</style>
 
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
-        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant / Agreement</label>
-        <input type="text" name="grant" value="{{ request.GET.grant }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div class="grid grid-cols-2 gap-2">
+  <header class="ginc-hero">
+    <h1>{% trans "Grant income tracking" %}</h1>
+    <div class="ginc-search-wrap">
+      <i data-feather="search"></i>
+      <input type="text"
+             x-model="search"
+             placeholder="Search donor, project, grant…"
+             autocomplete="off"
+             aria-label="Filter table" />
+    </div>
+  </header>
+  <p class="text-[12px] text-[#605e5c] mb-3">
+    {% trans "Report-only: grant ceiling and eligible receivable come from each grant on" %}
+    <a href="{% url 'tenant_portal:grants_grants' %}" class="text-[#0078d4] font-semibold no-underline hover:underline">{% trans "Project grants" %}</a>
+    {% trans "or Project / Grant dimensions. Received amounts are from posted receipt vouchers; remaining claimable is eligible receivable minus received." %}
+  </p>
+
+  <details class="ginc-filters-details" {% if request.GET %}open{% endif %}>
+    <summary>
+      <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+      <span>Filters</span>
+    </summary>
+    <div class="ginc-filters-body">
+      <form method="get" class="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
         <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
-          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <label>Donor</label>
+          <input type="text" name="donor" value="{{ request.GET.donor }}" autocomplete="off" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
-          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <label>Project</label>
+          <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
         </div>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
-        <input type="text" name="ref" value="{{ request.GET.ref }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
-        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">Posted only</option>
-          {% for code, label in status_choices %}
-          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="lg:col-span-5 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_grant_income_tracking' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
+        <div>
+          <label>Grant / Agreement</label>
+          <input type="text" name="grant" value="{{ request.GET.grant }}" autocomplete="off" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>From date</label>
+            <input type="date" name="from" value="{{ request.GET.from }}" />
+          </div>
+          <div>
+            <label>To date</label>
+            <input type="date" name="to" value="{{ request.GET.to }}" />
+          </div>
+        </div>
+        <div>
+          <label>Voucher no.</label>
+          <input type="text" name="ref" value="{{ request.GET.ref }}" autocomplete="off" />
+        </div>
+        <div class="lg:col-span-5 flex flex-wrap justify-end gap-2 pt-1">
+          <button type="submit" class="ginc-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply filters
+          </button>
+          <a href="{% url 'tenant_portal:recv_grant_income_tracking' %}" class="ginc-btn-ghost">Reset</a>
+        </div>
+      </form>
     </div>
-  </form>
+  </details>
 
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Grant income tracking</span>
+  <div class="ginc-table-card">
+    <div class="ginc-table-head">
+        <span>Grant setup vs posted receipts</span>
     </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+    <div class="ginc-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Donor</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Grant / Agreement</th>
-            <th class="px-4 py-2.5">Tranche no.</th>
-            <th class="px-4 py-2.5 text-right">Planned amount</th>
-            <th class="px-4 py-2.5 text-right">Received amount</th>
-            <th class="px-4 py-2.5">Receipt date</th>
-            <th class="px-4 py-2.5">Voucher no.</th>
-            <th class="px-4 py-2.5">Bank / Cash account</th>
-            <th class="px-4 py-2.5">Reference no.</th>
-            <th class="px-4 py-2.5 text-right">Balance remaining</th>
-            <th class="px-4 py-2.5">Status</th>
+            <th>Donor</th>
+            <th>Project</th>
+            <th>Grant / Agreement</th>
+            <th>Tranche no.</th>
+            <th class="text-right">Grant ceiling</th>
+            <th class="text-right">Eligible receivable</th>
+            <th class="text-right">Received amount</th>
+            <th>Latest receipt date</th>
+            <th class="text-right">Posted vouchers</th>
+            <th class="text-right">Remaining claimable</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
+          <tr
               data-search="{{ r.donor|lower }} {{ r.project|lower }} {{ r.grant_code|lower }} {{ r.voucher|lower }}"
               x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.donor }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.grant_code }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.tranche_no }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.planned_amount }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.received_amount }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.receipt_date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5">
-              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}?focus={{ r.id }}" class="text-[#0078D4] font-medium hover:underline">
-                {{ r.voucher }}
-              </a>
-            </td>
-            <td class="px-4 py-2.5 text-[#323130]">
-              {% if r.bank_account %}
-                {{ r.bank_account.code }} — {{ r.bank_account.name }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.reference_no|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.balance_remaining }}</td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                {% if r.status == 'Posted' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
-                {{ r.status }}
-              </span>
-            </td>
+            <td>{{ r.donor }}</td>
+            <td>{{ r.project }}</td>
+            <td>{{ r.grant_code }}</td>
+            <td>{{ r.tranche_no }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.planned_amount|erp_amount }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.eligible_amount|erp_amount }}</td>
+            <td class="text-right tabular-nums" style="font-weight:500;">{{ r.received_amount|erp_amount }}</td>
+            <td class="tabular-nums">{{ r.latest_receipt_date|date:"d/m/Y" }}</td>
+            <td class="text-right tabular-nums">{{ r.voucher_count|erp_int }}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.balance_remaining|erp_amount }}</td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="12" class="px-4 py-10 text-center text-sm text-[#605e5c]">No grant income records found.</td>
+            <td colspan="10" class="ginc-empty">No posted grant receipt vouchers found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -135,4 +337,3 @@
   </div>
 </div>
 {% endblock %}
-

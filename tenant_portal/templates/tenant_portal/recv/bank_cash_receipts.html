@@ -1,168 +1,489 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Bank & Cash Receipt Entries | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}Cashbook Receipts | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Bank &amp; cash receipt entries</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Register of posted receipt vouchers affecting bank and cash accounts.</p>
+<div class="cbr-root" x-data="{ search: '' }">
+<style>
+  .cbr-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .cbr-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .cbr-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .cbr-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .cbr-search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 22rem;
+  }
+  .cbr-search-wrap i {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #605e5c;
+    pointer-events: none;
+  }
+  .cbr-search-wrap input {
+    width: 100%;
+    padding: 0.5rem 0.65rem 0.5rem 2.25rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cbr-search-wrap input::placeholder { color: #8a8886; }
+  .cbr-search-wrap input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+  }
+  .cbr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .cbr-export-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .cbr-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .cbr-export-btn:hover {
+    background: #faf9f8;
+    border-color: #d2d0ce;
+  }
+  .cbr-filters-details {
+    flex: 1 1 520px;
+    min-width: min(100%, 280px);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .cbr-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .cbr-filters-details summary::-webkit-details-marker { display: none; }
+  .cbr-filters-details[open] summary { border-bottom-color: #edebe9; }
+  .cbr-filters-details summary:hover { background: #f3f2f1; }
+  .cbr-filters-body { padding: 1rem 1rem 1.1rem; }
+  .cbr-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .cbr-filters-body input,
+  .cbr-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cbr-filters-body input:focus,
+  .cbr-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .cbr-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .cbr-btn-primary:hover { background: #106ebe; }
+  .cbr-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .cbr-btn-ghost:hover { background: #faf9f8; }
+  .cbr-kpi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    background: #ffffff;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .cbr-kpi-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #605e5c;
+    letter-spacing: 0.01em;
+  }
+  .cbr-kpi-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    color: #0b5c0b;
+  }
+  .cbr-kpi-value.is-zero { color: #605e5c; }
+  .cbr-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .cbr-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .cbr-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .cbr-table-wrap { overflow-x: auto; }
+  .cbr-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .cbr-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .cbr-table-wrap thead th.text-right,
+  .cbr-table-wrap tbody td.text-right { text-align: right; }
+  .cbr-table-wrap tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .cbr-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .cbr-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .cbr-table-wrap tbody td a {
+    color: #0078d4;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .cbr-table-wrap tbody td a:hover { text-decoration: underline; }
+  .cbr-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .cbr-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+    font-size: 0.875rem;
+  }
+  .cbr-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+  .cbr-badge--posted { background: #ecfdf5; color: #047857; }
+  .cbr-badge--draft { background: #fffbeb; color: #b45309; }
+  .cbr-badge--other { background: #f1f5f9; color: #475569; }
+  .recv-register-print-header__inner {
+    text-align: center;
+    border-bottom: 1px solid #e1dfdd;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.65rem;
+  }
+  .recv-register-print-logo {
+    max-height: 40px;
+    width: auto;
+    display: block;
+    margin: 0 auto 0.35rem;
+  }
+  .recv-register-print-org {
+    font-size: 13px;
+    font-weight: 600;
+    color: #201f1e;
+  }
+  .recv-register-print-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #323130;
+    margin-top: 0.35rem;
+  }
+</style>
+
+  {% include "tenant_portal/recv/_recv_register_print_header.html" with report_title="Cashbook receipts" %}
+  {% include "tenant_portal/_print_query_filters_summary.html" %}
+  <header class="cbr-hero hidden-print">
+    <h1>Cashbook receipts</h1>
+    <div class="cbr-search-wrap">
+      <i data-feather="search"></i>
+      <input type="text"
+             x-model="search"
+             placeholder="Search voucher, project, donor…"
+             autocomplete="off"
+             aria-label="Filter table" />
     </div>
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
-        <input type="text"
-               x-model="search"
-               placeholder="Search voucher, project, donor..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
+  </header>
+
+  <div class="cbr-toolbar hidden-print">
+    <details class="cbr-filters-details" {% if request.GET %}open{% endif %}>
+      <summary>
+        <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+        <span>Filters</span>
+      </summary>
+      <div class="cbr-filters-body">
+        <form method="get" class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+          <div>
+            <label>Bank / Cash account</label>
+            <input type="text" name="bank" value="{{ request.GET.bank }}" placeholder="Bank name or account" autocomplete="off" />
+          </div>
+          <div>
+            <label>Receipt method</label>
+            <select name="method">
+              <option value="">All</option>
+              <option value="bank" {% if request.GET.method == 'bank' %}selected{% endif %}>Bank</option>
+              <option value="cash" {% if request.GET.method == 'cash' %}selected{% endif %}>Cash</option>
+            </select>
+          </div>
+          <div>
+            <label>Project</label>
+            <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Fund / Donor</label>
+            <input type="text" name="fund" value="{{ request.GET.fund }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Received from</label>
+            <input type="text" name="received_from" value="{{ request.GET.received_from }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Voucher no.</label>
+            <input type="text" name="ref" value="{{ request.GET.ref }}" autocomplete="off" />
+          </div>
+          <div>
+            <label>Reference no.</label>
+            <input type="text" name="ref_no" value="{{ request.GET.ref_no }}" autocomplete="off" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label>From date</label>
+              <input type="date" name="from" value="{{ request.GET.from }}" />
+            </div>
+            <div>
+              <label>To date</label>
+              <input type="date" name="to" value="{{ request.GET.to }}" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label>Amount from</label>
+              <input type="text" name="amount_from" value="{{ request.GET.amount_from }}" />
+            </div>
+            <div>
+              <label>Amount to</label>
+              <input type="text" name="amount_to" value="{{ request.GET.amount_to }}" />
+            </div>
+          </div>
+          <div>
+            <label>Status</label>
+            <select name="status">
+              <option value="">Posted only</option>
+              {% for code, label in status_choices %}
+              <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 pt-1">
+            <button type="submit" class="cbr-btn-primary">
+              <i data-feather="filter" class="w-4 h-4"></i>
+              Apply filters
+            </button>
+            <a href="{% url 'tenant_portal:recv_bank_cash_receipts' %}" class="cbr-btn-ghost">Reset</a>
+          </div>
+        </form>
       </div>
+    </details>
+    <div class="cbr-export-group">
+      <a href="{{ export_xlsx_url }}" class="cbr-export-btn">
+        <i data-feather="download" class="w-4 h-4"></i>
+        Excel
+      </a>
+      <button type="button" onclick="window.print()" class="cbr-export-btn">
+        <i data-feather="printer" class="w-4 h-4"></i>
+        PDF
+      </button>
     </div>
   </div>
 
-  <!-- Filter bar -->
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Bank / Cash account</label>
-        <input type="text" name="bank" value="{{ request.GET.bank }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Bank name or account" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Receipt method</label>
-        <select name="method" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">All</option>
-          <option value="bank" {% if request.GET.method == 'bank' %}selected{% endif %}>Bank</option>
-          <option value="cash" {% if request.GET.method == 'cash' %}selected{% endif %}>Cash</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
-        <input type="text" name="fund" value="{{ request.GET.fund }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Received from</label>
-        <input type="text" name="received_from" value="{{ request.GET.received_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Voucher no.</label>
-        <input type="text" name="ref" value="{{ request.GET.ref }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Reference no.</label>
-        <input type="text" name="ref_no" value="{{ request.GET.ref_no }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">From date</label>
-          <input type="date" name="from" value="{{ request.GET.from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">To date</label>
-          <input type="date" name="to" value="{{ request.GET.to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount from</label>
-          <input type="text" name="amount_from" value="{{ request.GET.amount_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Amount to</label>
-          <input type="text" name="amount_to" value="{{ request.GET.amount_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
-        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">Posted only</option>
-          {% for code, label in status_choices %}
-          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_bank_cash_receipts' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
-    </div>
-  </form>
+  <div class="cbr-kpi">
+    <span class="cbr-kpi-label">Total receipts amount</span>
+    <span class="cbr-kpi-value {% if total_amount == 0 %}is-zero{% endif %}">{{ total_amount|floatformat:2 }}</span>
+  </div>
 
-  <!-- Register table -->
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Bank &amp; cash receipt entries</span>
+  <div class="cbr-table-card">
+    <div class="cbr-table-head">
+      <span>Register</span>
     </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+    <div class="cbr-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Entry date</th>
-            <th class="px-4 py-2.5">Voucher no.</th>
-            <th class="px-4 py-2.5">Receipt date</th>
-            <th class="px-4 py-2.5">Receipt method</th>
-            <th class="px-4 py-2.5">Bank / Cash account</th>
-            <th class="px-4 py-2.5">Received from</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Fund / Donor</th>
-            <th class="px-4 py-2.5">Income account</th>
-            <th class="px-4 py-2.5">Reference no.</th>
-            <th class="px-4 py-2.5 text-right">Amount</th>
-            <th class="px-4 py-2.5">Status</th>
-            <th class="px-4 py-2.5">Posted by</th>
+            <th>Entry date</th>
+            <th>Voucher no.</th>
+            <th>Receipt date</th>
+            <th>Receipt method</th>
+            <th>Bank / Cash account</th>
+            <th>Received from</th>
+            <th>Project</th>
+            <th>Fund / Donor</th>
+            <th>Income account</th>
+            <th>Reference no.</th>
+            <th class="text-right">Amount</th>
+            <th>Status</th>
+            <th>Posted by</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
+          <tr
               data-search="{{ r.voucher|lower }} {{ r.project|lower }} {{ r.fund|lower }} {{ r.received_from|lower }}"
               x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.entry_date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5">
-              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}?focus={{ r.id }}" class="text-[#0078D4] font-medium hover:underline">
-                {{ r.voucher }}
-              </a>
+            <td class="tabular-nums">{{ r.entry_date|date:"d/m/Y" }}</td>
+            <td>
+              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}?focus={{ r.id }}">{{ r.voucher }}</a>
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.receipt_date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.receipt_method }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">
+            <td class="tabular-nums">{{ r.receipt_date|date:"d/m/Y" }}</td>
+            <td>{{ r.receipt_method }}</td>
+            <td>
               {% if r.bank_account %}
                 {{ r.bank_account.code }} — {{ r.bank_account.name }}
               {% else %}
                 —
               {% endif %}
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.received_from|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.fund|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">
+            <td>{{ r.received_from|default:"—" }}</td>
+            <td>{{ r.project|default:"—" }}</td>
+            <td>{{ r.fund|default:"—" }}</td>
+            <td>
               {% if r.income_account %}
                 {{ r.income_account.code }} — {{ r.income_account.name }}
               {% else %}
                 —
               {% endif %}
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.reference_no|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.amount }}</td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                {% if r.status == 'Posted' %}bg-green-50 text-green-800{% elif r.status == 'Draft' %}bg-amber-50 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+            <td>{{ r.reference_no|default:"—" }}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.amount|floatformat:2 }}</td>
+            <td>
+              <span class="cbr-badge {% if r.status == 'Posted' %}cbr-badge--posted{% elif r.status == 'Draft' %}cbr-badge--draft{% else %}cbr-badge--other{% endif %}">
                 {{ r.status }}
               </span>
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.posted_by|default:"—" }}</td>
+            <td>{{ r.posted_by|default:"—" }}</td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="13" class="px-4 py-10 text-center text-sm text-[#605e5c]">No bank or cash receipt entries found.</td>
+            <td colspan="13" class="cbr-empty">No bank or cash receipt entries found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -171,4 +492,3 @@
   </div>
 </div>
 {% endblock %}
-

@@ -8,7 +8,10 @@ from tenants.models import Tenant
 
 
 class Command(BaseCommand):
-    help = "Run migrations for a tenant's isolated database."
+    help = (
+        "Run migrations for a tenant's isolated database. "
+        "Use this for tenant_documents and other TENANT_APP_LABELS apps."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--tenant", required=True, help="Tenant slug or ID.")

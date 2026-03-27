@@ -1,19 +1,19 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{{ tenant_display_name|default:tenant.name }} | Financial &amp; Grant Management{% endblock %}
-{% block product_subtitle %}Financial &amp; Grant Management{% endblock %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | {% trans "Financial & Grant Management" %}{% endblock %}
+{% block product_subtitle %}{% trans "Financial & Grant Management" %}{% endblock %}
 
 {% block content %}
 <!-- Header: org, module, period, currency, last updated -->
 <div class="flex items-start justify-between gap-4 mb-4">
   <div>
-    <h1 class="page-title">Financial &amp; Grant Management Dashboard</h1>
+    <h1 class="page-title">{% trans "Dashboard" %}</h1>
   </div>
   <div class="hidden md:flex flex-col items-end gap-2 text-right text-xs text-[#605e5c]">
     <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border font-medium" style="border-color:#edebe9;">
       <i data-feather="layers" class="w-3 h-3" style="color:#0078D4;"></i>
       <span>Module:</span>
-      <span class="text-[#323130]">Financial &amp; Grant Management</span>
+      <span class="text-[#323130]">{% trans "Financial & Grant Management" %}</span>
     </div>
     <div class="inline-flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-full bg-white border" style="border-color:#edebe9;">
       <span class="inline-flex items-center gap-1">

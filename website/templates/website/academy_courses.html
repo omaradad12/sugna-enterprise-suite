@@ -1,0 +1,32 @@
+{% extends "website/academy_page_base.html" %}
+{% block title %}Courses{% endblock %}
+{% block meta_description %}Browse Sugna Academy courses by module and level — software training, finance, HR, procurement, compliance, and digital skills.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Catalog</p>
+    <h1 class="academy-page-title">Courses</h1>
+    <p class="academy-page-lead">Each course is tagged by category, difficulty, and duration. Use them as building blocks for paths, cohorts, or self-paced learning.</p>
+  </div>
+</div>
+<section class="academy-section academy-section--tight">
+  <div class="container">
+    <h2 class="visually-hidden">Browse by category</h2>
+    <nav class="academy-jump-nav" aria-label="Course categories">
+      {% for cat in training_categories %}
+      <a href="#cat-{{ cat.slug }}">{{ cat.title }}</a>
+      {% endfor %}
+    </nav>
+    {% for sec in course_sections %}
+    <div class="academy-course-block" id="cat-{{ sec.category.slug }}">
+      <h3 class="academy-course-block__heading">{{ sec.category.title }}</h3>
+      <div class="academy-course-grid">
+        {% for course in sec.courses %}
+          {% include "website/includes/academy_course_card.html" with course=course %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "website/academy_page_base.html" %}
+{% block title %}Help Center{% endblock %}
+{% block meta_description %}Sugna Academy help center — training coordination, access, and escalation for learning programs.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Assistance</p>
+    <h1 class="academy-page-title">Help Center</h1>
+    <p class="academy-page-lead">Training coordination, scheduling across regions, materials, and escalation paths — distinct from product support tickets, but connected when you need both.</p>
+  </div>
+</div>
+<section class="academy-section">
+  <div class="container">
+    <div class="academy-help-grid">
+      <article class="academy-help-card academy-help-card--primary">
+        <h2 class="academy-help-card__title">Training coordination</h2>
+        <p>Cohorts, quiet hours, and blackout dates around period close and audits — request a coordinated calendar for distributed teams.</p>
+        <a class="academy-help-card__link" href="{% url 'website:contact' %}?topic=training-scheduling">Request coordination</a>
+      </article>
+      <article class="academy-help-card academy-help-card--primary">
+        <h2 class="academy-help-card__title">Materials &amp; enablement</h2>
+        <p>Custom packs for administrators, finance leads, and program teams aligned to your rollout phase.</p>
+        <a class="academy-help-card__link" href="{% url 'website:contact' %}?topic=training-materials">Request materials</a>
+      </article>
+      <article class="academy-help-card academy-help-card--primary">
+        <h2 class="academy-help-card__title">Product support</h2>
+        <p>For production issues and contract SLAs, use the official support channel.</p>
+        <a class="academy-help-card__link" href="{% url 'website:support' %}">Open support hub</a>
+      </article>
+    </div>
+    <div class="academy-help-quicklinks">
+      <a href="{% url 'website:academy_learning_paths' %}">Learning paths</a>
+      <a href="{% url 'website:academy_webinars' %}">Webinars</a>
+      <a href="{% url 'website:academy_certifications' %}">Certifications</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

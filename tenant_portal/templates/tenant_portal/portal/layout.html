@@ -13,15 +13,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/sugna_design_system.css' %}" />
   <style>
     [x-cloak]{display:none!important}
-    .portal-sidebar-link:hover { background:#eef3ff; color:#1d4ed8; }
-    .portal-sidebar-link--active { background:#e5f0ff; color:#1d4ed8; font-weight:600; border-left:4px solid #2563eb; }
   </style>
 </head>
-<body class="h-screen overflow-hidden bg-[#faf9f8] text-[#323130]">
+<body class="sns-ds-root h-screen overflow-hidden bg-[#F8FAFC] text-[#111827]">
   <div class="h-full flex flex-col" x-data="{ userOpen: false }">
-    <header class="h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30 shrink-0" style="background:#0078D4;">
+    <header class="h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30 shrink-0" style="background:#0F5BA7;">
       <div class="flex items-center gap-3 min-w-0">
         {% if org_settings and org_settings.organization_logo %}
         <img src="{{ org_settings.organization_logo.url }}" alt="" class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
@@ -63,7 +62,7 @@
 
     <div class="flex flex-1 min-h-0">
       {% include "tenant_portal/portal/_sidebar.html" %}
-      <main class="min-w-0 flex-1 px-5 py-6 md:px-8 md:py-8 overflow-y-auto">
+      <main class="erp-main-scroll min-w-0 flex-1 overflow-y-auto">
         {% if messages %}
         <div class="mb-5 space-y-2">
           {% for message in messages %}
@@ -75,6 +74,6 @@
       </main>
     </div>
   </div>
-  <script>feather.replace();</script>
+  <script>feather.replace({ 'stroke-width': 1.6 });</script>
 </body>
 </html>

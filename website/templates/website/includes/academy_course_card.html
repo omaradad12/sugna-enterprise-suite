@@ -1,0 +1,21 @@
+{% comment %}course: dict with title, description, category, level, duration, slug{% endcomment %}
+<article class="academy-course-card" id="course-{{ course.slug }}">
+  <div class="academy-course-card__meta">
+    <span class="academy-pill academy-pill--muted">{{ course.category }}</span>
+    <span class="academy-pill academy-pill--level academy-pill--level-{{ course.level|slugify }}">{{ course.level }}</span>
+  </div>
+  <div class="academy-course-card__title-row">
+    <span class="academy-course-card__title-icon" aria-hidden="true">
+      <svg class="m-icon m-icon--xs"><use href="#mi-play-circle"/></svg>
+    </span>
+    <h3 class="academy-course-card__title">{{ course.title }}</h3>
+  </div>
+  <p class="academy-course-card__desc">{{ course.description }}</p>
+  <div class="academy-course-card__footer">
+    <span class="academy-course-card__duration">
+      {% include "website/includes/academy_icon_clock.html" %}
+      {{ course.duration }}
+    </span>
+    <a class="btn btn-primary academy-course-card__btn" href="{% url 'website:academy_courses' %}#course-{{ course.slug }}">Start learning</a>
+  </div>
+</article>

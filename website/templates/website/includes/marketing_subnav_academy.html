@@ -1,0 +1,17 @@
+{% comment %}Sugna Academy — secondary nav (Dynamics-style pill tabs){% endcomment %}
+{% with u=request.resolver_match.url_name %}
+<nav class="pricing-subnav pricing-subnav--site pricing-subnav--academy" aria-label="Academy sections">
+  <div class="container">
+    <div class="pricing-subnav__inner pricing-subnav__inner--wrap">
+      <a href="{% url 'website:academy_home' %}" class="pricing-subnav__tab{% if u == 'academy_home' %} is-active{% endif %}">Overview</a>
+      <a href="{% url 'website:academy_courses' %}" class="pricing-subnav__tab{% if u == 'academy_courses' %} is-active{% endif %}">Courses</a>
+      <a href="{% url 'website:academy_learning_paths' %}" class="pricing-subnav__tab{% if u == 'academy_learning_paths' %} is-active{% endif %}">Learning Paths</a>
+      <a href="{% url 'website:academy_certifications' %}" class="pricing-subnav__tab{% if u == 'academy_certifications' %} is-active{% endif %}">Certifications</a>
+      <a href="{% url 'website:academy_tutorials' %}" class="pricing-subnav__tab{% if u == 'academy_tutorials' %} is-active{% endif %}">Tutorials</a>
+      <a href="{% url 'website:academy_webinars' %}" class="pricing-subnav__tab{% if u == 'academy_webinars' %} is-active{% endif %}">Webinars</a>
+      <a href="{% url 'website:academy_documentation' %}" class="pricing-subnav__tab{% if u == 'academy_documentation' %} is-active{% endif %}">Documentation</a>
+      <a href="{% url 'website:academy_help' %}" class="pricing-subnav__tab{% if u == 'academy_help' %} is-active{% endif %}">Help Center</a>
+    </div>
+  </div>
+</nav>
+{% endwith %}

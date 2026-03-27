@@ -1,0 +1,30 @@
+{% extends "website/academy_page_base.html" %}
+{% block title %}Webinars{% endblock %}
+{% block meta_description %}Live and recorded webinars for Sugna releases, sector scenarios, and administrator office hours.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Live sessions</p>
+    <h1 class="academy-page-title">Webinars</h1>
+    <p class="academy-page-lead">Instructor-led sessions for new releases, sector scenarios, and deep dives — recorded for teams in other time zones when available.</p>
+  </div>
+</div>
+<section class="academy-section">
+  <div class="container">
+    <div class="academy-webinar-grid">
+    {% for track in webinar_tracks %}
+    <article class="academy-webinar-card">
+      <h2 class="academy-webinar-card__title">{{ track.title }}</h2>
+      <p class="academy-webinar-card__desc">{{ track.description }}</p>
+    </article>
+    {% endfor %}
+    </div>
+  </div>
+</section>
+<section class="academy-section academy-section--alt academy-section--center">
+  <div class="container">
+    <p class="academy-lead academy-lead--cta">Private webinars for your tenant</p>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:academy_help' %}">Academy help center</a>
+  </div>
+</section>
+{% endblock %}

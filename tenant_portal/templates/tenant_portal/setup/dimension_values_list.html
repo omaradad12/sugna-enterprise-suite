@@ -1,0 +1,112 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ dimension_label }} Values | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-page-shell { max-width:1300px; margin:0 auto; }
+  .dyn-page-title { font-size:26px; font-weight:700; color:#323130; letter-spacing:-0.02em; line-height:1.2; }
+  .dyn-command-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; padding:16px 18px; margin-bottom:14px; border:1px solid #e5e7eb; border-radius:12px; background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%); box-shadow:0 2px 10px rgba(15,23,42,.04); }
+  .dyn-link { color:#0078d4; text-decoration:none; font-size:13px; font-weight:600; }
+  .dyn-link:hover { text-decoration:underline; }
+  .dyn-section { background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 2px 12px rgba(15,23,42,.04); overflow:hidden; }
+  .dyn-section-body { padding:14px 16px 16px; }
+  .dyn-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; padding:10px; border:1px solid #edf2f7; border-radius:10px; background:#fcfdff; }
+  .dyn-toolbar input[type="text"], .dyn-toolbar select { height:34px; padding:0 10px; border:1px solid #dbe3f0; border-radius:8px; font-size:13px; background:#fff; }
+  .dyn-toolbar input[type="text"] { width:260px; }
+  .dyn-btn-primary { height:34px; padding:0 14px; font-size:13px; font-weight:600; border:none; border-radius:8px; background:#0078d4; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .dyn-btn-primary:hover { background:#106ebe; color:#fff; }
+  .dyn-btn-secondary { height:34px; padding:0 14px; font-size:13px; font-weight:600; border:1px solid #dbe3f0; border-radius:8px; background:#fff; color:#344054; text-decoration:none; display:inline-flex; align-items:center; }
+  .dyn-btn-secondary:hover { background:#f8fafc; color:#1f2937; }
+  .dyn-table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+  .dyn-table th { text-align:left; font-weight:700; color:#374151; background:#f8fafc; padding:9px 12px; border-bottom:1px solid #e5e7eb; }
+  .dyn-table td { padding:9px 12px; border-bottom:1px solid #edf2f7; background:#fff; }
+  .dyn-table tbody tr:nth-child(even) td { background:#fcfdff; }
+  .dyn-table tbody tr:hover td { background:#f5f9ff; }
+  .dyn-badge-active,.dyn-badge-inactive { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:500; }
+  .dyn-badge-active { background:#dff6dd; color:#0b5a0b; }
+  .dyn-badge-inactive { background:#f3f2f1; color:#605e5c; }
+  .dyn-pagination { margin-top:12px; font-size:13px; color:#605e5c; display:flex; align-items:center; gap:12px; }
+  .dyn-pagination a { color:#0078d4; text-decoration:none; }
+  .dyn-empty { text-align:center; padding:32px 16px; color:#605e5c; font-size:13px; }
+  .dyn-actions-cell { white-space:nowrap; }
+</style>
+
+<div class="dyn-page-shell">
+<div class="dyn-command-bar">
+  <div>
+    <h1 class="dyn-page-title">{{ dimension_label }} Values</h1>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+    <a href="{% url 'tenant_portal:setup_dimensions_list' %}" class="dyn-link">Back to Dimensions</a>
+    {% if can_manage %}
+    <a href="{% url add_url_name %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> New value</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="dyn-section">
+  <div class="dyn-section-body">
+    <form method="get" class="dyn-toolbar">
+      <input type="text" name="q" value="{{ filter_q }}" placeholder="Search code, name, description…" />
+      <select name="status">
+        <option value="">All statuses</option>
+        {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="dyn-btn-primary">Filter</button>
+      <a href="{% url list_url_name %}" class="dyn-btn-secondary">Clear</a>
+    </form>
+
+    <div class="overflow-x-auto">
+      <table class="dyn-table">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th style="width:120px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in values_page %}
+          <tr>
+            <td style="font-family: Consolas, monospace;">{{ row.dimension.dimension_code }}</td>
+            <td style="font-family: Consolas, monospace;">{{ row.code }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.description|default:"—" }}</td>
+            <td><span class="{% if row.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">{{ row.get_status_display }}</span></td>
+            <td class="dyn-actions-cell">
+              {% if can_manage %}
+              <a href="{% url edit_url_name row.pk %}" class="dyn-link">Edit</a>
+              <span style="color:#c8c6c4;">|</span>
+              <a href="{% url delete_url_name row.pk %}" class="dyn-link" style="color:#a4262c;">Delete</a>
+              {% else %}
+              <a href="{% url edit_url_name row.pk %}" class="dyn-link">View</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="dyn-empty">No values found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if values_page.has_other_pages %}
+    <div class="dyn-pagination">
+      {% if values_page.has_previous %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page={{ values_page.previous_page_number }}">Previous</a>
+      {% endif %}
+      <span>Page {{ values_page.number }} of {{ values_page.paginator.num_pages }}</span>
+      {% if values_page.has_next %}
+      <a href="?{{ base_query }}{% if base_query %}&{% endif %}page={{ values_page.next_page_number }}">Next</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+ </div>
+{% endblock %}

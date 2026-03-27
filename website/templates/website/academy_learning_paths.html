@@ -1,0 +1,32 @@
+{% extends "website/academy_page_base.html" %}
+{% block title %}Learning Paths{% endblock %}
+{% block meta_description %}Role-based learning paths for finance, HR, procurement, and system administration in Sugna Enterprise Suite.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Sequences</p>
+    <h1 class="academy-page-title">Learning paths</h1>
+    <p class="academy-page-lead">Grouped curricula that mirror real responsibilities — from operational roles to administrators steering tenant configuration and controls.</p>
+  </div>
+</div>
+<section class="academy-section">
+  <div class="container">
+    <div class="academy-path-detail-grid">
+      {% for path in learning_paths %}
+      <article class="academy-path-detail-card">
+        <h2 class="academy-path-detail-card__title">{{ path.title }}</h2>
+        <p class="academy-path-detail-card__desc">{{ path.summary }}</p>
+        <p class="academy-path-detail-card__meta"><span>{{ path.level }}</span> · <span>{{ path.duration }}</span></p>
+        <h3 class="academy-path-detail-card__sub">Included courses</h3>
+        <ol class="academy-path-detail-card__list">
+          {% for ctitle in path.courses %}
+          <li>{{ ctitle }}</li>
+          {% endfor %}
+        </ol>
+        <a class="btn btn-primary" href="{% url 'website:academy_courses' %}">View course catalog</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

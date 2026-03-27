@@ -1,6 +1,6 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Multi-donor Sharing Center" %} | {% trans "Finance" %}{% endblock %}
+{% block title %}{% trans "Cost Allocation" %} | {% trans "Finance" %}{% endblock %}
 
 {% block content %}
 <div class="mdc-dynamics-root dynamics-financial-report">
@@ -336,7 +336,7 @@
 
   <header class="mdc-hero" role="banner">
     <div class="mdc-hero-inner">
-      <h1>{% trans "Multi-donor Sharing Center" %}</h1>
+      <h1>{% trans "Cost Allocation" %}</h1>
       <p>{% trans "Allocate shared costs across multiple donors, projects, and funding sources using allocation rules." %}</p>
     </div>
   </header>
@@ -384,14 +384,14 @@
 
   <section class="mdc-section-panel" aria-labelledby="mdc-sec-multi">
     <div class="mdc-section-head">
-      <h2 id="mdc-sec-multi" class="mdc-section-title">{% trans "Multi-donor management" %}</h2>
+      <h2 id="mdc-sec-multi" class="mdc-section-title">{% trans "Shared funding" %}</h2>
     </div>
     <div class="mdc-section-body">
       <div class="mdc-grid">
         <a class="mdc-card" href="{% url 'tenant_portal:grants_grant_allocation' %}">
           <span class="mdc-card-icon-wrap"><i data-feather="git-branch"></i></span>
           <span class="mdc-card-main">
-            <span class="mdc-card-title">{% trans "Multi-donor allocation" %}</span>
+            <span class="mdc-card-title">{% trans "Grant allocation" %}</span>
             <span class="mdc-card-desc">{% trans "Define donor shares on each grant agreement." %}</span>
           </span>
           <span class="mdc-card-chevron" aria-hidden="true"><i data-feather="chevron-right"></i></span>
@@ -487,7 +487,7 @@
       <p class="mdc-empty">{% trans "No grant allocation lines yet." %}</p>
       {% endif %}
       <p class="mdc-empty" style="margin-top:12px">
-        <a href="{% url 'tenant_portal:grants_grant_allocation' %}" style="color:#0078d4;font-weight:600;text-decoration:none;">{% trans "Open multi-donor allocation" %}</a>
+        <a href="{% url 'tenant_portal:grants_grant_allocation' %}" style="color:#0078d4;font-weight:600;text-decoration:none;">{% trans "Open grant allocation" %}</a>
         — {% trans "edit donor splits on grants." %}
       </p>
     </div>

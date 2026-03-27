@@ -1,0 +1,109 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Supporting documents" %} | {% trans "Finance" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto pb-8" style="font-family: Inter, system-ui, sans-serif;">
+  <div class="mb-4">
+    <h1 class="text-xl font-semibold text-[#111827] tracking-tight">{% trans "Supporting documents" %}</h1>
+    <p class="mt-1 text-[13px] text-[#6b7280] leading-relaxed max-w-3xl">
+      {% trans "Supporting files uploaded in transaction forms are automatically registered in Document Management. No second upload is required." %}
+    </p>
+  </div>
+
+  <div class="bg-white border rounded-[10px] p-4 mb-4" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,0.05);">
+    <h2 class="text-[13px] font-semibold text-[#374151] mb-2">{% trans "One upload flow" %}</h2>
+    <p class="text-[13px] text-[#6b7280] leading-relaxed max-w-3xl">
+      {% trans "Upload documents directly in Payment Voucher, Receipt Voucher, Journal, or transfer forms. The same files appear below automatically with transaction metadata and source links." %}
+    </p>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <h2 class="text-[13px] font-semibold text-[#374151]">{% trans "Document Management register" %}</h2>
+  </div>
+  <div class="overflow-x-auto border rounded-[10px] bg-white mb-5" style="border-color:#e5e7eb;">
+    <table class="w-full text-[13px] text-left">
+      <thead>
+        <tr class="border-b bg-[#f9fafb]" style="border-color:#e5e7eb;">
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "File" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Status" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Voucher / source" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Project / grant / donor" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Uploaded by / date" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Storage" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in documents %}
+        <tr class="border-b border-[#f3f4f6] hover:bg-[#fafafa]">
+          <td class="px-3 py-2">
+            {% if d.file_url %}
+            <a href="{{ d.file_url }}" target="_blank" class="font-medium text-[#111827] hover:underline">{{ d.filename }}</a>
+            {% else %}
+            <span class="font-medium text-[#111827]">{{ d.filename }}</span>
+            {% endif %}
+            <div class="text-[11px] text-[#6b7280]">{{ d.category }}</div>
+          </td>
+          <td class="px-3 py-2 text-[#374151]">{{ d.status }}</td>
+          <td class="px-3 py-2 text-[#374151]">
+            {% if d.source_url %}<a href="{{ d.source_url }}" class="text-[#0F5BA7] hover:underline">{{ d.voucher_number }}</a>{% else %}{{ d.voucher_number }}{% endif %}
+            <div class="text-[11px] text-[#6b7280]">{{ d.linked_record_type }} #{{ d.linked_record_id }}</div>
+          </td>
+          <td class="px-3 py-2 text-[#6b7280]">
+            {{ d.project|default:"—" }} / {{ d.grant|default:"—" }} / {{ d.donor|default:"—" }}
+          </td>
+          <td class="px-3 py-2 text-[#6b7280]">
+            {{ d.uploaded_by }}<div class="text-[11px]">{{ d.uploaded_at }}</div>
+          </td>
+          <td class="px-3 py-2 text-[#6b7280]">{{ d.storage_provider }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-3 py-8 text-center text-[#9ca3af] text-[13px]">{% trans "No registered documents in this period." %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+    <h2 class="text-[13px] font-semibold text-[#374151]">{% trans "Payment vouchers (period)" %}</h2>
+    <a href="{% url 'tenant_portal:pay_payment_vouchers' %}" class="text-[12px] font-medium text-[#4b5563] hover:underline">{% trans "New payment voucher" %}</a>
+  </div>
+
+  <div class="overflow-x-auto border rounded-[10px] bg-white" style="border-color:#e5e7eb;">
+    <table class="w-full text-[13px] text-left">
+      <thead>
+        <tr class="border-b bg-[#f9fafb]" style="border-color:#e5e7eb;">
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Reference" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Date" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Payee" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide">{% trans "Project / grant" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide text-right">{% trans "Amount" %}</th>
+          <th class="px-3 py-2 font-semibold text-[#6b7280] text-[11px] uppercase tracking-wide text-center">{% trans "Files" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vouchers %}
+        <tr class="border-b border-[#f3f4f6] hover:bg-[#fafafa]">
+          <td class="px-3 py-2 font-medium text-[#111827]">{{ v.reference }}</td>
+          <td class="px-3 py-2 text-[#6b7280]">{{ v.date }}</td>
+          <td class="px-3 py-2 text-[#374151]">{{ v.payee }}</td>
+          <td class="px-3 py-2 text-[#6b7280]">{{ v.project|default:"—" }}</td>
+          <td class="px-3 py-2 text-right tabular-nums text-[#374151]">{{ v.amount|floatformat:2 }}</td>
+          <td class="px-3 py-2 text-center text-[#6b7280]">{{ v.attachment_count }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-3 py-8 text-center text-[#9ca3af] text-[13px]">{% trans "No payment vouchers in this period." %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-2 text-[12px] text-[#9ca3af]">
+    {% trans "Period" %}: {{ filters.period_start }} — {{ filters.period_end }}.
+    {% trans "Use workspace filters on the Dashboard to change period where available." %}
+  </p>
+</div>
+{% endblock %}

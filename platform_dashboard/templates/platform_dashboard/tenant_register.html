@@ -1074,7 +1074,7 @@
 
     // Feather icons: re-run for wizard module cards (if needed)
     if (window.feather && typeof window.feather.replace === 'function') {
-      window.feather.replace();
+      window.feather.replace({ 'stroke-width': 1.6 });
     }
 
     // Ensure all wizard fields submit (some browsers omit controls inside hidden ancestors).

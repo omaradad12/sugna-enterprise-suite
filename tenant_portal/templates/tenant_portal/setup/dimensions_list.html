@@ -3,82 +3,108 @@
 
 {% block content %}
 <style>
-  /* Microsoft Dynamics–style list page (single design system) */
+  /* Refined enterprise setup page */
+  .dyn-page-shell {
+    max-width: 1300px;
+    margin: 0 auto;
+  }
   .dyn-page-title {
-    font-size: 22px;
-    font-weight: 600;
+    font-size: 26px;
+    font-weight: 700;
     color: #323130;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
   .dyn-page-desc {
-    font-size: 13px;
+    font-size: 14px;
     color: #605e5c;
-    margin-top: 2px;
+    margin-top: 6px;
   }
   .dyn-command-bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px 16px;
-    margin: 0 -16px 16px;
-    border-bottom: 1px solid #edebe9;
-    background: linear-gradient(90deg, #f3f2f1 0, #faf9f8 40%, #ffffff 100%);
+    gap: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
   }
+  .dyn-chip-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid #dbe3f0;
+    background: #fff;
+    color: #0f548c;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .dyn-chip-link:hover { background: #f4f9ff; border-color: #bcd4f4; }
   .dyn-section {
     background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
   }
   .dyn-section-title {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #323130;
-    padding: 10px 16px;
-    background: #faf9f8;
-    border-bottom: 1px solid #edebe9;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
   .dyn-section-body {
-    padding: 12px 16px 16px;
+    padding: 14px 16px 16px;
   }
   .dyn-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 10px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    background: #fcfdff;
   }
   .dyn-toolbar input[type="text"],
   .dyn-toolbar select {
-    height: 32px;
-    padding: 0 8px;
-    border: 1px solid #edebe9;
-    border-radius: 2px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid #dbe3f0;
+    border-radius: 8px;
     font-size: 13px;
-  }
-  .dyn-toolbar input[type="text"] {
-    width: 220px;
-  }
-  .dyn-toolbar select {
-    min-width: 100px;
     background: #fff;
   }
+  .dyn-toolbar input[type="text"] {
+    width: 260px;
+  }
+  .dyn-toolbar select {
+    min-width: 130px;
+  }
   .dyn-btn-primary {
-    height: 32px;
-    padding: 0 12px;
+    height: 34px;
+    padding: 0 14px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     border: none;
-    border-radius: 2px;
+    border-radius: 8px;
     background: #0078d4;
     color: #fff;
     text-decoration: none;
@@ -88,42 +114,45 @@
   }
   .dyn-btn-primary:hover { background: #106ebe; color: #fff; }
   .dyn-btn-secondary {
-    height: 32px;
-    padding: 0 12px;
+    height: 34px;
+    padding: 0 14px;
     font-size: 13px;
-    font-weight: 500;
-    border: 1px solid #edebe9;
-    border-radius: 2px;
+    font-weight: 600;
+    border: 1px solid #dbe3f0;
+    border-radius: 8px;
     background: #fff;
-    color: #323130;
+    color: #344054;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
   }
-  .dyn-btn-secondary:hover { background: #f3f2f1; color: #323130; }
+  .dyn-btn-secondary:hover { background: #f8fafc; color: #1f2937; }
   .dyn-link { color: #0078d4; text-decoration: none; font-size: 13px; }
   .dyn-link:hover { text-decoration: underline; }
   .dyn-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 13px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
   }
   .dyn-table th {
     text-align: left;
-    font-weight: 600;
-    color: #323130;
-    background: #f3f2f1;
-    padding: 8px 12px;
-    border: 1px solid #edebe9;
+    font-weight: 700;
+    color: #374151;
+    background: #f8fafc;
+    padding: 9px 12px;
+    border-bottom: 1px solid #e5e7eb;
   }
   .dyn-table td {
-    padding: 8px 12px;
-    border: 1px solid #edebe9;
+    padding: 9px 12px;
+    border-bottom: 1px solid #edf2f7;
     background: #ffffff;
   }
-  .dyn-table tbody tr:nth-child(odd) td { background: #ffffff; }
-  .dyn-table tbody tr:nth-child(even) td { background: #fbfbfb; }
-  .dyn-table tbody tr:hover td { background: #f3f2f1; }
+  .dyn-table tbody tr:nth-child(even) td { background: #fcfdff; }
+  .dyn-table tbody tr:hover td { background: #f5f9ff; }
   .dyn-badge-active {
     display: inline-flex;
     align-items: center;
@@ -148,15 +177,16 @@
   .dyn-pagination a { color: #0078d4; text-decoration: none; }
   .dyn-pagination a:hover { text-decoration: underline; }
   .dyn-empty { text-align: center; padding: 32px 16px; color: #605e5c; font-size: 13px; }
+  .dyn-actions-cell { white-space: nowrap; }
 </style>
 
+<div class="dyn-page-shell">
 <div class="dyn-command-bar">
-  <div>
-    <h1 class="dyn-page-title">Dimensions</h1>
-    <p class="dyn-page-desc">Manage financial dimensions for transaction analysis.</p>
-  </div>
+  <div class="min-w-[280px]"></div>
   <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-    <a href="{% url 'tenant_portal:setup_home' %}" class="dyn-link">Back to Financial Setup</a>
+    <a href="{% url 'tenant_portal:setup_home' %}" class="dyn-chip-link">Financial Setup</a>
+    <a href="{% url 'tenant_portal:setup_program_dimension_values_list' %}" class="dyn-chip-link">Program Values</a>
+    <a href="{% url 'tenant_portal:setup_sector_dimension_values_list' %}" class="dyn-chip-link">Program Sector</a>
     {% if can_manage %}
     <a href="{% url 'tenant_portal:setup_dimensions_add' %}" class="dyn-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> New dimension</a>
     {% endif %}
@@ -193,7 +223,7 @@
             <th>Type</th>
             <th>Status</th>
             <th>Created</th>
-            <th style="width:100px;">Actions</th>
+            <th style="width:120px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -204,7 +234,7 @@
             <td>{{ d.get_dimension_type_display }}</td>
             <td><span class="{% if d.status == 'active' %}dyn-badge-active{% else %}dyn-badge-inactive{% endif %}">{{ d.get_status_display }}</span></td>
             <td>{{ d.created_at|date:"M d, Y" }}</td>
-            <td>
+            <td class="dyn-actions-cell">
               {% if can_manage %}
               <a href="{% url 'tenant_portal:setup_dimensions_edit' d.pk %}" class="dyn-link">Edit</a>
               <span style="color:#c8c6c4;">|</span>
@@ -233,5 +263,6 @@
     {% endif %}
   </div>
 </div>
+ </div>
 
 {% endblock %}

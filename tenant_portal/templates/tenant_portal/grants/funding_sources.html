@@ -1,11 +1,15 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Funding Sources" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% trans "Funding modalities" as funding_modalities_report_title %}
+{% block title %}{{ funding_modalities_report_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Funding Sources" official_report_period_line=official_report_period_line %}
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title=funding_modalities_report_title official_report_period_line=official_report_period_line %}
 
-<div class="dynamics-financial-report fs-rpt-root max-w-[1400px] mx-auto w-full pb-8">
+<div
+  class="dynamics-financial-report fs-rpt-root max-w-[1400px] mx-auto w-full pb-8"
+  x-data="{ createModalOpen: {{ show_create_modal|yesno:'true,false' }}, editModalOpen: {{ show_edit_modal|yesno:'true,false' }} }"
+>
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
 <style>
   .fs-rpt-root {
@@ -13,13 +17,12 @@
     -webkit-font-smoothing: antialiased;
     color: #323130;
   }
-  .fs-hero {
-    background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 4px;
-    border-left: 4px solid #0078d4;
-    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
-    padding: 1.25rem 1.5rem;
+  .fs-command-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 1.25rem;
   }
   .fs-breadcrumb {
@@ -31,14 +34,6 @@
   .fs-breadcrumb a { color: #0078d4; text-decoration: none; font-weight: 600; }
   .fs-breadcrumb a:hover { text-decoration: underline; }
   .fs-breadcrumb .sep { color: #a19f9d; margin: 0 0.35rem; }
-  .fs-title {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    color: #201f1e;
-    letter-spacing: 0.02em;
-    line-height: 1.25;
-  }
   .fs-kpi-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -77,53 +72,29 @@
     color: #8a8886;
     line-height: 1.35;
   }
-  .fs-filter-grid {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 1rem 1.25rem;
-  }
-  .fs-filter-grid .fs-field-grow {
-    flex: 1 1 200px;
-    min-width: 180px;
-  }
-  .fs-main-grid {
+  .fs-filter-grid { display: grid; gap: 0.65rem; }
+  .fs-filter-row {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.65rem 0.85rem;
+    align-items: end;
   }
-  @media (min-width: 1024px) {
-    .fs-main-grid {
-      grid-template-columns: minmax(280px, 320px) 1fr;
-      align-items: start;
-    }
+  .fs-field-grow { width: 100%; }
+  .fs-retention-range { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+  @media (max-width: 1200px) {
+    .fs-filter-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
-  .fs-form-panel {
-    background: #ffffff;
-    border: 1px solid #edebe9;
-    border-radius: 4px;
-    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
-    overflow: hidden;
+  @media (max-width: 760px) {
+    .fs-filter-row { grid-template-columns: 1fr; }
+    .fs-retention-range { grid-template-columns: 1fr; }
   }
-  .fs-form-panel-head {
-    padding: 0.65rem 1rem;
-    background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
-    border-bottom: 1px solid #e1dfdd;
-    border-left: 4px solid #0078d4;
-    padding-left: 0.85rem !important;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: #201f1e;
-  }
-  .fs-form-body { padding: 1rem 1.15rem 1.15rem; }
   .fs-panel {
     background: #ffffff;
     border: 1px solid #edebe9;
     border-radius: 4px;
     box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.06), 0 3.2px 7.2px rgba(0, 0, 0, 0.04);
     overflow: hidden;
+    width: 100%;
   }
   .fs-panel-head {
     display: flex;
@@ -151,7 +122,7 @@
     color: #605e5c;
     font-weight: 600;
   }
-  .fs-table-wrap { overflow-x: auto; }
+  .fs-table-wrap { overflow-x: auto; width: 100%; }
   .fs-table {
     width: 100%;
     border-collapse: collapse;
@@ -192,8 +163,8 @@
     background: #faf9f8;
   }
   .fs-toolbar-actions {
-    margin-top: 0.85rem;
-    padding-top: 0.85rem;
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
     border-top: 1px solid #e1dfdd;
     display: flex;
     flex-wrap: wrap;
@@ -201,22 +172,76 @@
     justify-content: flex-end;
     gap: 0.5rem;
   }
-  .fs-form-panel.fs-form-accent { border-left: 4px solid #0078d4; }
+  .pl-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 32px;
+    padding: 0 1rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .pl-btn-primary:hover { background: #106ebe; }
+  .fs-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid #edebe9;
+  }
+  .fs-modal-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0 1rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #8a8886;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .fs-modal-secondary:hover { background: #f3f2f1; }
 </style>
 
-  <div class="fs-hero hidden-print">
-    <nav class="fs-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
-      <a href="{% url 'tenant_portal:grants_home' %}">{% trans "Funds & Donors" %}</a>
-      <span class="sep" aria-hidden="true">/</span>
-      <span>{% trans "Funding Sources" %}</span>
-    </nav>
-    <h1 class="fs-title">{% trans "Funding Sources" %}</h1>
+  <div class="fs-command-bar hidden-print">
+    <div class="min-w-0 flex-1">
+      <nav class="fs-breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+        <a href="{% url 'tenant_portal:grants_home' %}">{% trans "Funds & Donors" %}</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span>{% trans "Funding modalities" %}</span>
+      </nav>
+      <h1 class="sr-only">{% trans "Funding modalities" %}</h1>
+    </div>
+    {% if can_manage %}
+    <div class="flex-shrink-0 pt-1">
+      <button
+        type="button"
+        class="pl-btn-primary"
+        @click="createModalOpen = true; editModalOpen = false; $nextTick(() => { openCreateFundingModal(); if (typeof feather !== 'undefined') feather.replace(); })"
+      >
+        <i data-feather="plus" class="w-4 h-4"></i>
+        {% trans "New funding modality" %}
+      </button>
+    </div>
+    {% endif %}
   </div>
 
   <div class="dynamics-filter-pane hidden-print">
     <div class="dynamics-filter-head">
       <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
-      <span class="dynamics-filter-head-hint">{% trans "Search, donor, and funding type" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Search, modality type, status, and schedule options" %}</span>
     </div>
     <form method="get" action="" id="fs-filter-form">
       <div class="fs-filter-grid">
@@ -225,23 +250,59 @@
           <input id="fs-q" type="search" name="q" value="{{ filters.q|default:'' }}" class="dynamics-input w-full"
                  placeholder="{% trans 'Name…' %}" autocomplete="off" />
         </div>
-        <div class="dynamics-filter-field">
-          <label for="fs-donor">{% trans "Donor" %}</label>
-          <select id="fs-donor" name="donor_id" class="dynamics-select min-w-[180px] max-w-[280px]">
-            <option value="">{% trans "All donors" %}</option>
-            {% for d in donors %}
-            <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="fs-type">{% trans "Type" %}</label>
-          <select id="fs-type" name="funding_type" class="dynamics-select min-w-[160px]">
-            <option value="">{% trans "All types" %}</option>
-            {% for value, label in funding_types.choices %}
-            <option value="{{ value }}" {% if filters.funding_type == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
+        <div class="fs-filter-row">
+          <div class="dynamics-filter-field">
+            <label for="fs-type">{% trans "Modality type" %}</label>
+            <select id="fs-type" name="modality_type" class="dynamics-select w-full">
+              <option value="">{% trans "All modalities" %}</option>
+              {% for value, label in modality_types.choices %}
+              <option value="{{ value }}" {% if filters.modality_type == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="fs-status">{% trans "Status" %}</label>
+            <select id="fs-status" name="status" class="dynamics-select w-full">
+              <option value="">{% trans "All" %}</option>
+              <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+              <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>{% trans "Inactive" %}</option>
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="fs-instalments">{% trans "Instalments allowed" %}</label>
+            <select id="fs-instalments" name="allow_instalments" class="dynamics-select w-full">
+              <option value="">{% trans "All" %}</option>
+              <option value="yes" {% if filters.allow_instalments == 'yes' %}selected{% endif %}>{% trans "Yes" %}</option>
+              <option value="no" {% if filters.allow_instalments == 'no' %}selected{% endif %}>{% trans "No" %}</option>
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label>{% trans "Retention % range" %}</label>
+            <div class="fs-retention-range">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                name="retention_min"
+                value="{{ filters.retention_min|default:'' }}"
+                class="dynamics-input w-full"
+                placeholder="{% trans 'Min' %}"
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                name="retention_max"
+                value="{{ filters.retention_max|default:'' }}"
+                class="dynamics-input w-full"
+                placeholder="{% trans 'Max' %}"
+              />
+            </div>
+          </div>
+          <div class="dynamics-filter-field"></div>
+          <div class="dynamics-filter-field"></div>
         </div>
       </div>
       <div class="fs-toolbar-actions">
@@ -250,7 +311,9 @@
             <i data-feather="filter" class="w-4 h-4"></i>
             {% trans "Apply filters" %}
           </button>
-          <a href="{% url 'tenant_portal:grants_funding_sources' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+          <a href="{% url 'tenant_portal:grants_funding_sources' %}" class="dynamics-btn-secondary no-underline">
+            {% trans "Reset filters" %}
+          </a>
           <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
             <i data-feather="file-text" class="w-4 h-4"></i>
             {% trans "Export CSV" %}
@@ -274,14 +337,14 @@
 
   <div class="fs-kpi-grid hidden-print">
     <div class="fs-kpi-card">
-      <div class="fs-kpi-label">{% trans "Sources (this view)" %}</div>
+      <div class="fs-kpi-label">{% trans "Records (this view)" %}</div>
       <div class="fs-kpi-value">{{ funding_kpi.total_shown }}</div>
       <div class="fs-kpi-hint">{% trans "Rows after filters" %}</div>
     </div>
     <div class="fs-kpi-card">
-      <div class="fs-kpi-label">{% trans "Linked to donor" %}</div>
+      <div class="fs-kpi-label">{% trans "With donor reference" %}</div>
       <div class="fs-kpi-value">{{ funding_kpi.with_donor }}</div>
-      <div class="fs-kpi-hint">{% trans "Records with a donor selected" %}</div>
+      <div class="fs-kpi-hint">{% trans "Optional reference only" %}</div>
     </div>
     <div class="fs-kpi-card">
       <div class="fs-kpi-label">{% trans "Active" %}</div>
@@ -290,93 +353,542 @@
     </div>
   </div>
 
-  <div class="fs-main-grid">
-    <div class="fs-form-panel fs-form-accent hidden-print">
-      <div class="fs-form-panel-head">{% trans "New funding source" %}</div>
-      <div class="fs-form-body">
-        <form method="post" class="space-y-3">
-          {% csrf_token %}
-          <div class="dynamics-filter-field">
-            <label for="fs-new-name">{% trans "Name" %} <span class="text-[#a4262c]">*</span></label>
-            <input id="fs-new-name" name="name" required maxlength="120" class="dynamics-input w-full" placeholder="{% trans 'Display name' %}" />
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="fs-new-type">{% trans "Type" %}</label>
-            <select id="fs-new-type" name="funding_type" class="dynamics-select w-full bg-white">
-              {% for value, label in funding_types.choices %}
-              <option value="{{ value }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="fs-new-donor">{% trans "Donor" %}</label>
-            <select id="fs-new-donor" name="donor_id" class="dynamics-select w-full bg-white">
-              <option value="">{% trans "None" %}</option>
-              {% for d in donors %}
-              <option value="{{ d.pk }}">{{ d.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="fs-new-desc">{% trans "Description" %}</label>
-            <input id="fs-new-desc" name="description" maxlength="255" class="dynamics-input w-full" placeholder="{% trans 'Optional' %}" />
-          </div>
-          <div class="pt-1">
-            <button type="submit" class="dynamics-btn-primary">
-              <i data-feather="plus" class="w-4 h-4"></i>
-              {% trans "Create" %}
-            </button>
-          </div>
-        </form>
-      </div>
+  <div class="fs-panel print-area erp-section w-full">
+    <div class="fs-panel-head">
+      <span class="fs-panel-head-title">
+        <i data-feather="database" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
+        {% trans "Funding modalities" %}
+      </span>
+      <span class="fs-panel-meta">{{ funding_kpi.total_shown }} {% trans "rows" %}</span>
     </div>
-
-    <div class="fs-panel print-area erp-section">
-      <div class="fs-panel-head">
-        <span class="fs-panel-head-title">
-          <i data-feather="database" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
-          {% trans "Funding sources" %}
-        </span>
-        <span class="fs-panel-meta">{{ funding_kpi.total_shown }} {% trans "rows" %}</span>
-      </div>
-      <div class="fs-table-wrap">
-        <table class="fs-table">
-          <thead>
-            <tr>
-              <th scope="col">{% trans "Name" %}</th>
-              <th scope="col">{% trans "Type" %}</th>
-              <th scope="col">{% trans "Donor" %}</th>
-              <th scope="col">{% trans "Description" %}</th>
-              <th scope="col">{% trans "Status" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in sources %}
-            <tr class="dynamics-data-row">
-              <td class="fs-name">{{ s.name }}</td>
-              <td class="fs-muted">{{ s.get_funding_type_display }}</td>
-              <td class="fs-muted">{{ s.donor.name|default:"—" }}</td>
-              <td class="fs-muted">{{ s.description|default:"—"|truncatewords:12 }}</td>
-              <td>
-                {% if s.is_active %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#dff6dd;color:#0b5a0b;">{% trans "Active" %}</span>
-                {% else %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#edebe9;color:#605e5c;">{% trans "Inactive" %}</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td class="fs-empty" colspan="5">{% trans "No funding sources match these filters." %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div class="fs-footer">
-        {% blocktrans count total=funding_kpi.total_shown %}{{ total }} row in view{% plural %}{{ total }} rows in view{% endblocktrans %}
-      </div>
+    <div class="fs-table-wrap">
+      <table class="fs-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Name" %}</th>
+            <th scope="col">{% trans "Modality type" %}</th>
+            <th scope="col">{% trans "Payment structure" %}</th>
+            <th scope="col">{% trans "Retention %" %}</th>
+            <th scope="col">{% trans "Instalments allowed" %}</th>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sources %}
+          <tr
+            class="dynamics-data-row"
+            data-source-id="{{ s.pk }}"
+            data-name="{{ s.name|escape }}"
+            data-modality-type="{{ s.modality_type }}"
+            data-retention="{% if s.retention_percentage is not None %}{{ s.retention_percentage }}{% endif %}"
+            data-allow-instalments="{% if s.allow_instalments %}1{% else %}0{% endif %}"
+            data-requires-reporting="{% if s.requires_reporting_before_next_payment %}1{% else %}0{% endif %}"
+            data-description="{{ s.description|default:''|escape }}"
+            data-status="{% if s.is_active %}active{% else %}inactive{% endif %}"
+          >
+            <td class="fs-name">
+              <button
+                type="button"
+                class="text-left font-semibold hover:underline"
+                style="color:#0078d4;"
+                @click="createModalOpen = false; editModalOpen = true; $nextTick(() => { openEditFundingModal({{ s.pk }}); if (typeof feather !== 'undefined') feather.replace(); })"
+              >
+                {{ s.name }}
+              </button>
+            </td>
+            <td class="fs-muted">{{ s.get_modality_type_display }}</td>
+            <td class="fs-muted text-xs max-w-[280px]">
+              {% if s.modality_type == mixed_modality_value %}
+                {% for ln in s.payment_structure.all %}
+                  {{ ln.get_component_type_display }} {{ ln.percentage }}% ({{ ln.get_payment_trigger_display }}){% if not forloop.last %}<br />{% endif %}
+                {% empty %}—{% endfor %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="fs-muted">{% if s.retention_percentage is not None %}{{ s.retention_percentage }}%{% else %}—{% endif %}</td>
+            <td class="fs-muted">{% if s.allow_instalments %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</td>
+            <td>
+              {% if s.is_active %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#dff6dd;color:#0b5a0b;">{% trans "Active" %}</span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#edebe9;color:#605e5c;">{% trans "Inactive" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <button
+                type="button"
+                class="dynamics-btn-secondary text-xs"
+                @click="createModalOpen = false; editModalOpen = true; $nextTick(() => { openEditFundingModal({{ s.pk }}); if (typeof feather !== 'undefined') feather.replace(); })"
+              >
+                {% trans "Edit" %}
+              </button>
+              {% if not s.projects.exists and not s.grants.exists and not s.donor_agreements.exists %}
+              <form
+                method="post"
+                class="inline-block ml-1"
+                onsubmit="return confirm('Are you sure you want to delete this funding modality?');"
+              >
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete" />
+                <input type="hidden" name="source_id" value="{{ s.pk }}" />
+                <button type="submit" class="dynamics-btn-secondary text-xs" style="border-color:#a4262c;color:#a4262c;">
+                  {% trans "Delete" %}
+                </button>
+              </form>
+              {% else %}
+              <span class="text-[11px] ml-1" style="color:#605e5c;">{% trans "Linked records: set Inactive" %}</span>
+              {% endif %}
+              <script type="application/json" id="fs-ps-{{ s.pk }}">
+                [{% for ln in s.payment_structure.all %}{"component_type":"{{ ln.component_type }}","percentage":"{{ ln.percentage }}","payment_trigger":"{{ ln.payment_trigger }}","sort_order":"{{ ln.sort_order }}"}{% if not forloop.last %},{% endif %}{% endfor %}]
+              </script>
+              <script type="application/json" id="fs-acc-{{ s.pk }}">
+                [{% for ln in s.component_account_maps.all %}{"component_type":"{{ ln.component_type }}","receivable_account_id":"{% if ln.receivable_account_id %}{{ ln.receivable_account_id }}{% endif %}","income_account_id":"{% if ln.income_account_id %}{{ ln.income_account_id }}{% endif %}","deferred_income_account_id":"{% if ln.deferred_income_account_id %}{{ ln.deferred_income_account_id }}{% endif %}","retention_account_id":"{% if ln.retention_account_id %}{{ ln.retention_account_id }}{% endif %}","bank_account_type":"{{ ln.bank_account_type|default:'' }}"}{% if not forloop.last %},{% endif %}{% endfor %}]
+              </script>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td class="fs-empty" colspan="7">{% trans "No funding modalities match these filters." %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="fs-footer">
+      {% blocktrans count total=funding_kpi.total_shown %}{{ total }} row in view{% plural %}{{ total }} rows in view{% endblocktrans %}
     </div>
   </div>
+
+  {% if can_manage %}
+  <div
+    x-show="createModalOpen || editModalOpen"
+    x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden-print"
+    style="background: rgba(0,0,0,0.4);"
+    x-transition:enter="transition ease-out duration-200"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-150"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+  >
+    <div @click.self="createModalOpen = false; editModalOpen = false" class="absolute inset-0" aria-hidden="true"></div>
+    <div
+      class="relative bg-white rounded-lg border shadow-xl w-full max-w-[640px] max-h-[90vh] overflow-y-auto"
+      style="border-color:#edebe9;"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fs-modal-title"
+      x-transition:enter="transition ease-out duration-200"
+      x-transition:enter-start="opacity-0 scale-95"
+      x-transition:enter-end="opacity-100 scale-100"
+      @keydown.escape.window="createModalOpen = false; editModalOpen = false"
+    >
+      <div class="sticky top-0 bg-white px-5 py-4 border-b flex items-center justify-between z-10" style="border-color:#edebe9;">
+        <h2 id="fs-modal-title" class="text-lg font-semibold text-[#323130]">{% trans "Funding modality" %}</h2>
+        <button type="button" @click="createModalOpen = false; editModalOpen = false" class="p-1 rounded hover:bg-[#f3f2f1] text-[#605e5c]" aria-label="{% trans 'Close' %}">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form method="post" class="p-5 space-y-4" id="fs-create-modality-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="fs-modal-action" value="create" />
+        <input type="hidden" name="source_id" id="fs-modal-source-id" value="" />
+        <div>
+          <label for="fs-modal-name" class="block text-[13px] font-medium text-[#323130] mb-1">{% trans "Name" %} <span class="text-[#a4262c]">*</span></label>
+          <input id="fs-modal-name" name="name" required maxlength="120" class="dynamics-input w-full" placeholder="{% trans 'Display name' %}" />
+        </div>
+        <div>
+          <label for="fs-modal-type" class="block text-[13px] font-medium text-[#323130] mb-1">{% trans "Modality type" %} <span class="text-[#a4262c]">*</span></label>
+          <select id="fs-modal-type" name="modality_type" required class="dynamics-select w-full bg-white">
+            {% for value, label in modality_types.choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="fs-modal-mixed-wrap" class="hidden rounded border p-3" style="border-color:#edebe9; background:#faf9f8;">
+          <span class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Payment structure" %}</span>
+          <p class="text-xs mb-2" style="color:#605e5c;">{% trans "Define components (total must equal 100%). Add at least one component." %}</p>
+          <div class="fs-table-wrap border rounded bg-white" style="border-color:#edebe9;">
+            <table class="fs-table">
+              <thead>
+                <tr>
+                  <th scope="col">{% trans "Component type" %}</th>
+                  <th scope="col">{% trans "Percentage %" %}</th>
+                  <th scope="col">{% trans "Payment trigger" %} <span class="font-normal normal-case text-[10px]">({% trans "optional description" %})</span></th>
+                  <th scope="col" class="w-10"></th>
+                </tr>
+              </thead>
+              <tbody id="fs-modal-ps-tbody"></tbody>
+            </table>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
+            <button type="button" id="fs-modal-ps-add" class="dynamics-btn-secondary text-xs">{% trans "Add component" %}</button>
+            <span id="fs-modal-ps-total" class="text-xs font-semibold" style="color:#323130;">{% trans "Total = 0%" %}</span>
+          </div>
+          <p id="fs-modal-ps-error" class="text-xs mt-2 hidden" style="color:#a4262c;"></p>
+          <template id="fs-modal-ps-row-tpl">
+            <tr class="fs-modal-ps-row">
+              <td>
+                <input type="hidden" name="ps_sort_order" value="0" class="fs-modal-ps-so" />
+                <select name="ps_component_type" class="dynamics-select w-full bg-white text-xs min-w-[10rem]" required>
+                  {% for v, lab in ps_component_choices %}
+                  <option value="{{ v }}">{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="number" name="ps_percentage" min="0" max="100" step="0.01" class="dynamics-input w-full text-xs max-w-[6rem]" required placeholder="%" />
+              </td>
+              <td>
+                <select name="ps_payment_trigger" class="dynamics-select w-full bg-white text-xs min-w-[12rem]" required>
+                  {% for v, lab in ps_trigger_choices %}
+                  <option value="{{ v }}">{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td class="text-center">
+                <button type="button" class="fs-modal-ps-remove text-[#a4262c] text-xs font-semibold" title="{% trans 'Remove' %}">×</button>
+              </td>
+            </tr>
+          </template>
+        </div>
+        <div class="rounded border p-3" style="border-color:#edebe9; background:#faf9f8;">
+          <span class="block text-xs font-semibold mb-1" style="color:#323130;">{% trans "Financial account mapping by component" %}</span>
+          <p class="text-xs mb-2" style="color:#605e5c;">{% trans "Used for automatic posting account selection from selected funding modality on grant receipts." %}</p>
+          <div class="fs-table-wrap border rounded bg-white" style="border-color:#edebe9;">
+            <table class="fs-table">
+              <thead>
+                <tr>
+                  <th scope="col">{% trans "Component type" %}</th>
+                  <th scope="col">{% trans "Receivable account (GL)" %}</th>
+                  <th scope="col">{% trans "Income account (GL)" %}</th>
+                  <th scope="col">{% trans "Deferred income account (GL)" %}</th>
+                  <th scope="col">{% trans "Retention account (GL)" %}</th>
+                  <th scope="col">{% trans "Bank account type" %}</th>
+                </tr>
+              </thead>
+              <tbody id="fs-modal-acc-tbody">
+                {% for v, lab in ps_component_choices %}
+                <tr>
+                  <td>
+                    <input type="hidden" name="acc_component_type" value="{{ v }}" />
+                    <span class="text-xs">{{ lab }}</span>
+                  </td>
+                  <td>
+                    <select name="acc_receivable_account_id" class="dynamics-select w-full bg-white text-xs min-w-[12rem]">
+                      <option value="">{% trans "None" %}</option>
+                      {% for a in gl_accounts_receivable %}
+                      <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select name="acc_income_account_id" class="dynamics-select w-full bg-white text-xs min-w-[12rem]">
+                      <option value="">{% trans "None" %}</option>
+                      {% for a in gl_accounts_income %}
+                      <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select name="acc_deferred_income_account_id" class="dynamics-select w-full bg-white text-xs min-w-[12rem]">
+                      <option value="">{% trans "None" %}</option>
+                      {% for a in gl_accounts_deferred_income %}
+                      <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select name="acc_retention_account_id" class="dynamics-select w-full bg-white text-xs min-w-[12rem]">
+                      <option value="">{% trans "None" %}</option>
+                      {% for a in gl_accounts_retention %}
+                      <option value="{{ a.pk }}">{{ a.code }} — {{ a.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select name="acc_bank_account_type" class="dynamics-select w-full bg-white text-xs min-w-[10rem]">
+                      <option value="">{% trans "Any" %}</option>
+                      {% for v2, l2 in bank_account_type_choices %}
+                      <option value="{{ v2 }}">{{ l2 }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <label for="fs-modal-retention" class="block text-[13px] font-medium text-[#323130] mb-1">{% trans "Retention %" %}</label>
+          <input id="fs-modal-retention" name="retention_percentage" type="number" min="0" max="100" step="0.01" class="dynamics-input w-full max-w-[12rem]" placeholder="{% trans 'Optional' %}" />
+        </div>
+        <div class="flex flex-wrap gap-4">
+          <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+            <input type="checkbox" name="allow_instalments" />
+            {% trans "Allow instalments" %}
+          </label>
+          <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+            <input type="checkbox" name="requires_reporting_before_next_payment" />
+            {% trans "Requires reporting before next payment" %}
+          </label>
+        </div>
+        <div>
+          <label for="fs-modal-desc" class="block text-[13px] font-medium text-[#323130] mb-1">{% trans "Description" %}</label>
+          <input id="fs-modal-desc" name="description" maxlength="255" class="dynamics-input w-full" placeholder="{% trans 'Optional' %}" />
+        </div>
+        <div>
+          <label class="inline-flex items-center gap-2 text-sm font-medium" style="color:#323130;">
+            <input type="checkbox" name="is_active" value="on" checked />
+            {% trans "Status: Active" %}
+          </label>
+        </div>
+        <div>
+          <label for="fs-modal-status" class="block text-[13px] font-medium text-[#323130] mb-1">{% trans "Status" %}</label>
+          <select id="fs-modal-status" name="status" class="dynamics-select w-full max-w-[12rem] bg-white">
+            <option value="active">{% trans "Active" %}</option>
+            <option value="inactive">{% trans "Inactive" %}</option>
+          </select>
+          <p class="text-xs mt-1" style="color:#605e5c;">{% trans "If this modality is already used in project grants, set it to Inactive instead of deleting." %}</p>
+        </div>
+        <div class="fs-modal-actions">
+          <button type="button" class="fs-modal-secondary" @click="createModalOpen = false; editModalOpen = false">{% trans "Cancel" %}</button>
+          <button type="submit" class="pl-btn-primary">
+            <i data-feather="check" class="w-4 h-4"></i>
+            {% trans "Save" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
+
+<script>
+(function () {
+  var mixedVal = "{{ mixed_modality_value|escapejs }}";
+  function byId(id) { return document.getElementById(id); }
+
+  window.openCreateFundingModal = function () {
+    var form = byId("fs-create-modality-form");
+    if (!form) return;
+    var t = byId("fs-modal-title");
+    if (t) t.textContent = "{% trans 'New funding modality' %}";
+    form.reset();
+    byId("fs-modal-action").value = "create";
+    byId("fs-modal-source-id").value = "";
+    byId("fs-modal-status").value = "active";
+    if (window.fillFundingModalAccountMaps) window.fillFundingModalAccountMaps([]);
+    if (typeof window.initFundingModalPs === "function") window.initFundingModalPs();
+    if (typeof feather !== "undefined") feather.replace();
+  };
+
+  window.openEditFundingModal = function (sourceId) {
+    var row = document.querySelector('tr[data-source-id="' + String(sourceId) + '"]');
+    if (!row) return;
+    var t = byId("fs-modal-title");
+    if (t) t.textContent = "{% trans 'Edit funding modality' %}";
+    byId("fs-modal-action").value = "edit";
+    byId("fs-modal-source-id").value = String(sourceId);
+    byId("fs-modal-name").value = row.dataset.name || "";
+    byId("fs-modal-type").value = row.dataset.modalityType || "";
+    byId("fs-modal-retention").value = row.dataset.retention || "";
+    byId("fs-modal-desc").value = row.dataset.description || "";
+    byId("fs-modal-status").value = row.dataset.status || "active";
+    var activeBox = document.querySelector('input[name="is_active"]');
+    if (activeBox) activeBox.checked = (row.dataset.status || "active") === "active";
+    var reportingBox = document.querySelector('input[name="requires_reporting_before_next_payment"]');
+    if (reportingBox) reportingBox.checked = row.dataset.requiresReporting === "1";
+    var instalmentBox = document.querySelector('input[name="allow_instalments"]');
+    if (instalmentBox) instalmentBox.checked = row.dataset.allowInstalments === "1";
+    if (typeof window.initFundingModalPs === "function") window.initFundingModalPs();
+    var tbody = byId("fs-modal-ps-tbody");
+    if (tbody) tbody.innerHTML = "";
+    var psEl = byId("fs-ps-" + String(sourceId));
+    var accEl = byId("fs-acc-" + String(sourceId));
+    var rows = [];
+    var accRows = [];
+    if (psEl) {
+      try { rows = JSON.parse(psEl.textContent || "[]"); } catch (e) { rows = []; }
+    }
+    if (accEl) {
+      try { accRows = JSON.parse(accEl.textContent || "[]"); } catch (e) { accRows = []; }
+    }
+    if (window.fillFundingModalStructure) window.fillFundingModalStructure(rows);
+    if (window.fillFundingModalAccountMaps) window.fillFundingModalAccountMaps(accRows);
+    if (typeof feather !== "undefined") feather.replace();
+  };
+
+  window.initFundingModalPs = function () {
+    var sel = document.getElementById("fs-modal-type");
+    var wrap = document.getElementById("fs-modal-mixed-wrap");
+    var tbody = document.getElementById("fs-modal-ps-tbody");
+    var tpl = document.getElementById("fs-modal-ps-row-tpl");
+    var btnAdd = document.getElementById("fs-modal-ps-add");
+    var totalEl = document.getElementById("fs-modal-ps-total");
+    var errEl = document.getElementById("fs-modal-ps-error");
+    var form = document.getElementById("fs-create-modality-form");
+    if (!sel || !wrap || !tbody || !tpl || !btnAdd || !totalEl || !form) return;
+    if (sel._fsFundingPsBound) return;
+    sel._fsFundingPsBound = true;
+    var sortIx = 0;
+    function recalcTotal() {
+      var inputs = tbody.querySelectorAll('input[name="ps_percentage"]');
+      var t = 0;
+      for (var i = 0; i < inputs.length; i++) {
+        var v = parseFloat(inputs[i].value);
+        if (!isNaN(v)) t += v;
+      }
+      var rounded = Math.round(t * 100) / 100;
+      totalEl.textContent = "{% trans 'Total =' %} " + rounded + "%";
+      totalEl.style.color = Math.abs(t - 100) > 0.02 ? "#a4262c" : "#0b5a0b";
+      return t;
+    }
+    function setMixedError(msg) {
+      if (!errEl) return;
+      if (msg) {
+        errEl.textContent = msg;
+        errEl.classList.remove("hidden");
+      } else {
+        errEl.textContent = "";
+        errEl.classList.add("hidden");
+      }
+    }
+    function validateMixedBeforeSubmit() {
+      if (sel.value !== mixedVal) {
+        setMixedError("");
+        return true;
+      }
+      var rows = tbody.querySelectorAll("tr");
+      if (!rows.length) {
+        setMixedError("{% trans 'Payment structure required for Mixed modality. Please add at least one component such as Advance %, Reimbursement %, or Retention %.' %}");
+        return false;
+      }
+      var total = recalcTotal();
+      if (Math.abs(total - 100) > 0.02) {
+        setMixedError("{% trans 'Total percentage for Mixed modality must equal 100%.' %}");
+        return false;
+      }
+      setMixedError("");
+      return true;
+    }
+    function bindRow(tr) {
+      if (!tr) return;
+      tr.querySelectorAll("input[name='ps_percentage']").forEach(function (inp) {
+        inp.addEventListener("input", recalcTotal);
+      });
+      tr.querySelectorAll(".fs-modal-ps-remove").forEach(function (b) {
+        b.onclick = function () {
+          var r = b.closest("tr");
+          if (r) r.remove();
+          recalcTotal();
+          setMixedError("");
+        };
+      });
+    }
+    function addRow() {
+      var node = tpl.content.cloneNode(true);
+      var tr = node.querySelector("tr");
+      var so = tr && tr.querySelector(".fs-modal-ps-so");
+      if (so) so.value = String(sortIx++);
+      tbody.appendChild(node);
+      bindRow(tbody.lastElementChild);
+      recalcTotal();
+      setMixedError("");
+    }
+    function toggleMixed() {
+      if (sel.value === mixedVal) {
+        wrap.classList.remove("hidden");
+        if (!tbody.children.length) {
+          addRow();
+          addRow();
+        }
+      } else {
+        wrap.classList.add("hidden");
+        tbody.innerHTML = "";
+        sortIx = 0;
+        recalcTotal();
+      }
+      setMixedError("");
+    }
+    sel.addEventListener("change", toggleMixed);
+    btnAdd.onclick = addRow;
+    form.addEventListener("submit", function (ev) {
+      if (!validateMixedBeforeSubmit()) {
+        ev.preventDefault();
+      }
+    });
+    window.fillFundingModalStructure = function (rows) {
+      tbody.innerHTML = "";
+      sortIx = 0;
+      if (!rows || !rows.length) {
+        toggleMixed();
+        return;
+      }
+      if (sel.value !== mixedVal) {
+        toggleMixed();
+        return;
+      }
+      wrap.classList.remove("hidden");
+      for (var i = 0; i < rows.length; i++) {
+        addRow();
+        var tr = tbody.lastElementChild;
+        if (!tr) continue;
+        var item = rows[i] || {};
+        var c = tr.querySelector('select[name="ps_component_type"]');
+        var p = tr.querySelector('input[name="ps_percentage"]');
+        var t = tr.querySelector('select[name="ps_payment_trigger"]');
+        var s = tr.querySelector('.fs-modal-ps-so');
+        if (c && item.component_type) c.value = item.component_type;
+        if (p && item.percentage) p.value = item.percentage;
+        if (t && item.payment_trigger) t.value = item.payment_trigger;
+        if (s && item.sort_order !== undefined) s.value = String(item.sort_order);
+      }
+      recalcTotal();
+    };
+    window.fillFundingModalAccountMaps = function (rows) {
+      var tbodyAcc = byId("fs-modal-acc-tbody");
+      if (!tbodyAcc) return;
+      var byComp = {};
+      if (rows && rows.length) {
+        for (var i = 0; i < rows.length; i++) {
+          var it = rows[i] || {};
+          if (it.component_type) byComp[it.component_type] = it;
+        }
+      }
+      tbodyAcc.querySelectorAll("tr").forEach(function (tr) {
+        var compInput = tr.querySelector('input[name="acc_component_type"]');
+        var recvSel = tr.querySelector('select[name="acc_receivable_account_id"]');
+        var incSel = tr.querySelector('select[name="acc_income_account_id"]');
+        var deferredSel = tr.querySelector('select[name="acc_deferred_income_account_id"]');
+        var retentionSel = tr.querySelector('select[name="acc_retention_account_id"]');
+        var bankSel = tr.querySelector('select[name="acc_bank_account_type"]');
+        var comp = compInput ? (compInput.value || "") : "";
+        var m = byComp[comp] || {};
+        if (recvSel) recvSel.value = m.receivable_account_id || "";
+        if (incSel) incSel.value = m.income_account_id || "";
+        if (deferredSel) deferredSel.value = m.deferred_income_account_id || "";
+        if (retentionSel) retentionSel.value = m.retention_account_id || "";
+        if (bankSel) bankSel.value = m.bank_account_type || "";
+      });
+    };
+    toggleMixed();
+  };
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof feather !== "undefined") feather.replace();
+    {% if can_manage and show_edit_modal and edit_source_id %}
+    if (typeof window.openEditFundingModal === "function") window.openEditFundingModal({{ edit_source_id|default:"0" }});
+    if (typeof feather !== "undefined") feather.replace();
+    {% elif can_manage and show_create_modal %}
+    if (typeof window.initFundingModalPs === "function") window.initFundingModalPs();
+    if (typeof window.openCreateFundingModal === "function") window.openCreateFundingModal();
+    if (typeof feather !== "undefined") feather.replace();
+    {% endif %}
+  });
+})();
+</script>
 {% endblock %}

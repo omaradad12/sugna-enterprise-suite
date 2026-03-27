@@ -62,14 +62,39 @@ def project_financial_rollups(using: str, project_ids: list[int]) -> dict[int, d
             if primary_currency is None and g.currency_id:
                 primary_currency = g.currency
         remaining = total_budget - total_spent
+        util_pct: Decimal | None
+        if total_budget > 0:
+            util_pct = (total_spent / total_budget) * Decimal("100")
+        else:
+            util_pct = None
         out[pid] = {
             "grant_count": len(glist),
             "total_budget": total_budget,
             "total_spent": total_spent,
             "remaining": remaining,
             "primary_currency": primary_currency,
+            "utilization_pct": util_pct,
         }
     return out
+
+
+def aggregate_project_financial_rollups(roll: dict[int, dict]) -> dict:
+    """Sum budget, spent, remaining, grant links across projects; overall utilization %."""
+    tb = ts = tr = Decimal("0")
+    gc = 0
+    for v in roll.values():
+        tb += v.get("total_budget") or Decimal("0")
+        ts += v.get("total_spent") or Decimal("0")
+        tr += v.get("remaining") or Decimal("0")
+        gc += int(v.get("grant_count") or 0)
+    up = (ts / tb * Decimal("100")) if tb > 0 else None
+    return {
+        "total_budget": tb,
+        "total_spent": ts,
+        "remaining": tr,
+        "grant_count": gc,
+        "utilization_pct": up,
+    }
 
 
 def attach_project_financials(projects: list, using: str) -> None:
@@ -85,5 +110,6 @@ def attach_project_financials(projects: list, using: str) -> None:
                 "total_spent": Decimal("0"),
                 "remaining": Decimal("0"),
                 "primary_currency": None,
+                "utilization_pct": None,
             },
         )

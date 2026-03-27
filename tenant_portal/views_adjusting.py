@@ -428,6 +428,7 @@ def finance_adjusting_journal_create_view(request: HttpRequest) -> HttpResponse:
                     entry=entry,
                     file=f,
                     original_filename=getattr(f, "name", "") or "",
+                    uploaded_by=request.tenant_user,
                 )
 
             AuditLog.objects.using(tenant_db).create(

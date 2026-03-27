@@ -47,6 +47,33 @@ def org_settings(request):
         }
 
 
+def _visible_smart_alerts_for_user(alerts: list, tenant_user, tenant_db: str) -> list:
+    """Hide project end-date alerts from users who are not PM (on project) or admin/finance manage."""
+    if not tenant_user:
+        return [a for a in alerts if not a.get("restrict_to_pm_admin")]
+    from rbac.models import user_has_permission
+    from tenant_grants.models import Project
+
+    out = []
+    for a in alerts:
+        if not a.get("restrict_to_pm_admin"):
+            out.append(a)
+            continue
+        if getattr(tenant_user, "is_tenant_admin", False):
+            out.append(a)
+            continue
+        if user_has_permission(tenant_user, "module:finance.manage", using=tenant_db):
+            out.append(a)
+            continue
+        pids = a.get("project_ids") or []
+        if pids and Project.objects.using(tenant_db).filter(
+            pk__in=pids, project_manager_id=tenant_user.pk
+        ).exists():
+            out.append(a)
+            continue
+    return out
+
+
 def smart_alerts(request):
     """Add smart_alerts and smart_alerts_count for notification bell and dashboards (when in tenant context)."""
     tenant_db = getattr(request, "tenant_db", None)
@@ -54,7 +81,10 @@ def smart_alerts(request):
         return {"smart_alerts": [], "smart_alerts_count": 0}
     try:
         from tenant_portal.smart_alerts import get_smart_alerts
+
         alerts = get_smart_alerts(tenant_db)
+        tenant_user = getattr(request, "tenant_user", None)
+        alerts = _visible_smart_alerts_for_user(alerts, tenant_user, tenant_db)
         return {"smart_alerts": alerts, "smart_alerts_count": len(alerts)}
     except Exception:
         return {"smart_alerts": [], "smart_alerts_count": 0}

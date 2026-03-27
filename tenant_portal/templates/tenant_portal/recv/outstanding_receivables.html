@@ -2,150 +2,388 @@
 {% block title %}Outstanding Receivables | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-4" x-data="{ search: '' }">
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-[#323130]">Outstanding receivables</h1>
-      <p class="text-sm mt-1 text-[#605e5c]">Receivables with unpaid balances and days outstanding.</p>
-    </div>
+<div class="ar-outstanding-root">
+<style>
+  .ar-outstanding-root {
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #201f1e;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-bottom: 2rem;
+  }
+  .ar-hero {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.35rem;
+    background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .ar-hero::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: linear-gradient(180deg, #0078d4 0%, #106ebe 100%);
+  }
+  .ar-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: #201f1e;
+  }
+  .ar-kpi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    background: #ffffff;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .ar-kpi-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #605e5c;
+    letter-spacing: 0.01em;
+  }
+  .ar-kpi-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: #0b5c0b;
+  }
+  .ar-kpi-value.is-zero {
+    color: #605e5c;
+  }
+  .ar-filters-details {
+    margin-bottom: 1rem;
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+  }
+  .ar-filters-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #faf9f8;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+  }
+  .ar-filters-details summary::-webkit-details-marker { display: none; }
+  .ar-filters-details[open] summary {
+    border-bottom-color: #edebe9;
+  }
+  .ar-filters-details summary:hover {
+    background: #f3f2f1;
+  }
+  .ar-filters-body {
+    padding: 1rem 1rem 1.1rem;
+  }
+  .ar-filters-body label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #605e5c;
+    margin-bottom: 0.35rem;
+  }
+  .ar-filters-body input,
+  .ar-filters-body select {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #edebe9;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ar-filters-body input:focus,
+  .ar-filters-body select:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.25);
+  }
+  .ar-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #fff;
+    background: #0078d4;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ar-btn-primary:hover { background: #106ebe; }
+  .ar-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #323130;
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .ar-btn-ghost:hover { background: #faf9f8; }
+  .ar-table-card {
+    border: 1px solid #e8e6e3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .ar-table-head {
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .ar-table-head span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  .ar-table-wrap { overflow-x: auto; }
+  .ar-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  .ar-table-wrap thead th {
+    text-align: left;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    background: #fafbfc;
+    border-bottom: 1px solid #e8e6e3;
+    white-space: nowrap;
+  }
+  .ar-table-wrap thead th.text-right { text-align: right; }
+  .ar-table-wrap tbody td {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #f3f2f1;
+    color: #323130;
+    vertical-align: top;
+  }
+  .ar-table-wrap tbody tr:last-child td { border-bottom: none; }
+  .ar-table-wrap tbody tr:hover td { background: #fafbfc; }
+  .ar-table-wrap tbody td a {
+    color: #0078d4;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .ar-table-wrap tbody td a:hover { text-decoration: underline; }
+  .ar-table-wrap .tabular-nums { font-variant-numeric: tabular-nums; }
+  .ar-outstanding-root .ar-table-wrap tbody td.text-right,
+  .ar-outstanding-root .ar-table-wrap tbody td.tabular-nums {
+    font-size: 12px;
+  }
+  .ar-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: #605e5c;
+    font-size: 0.875rem;
+  }
+  .ar-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #475569;
+  }
+</style>
+
+  <header class="ar-hero">
+    <h1>Outstanding receivables</h1>
     {% include "tenant_portal/_smart_alerts_module.html" with alert_category="receivables" %}
-    <div class="flex items-center gap-2">
-      <div class="relative">
-        <i data-feather="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#605e5c]"></i>
-        <input type="text"
-               x-model="search"
-               placeholder="Search receivable, debtor, project..."
-               class="w-56 sm:w-64 pl-8 pr-2 py-2 rounded-lg border text-sm bg-white placeholder:text-[#8a8886] focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30 focus:border-[#0078D4]"
-               style="border-color:#edebe9;" />
-      </div>
+  </header>
+
+  <p class="text-[12px] text-[#605e5c] mb-3 max-w-[56rem] leading-relaxed">
+    For grant-linked receivables, balances are capped at the <strong>remaining claimable</strong> amount (eligible receivable on the grant minus posted receipts). Non-grant receivables are shown in full. Totals reflect these rules.
+  </p>
+
+  <details class="ar-filters-details" {% if request.GET %}open{% endif %}>
+    <summary>
+      <i data-feather="sliders" class="w-4 h-4" style="opacity:.85;"></i>
+      <span>Filters</span>
+    </summary>
+    <div class="ar-filters-body">
+      <form method="get" class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
+        <div>
+          <label>Debtor name</label>
+          <input type="text" name="debtor" value="{{ request.GET.debtor }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Grant</label>
+          <input type="text" name="grant" value="{{ request.GET.grant }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Project</label>
+          <input type="text" name="project" value="{{ request.GET.project }}" autocomplete="off" />
+        </div>
+        <div>
+          <label>Fund / Donor</label>
+          <input type="text" name="donor" value="{{ request.GET.donor }}" autocomplete="off" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Period from</label>
+            <input type="date" name="from" value="{{ request.GET.from }}" />
+          </div>
+          <div>
+            <label>Period to</label>
+            <input type="date" name="to" value="{{ request.GET.to }}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Due from</label>
+            <input type="date" name="due_from" value="{{ request.GET.due_from }}" />
+          </div>
+          <div>
+            <label>Due to</label>
+            <input type="date" name="due_to" value="{{ request.GET.due_to }}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Days from</label>
+            <input type="text" name="days_from" value="{{ request.GET.days_from }}" placeholder="Optional" />
+          </div>
+          <div>
+            <label>Days to</label>
+            <input type="text" name="days_to" value="{{ request.GET.days_to }}" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label>Balance from</label>
+            <input type="text" name="balance_from" value="{{ request.GET.balance_from }}" />
+          </div>
+          <div>
+            <label>Balance to</label>
+            <input type="text" name="balance_to" value="{{ request.GET.balance_to }}" />
+          </div>
+        </div>
+        <div>
+          <label>Status</label>
+          <select name="status">
+            <option value="">All</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 pt-1">
+          <button type="submit" class="ar-btn-primary">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply filters
+          </button>
+          <a href="{% url 'tenant_portal:recv_outstanding_receivables' %}" class="ar-btn-ghost">Reset</a>
+        </div>
+      </form>
     </div>
+  </details>
+
+  <div class="ar-kpi">
+    <span class="ar-kpi-label">Total outstanding amount</span>
+    <span class="ar-kpi-value {% if total_outstanding_amount == 0 %}is-zero{% endif %}">{{ total_outstanding_amount|floatformat:2 }}</span>
   </div>
 
-  {% include "tenant_portal/_smart_alerts_module.html" with alert_category="receivables" %}
-
-  <!-- Filter bar -->
-  <form method="get" class="bg-white border rounded-lg px-4 py-3 mb-3 shadow-sm" style="border-color:#edebe9;">
-    <div class="grid grid-cols-1 lg:grid-cols-6 gap-3 items-end">
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Debtor name</label>
-        <input type="text" name="debtor" value="{{ request.GET.debtor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Type</label>
-        <select name="type" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">All</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
-        <input type="text" name="project" value="{{ request.GET.project }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fund / Donor</label>
-        <input type="text" name="donor" value="{{ request.GET.donor }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Due from</label>
-          <input type="date" name="due_from" value="{{ request.GET.due_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Due to</label>
-          <input type="date" name="due_to" value="{{ request.GET.due_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Days from</label>
-          <input type="text" name="days_from" value="{{ request.GET.days_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Days to</label>
-          <input type="text" name="days_to" value="{{ request.GET.days_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Balance from</label>
-          <input type="text" name="balance_from" value="{{ request.GET.balance_from }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Balance to</label>
-          <input type="text" name="balance_to" value="{{ request.GET.balance_to }}" class="w-full px-3 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
-        <select name="status" class="w-full px-3 py-1.5 rounded border bg-white text-sm" style="border-color:#edebe9;">
-          <option value="">All</option>
-          {% for code, label in status_choices %}
-          <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="lg:col-span-6 flex flex-wrap justify-end gap-2 mt-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-[#0078D4] text-white hover:bg-[#106ebe]">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          <span>Apply filters</span>
-        </button>
-        <a href="{% url 'tenant_portal:recv_outstanding_receivables' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border bg-white text-[#323130] hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-          <span>Reset</span>
-        </a>
-      </div>
+  <div class="ar-table-card">
+    <div class="ar-table-head">
+      <span>Register</span>
     </div>
-  </form>
-
-  <div class="erp-section rounded-lg shadow-sm overflow-hidden">
-    <div class="erp-section-header px-4 py-2.5" style="background:#0078D4;color:#ffffff;">
-      <span class="text-sm font-semibold uppercase tracking-wide">Outstanding receivables</span>
-    </div>
-    <div class="erp-section-body overflow-auto p-0">
-      <table class="erp-table text-sm">
+    <div class="ar-table-wrap">
+      <table>
         <thead>
           <tr>
-            <th class="px-4 py-2.5">Receivable no.</th>
-            <th class="px-4 py-2.5">Debtor name</th>
-            <th class="px-4 py-2.5">Type</th>
-            <th class="px-4 py-2.5">Description</th>
-            <th class="px-4 py-2.5">Project</th>
-            <th class="px-4 py-2.5">Fund / Donor</th>
-            <th class="px-4 py-2.5 text-right">Original amount</th>
-            <th class="px-4 py-2.5 text-right">Amount collected</th>
-            <th class="px-4 py-2.5 text-right">Outstanding balance</th>
-            <th class="px-4 py-2.5">Due date</th>
-            <th class="px-4 py-2.5 text-right">Days outstanding</th>
-            <th class="px-4 py-2.5">Status</th>
+            <th>Receivable no.</th>
+            <th>Voucher no.</th>
+            <th>Debtor name</th>
+            <th>Project</th>
+            <th>Grant</th>
+            <th>Fund / Donor</th>
+            <th>Income account</th>
+            <th>Receivable account</th>
+            <th class="text-right">Original amount</th>
+            <th class="text-right">Amount collected</th>
+            <th class="text-right">Outstanding balance</th>
+            <th>Due date</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr class="hover:bg-[#faf9f8] transition-colors"
-              data-search="{{ r.receivable_no|lower }} {{ r.debtor_name|lower }} {{ r.project|lower }} {{ r.fund_donor|lower }}"
-              x-show="!search.trim() || ($el.getAttribute('data-search')||'').indexOf(search.toLowerCase().trim()) !== -1">
-            <td class="px-4 py-2.5">
-              <a href="{% url transaction_url_name %}?focus={{ r.entry_id }}" class="text-[#0078D4] font-medium hover:underline">
-                {{ r.receivable_no }}
-              </a>
+          <tr>
+            <td>
+              {% if r.entry_id %}
+              <a href="{% url transaction_url_name %}?focus={{ r.entry_id }}">{{ r.receivable_no }}</a>
+              {% else %}
+              {{ r.receivable_no }}
+              {% endif %}
             </td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.debtor_name|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.receivable_type }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.description|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.project|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.fund_donor|default:"—" }}</td>
-            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.original_amount }}</td>
-            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.amount_collected }}</td>
-            <td class="px-4 py-2.5 text-right font-medium text-[#323130]">{{ r.outstanding_balance }}</td>
-            <td class="px-4 py-2.5 text-[#323130]">{{ r.due_date|date:"d/m/Y" }}</td>
-            <td class="px-4 py-2.5 text-right text-[#323130]">{{ r.days_outstanding }}</td>
-            <td class="px-4 py-2.5">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
-                {{ r.status }}
-              </span>
+            <td>
+              {% if r.entry_id %}
+              <a href="{% url transaction_url_name %}?focus={{ r.entry_id }}">{{ r.voucher_no }}</a>
+              {% else %}
+              {{ r.voucher_no }}
+              {% endif %}
             </td>
+            <td>{{ r.debtor_name|default:"—" }}</td>
+            <td>{{ r.project|default:"—" }}</td>
+            <td>{{ r.grant|default:"—" }}</td>
+            <td>{{ r.fund_donor|default:"—" }}</td>
+            <td>{% if r.income_account %}{{ r.income_account.code }} — {{ r.income_account.name }}{% else %}—{% endif %}</td>
+            <td>{% if r.receivable_account %}{{ r.receivable_account.code }} — {{ r.receivable_account.name }}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{{ r.original_amount|floatformat:2 }}</td>
+            <td class="text-right tabular-nums">{{ r.amount_collected|floatformat:2 }}</td>
+            <td class="text-right tabular-nums" style="font-weight:600;">{{ r.outstanding_balance|floatformat:2 }}</td>
+            <td class="tabular-nums">{{ r.due_date|date:"d/m/Y" }}</td>
+            <td><span class="ar-badge">{{ r.status }}</span></td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="12" class="px-4 py-6 text-center text-sm text-[#605e5c]">No outstanding receivables found.</td>
+            <td colspan="13" class="ar-empty">No outstanding receivables found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -154,4 +392,3 @@
   </div>
 </div>
 {% endblock %}
-

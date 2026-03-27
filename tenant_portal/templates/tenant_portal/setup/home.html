@@ -102,6 +102,10 @@
       <div class="setup-card-actions">
         <a href="{% url 'tenant_portal:setup_dimensions_list' %}">View</a><span class="sep">|</span>
         <a href="{% url 'tenant_portal:setup_dimensions_list' %}">Configure</a>
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_program_dimension_values_list' %}">Program values</a>
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_sector_dimension_values_list' %}">Program sector</a>
         {% if can_manage %}
         <span class="sep">|</span>
         <a href="{% url 'tenant_portal:setup_dimensions_add' %}">Manage</a>
@@ -231,6 +235,24 @@
         {% if can_manage %}
         <span class="sep">|</span>
         <a href="{% url 'tenant_portal:setup_approval_workflows_add' %}">Manage</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <div class="setup-card-header">
+      <i data-feather="check-circle" class="w-4 h-4"></i>
+      <span>Approval Settings</span>
+    </div>
+    <div class="setup-card-body">
+      <p>Control optional receipt approval behavior and thresholds.</p>
+      <div class="setup-card-actions">
+        <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}">View</a><span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}">Configure</a>
+        {% if can_manage %}
+        <span class="sep">|</span>
+        <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}">Manage</a>
         {% endif %}
       </div>
     </div>

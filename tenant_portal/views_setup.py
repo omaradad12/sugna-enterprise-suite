@@ -346,6 +346,172 @@ def _cost_centers_queryset(tenant_db: str, request: HttpRequest):
     return qs
 
 
+def _program_dimension_values_queryset(tenant_db: str, request: HttpRequest):
+    from tenant_finance.models import FinancialDimensionValue
+
+    qs = (
+        FinancialDimensionValue.objects.using(tenant_db)
+        .select_related("dimension")
+        .filter(dimension__dimension_code="PROG")
+        .order_by("code")
+    )
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(description__icontains=q))
+    status = (request.GET.get("status") or "").strip()
+    if status:
+        qs = qs.filter(status=status)
+    return qs
+
+
+def _sector_dimension_values_queryset(tenant_db: str, request: HttpRequest):
+    from tenant_finance.models import FinancialDimensionValue
+
+    qs = (
+        FinancialDimensionValue.objects.using(tenant_db)
+        .select_related("dimension")
+        .filter(dimension__dimension_code="SECTOR")
+        .order_by("code")
+    )
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(description__icontains=q))
+    status = (request.GET.get("status") or "").strip()
+    if status:
+        qs = qs.filter(status=status)
+    return qs
+
+
+def _ensure_program_dimension_defaults(tenant_db: str, tenant_user):
+    from tenant_finance.models import FinancialDimension, FinancialDimensionValue
+
+    prog_dim, _ = FinancialDimension.objects.using(tenant_db).get_or_create(
+        dimension_code="PROG",
+        defaults={
+            "dimension_name": "Program",
+            "dimension_type": FinancialDimension.DimensionType.PROGRAM,
+            "description": "Program dimension for funding/program categories.",
+            "status": FinancialDimension.Status.ACTIVE,
+            "created_by": tenant_user,
+        },
+    )
+    if prog_dim.status != FinancialDimension.Status.ACTIVE:
+        prog_dim.status = FinancialDimension.Status.ACTIVE
+        prog_dim.save(using=tenant_db, update_fields=["status"])
+
+    defaults = [
+        ("PRG-01", "Project grant"),
+        ("PRG-02", "Core / institutional"),
+        ("PRG-03", "Emergency"),
+        ("PRG-04", "Institutional"),
+        ("PRG-05", "Other"),
+    ]
+    for code, name in defaults:
+        obj, _ = FinancialDimensionValue.objects.using(tenant_db).get_or_create(
+            dimension=prog_dim,
+            code=code,
+            defaults={
+                "name": name,
+                "description": "",
+                "status": FinancialDimensionValue.Status.ACTIVE,
+                "created_by": tenant_user,
+            },
+        )
+        changed = False
+        if obj.name != name:
+            obj.name = name
+            changed = True
+        if obj.status != FinancialDimensionValue.Status.ACTIVE:
+            obj.status = FinancialDimensionValue.Status.ACTIVE
+            changed = True
+        if changed:
+            obj.save(using=tenant_db, update_fields=["name", "status"])
+
+    legacy_code_map = {
+        "PROJECT_GRANT": ("PRG-01", "Project grant"),
+        "CORE_INSTITUTIONAL": ("PRG-02", "Core / institutional"),
+        "EMERGENCY": ("PRG-03", "Emergency"),
+        "INSTITUTIONAL": ("PRG-04", "Institutional"),
+        "OTHER": ("PRG-05", "Other"),
+    }
+    for legacy_code, (new_code, new_name) in legacy_code_map.items():
+        legacy = (
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension=prog_dim, code=legacy_code)
+            .first()
+        )
+        if not legacy:
+            continue
+        target = (
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension=prog_dim, code=new_code)
+            .first()
+        )
+        if target and target.pk != legacy.pk:
+            continue
+        legacy.code = new_code
+        legacy.name = new_name
+        legacy.status = FinancialDimensionValue.Status.ACTIVE
+        legacy.save(using=tenant_db, update_fields=["code", "name", "status"])
+    return prog_dim
+
+
+def _ensure_sector_dimension_defaults(tenant_db: str, tenant_user):
+    from tenant_finance.models import FinancialDimension, FinancialDimensionValue
+
+    sector_dim, _ = FinancialDimension.objects.using(tenant_db).get_or_create(
+        dimension_code="SECTOR",
+        defaults={
+            "dimension_name": "Program sector",
+            "dimension_type": FinancialDimension.DimensionType.CLASSIFICATION,
+            "description": "Program sector classification values.",
+            "status": FinancialDimension.Status.ACTIVE,
+            "created_by": tenant_user,
+        },
+    )
+    if sector_dim.status != FinancialDimension.Status.ACTIVE:
+        sector_dim.status = FinancialDimension.Status.ACTIVE
+        sector_dim.save(using=tenant_db, update_fields=["status"])
+
+    defaults = [
+        ("SEC-01", "Health"),
+        ("SEC-02", "WASH"),
+        ("SEC-03", "Education"),
+        ("SEC-04", "Protection"),
+        ("SEC-05", "Nutrition"),
+        ("SEC-06", "Livelihood"),
+        ("SEC-07", "Food Security"),
+        ("SEC-08", "Shelter"),
+        ("SEC-09", "GBV"),
+        ("SEC-10", "Child Protection"),
+        ("SEC-11", "Governance"),
+        ("SEC-12", "Capacity building"),
+        ("SEC-13", "Multi-sector"),
+        ("SEC-14", "Other"),
+    ]
+    for code, name in defaults:
+        obj, _ = FinancialDimensionValue.objects.using(tenant_db).get_or_create(
+            dimension=sector_dim,
+            code=code,
+            defaults={
+                "name": name,
+                "description": "",
+                "status": FinancialDimensionValue.Status.ACTIVE,
+                "created_by": tenant_user,
+            },
+        )
+        changed = False
+        if obj.name != name:
+            obj.name = name
+            changed = True
+        if obj.status != FinancialDimensionValue.Status.ACTIVE:
+            obj.status = FinancialDimensionValue.Status.ACTIVE
+            changed = True
+        if changed:
+            obj.save(using=tenant_db, update_fields=["name", "status"])
+    return sector_dim
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_dimensions_list_view(request: HttpRequest) -> HttpResponse:
     tenant_db = request.tenant_db
@@ -370,6 +536,321 @@ def setup_dimensions_list_view(request: HttpRequest) -> HttpResponse:
 
     ctx["dimension_types"] = FinancialDimension.DimensionType.choices
     return render(request, "tenant_portal/setup/dimensions_list.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_program_dimension_values_list_view(request: HttpRequest) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    ctx["active_item"] = "setup_dimensions"
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    prog_dim = _ensure_program_dimension_defaults(tenant_db, request.tenant_user)
+
+    values_qs = _program_dimension_values_queryset(tenant_db, request)
+    paginator = Paginator(values_qs, PAGE_SIZE)
+    page = request.GET.get("page", "1")
+    ctx["values_page"] = paginator.get_page(page)
+    ctx["filter_q"] = request.GET.get("q", "")
+    ctx["filter_status"] = request.GET.get("status", "")
+    ctx["prog_dimension"] = prog_dim
+    ctx["status_choices"] = FinancialDimensionValue.Status.choices
+
+    get = request.GET.copy()
+    if "page" in get:
+        get.pop("page")
+    ctx["base_query"] = get.urlencode()
+    return render(request, "tenant_portal/setup/program_dimension_values_list.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_program_dimension_values_add_view(request: HttpRequest) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    ctx["active_item"] = "setup_dimensions"
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to create program values.")
+        return redirect(reverse("tenant_portal:setup_program_dimension_values_list"))
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    prog_dim = _ensure_program_dimension_defaults(tenant_db, request.tenant_user)
+
+    if request.method == "POST":
+        code = (request.POST.get("code") or "").strip()
+        name = (request.POST.get("name") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        status = (request.POST.get("status") or "").strip() or FinancialDimensionValue.Status.ACTIVE
+        errors = []
+        if not code:
+            errors.append("Code is required.")
+        if not name:
+            errors.append("Name is required.")
+        if code and FinancialDimensionValue.objects.using(tenant_db).filter(dimension=prog_dim, code__iexact=code).exists():
+            errors.append("A program value with this code already exists.")
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            FinancialDimensionValue.objects.using(tenant_db).create(
+                dimension=prog_dim,
+                code=code,
+                name=name,
+                description=description,
+                status=status,
+                created_by=request.tenant_user,
+            )
+            messages.success(request, "Program value created.")
+            return redirect(reverse("tenant_portal:setup_program_dimension_values_list"))
+
+    ctx["prog_dimension"] = prog_dim
+    ctx["status_choices"] = FinancialDimensionValue.Status.choices
+    ctx["form_title"] = "Add Program Value"
+    return render(request, "tenant_portal/setup/program_dimension_values_form.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_program_dimension_values_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    ctx["active_item"] = "setup_dimensions"
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to edit program values.")
+        return redirect(reverse("tenant_portal:setup_program_dimension_values_list"))
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    obj = get_object_or_404(
+        FinancialDimensionValue.objects.using(tenant_db).select_related("dimension"),
+        pk=pk,
+        dimension__dimension_code="PROG",
+    )
+
+    if request.method == "POST":
+        code = (request.POST.get("code") or "").strip()
+        name = (request.POST.get("name") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        status = (request.POST.get("status") or "").strip() or FinancialDimensionValue.Status.ACTIVE
+        errors = []
+        if not code:
+            errors.append("Code is required.")
+        if not name:
+            errors.append("Name is required.")
+        if (
+            code
+            and FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension=obj.dimension, code__iexact=code)
+            .exclude(pk=pk)
+            .exists()
+        ):
+            errors.append("A program value with this code already exists.")
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            obj.code = code
+            obj.name = name
+            obj.description = description
+            obj.status = status
+            obj.save(using=tenant_db)
+            messages.success(request, "Program value updated.")
+            return redirect(reverse("tenant_portal:setup_program_dimension_values_list"))
+
+    ctx["value"] = obj
+    ctx["prog_dimension"] = obj.dimension
+    ctx["status_choices"] = FinancialDimensionValue.Status.choices
+    ctx["form_title"] = "Edit Program Value"
+    return render(request, "tenant_portal/setup/program_dimension_values_form.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_program_dimension_values_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to delete program values.")
+        return redirect(reverse("tenant_portal:setup_program_dimension_values_list"))
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    obj = get_object_or_404(
+        FinancialDimensionValue.objects.using(tenant_db).select_related("dimension"),
+        pk=pk,
+        dimension__dimension_code="PROG",
+    )
+    if request.method == "POST":
+        obj.delete(using=tenant_db)
+        messages.success(request, "Program value deleted.")
+        return redirect(reverse("tenant_portal:setup_program_dimension_values_list"))
+
+    ctx["object"] = obj
+    ctx["object_label"] = f"Program value {obj.code} — {obj.name}"
+    ctx["cancel_url"] = reverse("tenant_portal:setup_program_dimension_values_list")
+    ctx["delete_url"] = reverse("tenant_portal:setup_program_dimension_values_delete", args=[pk])
+    return render(request, "tenant_portal/setup/confirm_delete.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_sector_dimension_values_list_view(request: HttpRequest) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    ctx["active_item"] = "setup_dimensions"
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    sector_dim = _ensure_sector_dimension_defaults(tenant_db, request.tenant_user)
+
+    values_qs = _sector_dimension_values_queryset(tenant_db, request)
+    paginator = Paginator(values_qs, PAGE_SIZE)
+    page = request.GET.get("page", "1")
+    ctx["values_page"] = paginator.get_page(page)
+    ctx["filter_q"] = request.GET.get("q", "")
+    ctx["filter_status"] = request.GET.get("status", "")
+    ctx["dimension_label"] = "Program sector"
+    ctx["dimension_code"] = sector_dim.dimension_code
+    ctx["status_choices"] = FinancialDimensionValue.Status.choices
+    ctx["list_url_name"] = "tenant_portal:setup_sector_dimension_values_list"
+    ctx["add_url_name"] = "tenant_portal:setup_sector_dimension_values_add"
+    ctx["edit_url_name"] = "tenant_portal:setup_sector_dimension_values_edit"
+    ctx["delete_url_name"] = "tenant_portal:setup_sector_dimension_values_delete"
+
+    get = request.GET.copy()
+    if "page" in get:
+        get.pop("page")
+    ctx["base_query"] = get.urlencode()
+    return render(request, "tenant_portal/setup/dimension_values_list.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_sector_dimension_values_add_view(request: HttpRequest) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    ctx["active_item"] = "setup_dimensions"
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to create sector values.")
+        return redirect(reverse("tenant_portal:setup_sector_dimension_values_list"))
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    sector_dim = _ensure_sector_dimension_defaults(tenant_db, request.tenant_user)
+
+    if request.method == "POST":
+        code = (request.POST.get("code") or "").strip()
+        name = (request.POST.get("name") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        status = (request.POST.get("status") or "").strip() or FinancialDimensionValue.Status.ACTIVE
+        errors = []
+        if not code:
+            errors.append("Code is required.")
+        if not name:
+            errors.append("Name is required.")
+        if code and FinancialDimensionValue.objects.using(tenant_db).filter(dimension=sector_dim, code__iexact=code).exists():
+            errors.append("A sector value with this code already exists.")
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            FinancialDimensionValue.objects.using(tenant_db).create(
+                dimension=sector_dim,
+                code=code,
+                name=name,
+                description=description,
+                status=status,
+                created_by=request.tenant_user,
+            )
+            messages.success(request, "Program sector value created.")
+            return redirect(reverse("tenant_portal:setup_sector_dimension_values_list"))
+
+    ctx["dimension_label"] = "Program sector"
+    ctx["dimension_code"] = sector_dim.dimension_code
+    ctx["status_choices"] = FinancialDimensionValue.Status.choices
+    ctx["form_title"] = "Add Program Sector Value"
+    ctx["list_url_name"] = "tenant_portal:setup_sector_dimension_values_list"
+    return render(request, "tenant_portal/setup/dimension_values_form.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_sector_dimension_values_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    ctx["active_item"] = "setup_dimensions"
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to edit sector values.")
+        return redirect(reverse("tenant_portal:setup_sector_dimension_values_list"))
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    obj = get_object_or_404(
+        FinancialDimensionValue.objects.using(tenant_db).select_related("dimension"),
+        pk=pk,
+        dimension__dimension_code="SECTOR",
+    )
+
+    if request.method == "POST":
+        code = (request.POST.get("code") or "").strip()
+        name = (request.POST.get("name") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        status = (request.POST.get("status") or "").strip() or FinancialDimensionValue.Status.ACTIVE
+        errors = []
+        if not code:
+            errors.append("Code is required.")
+        if not name:
+            errors.append("Name is required.")
+        if (
+            code
+            and FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension=obj.dimension, code__iexact=code)
+            .exclude(pk=pk)
+            .exists()
+        ):
+            errors.append("A sector value with this code already exists.")
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            obj.code = code
+            obj.name = name
+            obj.description = description
+            obj.status = status
+            obj.save(using=tenant_db)
+            messages.success(request, "Program sector value updated.")
+            return redirect(reverse("tenant_portal:setup_sector_dimension_values_list"))
+
+    ctx["value"] = obj
+    ctx["dimension_label"] = "Program sector"
+    ctx["dimension_code"] = obj.dimension.dimension_code
+    ctx["status_choices"] = FinancialDimensionValue.Status.choices
+    ctx["form_title"] = "Edit Program Sector Value"
+    ctx["list_url_name"] = "tenant_portal:setup_sector_dimension_values_list"
+    return render(request, "tenant_portal/setup/dimension_values_form.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_sector_dimension_values_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to delete sector values.")
+        return redirect(reverse("tenant_portal:setup_sector_dimension_values_list"))
+
+    from tenant_finance.models import FinancialDimensionValue
+
+    obj = get_object_or_404(
+        FinancialDimensionValue.objects.using(tenant_db).select_related("dimension"),
+        pk=pk,
+        dimension__dimension_code="SECTOR",
+    )
+    if request.method == "POST":
+        obj.delete(using=tenant_db)
+        messages.success(request, "Program sector value deleted.")
+        return redirect(reverse("tenant_portal:setup_sector_dimension_values_list"))
+
+    ctx["object"] = obj
+    ctx["object_label"] = f"Program sector value {obj.code} — {obj.name}"
+    ctx["cancel_url"] = reverse("tenant_portal:setup_sector_dimension_values_list")
+    ctx["delete_url"] = reverse("tenant_portal:setup_sector_dimension_values_delete", args=[pk])
+    return render(request, "tenant_portal/setup/confirm_delete.html", ctx)
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -679,18 +1160,44 @@ def _project_dimensions_queryset(tenant_db: str, request: HttpRequest):
     q = (request.GET.get("q_proj") or request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q))
+    title = (request.GET.get("title") or "").strip()
+    if title:
+        qs = qs.filter(name__icontains=title)
+    code = (request.GET.get("code") or "").strip()
+    if code:
+        qs = qs.filter(code__icontains=code)
     status = (request.GET.get("status_proj") or request.GET.get("status") or "").strip()
     if status:
         qs = qs.filter(status=status)
     donor_id = (request.GET.get("donor_id") or "").strip()
     if donor_id.isdigit():
         qs = qs.filter(donor_id=int(donor_id))
+    pm_id = (request.GET.get("project_manager_id") or "").strip()
+    if pm_id.isdigit():
+        qs = qs.filter(project_manager_id=int(pm_id))
+    currency_id = (request.GET.get("currency_id") or "").strip()
+    if currency_id.isdigit():
+        qs = qs.filter(currency_id=int(currency_id))
     prog = (request.GET.get("program") or "").strip()
     if prog:
         qs = qs.filter(program_sector__icontains=prog)
     loc = (request.GET.get("location") or "").strip()
     if loc:
         qs = qs.filter(location__icontains=loc)
+    phase = (request.GET.get("phase") or "").strip()
+    if phase:
+        today = timezone.now().date()
+        if phase == "upcoming":
+            qs = qs.filter(start_date__gt=today)
+        elif phase == "ended":
+            qs = qs.filter(effective_end__lt=today, effective_end__isnull=False)
+        elif phase == "in_period":
+            qs = qs.filter(
+                start_date__lte=today,
+                start_date__isnull=False,
+                effective_end__gte=today,
+                effective_end__isnull=False,
+            )
     start_after = (request.GET.get("start_after") or "").strip()
     if start_after:
         try:
@@ -698,11 +1205,25 @@ def _project_dimensions_queryset(tenant_db: str, request: HttpRequest):
             qs = qs.filter(Q(start_date__isnull=True) | Q(start_date__gte=sa))
         except ValueError:
             pass
+    start_before = (request.GET.get("start_before") or "").strip()
+    if start_before:
+        try:
+            sb = datetime.strptime(start_before, "%Y-%m-%d").date()
+            qs = qs.filter(start_date__lte=sb, start_date__isnull=False)
+        except ValueError:
+            pass
     end_before = (request.GET.get("end_before") or "").strip()
     if end_before:
         try:
             eb = datetime.strptime(end_before, "%Y-%m-%d").date()
             qs = qs.filter(effective_end__lte=eb, effective_end__isnull=False)
+        except ValueError:
+            pass
+    end_after = (request.GET.get("end_after") or "").strip()
+    if end_after:
+        try:
+            ea = datetime.strptime(end_after, "%Y-%m-%d").date()
+            qs = qs.filter(effective_end__gte=ea, effective_end__isnull=False)
         except ValueError:
             pass
 
@@ -849,83 +1370,155 @@ def setup_grant_dimensions_list_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/setup/project_grant_dimensions.html", ctx)
 
 
+def _projects_list_export_rows(projects: list) -> list[list]:
+    """Eight columns for print / CSV / Excel: code, name, donor, location, budget, beneficiaries, start, end."""
+    rows_out: list[list] = []
+    for p in projects:
+        fin = getattr(p, "fin", {}) or {}
+        donor = p.donor.name if p.donor_id else ""
+        end_eff = ""
+        if getattr(p, "effective_end", None):
+            end_eff = p.effective_end.isoformat()
+        rows_out.append(
+            [
+                p.code,
+                p.name,
+                donor,
+                p.location or "",
+                fin.get("total_budget") if fin.get("total_budget") is not None else "",
+                p.total_beneficiaries,
+                p.start_date.isoformat() if p.start_date else "",
+                end_eff,
+            ]
+        )
+    return rows_out
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def projects_list_view(request: HttpRequest) -> HttpResponse:
     import csv
-    from io import StringIO
+    import os
+    from io import BytesIO, StringIO
 
     from django.db.models import Count
     from django.http import HttpResponse
+    from django.utils import timezone as dj_tz
 
+    from tenant_finance.models import OrganizationSettings
     from tenant_grants.models import Donor, Project
     from tenant_grants.services.project_financials import attach_project_financials
 
     tenant_db = request.tenant_db
 
-    if (request.GET.get("export") or "").strip().lower() == "csv":
+    export_fmt = (request.GET.get("export") or "").strip().lower()
+    if export_fmt in {"csv", "xlsx"}:
         projects_qs = list(_project_dimensions_queryset(tenant_db, request))
         attach_project_financials(projects_qs, tenant_db)
-        buf = StringIO()
-        buf.write("\ufeff")
-        w = csv.writer(buf)
-        w.writerow(
-            [
-                "Code",
-                "Title",
-                "Donor",
-                "Manager",
-                "Location",
-                "Program",
-                "Start date",
-                "End date (effective)",
-                "Beneficiaries",
-                "Funding type",
-                "Currency",
-                "Grants",
-                "Budget",
-                "Spent",
-                "Remaining",
-                "Status",
-                "Calendar phase",
-                "Updated at",
-            ]
+        org_settings = OrganizationSettings.objects.using(tenant_db).first()
+        legal_name = (
+            (org_settings.organization_name or "").strip()
+            if org_settings and getattr(org_settings, "organization_name", None)
+            else (getattr(request.tenant, "name", None) or "")
         )
-        for p in projects_qs:
-            fin = getattr(p, "fin", {}) or {}
-            donor = p.donor.name if p.donor_id else ""
-            mgr = ""
-            if p.project_manager_id:
-                u = p.project_manager
-                mgr = (u.get_full_name() or u.email or "").strip()
-            ccy = ""
-            if p.currency_id:
-                ccy = p.currency.code
-            elif fin.get("primary_currency"):
-                ccy = fin["primary_currency"].code
-            w.writerow(
-                [
-                    p.code,
-                    p.name,
-                    donor,
-                    mgr,
-                    p.location or "",
-                    p.program_sector or "",
-                    p.start_date.isoformat() if p.start_date else "",
-                    p.effective_end.isoformat() if getattr(p, "effective_end", None) else "",
-                    p.total_beneficiaries,
-                    p.get_funding_type_display() if p.funding_type else "",
-                    ccy,
-                    fin.get("grant_count", 0),
-                    fin.get("total_budget", ""),
-                    fin.get("total_spent", ""),
-                    fin.get("remaining", ""),
-                    p.get_status_display(),
-                    p.calendar_phase_label() or "",
-                    p.updated_at.isoformat() if p.updated_at else "",
-                ]
+        headers = [
+            "Project code",
+            "Project name",
+            "Donor",
+            "Location",
+            "Total budget",
+            "Number of beneficiaries",
+            "Start date",
+            "End date",
+        ]
+        data_rows = _projects_list_export_rows(projects_qs)
+
+        if export_fmt == "csv":
+            buf = StringIO()
+            buf.write("\ufeff")
+            w = csv.writer(buf)
+            w.writerow([legal_name])
+            w.writerow([])
+            w.writerow(["Project List"])
+            w.writerow([])
+            w.writerow(headers)
+            for row in data_rows:
+                w.writerow(row)
+            resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
+            resp["Content-Disposition"] = 'attachment; filename="project_list.csv"'
+            return resp
+
+        # xlsx
+        from openpyxl import Workbook
+        from openpyxl.drawing.image import Image as XLImage
+        from openpyxl.styles import Alignment, Font
+        from openpyxl.utils import get_column_letter
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Project List"
+        ncols = len(headers)
+        last_col = get_column_letter(ncols)
+
+        def _merge_title(r: int, text: str, *, bold: bool = True, size: int = 14) -> None:
+            ws.merge_cells(f"A{r}:{last_col}{r}")
+            c = ws.cell(row=r, column=1)
+            c.value = text
+            c.font = Font(size=size, bold=bold)
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        row_cursor = 1
+        if org_settings:
+            logo_field = getattr(org_settings, "report_logo", None) or getattr(
+                org_settings, "organization_logo", None
             )
-        resp = HttpResponse(buf.getvalue(), content_type="text/csv; charset=utf-8")
-        resp["Content-Disposition"] = 'attachment; filename="project_list.csv"'
+            if logo_field:
+                try:
+                    logo_path = logo_field.path
+                    if logo_path and os.path.isfile(logo_path):
+                        img = XLImage(logo_path)
+                        img.height = 52
+                        img.width = 170
+                        center_idx = max(1, (ncols // 2))
+                        img.anchor = f"{get_column_letter(center_idx)}1"
+                        ws.add_image(img)
+                        row_cursor = 5
+                except Exception:
+                    row_cursor = 1
+        _merge_title(row_cursor, legal_name, size=13)
+        row_cursor += 1
+        _merge_title(row_cursor, "Project List", size=14)
+        row_cursor += 1
+        ws.merge_cells(f"A{row_cursor}:{last_col}{row_cursor}")
+        gen = ws.cell(row=row_cursor, column=1)
+        gen.value = f"Generated: {dj_tz.localtime(dj_tz.now()).strftime('%Y-%m-%d %H:%M')}"
+        gen.font = Font(size=10)
+        gen.alignment = Alignment(horizontal="center")
+        row_cursor += 2
+
+        hdr_row = row_cursor
+        for col_idx, h in enumerate(headers, start=1):
+            c = ws.cell(row=hdr_row, column=col_idx)
+            c.value = h
+            c.font = Font(bold=True)
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        data_start = hdr_row + 1
+        for i, row in enumerate(data_rows):
+            for j, val in enumerate(row, start=1):
+                ws.cell(row=data_start + i, column=j, value=val)
+
+        # Column widths (Excel character units) — proportional to print layout; avoids wide empty columns
+        _pl_xlsx_col_widths = (11, 22, 18, 16, 12, 12, 10, 10)
+        for i, w in enumerate(_pl_xlsx_col_widths, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        out = BytesIO()
+        wb.save(out)
+        out.seek(0)
+        resp = HttpResponse(
+            out.read(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        resp["Content-Disposition"] = 'attachment; filename="project_list.xlsx"'
         return resp
 
     ctx = _setup_context(request)
@@ -933,34 +1526,95 @@ def projects_list_view(request: HttpRequest) -> HttpResponse:
     ctx["active_item"] = "funds_projects_list"
     ctx["page_title"] = "Project list"
 
+    from tenant_grants.services.project_financials import aggregate_project_financial_rollups, project_financial_rollups
+
     projects_qs = _project_dimensions_queryset(tenant_db, request)
+    ctx["projects_filtered_count"] = projects_qs.count()
+    status_counts_filtered = dict(
+        projects_qs.values("status").annotate(c=Count("id")).values_list("status", "c")
+    )
+    all_pids = list(projects_qs.values_list("pk", flat=True))
+    roll_all = project_financial_rollups(tenant_db, all_pids)
+    ctx["projects_totals"] = aggregate_project_financial_rollups(roll_all)
+
+    projects_export_all = list(projects_qs)
+    attach_project_financials(projects_export_all, tenant_db)
+    ctx["projects_export_all"] = projects_export_all
+
     paginator = Paginator(projects_qs, PROJECTS_LIST_PAGE_SIZE)
     page_num = request.GET.get("page") or request.GET.get("page_proj") or "1"
     projects_page = paginator.get_page(page_num)
     attach_project_financials(list(projects_page.object_list), tenant_db)
 
-    status_rows = Project.objects.using(tenant_db).values("status").annotate(c=Count("id"))
+    from tenant_grants.services.project_end_schedule import project_end_alert_state
+
+    for _p in projects_page.object_list:
+        _p.end_date_alert_state = project_end_alert_state(_p)
+
     ctx["projects_page"] = projects_page
-    status_counts = {row["status"]: row["c"] for row in status_rows}
-    ctx["project_status_counts"] = status_counts
-    ctx["projects_total_count"] = Project.objects.using(tenant_db).count()
-    ctx["status_summary_rows"] = [
-        {"value": val, "label": str(label), "count": status_counts.get(val, 0)}
-        for val, label in Project.Status.choices
+    ctx["kpi_cards"] = [
+        {"key": "all", "label": "All projects", "count": ctx["projects_filtered_count"]},
+        {"key": "draft", "label": "Draft projects", "count": status_counts_filtered.get(Project.Status.DRAFT, 0)},
+        {"key": "planning", "label": "Planning stage", "count": status_counts_filtered.get(Project.Status.PLANNING, 0)},
+        {"key": "active", "label": "Active projects", "count": status_counts_filtered.get(Project.Status.ACTIVE, 0)},
+        {"key": "on_hold", "label": "On hold", "count": status_counts_filtered.get(Project.Status.ON_HOLD, 0)},
+        {"key": "closed", "label": "Closed", "count": status_counts_filtered.get(Project.Status.CLOSED, 0)},
+        {"key": "completed", "label": "Completed", "count": status_counts_filtered.get(Project.Status.COMPLETED, 0)},
     ]
 
     ctx["filter_q"] = request.GET.get("q") or request.GET.get("q_proj") or ""
+    ctx["filter_title"] = request.GET.get("title") or ""
+    ctx["filter_code"] = request.GET.get("code") or ""
     ctx["filter_status"] = request.GET.get("status") or request.GET.get("status_proj") or ""
     ctx["filter_donor_id"] = request.GET.get("donor_id", "")
+    ctx["filter_project_manager_id"] = request.GET.get("project_manager_id", "")
+    ctx["filter_currency_id"] = request.GET.get("currency_id", "")
+    ctx["filter_phase"] = request.GET.get("phase", "")
     ctx["filter_program"] = request.GET.get("program", "")
     ctx["filter_location"] = request.GET.get("location", "")
     ctx["filter_start_after"] = request.GET.get("start_after", "")
+    ctx["filter_start_before"] = request.GET.get("start_before", "")
     ctx["filter_end_before"] = request.GET.get("end_before", "")
+    ctx["filter_end_after"] = request.GET.get("end_after", "")
     ctx["filter_sort"] = request.GET.get("sort") or request.GET.get("sort_proj") or "code"
     ctx["donors_for_project_filter"] = (
         Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
     )
     ctx["project_status_choices"] = Project.Status.choices
+    ctx["phase_filter_choices"] = (
+        ("upcoming", "Upcoming"),
+        ("in_period", "In period"),
+        ("ended", "Ended"),
+    )
+
+    from tenant_finance.models import Currency, OrganizationSettings
+    from tenant_users.models import TenantUser
+
+    org_settings = OrganizationSettings.objects.using(tenant_db).first()
+    ctx["org_settings"] = org_settings
+    ctx["tenant_legal_name"] = (
+        (org_settings.organization_name or "").strip()
+        if org_settings and getattr(org_settings, "organization_name", None)
+        else (getattr(request.tenant, "name", None) or "")
+    )
+
+    ctx["currencies_for_project_filter"] = (
+        Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code")
+    )
+    mgr_ids = (
+        Project.objects.using(tenant_db)
+        .exclude(project_manager_id__isnull=True)
+        .values_list("project_manager_id", flat=True)
+        .distinct()
+    )
+    ctx["project_managers_for_filter"] = (
+        TenantUser.objects.using(tenant_db).filter(pk__in=mgr_ids).order_by("email")
+    )
+
+    get_params = request.GET.copy()
+    for _k in ("page", "page_proj", "export"):
+        get_params.pop(_k, None)
+    ctx["has_active_filters"] = bool(get_params)
 
     get = request.GET.copy()
     for key in ("page", "page_proj", "export"):
@@ -970,8 +1624,12 @@ def projects_list_view(request: HttpRequest) -> HttpResponse:
     export_get = request.GET.copy()
     for key in ("page", "page_proj", "export"):
         export_get.pop(key, None)
-    export_get["export"] = "csv"
-    ctx["projects_export_query"] = export_get.urlencode()
+    export_get_csv = export_get.copy()
+    export_get_csv["export"] = "csv"
+    export_get_xlsx = export_get.copy()
+    export_get_xlsx["export"] = "xlsx"
+    ctx["projects_export_query"] = export_get_xlsx.urlencode()
+    ctx["projects_export_csv_query"] = export_get_csv.urlencode()
 
     return render(request, "tenant_portal/grants/projects_list.html", ctx)
 
@@ -1002,12 +1660,17 @@ def _save_project_from_post(
     tenant_db: str,
     post,
     existing=None,
+    tenant_user=None,
 ) -> tuple[list[str], object | None]:
     """Parse POST into a Project, full_clean, save. Returns (errors, saved_instance_or_none)."""
     from datetime import datetime
 
-    from tenant_finance.models import Currency
-    from tenant_grants.models import Donor, Project
+    from tenant_finance.models import Currency, FinancialDimension, FinancialDimensionValue
+    from tenant_grants.models import Donor, FundingSource, Project
+    from tenant_grants.services.project_end_schedule import (
+        project_closure_blockers,
+        user_can_manage_project_closure_or_extension,
+    )
     from tenant_users.models import TenantUser
 
     errors: list[str] = []
@@ -1016,6 +1679,7 @@ def _save_project_from_post(
     donor_id = (post.get("donor_id") or "").strip()
     pm_id = (post.get("project_manager_id") or "").strip()
     currency_id = (post.get("currency_id") or "").strip()
+    funding_modality_id = (post.get("funding_modality_id") or "").strip()
     location = (post.get("location") or "").strip()
     program_sector = (post.get("program_sector") or "").strip()
     funding_type = (post.get("funding_type") or "").strip()
@@ -1029,21 +1693,46 @@ def _save_project_from_post(
     if not code:
         errors.append("Project code is required.")
     if not name:
-        errors.append("Project name is required.")
+        errors.append("Project title is required.")
     valid_status = {c[0] for c in Project.Status.choices}
     if status not in valid_status:
-        errors.append("Invalid status.")
+        errors.append("Invalid workflow status.")
+
+    prog_dim = _ensure_program_dimension_defaults(tenant_db, tenant_user)
+    valid_program_codes: set[str] = set()
+    if prog_dim:
+        valid_program_codes = set(
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension_id=prog_dim.pk, status=FinancialDimensionValue.Status.ACTIVE)
+            .values_list("code", flat=True)
+        )
+    if funding_type and funding_type not in valid_program_codes:
+        errors.append("Program category must be selected from Program dimension values.")
+
+    sector_dim = _ensure_sector_dimension_defaults(tenant_db, tenant_user)
+    valid_sector_codes: set[str] = set()
+    if sector_dim:
+        valid_sector_codes = set(
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension_id=sector_dim.pk, status=FinancialDimensionValue.Status.ACTIVE)
+            .values_list("code", flat=True)
+        )
+    if program_sector and program_sector not in valid_sector_codes:
+        errors.append("Program / sector must be selected from Program sector dimension values.")
 
     if tb_raw:
         try:
             tb = int(tb_raw)
-            if tb < 0:
-                errors.append("Beneficiaries cannot be negative.")
         except ValueError:
-            errors.append("Total beneficiaries must be a whole number.")
+            errors.append("Planned beneficiaries must be a whole number.")
             tb = 0
     else:
-        tb = 0 if not existing else existing.total_beneficiaries
+        tb = existing.total_beneficiaries if existing is not None else 0
+
+    if tb < 0:
+        errors.append("Planned beneficiaries cannot be negative.")
+    elif tb < 1:
+        errors.append("Planned beneficiaries must be a positive whole number (at least 1).")
 
     def _parse_date(label: str, raw: str | None):
         if not raw:
@@ -1056,7 +1745,7 @@ def _save_project_from_post(
     sd, e = _parse_date("start date", start_date)
     if e:
         errors.append(e)
-    ed, e = _parse_date("end date", end_date)
+    ed, e = _parse_date("operational end date", end_date)
     if e:
         errors.append(e)
     oed, e = _parse_date("original end date", original_end_date)
@@ -1066,11 +1755,87 @@ def _save_project_from_post(
     if e:
         errors.append(e)
 
+    if not start_date:
+        errors.append("Start date is required.")
+    if not end_date:
+        errors.append("Operational end date is required.")
+    if sd is not None and ed is not None and sd > ed:
+        errors.append("Operational end date must be on or after the start date.")
+    if oed is not None and sd is not None and oed < sd:
+        errors.append("Original end date must be on or after the start date.")
+    if red is not None and oed is not None and red < oed:
+        errors.append("Revised end date must be on or after original end date.")
+
+    if currency_id:
+        if not currency_id.isdigit():
+            errors.append("Invalid reporting currency.")
+        else:
+            _cur = (
+                Currency.objects.using(tenant_db)
+                .filter(pk=int(currency_id), status=Currency.Status.ACTIVE)
+                .first()
+            )
+            if not _cur:
+                errors.append(
+                    "Reporting currency must be an active currency defined in the system."
+                )
+
+    if funding_modality_id:
+        if not funding_modality_id.isdigit():
+            errors.append("Invalid funding modality.")
+        else:
+            _fm = (
+                FundingSource.objects.using(tenant_db)
+                .filter(pk=int(funding_modality_id), is_active=True)
+                .first()
+            )
+            if not _fm:
+                errors.append("Funding modality must be an active entry in the catalog.")
+            else:
+                from tenant_grants.services.payment_modality import has_complete_gl_mapping
+
+                if not has_complete_gl_mapping(
+                    using=tenant_db,
+                    funding_source=_fm,
+                ):
+                    errors.append("GL account mapping is missing for selected funding modality.")
+
+    if status == Project.Status.ACTIVE:
+        if not donor_id:
+            errors.append("Donor is required before project status can be set to Active.")
+        if not currency_id:
+            errors.append("Reporting currency is required before project status can be set to Active.")
+        if not funding_type:
+            errors.append("Program category is required before project status can be set to Active.")
+        if not funding_modality_id:
+            errors.append("Funding modality is required before project status can be set to Active.")
+
     if existing is None:
         if code and Project.objects.using(tenant_db).filter(code__iexact=code).exists():
             errors.append("A project with this code already exists.")
     elif code and Project.objects.using(tenant_db).filter(code__iexact=code).exclude(pk=existing.pk).exists():
         errors.append("A project with this code already exists.")
+
+    if existing is not None and tenant_user is not None:
+        closing_now = status in (Project.Status.CLOSED, Project.Status.COMPLETED) and existing.status not in (
+            Project.Status.CLOSED,
+            Project.Status.COMPLETED,
+        )
+
+        def _dn(d1, d2):
+            return (d1 or None) != (d2 or None)
+
+        schedule_changed = _dn(ed, existing.end_date) or _dn(red, existing.revised_end_date) or _dn(
+            oed, existing.original_end_date
+        )
+        if closing_now or schedule_changed:
+            if not user_can_manage_project_closure_or_extension(tenant_user, existing, tenant_db):
+                errors.append(
+                    "Only the project manager or an administrator may close the project or change operational or revised end dates (extensions)."
+                )
+            elif closing_now:
+                for msg in project_closure_blockers(existing, tenant_db):
+                    errors.append(msg)
 
     if errors:
         return errors, None
@@ -1078,7 +1843,18 @@ def _save_project_from_post(
     donor = Donor.objects.using(tenant_db).filter(pk=int(donor_id)).first() if donor_id.isdigit() else None
     pm = TenantUser.objects.using(tenant_db).filter(pk=int(pm_id)).first() if pm_id.isdigit() else None
     currency = (
-        Currency.objects.using(tenant_db).filter(pk=int(currency_id)).first() if currency_id.isdigit() else None
+        Currency.objects.using(tenant_db)
+        .filter(pk=int(currency_id), status=Currency.Status.ACTIVE)
+        .first()
+        if currency_id.isdigit()
+        else None
+    )
+    funding_modality = (
+        FundingSource.objects.using(tenant_db)
+        .filter(pk=int(funding_modality_id), is_active=True)
+        .first()
+        if funding_modality_id.isdigit()
+        else None
     )
 
     if existing is not None:
@@ -1094,6 +1870,7 @@ def _save_project_from_post(
     obj.location = location
     obj.program_sector = program_sector
     obj.funding_type = funding_type
+    obj.funding_modality = funding_modality
     obj.status = status
     obj.is_active = status == Project.Status.ACTIVE
     obj.start_date = sd
@@ -1118,10 +1895,89 @@ def _save_project_from_post(
     return [], obj
 
 
+def _create_funding_modality_template_from_post(*, tenant_db: str, post, request) -> tuple[list[str], object | None]:
+    from decimal import Decimal, InvalidOperation
+
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    from tenant_grants.models import FundingSource
+    from tenant_grants.services.funding_source_structure import (
+        replace_funding_source_payment_structure_from_post,
+    )
+
+    errors: list[str] = []
+    name = (post.get("modality_name") or "").strip()
+    modality_type = (post.get("modality_type") or "").strip()
+    retention_raw = (post.get("modality_retention_percentage") or "").strip()
+    allow_instalments = post.get("modality_allow_instalments") == "on"
+    requires_reporting_before_next_payment = post.get("modality_requires_reporting_before_next_payment") == "on"
+    description = (post.get("modality_description") or "").strip()
+    is_active = post.get("modality_is_active") == "on"
+
+    valid_mt = {c[0] for c in FundingSource.ModalityType.choices}
+    retention_pct = None
+    if retention_raw:
+        try:
+            retention_pct = Decimal(retention_raw.replace(",", ""))
+            if retention_pct < 0 or retention_pct > 100:
+                errors.append("Retention percentage must be between 0 and 100.")
+        except (InvalidOperation, ValueError):
+            errors.append("Retention percentage must be a valid number.")
+
+    if not name:
+        errors.append("Funding modality template name is required.")
+    if modality_type not in valid_mt:
+        errors.append("Funding modality type is required.")
+    if errors:
+        return errors, None
+
+    obj = FundingSource(
+        name=name,
+        modality_type=modality_type,
+        retention_percentage=retention_pct,
+        allow_instalments=allow_instalments,
+        requires_reporting_before_next_payment=requires_reporting_before_next_payment,
+        description=description,
+        is_active=is_active,
+        donor=None,  # Template is global; donor is not controlling link.
+    )
+    try:
+        obj.full_clean()
+    except ValidationError as exc:
+        for _f, msgs in getattr(exc, "error_dict", {}).items():
+            errors.extend(str(m) for m in msgs)
+        for m in getattr(exc, "error_list", []):
+            errors.append(str(m))
+        if not errors:
+            errors.extend(getattr(exc, "messages", []))
+        return errors, None
+
+    try:
+        with transaction.atomic(using=tenant_db):
+            obj.save(using=tenant_db)
+            if obj.modality_type == FundingSource.ModalityType.MIXED_MODALITY:
+                replace_funding_source_payment_structure_from_post(request, obj, tenant_db)
+                obj.refresh_from_db()
+                obj.full_clean()
+    except ValidationError as exc:
+        for _f, msgs in getattr(exc, "error_dict", {}).items():
+            errors.extend(str(m) for m in msgs)
+        for m in getattr(exc, "error_list", []):
+            errors.append(str(m))
+        if not errors:
+            errors.extend(getattr(exc, "messages", []))
+        return errors, None
+    return [], obj
+
+
 def _project_dimension_form_context(tenant_db: str, ctx: dict, project=None) -> dict:
-    from tenant_finance.models import Currency
-    from tenant_grants.models import Donor, Project
+    from tenant_finance.models import Currency, FinancialDimension, FinancialDimensionValue
+    from tenant_grants.models import Donor, FundingSource, Project
+    from tenant_grants.services.payment_modality import has_complete_gl_mapping
+    from tenant_grants.services.project_end_schedule import user_can_manage_project_closure_or_extension
     from tenant_users.models import TenantUser
+    import json
 
     ctx["donors"] = list(
         Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
@@ -1131,9 +1987,61 @@ def _project_dimension_form_context(tenant_db: str, ctx: dict, project=None) -> 
         Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code")
     )
     ctx["project_statuses"] = Project.Status.choices
-    ctx["funding_types"] = Project.FundingType.choices
+    prog_dim = _ensure_program_dimension_defaults(tenant_db, ctx.get("tenant_user"))
+    ctx["program_dimension_values"] = (
+        list(
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension_id=prog_dim.pk, status=FinancialDimensionValue.Status.ACTIVE)
+            .order_by("name")
+        )
+        if prog_dim
+        else []
+    )
+    ctx["funding_modalities"] = list(
+        FundingSource.objects.using(tenant_db).filter(is_active=True).prefetch_related("payment_structure").order_by("name")
+    )
+    sector_dim = _ensure_sector_dimension_defaults(tenant_db, ctx.get("tenant_user"))
+    ctx["sector_dimension_values"] = (
+        list(
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension_id=sector_dim.pk, status=FinancialDimensionValue.Status.ACTIVE)
+            .order_by("name")
+        )
+        if sector_dim
+        else []
+    )
+    ctx["modality_types"] = FundingSource.ModalityType.choices
+    ctx["mixed_modality_value"] = FundingSource.ModalityType.MIXED_MODALITY
+    modality_details = {}
+    for m in ctx["funding_modalities"]:
+        lines = []
+        if m.modality_type == FundingSource.ModalityType.MIXED_MODALITY:
+            lines = [
+                f"{ln.get_component_type_display()} {ln.percentage}% ({ln.get_payment_trigger_display()})"
+                for ln in m.payment_structure.all().order_by("sort_order", "id")
+            ]
+        modality_details[str(m.pk)] = {
+            "modality_type_display": m.get_modality_type_display(),
+            "allow_instalments": bool(m.allow_instalments),
+            "requires_reporting_before_next_payment": bool(m.requires_reporting_before_next_payment),
+            "retention_percentage": str(m.retention_percentage) if m.retention_percentage is not None else "",
+            "structure": lines,
+            "gl_mapping_complete": has_complete_gl_mapping(using=tenant_db, funding_source=m),
+        }
+    ctx["funding_modality_details_json"] = json.dumps(modality_details)
+    ctx["show_create_modality_modal"] = bool(ctx.get("show_create_modality_modal"))
     ctx["project"] = project
     ctx["projects_list_url"] = reverse("tenant_portal:grants_projects_list")
+    tu = ctx.get("tenant_user")
+
+    if project is None:
+        ctx["can_manage_project_schedule"] = bool(
+            tu and user_has_permission(tu, "module:finance.manage", using=tenant_db)
+        )
+    else:
+        ctx["can_manage_project_schedule"] = bool(
+            tu and user_can_manage_project_closure_or_extension(tu, project, tenant_db)
+        )
     return ctx
 
 
@@ -1147,13 +2055,36 @@ def setup_project_dimension_add_view(request: HttpRequest) -> HttpResponse:
         return redirect(reverse("tenant_portal:grants_projects_list"))
 
     if request.method == "POST":
-        errs, _saved = _save_project_from_post(tenant_db=tenant_db, post=request.POST, existing=None)
+        action = (request.POST.get("action") or "").strip().lower()
+        if action == "create_modality":
+            errs, created = _create_funding_modality_template_from_post(
+                tenant_db=tenant_db, post=request.POST, request=request
+            )
+            _project_dimension_form_context(tenant_db, ctx, project=None)
+            post_data = request.POST.copy()
+            post_data["funding_modality_id"] = str(created.pk) if created else (post_data.get("funding_modality_id") or "")
+            ctx["form_post"] = post_data
+            ctx["show_create_modality_modal"] = True
+            ctx["form_title"] = "Add project"
+            if errs:
+                for e in errs:
+                    messages.error(request, e)
+            else:
+                messages.success(request, "Funding modality template created and selected.")
+                ctx["show_create_modality_modal"] = False
+            return render(request, "tenant_portal/setup/project_dimension_form.html", ctx)
+        errs, _saved = _save_project_from_post(
+            tenant_db=tenant_db, post=request.POST, existing=None, tenant_user=request.tenant_user
+        )
         if errs:
             for e in errs:
                 messages.error(request, e)
-        else:
-            messages.success(request, "Project created.")
-            return redirect(reverse("tenant_portal:grants_projects_list"))
+            _project_dimension_form_context(tenant_db, ctx, project=None)
+            ctx["form_post"] = request.POST
+            ctx["form_title"] = "Add project"
+            return render(request, "tenant_portal/setup/project_dimension_form.html", ctx)
+        messages.success(request, "Project created.")
+        return redirect(reverse("tenant_portal:grants_projects_list"))
 
     _project_dimension_form_context(tenant_db, ctx, project=None)
     ctx["form_title"] = "Add project"
@@ -1174,13 +2105,36 @@ def setup_project_dimension_edit_view(request: HttpRequest, pk: int) -> HttpResp
     obj = get_object_or_404(Project.objects.using(tenant_db), pk=pk)
 
     if request.method == "POST":
-        errs, _saved = _save_project_from_post(tenant_db=tenant_db, post=request.POST, existing=obj)
+        action = (request.POST.get("action") or "").strip().lower()
+        if action == "create_modality":
+            errs, created = _create_funding_modality_template_from_post(
+                tenant_db=tenant_db, post=request.POST, request=request
+            )
+            _project_dimension_form_context(tenant_db, ctx, project=obj)
+            post_data = request.POST.copy()
+            post_data["funding_modality_id"] = str(created.pk) if created else (post_data.get("funding_modality_id") or "")
+            ctx["form_post"] = post_data
+            ctx["show_create_modality_modal"] = True
+            ctx["form_title"] = "Edit project"
+            if errs:
+                for e in errs:
+                    messages.error(request, e)
+            else:
+                messages.success(request, "Funding modality template created and selected.")
+                ctx["show_create_modality_modal"] = False
+            return render(request, "tenant_portal/setup/project_dimension_form.html", ctx)
+        errs, _saved = _save_project_from_post(
+            tenant_db=tenant_db, post=request.POST, existing=obj, tenant_user=request.tenant_user
+        )
         if errs:
             for e in errs:
                 messages.error(request, e)
-        else:
-            messages.success(request, "Project updated.")
-            return redirect(reverse("tenant_portal:grants_projects_list"))
+            _project_dimension_form_context(tenant_db, ctx, project=obj)
+            ctx["form_post"] = request.POST
+            ctx["form_title"] = "Edit project"
+            return render(request, "tenant_portal/setup/project_dimension_form.html", ctx)
+        messages.success(request, "Project updated.")
+        return redirect(reverse("tenant_portal:grants_projects_list"))
 
     _project_dimension_form_context(tenant_db, ctx, project=obj)
     ctx["form_title"] = "Edit project"
@@ -1225,15 +2179,29 @@ def setup_grant_dimension_add_view(request: HttpRequest) -> HttpResponse:
         return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
     from tenant_finance.models import Currency
-    from tenant_grants.models import Donor, Grant, Project
+    from tenant_grants.models import (
+        Donor,
+        DonorAgreement,
+        DonorAgreementGrant,
+        DonorAgreementProject,
+        FundingSource,
+        Grant,
+        GrantTranche,
+        Project,
+    )
 
     if request.method == "POST":
+        from decimal import Decimal, InvalidOperation
+
         code = (request.POST.get("code") or "").strip()
         title = (request.POST.get("title") or "").strip()
         donor_id = (request.POST.get("donor_id") or "").strip()
+        donor_contract_id = (request.POST.get("donor_contract_id") or "").strip()
         project_id = (request.POST.get("project_id") or "").strip()
         currency_id = (request.POST.get("currency_id") or "").strip()
-        award_amount = (request.POST.get("award_amount") or "").strip() or "0"
+        raw_ceiling = (request.POST.get("grant_ceiling") or request.POST.get("award_amount") or "").strip() or "0"
+        raw_eligible = (request.POST.get("eligible_receivable_amount") or "").strip()
+        receivable_basis_note = (request.POST.get("receivable_basis_note") or "").strip()
         status = (request.POST.get("status") or "").strip() or Grant.Status.DRAFT
         errors = []
         if not code:
@@ -1242,43 +2210,134 @@ def setup_grant_dimension_add_view(request: HttpRequest) -> HttpResponse:
             errors.append("Grant name is required.")
         if not donor_id:
             errors.append("Donor is required.")
+        if not donor_contract_id:
+            errors.append("Donor contract is required.")
         if not project_id:
             errors.append("Grant must belong to a project.")
         if code and Grant.objects.using(tenant_db).filter(code__iexact=code).exists():
             errors.append("A grant with this code already exists.")
+        grant_ceiling = Decimal("0")
         try:
-            amt = float(award_amount)
-            if amt < 0:
-                errors.append("Budget cannot be negative.")
-        except ValueError:
-            errors.append("Budget must be a number.")
+            grant_ceiling = Decimal(raw_ceiling.replace(",", ""))
+            if grant_ceiling <= 0:
+                errors.append("Budget (grant ceiling) must be greater than zero.")
+        except (InvalidOperation, ValueError):
+            errors.append("Grant ceiling must be a valid number.")
+        eligible_receivable_amount = grant_ceiling
+        if raw_eligible:
+            try:
+                eligible_receivable_amount = Decimal(raw_eligible.replace(",", ""))
+            except (InvalidOperation, ValueError):
+                errors.append("Eligible receivable must be a valid number.")
+        if not errors and eligible_receivable_amount > grant_ceiling:
+            errors.append("Eligible receivable cannot exceed grant ceiling.")
         if errors:
             for e in errors:
                 messages.error(request, e)
         else:
+            from django.core.exceptions import ValidationError
+            from django.db import transaction
+
+            from tenant_grants.services.grant_tranches import replace_grant_tranches_from_post
+
             donor = get_object_or_404(Donor.objects.using(tenant_db), pk=donor_id)
+            donor_contract = get_object_or_404(DonorAgreement.objects.using(tenant_db), pk=donor_contract_id)
+            if donor_contract.donor_id != donor.pk:
+                messages.error(request, "Selected donor contract must belong to the selected donor.")
+                return redirect(reverse("tenant_portal:setup_grant_dimension_add"))
             project = get_object_or_404(Project.objects.using(tenant_db), pk=project_id)
             currency = Currency.objects.using(tenant_db).filter(pk=currency_id).first() if currency_id else None
-            Grant.objects.using(tenant_db).create(
-                code=code,
-                title=title,
-                donor=donor,
-                project=project,
-                currency=currency,
-                award_amount=amt,
-                status=status,
+            raw_fm = (request.POST.get("funding_method") or "").strip()
+            valid_fm = {c[0] for c in Grant.FundingMethod.choices}
+            funding_method = raw_fm if raw_fm in valid_fm else ""
+            funding_modality_id = (request.POST.get("funding_modality_id") or "").strip()
+            funding_modality = (
+                FundingSource.objects.using(tenant_db)
+                .filter(pk=int(funding_modality_id), is_active=True)
+                .first()
+                if funding_modality_id.isdigit()
+                else None
             )
-            messages.success(request, "Grant created.")
-            return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+            if not funding_modality:
+                messages.error(request, "Funding modality is required.")
+                return redirect(reverse("tenant_portal:setup_grant_dimension_add"))
+            if funding_modality is not None:
+                from tenant_grants.services.payment_modality import has_complete_gl_mapping
+
+                if not has_complete_gl_mapping(
+                    using=tenant_db,
+                    funding_source=funding_modality,
+                ):
+                    messages.error(request, "GL account mapping is missing for selected funding modality.")
+                    return redirect(reverse("tenant_portal:setup_grant_dimension_add"))
+            expense_report_approved = request.POST.get("expense_report_approved") == "on"
+            audit_approved = request.POST.get("audit_approved") == "on"
+            final_report_approved = request.POST.get("final_report_approved") == "on"
+            try:
+                with transaction.atomic(using=tenant_db):
+                    grant = Grant.objects.using(tenant_db).create(
+                        code=code,
+                        title=title,
+                        donor=donor,
+                        project=project,
+                        currency=currency,
+                        award_amount=grant_ceiling,
+                        grant_ceiling=grant_ceiling,
+                        eligible_receivable_amount=eligible_receivable_amount,
+                        receivable_basis_note=receivable_basis_note,
+                        funding_modality=funding_modality,
+                        funding_method=funding_method,
+                        expense_report_approved=expense_report_approved,
+                        audit_approved=audit_approved,
+                        final_report_approved=final_report_approved,
+                        status=status,
+                    )
+                    DonorAgreementGrant.objects.using(tenant_db).update_or_create(
+                        grant=grant,
+                        defaults={"agreement": donor_contract},
+                    )
+                    DonorAgreementProject.objects.using(tenant_db).update_or_create(
+                        agreement=donor_contract,
+                        project=project,
+                    )
+                    replace_grant_tranches_from_post(request, grant, tenant_db)
+            except ValidationError as ve:
+                for _f, msgs in getattr(ve, "error_dict", {}).items():
+                    for m in msgs:
+                        messages.error(request, m)
+                if not getattr(ve, "error_dict", None):
+                    for m in getattr(ve, "messages", []):
+                        messages.error(request, m)
+            else:
+                messages.success(request, "Project grant created.")
+                return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
     donors = list(Donor.objects.using(tenant_db).filter(status="active").order_by("name"))
+    donor_contracts = list(
+        DonorAgreement.objects.using(tenant_db)
+        .select_related("donor", "funding_source")
+        .exclude(status=DonorAgreement.Status.CLOSED)
+        .order_by("donor__name", "agreement_code")
+    )
     projects = list(Project.objects.using(tenant_db).filter(is_active=True).order_by("code"))
     currencies = list(Currency.objects.using(tenant_db).filter(status="active").order_by("code"))
     ctx["donors"] = donors
+    ctx["donor_contracts"] = donor_contracts
     ctx["projects"] = projects
     ctx["currencies"] = currencies
     ctx["status_choices"] = Grant.Status.choices
-    ctx["form_title"] = "Add Grant Dimension"
+    ctx["funding_method_choices"] = Grant.FundingMethod.choices
+    import json
+
+    fm_list = list(FundingSource.objects.using(tenant_db).filter(is_active=True).order_by("name"))
+    ctx["funding_modalities"] = fm_list
+    ctx["funding_modality_type_map_json"] = json.dumps({str(m.pk): m.modality_type for m in fm_list})
+    ctx["mixed_modality_value"] = FundingSource.ModalityType.MIXED_MODALITY
+    ctx["grant_uses_mixed_modality"] = False
+    ctx["tranche_payment_choices"] = GrantTranche.PaymentType.choices
+    ctx["tranche_trigger_choices"] = GrantTranche.TriggerCondition.choices
+    ctx["tranches"] = []
+    ctx["form_title"] = "Add Project Grant"
     return render(request, "tenant_portal/setup/grant_dimension_form.html", ctx)
 
 
@@ -1292,21 +2351,42 @@ def setup_grant_dimension_edit_view(request: HttpRequest, pk: int) -> HttpRespon
         return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
     from tenant_finance.models import Currency
-    from tenant_grants.models import Donor, Grant, Project
+    from tenant_grants.models import (
+        Donor,
+        DonorAgreement,
+        DonorAgreementGrant,
+        DonorAgreementProject,
+        FundingSource,
+        Grant,
+        GrantTranche,
+        Project,
+    )
 
     obj = get_object_or_404(
-        Grant.objects.using(tenant_db).select_related("donor", "project", "source_tracking", "bank_account"),
+        Grant.objects.using(tenant_db).select_related(
+            "donor", "project", "source_tracking", "bank_account", "funding_modality"
+        ),
         pk=pk,
     )
     ctx["grant"] = obj
 
     if request.method == "POST":
+        from decimal import Decimal, InvalidOperation
+
+        from django.core.exceptions import ValidationError
+        from django.db import transaction
+
+        from tenant_grants.services.grant_tranches import replace_grant_tranches_from_post
+
         code = (request.POST.get("code") or "").strip()
         title = (request.POST.get("title") or "").strip()
         donor_id = (request.POST.get("donor_id") or "").strip()
+        donor_contract_id = (request.POST.get("donor_contract_id") or "").strip()
         project_id = (request.POST.get("project_id") or "").strip()
         currency_id = (request.POST.get("currency_id") or "").strip()
-        award_amount = (request.POST.get("award_amount") or "").strip() or "0"
+        raw_ceiling = (request.POST.get("grant_ceiling") or request.POST.get("award_amount") or "").strip() or "0"
+        raw_eligible = (request.POST.get("eligible_receivable_amount") or "").strip()
+        receivable_basis_note = (request.POST.get("receivable_basis_note") or "").strip()
         status = (request.POST.get("status") or "").strip() or Grant.Status.DRAFT
         errors = []
         if not code:
@@ -1315,42 +2395,138 @@ def setup_grant_dimension_edit_view(request: HttpRequest, pk: int) -> HttpRespon
             errors.append("Grant name is required.")
         if not donor_id:
             errors.append("Donor is required.")
+        if not donor_contract_id:
+            errors.append("Donor contract is required.")
         if not project_id:
             errors.append("Grant must belong to a project.")
         if code and Grant.objects.using(tenant_db).filter(code__iexact=code).exclude(pk=pk).exists():
             errors.append("A grant with this code already exists.")
+        grant_ceiling = Decimal("0")
         try:
-            amt = float(award_amount)
-            if amt < 0:
-                errors.append("Budget cannot be negative.")
-        except ValueError:
-            errors.append("Budget must be a number.")
+            grant_ceiling = Decimal(raw_ceiling.replace(",", ""))
+            if grant_ceiling <= 0:
+                errors.append("Budget (grant ceiling) must be greater than zero.")
+        except (InvalidOperation, ValueError):
+            errors.append("Grant ceiling must be a valid number.")
+        eligible_receivable_amount = grant_ceiling
+        if raw_eligible:
+            try:
+                eligible_receivable_amount = Decimal(raw_eligible.replace(",", ""))
+            except (InvalidOperation, ValueError):
+                errors.append("Eligible receivable must be a valid number.")
+        if not errors and eligible_receivable_amount > grant_ceiling:
+            errors.append("Eligible receivable cannot exceed grant ceiling.")
         if errors:
             for e in errors:
                 messages.error(request, e)
         else:
             donor = get_object_or_404(Donor.objects.using(tenant_db), pk=donor_id)
+            donor_contract = get_object_or_404(DonorAgreement.objects.using(tenant_db), pk=donor_contract_id)
+            if donor_contract.donor_id != donor.pk:
+                messages.error(request, "Selected donor contract must belong to the selected donor.")
+                return redirect(reverse("tenant_portal:setup_grant_dimension_edit", args=[pk]))
             project = get_object_or_404(Project.objects.using(tenant_db), pk=project_id)
             currency = Currency.objects.using(tenant_db).filter(pk=currency_id).first() if currency_id else None
-            obj.code = code
-            obj.title = title
-            obj.donor = donor
-            obj.project = project
-            obj.currency = currency
-            obj.award_amount = amt
-            obj.status = status
-            obj.save(using=tenant_db)
-            messages.success(request, "Grant updated.")
-            return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
+            raw_fm = (request.POST.get("funding_method") or "").strip()
+            valid_fm = {c[0] for c in Grant.FundingMethod.choices}
+            funding_method = raw_fm if raw_fm in valid_fm else ""
+            funding_modality_id = (request.POST.get("funding_modality_id") or "").strip()
+            funding_modality = (
+                FundingSource.objects.using(tenant_db)
+                .filter(pk=int(funding_modality_id), is_active=True)
+                .first()
+                if funding_modality_id.isdigit()
+                else None
+            )
+            if not funding_modality:
+                messages.error(request, "Funding modality is required.")
+                return redirect(reverse("tenant_portal:setup_grant_dimension_edit", args=[pk]))
+            if funding_modality is not None:
+                from tenant_grants.services.payment_modality import has_complete_gl_mapping
+
+                if not has_complete_gl_mapping(
+                    using=tenant_db,
+                    funding_source=funding_modality,
+                ):
+                    messages.error(request, "GL account mapping is missing for selected funding modality.")
+                    return redirect(reverse("tenant_portal:setup_grant_dimension_edit", args=[pk]))
+            expense_report_approved = request.POST.get("expense_report_approved") == "on"
+            audit_approved = request.POST.get("audit_approved") == "on"
+            final_report_approved = request.POST.get("final_report_approved") == "on"
+            try:
+                with transaction.atomic(using=tenant_db):
+                    obj.code = code
+                    obj.title = title
+                    obj.donor = donor
+                    obj.project = project
+                    obj.currency = currency
+                    obj.grant_ceiling = grant_ceiling
+                    obj.eligible_receivable_amount = eligible_receivable_amount
+                    obj.receivable_basis_note = receivable_basis_note
+                    obj.award_amount = grant_ceiling
+                    obj.status = status
+                    obj.funding_modality = funding_modality
+                    obj.funding_method = funding_method
+                    obj.expense_report_approved = expense_report_approved
+                    obj.audit_approved = audit_approved
+                    obj.final_report_approved = final_report_approved
+                    obj.save(using=tenant_db)
+                    DonorAgreementGrant.objects.using(tenant_db).update_or_create(
+                        grant=obj,
+                        defaults={"agreement": donor_contract},
+                    )
+                    DonorAgreementProject.objects.using(tenant_db).update_or_create(
+                        agreement=donor_contract,
+                        project=project,
+                    )
+                    replace_grant_tranches_from_post(request, obj, tenant_db)
+            except ValidationError as ve:
+                for _f, msgs in getattr(ve, "error_dict", {}).items():
+                    for m in msgs:
+                        messages.error(request, m)
+                if not getattr(ve, "error_dict", None):
+                    for m in getattr(ve, "messages", []):
+                        messages.error(request, m)
+            else:
+                messages.success(request, "Project grant updated.")
+                return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
     donors = list(Donor.objects.using(tenant_db).filter(status="active").order_by("name"))
+    donor_contracts = list(
+        DonorAgreement.objects.using(tenant_db)
+        .select_related("donor", "funding_source")
+        .exclude(status=DonorAgreement.Status.CLOSED)
+        .order_by("donor__name", "agreement_code")
+    )
     projects = list(Project.objects.using(tenant_db).filter(is_active=True).order_by("code"))
     currencies = list(Currency.objects.using(tenant_db).filter(status="active").order_by("code"))
     ctx["donors"] = donors
+    ctx["donor_contracts"] = donor_contracts
+    current_contract_link = (
+        DonorAgreementGrant.objects.using(tenant_db)
+        .filter(grant_id=obj.pk)
+        .select_related("agreement")
+        .first()
+    )
+    ctx["current_donor_contract_id"] = current_contract_link.agreement_id if current_contract_link else ""
     ctx["projects"] = projects
     ctx["currencies"] = currencies
     ctx["status_choices"] = Grant.Status.choices
-    ctx["form_title"] = "Edit Grant Dimension"
+    ctx["funding_method_choices"] = Grant.FundingMethod.choices
+    import json
+
+    fm_list = list(FundingSource.objects.using(tenant_db).filter(is_active=True).order_by("name"))
+    ctx["funding_modalities"] = fm_list
+    ctx["funding_modality_type_map_json"] = json.dumps({str(m.pk): m.modality_type for m in fm_list})
+    ctx["mixed_modality_value"] = FundingSource.ModalityType.MIXED_MODALITY
+    ctx["grant_uses_mixed_modality"] = bool(
+        obj.funding_modality_id
+        and obj.funding_modality.modality_type == FundingSource.ModalityType.MIXED_MODALITY
+    )
+    ctx["tranche_payment_choices"] = GrantTranche.PaymentType.choices
+    ctx["tranche_trigger_choices"] = GrantTranche.TriggerCondition.choices
+    ctx["tranches"] = list(obj.tranches.order_by("sort_order", "tranche_no"))
+    ctx["form_title"] = "Edit Project Grant"
     return render(request, "tenant_portal/setup/grant_dimension_form.html", ctx)
 
 
@@ -4110,6 +5286,8 @@ def setup_reversal_rules_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_audit_trail_settings_view(request: HttpRequest) -> HttpResponse:
+    from decimal import Decimal
+
     from tenant_finance.models import AuditTrailSetting
 
     tenant_db = request.tenant_db
@@ -4175,6 +5353,13 @@ def setup_audit_trail_settings_view(request: HttpRequest) -> HttpResponse:
         retention_policy = (request.POST.get("retention_policy") or "").strip() or AuditTrailSetting.RetentionPolicy.DAYS_365
         auto_archive = bool(request.POST.get("auto_archive"))
         retention_raw = (request.POST.get("retention_days") or "").strip() or "0"
+        receipt_approval_mode = (
+            (request.POST.get("receipt_approval_mode") or "").strip()
+            or AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL
+        )
+        receipt_approval_threshold_raw = (
+            request.POST.get("receipt_approval_threshold") or ""
+        ).strip() or "0"
 
         errors: list[str] = []
         try:
@@ -4190,6 +5375,24 @@ def setup_audit_trail_settings_view(request: HttpRequest) -> HttpResponse:
                 retention_days = int(retention_policy)
             except Exception:
                 retention_days = setting.retention_days
+
+        if not errors:
+            try:
+                receipt_approval_threshold = Decimal(receipt_approval_threshold_raw)
+            except Exception:
+                receipt_approval_threshold = Decimal("0")
+                errors.append("Receipt approval threshold must be a valid amount.")
+
+            if receipt_approval_threshold < 0:
+                errors.append("Receipt approval threshold cannot be negative.")
+
+            if receipt_approval_mode not in {
+                AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL,
+                AuditTrailSetting.ReceiptApprovalMode.ABOVE_AMOUNT,
+                AuditTrailSetting.ReceiptApprovalMode.CASH_ONLY,
+                AuditTrailSetting.ReceiptApprovalMode.DONOR_ONLY,
+            }:
+                errors.append("Invalid receipt approval mode selected.")
 
         if errors:
             for e in errors:
@@ -4218,6 +5421,8 @@ def setup_audit_trail_settings_view(request: HttpRequest) -> HttpResponse:
 
             setting.authorized_roles_for_audit_logs = authorized_roles_raw
             setting.allow_users_see_own_activity = allow_users_see_own_activity
+            setting.receipt_approval_mode = receipt_approval_mode
+            setting.receipt_approval_threshold = receipt_approval_threshold
 
             setting.save(using=tenant_db)
             messages.success(request, "Audit trail settings updated.")

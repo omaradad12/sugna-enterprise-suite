@@ -1,0 +1,94 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Document Management" %} — {% trans "Dashboard" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[1280px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Document Management" %}</h1>
+      <p class="text-[13px] text-[#6b7280] m-0 mt-1">{% trans "Central repository for transaction-linked files and library uploads." %}</p>
+    </div>
+    <div class="erp-section-body px-4 py-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="rounded border border-[#edebe9] bg-[#fafafa] px-3 py-3">
+          <p class="text-[12px] font-medium text-[#6b7280] m-0 uppercase tracking-wide">{% trans "Total documents" %}</p>
+          <p class="text-[18px] font-semibold text-[#111827] m-0 mt-1">{{ total_documents }}</p>
+        </div>
+        <div class="rounded border border-[#edebe9] bg-[#fafafa] px-3 py-3">
+          <p class="text-[12px] font-medium text-[#6b7280] m-0 uppercase tracking-wide">{% trans "Pending approvals" %}</p>
+          <p class="text-[18px] font-semibold text-[#111827] m-0 mt-1">{{ pending_approvals }}</p>
+        </div>
+        <div class="rounded border border-[#edebe9] bg-[#fafafa] px-3 py-3">
+          <p class="text-[12px] font-medium text-[#6b7280] m-0 uppercase tracking-wide">{% trans "Expiring (30d)" %}</p>
+          <p class="text-[18px] font-semibold text-[#111827] m-0 mt-1">{{ expiring_soon }}</p>
+        </div>
+        <div class="rounded border border-[#edebe9] bg-[#fafafa] px-3 py-3">
+          <p class="text-[12px] font-medium text-[#6b7280] m-0 uppercase tracking-wide">{% trans "Draft / posted" %}</p>
+          <p class="text-[18px] font-semibold text-[#111827] m-0 mt-1">{{ draft_count }} / {{ posted_count }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="erp-section">
+      <div class="erp-section-header px-4 py-2">
+        <span class="text-[13px] font-semibold text-[#323130]">{% trans "Recent uploads" %}</span>
+      </div>
+      <div class="erp-section-body p-0 overflow-x-auto">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th>{% trans "File" %}</th>
+              <th>{% trans "Module" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th>{% trans "Uploaded" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in recent_documents %}
+            <tr>
+              <td><a class="text-[#0f5ba7] hover:underline" href="{% url 'tenant_portal:documents_detail' d.pk %}">{{ d.original_filename|default:d.file.name }}</a></td>
+              <td class="text-[13px]">{{ d.module|default:"—" }}</td>
+              <td class="text-[13px]">{{ d.get_status_display }}</td>
+              <td class="text-[13px]">{{ d.uploaded_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-[13px] text-[#6b7280]">{% trans "No documents yet." %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="erp-section">
+      <div class="erp-section-header px-4 py-2">
+        <span class="text-[13px] font-semibold text-[#323130]">{% trans "By module" %}</span>
+      </div>
+      <div class="erp-section-body px-4 py-3">
+        <ul class="list-none m-0 p-0 space-y-2">
+          {% for row in by_module %}
+          <li class="flex justify-between text-[13px]"><span>{{ row.module }}</span><span class="font-medium">{{ row.n }}</span></li>
+          {% empty %}
+          <li class="text-[13px] text-[#6b7280]">{% trans "No module data yet." %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="erp-section mt-4">
+    <div class="erp-section-header px-4 py-2">
+      <span class="text-[13px] font-semibold text-[#323130]">{% trans "By category" %}</span>
+    </div>
+    <div class="erp-section-body px-4 py-3">
+      <ul class="list-none m-0 p-0 space-y-2">
+        {% for row in by_category %}
+        <li class="flex justify-between text-[13px]"><span>{{ row.category__name }}</span><span class="font-medium">{{ row.n }}</span></li>
+        {% empty %}
+        <li class="text-[13px] text-[#6b7280]">{% trans "No categorized documents yet." %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

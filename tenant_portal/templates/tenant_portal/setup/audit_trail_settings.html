@@ -418,6 +418,46 @@
           </div>
         </div>
       </div>
+
+      <div class="dyn-card">
+        <div class="dyn-card-h">
+          <div class="flex items-start gap-3">
+            <i data-feather="check-square" class="w-4 h-4 mt-0.5" style="color:#605e5c;"></i>
+            <div>
+              <div class="dyn-card-title">Receipt Approval Settings</div>
+              <div class="dyn-card-sub">Optional approval controls for receipt posting</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 space-y-3">
+          <div>
+            <label class="dyn-help block mb-1">Receipt approval rule</label>
+            <select name="receipt_approval_mode" class="dyn-select" {% if read_only %}disabled{% endif %}>
+              <option value="no_approval" {% if setting.receipt_approval_mode == "no_approval" %}selected{% endif %}>
+                No approval required (default)
+              </option>
+              <option value="above_amount" {% if setting.receipt_approval_mode == "above_amount" %}selected{% endif %}>
+                Approval required above configurable amount
+              </option>
+              <option value="cash_only" {% if setting.receipt_approval_mode == "cash_only" %}selected{% endif %}>
+                Approval required for cash receipts only
+              </option>
+              <option value="donor_only" {% if setting.receipt_approval_mode == "donor_only" %}selected{% endif %}>
+                Approval required for donor receipts only
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="dyn-help block mb-1">Approval threshold amount</label>
+            <input type="number" min="0" step="0.01" name="receipt_approval_threshold"
+                   value="{{ setting.receipt_approval_threshold|default:'0.00' }}"
+                   class="dyn-input font-mono text-right"
+                   {% if read_only %}disabled{% endif %} />
+            <p class="dyn-help mt-1">Used only when rule is set to approval above configurable amount.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="mt-4 flex justify-between items-center gap-3">

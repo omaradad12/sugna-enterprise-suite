@@ -11,6 +11,38 @@ from rbac.models import user_has_permission
 from tenant_portal.decorators import tenant_view
 
 
+def _humanize_validation_error_messages(exc: ValidationError) -> list[str]:
+    """
+    Flatten Django ValidationError into plain strings for django.contrib.messages.
+
+    error_dict values are often ValidationError instances; passing them directly to
+    messages.error() stringifies to repr-style output (e.g. \"['msg']\").
+    """
+    if hasattr(exc, "error_dict"):
+        out: list[str] = []
+        for _field, lst in exc.error_dict.items():
+            for item in lst:
+                out.extend(_humanize_validation_error_messages(item))
+        return out
+    if hasattr(exc, "message") and exc.message is not None:
+        msg = exc.message
+        if getattr(exc, "params", None):
+            try:
+                msg = msg % exc.params
+            except (TypeError, ValueError):
+                pass
+        return [str(msg)]
+    out: list[str] = []
+    for item in getattr(exc, "error_list", []):
+        if item is exc:
+            continue
+        if isinstance(item, ValidationError):
+            out.extend(_humanize_validation_error_messages(item))
+        else:
+            out.append(str(item))
+    return out if out else [str(exc)]
+
+
 def tenant_login_view(request: HttpRequest) -> HttpResponse:
     tenant = getattr(request, "tenant", None)
     tenant_db = get_tenant_db_for_request(request)
@@ -90,6 +122,296 @@ def _get_role_display(tenant_user, tenant_db):
     return ", ".join(roles) if roles else ("Tenant Admin" if getattr(tenant_user, "is_tenant_admin", False) else "—")
 
 
+def _bank_cash_posting_gl_accounts(using: str):
+    """Active posting asset GL accounts directly under 1200."""
+    from tenant_finance.models import ChartAccount
+
+    qs = (
+        ChartAccount.objects.using(using)
+        .filter(
+            is_active=True,
+            type=ChartAccount.Type.ASSET,
+            statement_type=ChartAccount.StatementType.BALANCE_SHEET,
+            parent__code="1200",
+        )
+        .exclude(code="1200")
+        .select_related("parent")
+        .order_by("code")
+    )
+    return [acc for acc in qs if acc.is_leaf(using)]
+
+
+def _valid_bank_accounts_under_1200(using: str):
+    """Active BankAccount rows backed by posting asset GL under 1200."""
+    from tenant_finance.models import BankAccount, ChartAccount
+
+    qs = (
+        BankAccount.objects.using(using)
+        .select_related("currency", "account", "account__parent")
+        .filter(
+            is_active=True,
+            account__is_active=True,
+            account__type=ChartAccount.Type.ASSET,
+            account__statement_type=ChartAccount.StatementType.BALANCE_SHEET,
+            account__parent__code="1200",
+        )
+        .exclude(account__code="1200")
+        .order_by("account__code", "bank_name", "account_name")
+    )
+    return [ba for ba in qs if ba.account_id and ba.account.is_leaf(using)]
+
+
+def _tenant_export_header_rows(request, tenant_db: str, report_title: str):
+    """Excel letterhead rows: organization legal name, report title, generated timestamp."""
+    from django.utils import timezone
+    from tenant_finance.models import OrganizationSettings
+
+    os = OrganizationSettings.objects.using(tenant_db).first()
+    org = (os.organization_name or "").strip() if os else ""
+    if not org:
+        org = (getattr(getattr(request, "tenant", None), "name", None) or "") or ""
+    ts = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %H:%M")
+    return [
+        [org],
+        [report_title],
+        [f"Generated {ts}"],
+        [],
+    ]
+
+
+def _ensure_default_receipt_and_income_accounts(using: str):
+    """
+    Ensure default bank/cash and income COA structure exists for receipt workflows.
+    Also ensures BankAccount master rows exist for 1201-1204 accounts.
+    """
+    from django.db import transaction
+    from tenant_finance.models import BankAccount, ChartAccount, Currency
+
+    with transaction.atomic(using=using):
+        usd, _ = Currency.objects.using(using).get_or_create(
+            code="USD",
+            defaults={
+                "name": "US Dollar",
+                "symbol": "$",
+                "decimal_places": 2,
+                "status": Currency.Status.ACTIVE,
+            },
+        )
+        if usd.status != Currency.Status.ACTIVE:
+            usd.status = Currency.Status.ACTIVE
+            usd.save(using=using, update_fields=["status"])
+
+        parent_1200, _ = ChartAccount.objects.using(using).get_or_create(
+            code="1200",
+            defaults={
+                "name": "Bank Accounts",
+                "type": ChartAccount.Type.ASSET,
+                "statement_type": ChartAccount.StatementType.BALANCE_SHEET,
+                "is_active": True,
+                "parent": None,
+            },
+        )
+        parent_1200.name = "Bank Accounts"
+        parent_1200.type = ChartAccount.Type.ASSET
+        parent_1200.statement_type = ChartAccount.StatementType.BALANCE_SHEET
+        parent_1200.is_active = True
+        parent_1200.parent = None
+        parent_1200.save(using=using)
+
+        bank_children = [
+            ("1201", "Dahab Bank USD", "Dahab Bank", "DAHAB-USD-1201", BankAccount.AccountType.OPERATING),
+            ("1202", "Salaam Bank USD", "Salaam Bank", "SALAAM-USD-1202", BankAccount.AccountType.OPERATING),
+            ("1203", "IBS Bank USD", "IBS Bank", "IBS-USD-1203", BankAccount.AccountType.OPERATING),
+            ("1204", "Cash USD", "Cash", "CASH-USD-1204", BankAccount.AccountType.PETTY_CASH),
+        ]
+        for code, name, bank_name, default_no, account_type in bank_children:
+            acc, _ = ChartAccount.objects.using(using).get_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "type": ChartAccount.Type.ASSET,
+                    "statement_type": ChartAccount.StatementType.BALANCE_SHEET,
+                    "is_active": True,
+                    "parent": parent_1200,
+                },
+            )
+            acc.name = name
+            acc.type = ChartAccount.Type.ASSET
+            acc.statement_type = ChartAccount.StatementType.BALANCE_SHEET
+            acc.is_active = True
+            acc.parent = parent_1200
+            acc.save(using=using)
+
+            ba = BankAccount.objects.using(using).filter(account_id=acc.id).first()
+            if ba:
+                changed = False
+                if not ba.is_active:
+                    ba.is_active = True
+                    changed = True
+                if ba.currency_id != usd.id:
+                    ba.currency = usd
+                    changed = True
+                if changed:
+                    ba.save(using=using)
+            else:
+                account_number = default_no
+                if BankAccount.objects.using(using).filter(account_number=account_number).exists():
+                    account_number = f"{default_no}-{acc.id}"
+                BankAccount.objects.using(using).create(
+                    bank_name=bank_name,
+                    account_name=name,
+                    account_number=account_number,
+                    currency=usd,
+                    account=acc,
+                    account_type=account_type,
+                    is_active=True,
+                )
+
+        parent_4000, _ = ChartAccount.objects.using(using).get_or_create(
+            code="4000",
+            defaults={
+                "name": "Income",
+                "type": ChartAccount.Type.INCOME,
+                "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                "is_active": True,
+                "parent": None,
+            },
+        )
+        parent_4000.name = "Income"
+        parent_4000.type = ChartAccount.Type.INCOME
+        parent_4000.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+        parent_4000.is_active = True
+        parent_4000.parent = None
+        parent_4000.save(using=using)
+
+        grant_income_root, _ = ChartAccount.objects.using(using).get_or_create(
+            code="4100",
+            defaults={
+                "name": "Grant income",
+                "type": ChartAccount.Type.INCOME,
+                "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                "is_active": True,
+                "parent": parent_4000,
+            },
+        )
+        grant_income_root.name = "Grant income"
+        grant_income_root.type = ChartAccount.Type.INCOME
+        grant_income_root.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+        grant_income_root.is_active = True
+        grant_income_root.parent = parent_4000
+        grant_income_root.save(using=using)
+
+        for code, name in [
+            ("4110", "Restricted grant income"),
+            ("4120", "Unrestricted grant income"),
+            ("4130", "Donor funding income"),
+        ]:
+            inc, _ = ChartAccount.objects.using(using).get_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "type": ChartAccount.Type.INCOME,
+                    "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                    "is_active": True,
+                    "parent": grant_income_root,
+                },
+            )
+            inc.name = name
+            inc.type = ChartAccount.Type.INCOME
+            inc.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+            inc.is_active = True
+            inc.parent = grant_income_root
+            inc.save(using=using)
+
+        other_income_root, _ = ChartAccount.objects.using(using).get_or_create(
+            code="4200",
+            defaults={
+                "name": "Other income",
+                "type": ChartAccount.Type.INCOME,
+                "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                "is_active": True,
+                "parent": parent_4000,
+            },
+        )
+        other_income_root.name = "Other income"
+        other_income_root.type = ChartAccount.Type.INCOME
+        other_income_root.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+        other_income_root.is_active = True
+        other_income_root.parent = parent_4000
+        other_income_root.save(using=using)
+
+        for code, name in [
+            ("4210", "Training income"),
+            ("4220", "Service income"),
+            ("4230", "Membership income"),
+            ("4400", "Other income"),
+        ]:
+            inc, _ = ChartAccount.objects.using(using).get_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "type": ChartAccount.Type.INCOME,
+                    "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                    "is_active": True,
+                    "parent": other_income_root,
+                },
+            )
+            inc.name = name
+            inc.type = ChartAccount.Type.INCOME
+            inc.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+            inc.is_active = True
+            inc.parent = other_income_root
+            inc.save(using=using)
+
+        # Remove deprecated income accounts from active COA usage.
+        from django.db.models import Q
+
+        ChartAccount.objects.using(using).filter(
+            Q(name__iexact="Interest Income")
+            | Q(name__iexact="Exchange Gain")
+            | Q(name__iexact="UN Agency Grants")
+            | Q(name__iexact="Institutional Donor Grants")
+        ).update(is_active=False)
+
+
+def _income_posting_accounts_for_roots(using: str, root_codes: list[str]):
+    """Active posting income accounts under specific root income account codes."""
+    from tenant_finance.models import ChartAccount
+
+    roots = list(
+        ChartAccount.objects.using(using).filter(code__in=root_codes, is_active=True).values_list("id", flat=True)
+    )
+    if not roots:
+        return []
+
+    descendant_ids: set[int] = set()
+    frontier = list(roots)
+    while frontier:
+        child_ids = list(
+            ChartAccount.objects.using(using).filter(parent_id__in=frontier).values_list("id", flat=True)
+        )
+        child_ids = [cid for cid in child_ids if cid not in descendant_ids]
+        if not child_ids:
+            break
+        descendant_ids.update(child_ids)
+        frontier = child_ids
+
+    if not descendant_ids:
+        return []
+
+    qs = (
+        ChartAccount.objects.using(using)
+        .filter(
+            id__in=descendant_ids,
+            is_active=True,
+            type=ChartAccount.Type.INCOME,
+            statement_type=ChartAccount.StatementType.INCOME_EXPENDITURE,
+        )
+        .order_by("code")
+    )
+    return [acc for acc in qs if acc.is_leaf(using)]
+
+
 def _get_global_financial_indicators(request):
     """
     Compute organization-wide financial indicators for the global bar.
@@ -147,25 +469,27 @@ def _get_global_financial_indicators(request):
             indicators["petty_cash_balance"] = petty_cash
 
     # 4: Outstanding receivables = asset receivable accounts with positive balance
-    recv_q = _receivable_accounts_q()
+    from tenant_finance.receivable_accounts import receivable_accounts_q
+
+    recv_q = receivable_accounts_q()
     recv_ids = list(
         ChartAccount.objects.using(tenant_db)
         .filter(recv_q)
         .values_list("id", flat=True)
     )
     if recv_ids:
-        recv_rows = (
+        net = (
             JournalLine.objects.using(tenant_db)
             .filter(
                 account_id__in=recv_ids,
                 entry__status=JournalEntry.Status.POSTED,
             )
-            .values("account_id")
-            .annotate(bal=Sum("debit") - Sum("credit"))
+            .aggregate(bal=Sum("debit") - Sum("credit"))
+            .get("bal")
+            or Decimal("0")
         )
-        indicators["outstanding_receivables"] = sum(
-            (r.get("bal") or Decimal("0")) for r in recv_rows if (r.get("bal") or Decimal("0")) > 0
-        )
+        if net > 0:
+            indicators["outstanding_receivables"] = net
 
     # 5: Pending payables: liability payables with credit (negative) balance
     payable_ids = list(
@@ -722,7 +1046,6 @@ def finance_home_view(request: HttpRequest) -> HttpResponse:
     }
     context["active_submenu"] = "dashboard"
     context["active_item"] = "dashboard_overview"
-    context["global_indicators"] = _get_global_financial_indicators(request)
     return render(request, "tenant_portal/finance/home.html", context)
 
 
@@ -1153,7 +1476,6 @@ def finance_fund_balances_view(request: HttpRequest) -> HttpResponse:
                 tenant_db,
             ),
             "export_csv_url": _finance_export_csv_url(request),
-            "global_indicators": _get_global_financial_indicators(request),
             "official_report_period_line": f"{f['period_start']} — {f['period_end']}",
         },
     )
@@ -1168,7 +1490,7 @@ def finance_grant_utilization_view(request: HttpRequest) -> HttpResponse:
     from collections import defaultdict
     from decimal import Decimal
 
-    from django.db.models import Q
+    from django.db.models import Q, Sum
     from tenant_finance.models import ChartAccount
     from tenant_finance.services.financial_reporting import (
         filter_grants_for_report_dropdown,
@@ -2156,6 +2478,16 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
     controlled adjustments when the user has posting permission.
     """
     from django.urls import reverse
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Post transaction"),
+        active_submenu="dashboard",
+        active_item="dashboard_post_transaction",
+    )
+    if blocked:
+        return blocked
 
     tenant_db = request.tenant_db
     user = request.tenant_user
@@ -2170,11 +2502,27 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
             "section": "vouchers",
         },
         {
-            "code": "receipt_voucher",
-            "label": "Receipt Voucher",
-            "description": "Record income and deposits to bank or cash.",
-            "url": reverse("tenant_portal:recv_receipt_vouchers"),
+            "code": "grant_funding_receipt",
+            "label": "Grant funding receipt",
+            "description": "Create a new posted or draft grant-linked receipt voucher.",
+            "url": reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=grant_funding",
+            "icon": "award",
+            "section": "vouchers",
+        },
+        {
+            "code": "other_income_receipt",
+            "label": "Other income receipt",
+            "description": "Create a new non-grant income receipt voucher.",
+            "url": reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=other_income",
             "icon": "file-plus",
+            "section": "vouchers",
+        },
+        {
+            "code": "cashbook_receipt",
+            "label": "Cashbook receipt",
+            "description": "Create a new cash/bank receipt voucher entry.",
+            "url": reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=cashbook",
+            "icon": "credit-card",
             "section": "vouchers",
         },
         {
@@ -2237,7 +2585,7 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def incoming_fund_center_view(request: HttpRequest) -> HttpResponse:
-    """Incoming fund module home: receipt KPIs and navigation to receivables workflows."""
+    """Receivables module home: receipt KPIs and navigation to income and receivable workflows."""
     from decimal import Decimal
 
     from django.db.models import Q, Sum
@@ -2411,27 +2759,468 @@ def incoming_fund_center_view(request: HttpRequest) -> HttpResponse:
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
+    """
+    Unified receipt data-entry form.
+    Register pages stay read-only (view/report only).
+    """
+    from decimal import Decimal, InvalidOperation
+
+    from django.db.models import Q
+    from django.utils import timezone
+    from django.utils.dateparse import parse_date
+
+    from tenant_finance.models import (
+        AuditTrailSetting,
+        BankAccount,
+        ChartAccount,
+        JournalEntry,
+        JournalEntryAttachment,
+    )
+    from tenant_finance.receivable_accounts import receivable_accounts_q
+    from tenant_finance.services.journal_posting import post_receipt_voucher
+    from tenant_grants.models import Grant
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
+
+    tenant_db = request.tenant_db
+    user = request.tenant_user
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Receipt entry"),
+        active_submenu="receivables",
+        active_item="recv_receipt_entry",
+    )
+    if blocked:
+        return blocked
+
+    _ensure_default_receipt_and_income_accounts(tenant_db)
+
+    can_create = user_has_permission(user, "finance:journals.create", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_post = user_has_permission(user, "finance:journals.post", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_override_funding_modality_gl = (
+        getattr(user, "is_tenant_admin", False)
+        or user_has_permission(user, "module:finance.manage", using=tenant_db)
+        or user_has_permission(user, "rbac:roles.manage", using=tenant_db)
+    )
+
+    receipt_type = (
+        (request.POST.get("receipt_type") if request.method == "POST" else request.GET.get("receipt_type"))
+        or "grant_funding"
+    ).strip().lower()
+    if receipt_type not in {"grant_funding", "cashbook", "other_income"}:
+        receipt_type = "grant_funding"
+
+    if request.method == "POST":
+        if not can_create:
+            messages.error(request, "You do not have permission to create receipt vouchers.")
+            return redirect(reverse("tenant_portal:recv_receipt_entry"))
+
+        action = (request.POST.get("action") or "").strip().lower()
+        post_requested = action == "post"
+        errors: list[str] = []
+
+        raw_date = (request.POST.get("voucher_date") or "").strip()
+        voucher_date = parse_date(raw_date) if raw_date else None
+        if not voucher_date:
+            errors.append("Receipt date is required.")
+        elif voucher_date > timezone.localdate():
+            errors.append("Receipt date cannot be in the future.")
+
+        grant_id = (request.POST.get("grant_id") or "").strip()
+        grant = (
+            Grant.objects.using(tenant_db).select_related("donor", "project", "bank_account").filter(pk=grant_id).first()
+            if grant_id.isdigit()
+            else None
+        )
+        if receipt_type == "grant_funding" and not grant:
+            errors.append("Grant is required for grant funding receipts.")
+
+        if grant:
+            ended_by_date = bool(grant.end_date and grant.end_date < timezone.localdate())
+            if grant.status != Grant.Status.ACTIVE or ended_by_date:
+                errors.append("Receipts cannot be recorded for an ended or inactive grant.")
+
+        received_from = (request.POST.get("received_from") or "").strip()
+        reference_no = (request.POST.get("reference_no") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        tranche_no = (request.POST.get("tranche_no") or "").strip()
+        receipt_method = (request.POST.get("receipt_method") or "").strip()
+        allowed_methods = {"bank", "cash", "transfer", "cheque", "mobile_money"}
+        if receipt_method not in allowed_methods:
+            errors.append("Receipt method is required.")
+        if not received_from:
+            errors.append("Received from is required.")
+
+        try:
+            amount = Decimal((request.POST.get("amount") or "0").replace(",", ""))
+        except (InvalidOperation, AttributeError):
+            amount = Decimal("0")
+        if amount <= 0:
+            errors.append("Amount must be greater than zero.")
+
+        deposit_account_id = (request.POST.get("deposit_account_id") or "").strip()
+        deposit_bank_account = (
+            BankAccount.objects.using(tenant_db)
+            .select_related("account", "account__parent")
+            .filter(pk=deposit_account_id, is_active=True)
+            .first()
+            if deposit_account_id.isdigit()
+            else None
+        )
+        if not deposit_bank_account:
+            errors.append("Deposit bank/cash account is required.")
+        else:
+            dep_gl = deposit_bank_account.account
+            parent_code = (dep_gl.parent.code if dep_gl.parent_id else "").strip()
+            if (
+                parent_code != "1200"
+                or not dep_gl.is_leaf(tenant_db)
+                or dep_gl.type != ChartAccount.Type.ASSET
+                or not dep_gl.is_active
+                or (dep_gl.statement_type or "") != ChartAccount.StatementType.BALANCE_SHEET
+            ):
+                errors.append("Deposit account must be an active posting child account under 1200.")
+
+        income_account = None
+        receivable_account = None
+        funding_mapping = {}
+        if receipt_type in {"cashbook", "other_income"}:
+            income_account_id = (request.POST.get("income_account_id") or "").strip()
+            income_account = (
+                ChartAccount.objects.using(tenant_db).filter(pk=income_account_id, is_active=True).first()
+                if income_account_id.isdigit()
+                else None
+            )
+            if not income_account:
+                errors.append("Income account is required.")
+            elif (
+                income_account.type != ChartAccount.Type.INCOME
+                or not income_account.is_leaf(tenant_db)
+                or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
+            ):
+                errors.append("Income account must be an active posting income GL account.")
+        else:
+            from tenant_grants.models import GrantTranche
+            from tenant_grants.services.payment_modality import (
+                has_complete_gl_mapping,
+                resolve_component_account_mapping,
+                tranche_payment_type_to_component_type,
+            )
+
+            component_type = ""
+            if grant and tranche_no:
+                tr = (
+                    GrantTranche.objects.using(tenant_db)
+                    .filter(grant_id=grant.id, tranche_no=tranche_no)
+                    .only("payment_type")
+                    .first()
+                )
+                if tr:
+                    component_type = tranche_payment_type_to_component_type(tr.payment_type)
+
+            if grant:
+                funding_mapping = resolve_component_account_mapping(
+                    using=tenant_db,
+                    grant=grant,
+                    component_type=component_type,
+                )
+                mapping_complete = has_complete_gl_mapping(
+                    using=tenant_db,
+                    grant=grant,
+                    component_type=component_type,
+                )
+                if not mapping_complete and not can_override_funding_modality_gl:
+                    errors.append("GL account mapping is missing for selected funding modality.")
+
+            receivable_account_id = (request.POST.get("receivable_account_id") or "").strip()
+            if can_override_funding_modality_gl and receivable_account_id:
+                receivable_q = receivable_accounts_q()
+                receivable_account = (
+                    ChartAccount.objects.using(tenant_db)
+                    .filter(receivable_q, pk=receivable_account_id, is_active=True)
+                    .first()
+                    if receivable_account_id.isdigit()
+                    else None
+                )
+                if not receivable_account:
+                    errors.append("Receivable account is invalid.")
+            if not tranche_no:
+                errors.append("Tranche number/reference is required for grant funding receipt.")
+
+        if grant and getattr(grant, "bank_account_id", None) and deposit_bank_account:
+            if grant.bank_account_id != deposit_bank_account.id:
+                errors.append("Selected deposit account must match the grant-linked bank account.")
+
+        if reference_no and deposit_bank_account:
+            duplicate_ref = (
+                JournalEntry.objects.using(tenant_db)
+                .filter(source_type=JournalEntry.SourceType.RECEIPT_VOUCHER, source_document_no__iexact=reference_no)
+                .filter(lines__account_id=deposit_bank_account.account_id)
+                .exists()
+            )
+            if duplicate_ref:
+                errors.append("Reference number must be unique per bank account.")
+
+        attachment = request.FILES.get("attachment")
+        if post_requested and not attachment:
+            errors.append("Supporting attachment is required before posting.")
+        if post_requested and voucher_date:
+            try:
+                _finance_assert_open_period(voucher_date, tenant_db, getattr(request, "tenant_user_id", None))
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        if errors:
+            for msg in errors:
+                messages.error(request, msg)
+        else:
+            approval_setting = AuditTrailSetting.objects.using(tenant_db).first()
+            approval_mode = (
+                approval_setting.receipt_approval_mode
+                if approval_setting
+                else AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL
+            )
+            approval_threshold = (
+                approval_setting.receipt_approval_threshold
+                if approval_setting
+                else Decimal("0")
+            ) or Decimal("0")
+            requires_approval = False
+            if post_requested:
+                if approval_mode == AuditTrailSetting.ReceiptApprovalMode.ABOVE_AMOUNT:
+                    requires_approval = amount > approval_threshold
+                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.CASH_ONLY:
+                    requires_approval = receipt_method == "cash"
+                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.DONOR_ONLY:
+                    requires_approval = receipt_type == "grant_funding"
+
+            status = JournalEntry.Status.DRAFT
+            if post_requested:
+                status = JournalEntry.Status.PENDING_APPROVAL if requires_approval else JournalEntry.Status.POSTED
+            if status == JournalEntry.Status.POSTED and not can_post:
+                messages.error(request, "You do not have permission to post receipts.")
+                return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
+
+            credit_account = receivable_account if receipt_type == "grant_funding" else income_account
+            if grant and receipt_type == "grant_funding":
+                mapped_receivable = funding_mapping.get("receivable_account")
+                if mapped_receivable is None and can_override_funding_modality_gl and receivable_account is None:
+                    messages.error(request, "GL account mapping is missing for selected funding modality.")
+                    return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
+                if mapped_receivable is not None:
+                    credit_account = mapped_receivable
+                if can_override_funding_modality_gl and receivable_account is not None:
+                    credit_account = receivable_account
+                pref_bank_type = (funding_mapping.get("bank_account_type") or "").strip()
+                if pref_bank_type and deposit_bank_account and deposit_bank_account.account_type != pref_bank_type:
+                    alt_bank = (
+                        BankAccount.objects.using(tenant_db)
+                        .filter(is_active=True, account_type=pref_bank_type)
+                        .order_by("-is_default_operating", "bank_name", "account_name")
+                        .first()
+                    )
+                    if alt_bank and alt_bank.account_id:
+                        deposit_bank_account = alt_bank
+            memo_suffix = f" | Tranche: {tranche_no}" if receipt_type == "grant_funding" and tranche_no else ""
+            entry = post_receipt_voucher(
+                using=tenant_db,
+                user=user,
+                entry_date=voucher_date,
+                memo=(description or f"Receipt from {received_from}") + memo_suffix,
+                grant=grant,
+                deposit_chart_account=deposit_bank_account.account,
+                income_chart_account=credit_account,
+                amount=amount,
+                description=description or f"Receipt {reference_no or ''}".strip(),
+                status=status,
+                external_reference_no=reference_no,
+                receipt_method=receipt_method,
+                received_from=received_from,
+                receipt_stream=receipt_type,
+            )
+            if attachment:
+                JournalEntryAttachment.objects.using(tenant_db).create(
+                    entry=entry,
+                    file=attachment,
+                    title=f"Receipt attachment {entry.reference}",
+                    uploaded_by=user,
+                    status=JournalEntryAttachment.DocumentStatus.POSTED
+                    if status == JournalEntry.Status.POSTED
+                    else JournalEntryAttachment.DocumentStatus.DRAFT,
+                )
+
+            if status == JournalEntry.Status.POSTED:
+                messages.success(request, f"Receipt {entry.reference} posted.")
+            elif status == JournalEntry.Status.PENDING_APPROVAL:
+                messages.success(request, f"Receipt {entry.reference} submitted for approval.")
+            else:
+                messages.success(request, f"Receipt {entry.reference} saved as draft.")
+            return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
+
+    grants = (
+        Grant.objects.using(tenant_db)
+        .select_related("donor", "project")
+        .filter(status=Grant.Status.ACTIVE)
+        .order_by("code")
+    )
+    deposit_accounts = _valid_bank_accounts_under_1200(tenant_db)
+    income_accounts = (
+        ChartAccount.objects.using(tenant_db)
+        .filter(
+            type=ChartAccount.Type.INCOME,
+            is_active=True,
+            statement_type=ChartAccount.StatementType.INCOME_EXPENDITURE,
+            children__isnull=True,
+        )
+        .order_by("code")
+    )
+    receivable_accounts = (
+        ChartAccount.objects.using(tenant_db)
+        .filter(receivable_accounts_q(), is_active=True, children__isnull=True)
+        .order_by("code")
+    )
+    return render(
+        request,
+        "tenant_portal/recv/receipt_entry_form.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "receipt_type": receipt_type,
+            "grants": grants,
+            "deposit_accounts": deposit_accounts,
+            "income_accounts": income_accounts,
+            "receivable_accounts": receivable_accounts,
+            "can_override_funding_modality_gl": can_override_funding_modality_gl,
+            "active_submenu": "receivables",
+            "active_item": "recv_receipt_entry",
+        },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
     """
-    Dedicated Receipt Voucher screen.
+    Other income receipt workflow screen.
     """
     from decimal import Decimal, InvalidOperation
     from django.utils import timezone
     from django.utils.dateparse import parse_date
     from django.db.models import Sum
 
-    from tenant_finance.models import BankAccount, ChartAccount, JournalEntry, JournalLine, AuditLog
+    from tenant_finance.models import (
+        BankAccount,
+        ChartAccount,
+        JournalEntry,
+        JournalEntryAttachment,
+        JournalLine,
+        AuditLog,
+        AuditTrailSetting,
+    )
     from tenant_grants.models import Grant
 
     tenant_db = request.tenant_db
     user = request.tenant_user
+    _ensure_default_receipt_and_income_accounts(tenant_db)
+
+    can_create = user_has_permission(user, "finance:journals.create", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_post = user_has_permission(user, "finance:journals.post", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_reverse = user_has_permission(user, "finance:journals.reverse", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    create_mode = (request.GET.get("mode") or "").strip().lower() == "create"
+    if create_mode:
+        return redirect(reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=grant_funding")
+    if create_mode:
+        return redirect(reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=other_income")
 
     if request.method == "POST":
         errors = []
+        action = (request.POST.get("action") or "").strip()
+
+        if action == "reverse":
+            if not can_reverse:
+                messages.error(request, "You do not have permission to reverse receipts.")
+                return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
+            entry_id = (request.POST.get("entry_id") or "").strip()
+            reason = (request.POST.get("reversal_reason") or "").strip() or "Receipt reversal"
+            entry = (
+                JournalEntry.objects.using(tenant_db).select_related("grant").filter(pk=entry_id).first()
+                if entry_id.isdigit()
+                else None
+            )
+            if not entry or entry.status != JournalEntry.Status.POSTED:
+                messages.error(request, "Only posted receipt vouchers can be reversed.")
+                return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
+            if entry.source_type != JournalEntry.SourceType.RECEIPT_VOUCHER:
+                messages.error(request, "Only receipt vouchers can be reversed here.")
+                return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
+            if entry.reversals.using(tenant_db).exists():
+                messages.error(request, "This receipt voucher is already reversed.")
+                return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
+
+            from tenant_finance.services.journal_posting import assert_balanced_line_amounts, apply_posting_user_metadata
+
+            lines = list(JournalLine.objects.using(tenant_db).filter(entry_id=entry.id).select_related("account"))
+            line_amounts = [(l.credit or Decimal("0"), l.debit or Decimal("0")) for l in lines]
+            assert_balanced_line_amounts(line_amounts=line_amounts)
+
+            rev = JournalEntry.objects.using(tenant_db).create(
+                entry_date=timezone.localdate(),
+                memo=f"Reversal of {entry.reference}: {reason}",
+                grant=entry.grant,
+                status=JournalEntry.Status.POSTED,
+                created_by=user,
+                approved_by=user,
+                source=JournalEntry.SourceType.REVERSAL,
+                source_type=JournalEntry.SourceType.REVERSAL,
+                journal_type="reversal",
+                is_system_generated=True,
+                reversed_by=entry,
+            )
+            rev.reference = f"RV-REV-{rev.id:05d}"
+            rev.source_document_no = f"{entry.reference}-REV"
+            rev.source_id = rev.pk
+            rev.save(using=tenant_db, update_fields=["reference", "source_document_no", "source_id"])
+            for l in lines:
+                JournalLine.objects.using(tenant_db).create(
+                    entry=rev,
+                    account=l.account,
+                    description=f"Reversal: {l.description or entry.memo}",
+                    debit=l.credit or Decimal("0"),
+                    credit=l.debit or Decimal("0"),
+                )
+            apply_posting_user_metadata(entry=rev, user=user, using=tenant_db)
+            old_status = entry.status
+            entry.status = JournalEntry.Status.REVERSED
+            entry.save(using=tenant_db, update_fields=["status"])
+            AuditLog.objects.using(tenant_db).create(
+                model_name="journalentry",
+                object_id=entry.id,
+                action=AuditLog.Action.UPDATE,
+                user_id=getattr(user, "id", None),
+                username=getattr(user, "full_name", "") or getattr(user, "email", ""),
+                old_data={"status": old_status},
+                new_data={"status": "reversed_via_journal", "reversal_entry_id": rev.id},
+                summary=f"Reversed receipt voucher {entry.reference} with {rev.reference}",
+            )
+            messages.success(request, f"Receipt voucher {entry.reference} reversed.")
+            return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
+
+        if action in {"save_draft", "submit_approval", "post"}:
+            messages.info(request, "Data entry is now in the unified Receipts form.")
+            return redirect(reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=other_income")
 
         raw_date = (request.POST.get("voucher_date") or "").strip()
         project_id = request.POST.get("grant_id") or None
-        fund_name = (request.POST.get("fund_name") or "").strip()
         reference_no = (request.POST.get("reference_no") or "").strip()
         received_from = (request.POST.get("received_from") or "").strip()
         receipt_method = (request.POST.get("receipt_method") or "").strip()
@@ -2450,15 +3239,13 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
                 errors.append("Voucher date cannot be in the future.")
 
         grant = Grant.objects.using(tenant_db).filter(pk=project_id).select_related("donor", "bank_account").first() if project_id else None
-        if not project_id or not grant:
-            errors.append("Project must be selected.")
-        else:
+        if project_id and not grant:
+            errors.append("Selected project is invalid.")
+        elif grant:
             # Block ended/inactive projects for both draft and post
             ended_by_date = bool(grant.end_date and grant.end_date < timezone.localdate())
             if grant.status != Grant.Status.ACTIVE or ended_by_date:
                 errors.append("Receipts cannot be recorded for an ended or inactive project.")
-        if not fund_name:
-            errors.append("Fund / Donor is required.")
         if not received_from:
             errors.append("Received from / Donor / Project is required.")
         allowed_methods = {"bank", "cash", "transfer", "cheque", "mobile_money"}
@@ -2472,8 +3259,19 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
         if amount <= 0:
             errors.append("Amount must be greater than zero.")
 
+        raw_alloc_total = (request.POST.get("allocation_total") or "").strip()
+        try:
+            allocation_total = Decimal(raw_alloc_total.replace(",", "")) if raw_alloc_total else Decimal("0")
+        except Exception:
+            allocation_total = Decimal("0")
+        if allocation_total != amount:
+            errors.append("Allocation total must equal receipt amount.")
+
         deposit_bank_account = (
-            BankAccount.objects.using(tenant_db).select_related("account").filter(pk=deposit_account_id, is_active=True).first()
+            BankAccount.objects.using(tenant_db)
+            .select_related("account", "account__parent")
+            .filter(pk=deposit_account_id, is_active=True)
+            .first()
             if deposit_account_id
             else None
         )
@@ -2485,13 +3283,36 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
 
         if not deposit_bank_account:
             errors.append("Deposit bank account must be selected.")
+        else:
+            dep_gl = deposit_bank_account.account
+            dep_gl_parent = (dep_gl.parent.code if getattr(dep_gl, "parent_id", None) else "").strip()
+            if (dep_gl.code or "").strip() == "1200":
+                errors.append("Parent account 1200 cannot be used directly for receipt posting.")
+            elif (
+                dep_gl_parent != "1200"
+                or not dep_gl.is_leaf(tenant_db)
+                or dep_gl.type != ChartAccount.Type.ASSET
+                or not dep_gl.is_active
+                or (dep_gl.statement_type or "") != ChartAccount.StatementType.BALANCE_SHEET
+            ):
+                errors.append("Deposit account must be a posting child account under 1200 — Bank Accounts.")
         if not income_account:
             errors.append("Income account must be selected.")
+        elif (
+            income_account.type != ChartAccount.Type.INCOME
+            or not income_account.is_active
+            or not income_account.is_leaf(tenant_db)
+            or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
+        ):
+            errors.append("Income account must be an active posting income GL account.")
 
-        action = (request.POST.get("action") or "").strip()
+        attachment = request.FILES.get("attachment")
+        post_requested = action in {"post", "submit_approval"}
+        if post_requested and not attachment:
+            errors.append("Supporting document attachment is required before posting.")
 
         # Additional validations only when posting (not just saving draft)
-        if action == "post":
+        if post_requested:
             # Required fields before posting
             if not received_from:
                 errors.append("Received from / Donor / Project is required before posting.")
@@ -2499,19 +3320,36 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
                 errors.append("Receipt method is required before posting.")
             if not income_account:
                 errors.append("Income account is required before posting.")
+            elif (
+                income_account.type != ChartAccount.Type.INCOME
+                or not income_account.is_active
+                or not income_account.is_leaf(tenant_db)
+                or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
+            ):
+                errors.append("Income account must be an active posting income GL account before posting.")
             if amount <= 0:
                 errors.append("Amount must be greater than zero before posting.")
 
             # Deposit bank account required for non-cash methods
-            if receipt_method in {"bank", "transfer", "cheque", "mobile_money"} and not deposit_bank_account:
-                errors.append("Deposit bank account is required for bank, transfer, cheque, or mobile money receipts.")
+            if not deposit_bank_account:
+                errors.append("Deposit bank account is required before posting.")
 
-            # Bank account must be linked to the selected project
+            # If project is selected, bank account must be linked to the selected project
             if grant and receipt_method in {"bank", "transfer", "cheque", "mobile_money"}:
                 if not getattr(grant, "bank_account_id", None):
                     errors.append("The selected project does not have a linked bank account.")
                 elif not deposit_bank_account or deposit_bank_account.id != grant.bank_account_id:
                     errors.append("Selected deposit bank account must match the bank account linked to the selected project.")
+
+            if deposit_bank_account and reference_no:
+                duplicate_ref = (
+                    JournalEntry.objects.using(tenant_db)
+                    .filter(source_type=JournalEntry.SourceType.RECEIPT_VOUCHER, source_document_no__iexact=reference_no)
+                    .filter(lines__account_id=deposit_bank_account.account_id)
+                    .exists()
+                )
+                if duplicate_ref:
+                    errors.append("Reference number must be unique per bank account.")
 
             # Accounting period must allow posting (Financial Setup)
             if voucher_date:
@@ -2524,13 +3362,61 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
             for msg in errors:
                 messages.error(request, msg)
         else:
-            status = (
-                JournalEntry.Status.DRAFT
-                if action == "save_draft"
-                else JournalEntry.Status.POSTED
+            approval_setting = AuditTrailSetting.objects.using(tenant_db).first()
+            approval_mode = (
+                approval_setting.receipt_approval_mode
+                if approval_setting
+                else AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL
             )
+            approval_threshold = (
+                approval_setting.receipt_approval_threshold
+                if approval_setting
+                else Decimal("0")
+            ) or Decimal("0")
+            requires_approval = False
+            if post_requested:
+                if approval_mode == AuditTrailSetting.ReceiptApprovalMode.ABOVE_AMOUNT:
+                    requires_approval = amount > approval_threshold
+                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.CASH_ONLY:
+                    requires_approval = receipt_method == "cash"
+                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.DONOR_ONLY:
+                    requires_approval = False
+
+            status = JournalEntry.Status.DRAFT
+            if post_requested:
+                status = (
+                    JournalEntry.Status.PENDING_APPROVAL
+                    if requires_approval
+                    else JournalEntry.Status.POSTED
+                )
+
+            if status == JournalEntry.Status.POSTED and not can_post:
+                messages.error(request, "You do not have permission to post receipt vouchers.")
+                return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
 
             from tenant_finance.services.journal_posting import post_receipt_voucher
+
+            credit_income_account = income_account
+            if grant:
+                from tenant_grants.services.payment_modality import resolve_component_account_mapping
+
+                mapping = resolve_component_account_mapping(using=tenant_db, grant=grant)
+                mapped_receivable = mapping.get("receivable_account")
+                mapped_income = mapping.get("income_account")
+                if mapped_receivable is not None:
+                    credit_income_account = mapped_receivable
+                elif mapped_income is not None:
+                    credit_income_account = mapped_income
+                pref_bank_type = (mapping.get("bank_account_type") or "").strip()
+                if pref_bank_type and deposit_bank_account and deposit_bank_account.account_type != pref_bank_type:
+                    alt_bank = (
+                        BankAccount.objects.using(tenant_db)
+                        .filter(is_active=True, account_type=pref_bank_type)
+                        .order_by("-is_default_operating", "bank_name", "account_name")
+                        .first()
+                    )
+                    if alt_bank and alt_bank.account_id:
+                        deposit_bank_account = alt_bank
 
             entry = post_receipt_voucher(
                 using=tenant_db,
@@ -2539,11 +3425,29 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
                 memo=description or f"Receipt voucher from {received_from or 'N/A'}",
                 grant=grant,
                 deposit_chart_account=deposit_bank_account.account,
-                income_chart_account=income_account,
+                income_chart_account=credit_income_account,
                 amount=amount,
                 description=description,
                 status=status,
+                external_reference_no=reference_no,
+                receipt_method=receipt_method,
+                received_from=received_from,
+                receipt_stream="grant_funding" if grant else "other_income",
             )
+
+            if attachment:
+                try:
+                    JournalEntryAttachment.objects.using(tenant_db).create(
+                        entry=entry,
+                        file=attachment,
+                        title=f"Receipt attachment {entry.reference}",
+                        uploaded_by=user,
+                        status=JournalEntryAttachment.DocumentStatus.POSTED
+                        if status == JournalEntry.Status.POSTED
+                        else JournalEntryAttachment.DocumentStatus.DRAFT,
+                    )
+                except Exception as exc:
+                    messages.warning(request, f"Voucher saved but attachment upload failed: {exc}")
 
             try:
                 AuditLog.objects.using(tenant_db).create(
@@ -2561,6 +3465,8 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
 
             if status == JournalEntry.Status.DRAFT:
                 messages.success(request, f"Receipt voucher {entry.reference} saved as draft.")
+            elif status == JournalEntry.Status.PENDING_APPROVAL:
+                messages.success(request, f"Receipt voucher {entry.reference} submitted for approval.")
             else:
                 messages.success(request, f"Receipt voucher {entry.reference} created and posted.")
 
@@ -2579,46 +3485,210 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
     today = timezone.localdate()
     grants = [g for g in grants if not (g.end_date and g.end_date < today)]
 
-    # Deposit bank accounts: only those linked to active projects and active themselves
-    linked_bank_account_ids = [g.bank_account_id for g in grants if getattr(g, "bank_account_id", None)]
-    bank_accounts = (
-        BankAccount.objects.using(tenant_db)
-        .select_related("currency")
-        .filter(is_active=True, id__in=linked_bank_account_ids)
-        .order_by("bank_name", "account_name")
-    )
+    bank_accounts = _valid_bank_accounts_under_1200(tenant_db)
+
+    bank_balances: dict[int, Decimal] = {}
+    if bank_accounts:
+        acc_ids = [b.account_id for b in bank_accounts if b.account_id]
+        if acc_ids:
+            bal_rows = (
+                JournalLine.objects.using(tenant_db)
+                .filter(account_id__in=acc_ids, entry__status=JournalEntry.Status.POSTED)
+                .values("account_id")
+                .annotate(b=Sum("debit") - Sum("credit"))
+            )
+            by_acc = {r["account_id"]: (r.get("b") or Decimal("0")) for r in bal_rows}
+            for b in bank_accounts:
+                bank_balances[b.id] = (b.opening_balance or Decimal("0")) + by_acc.get(b.account_id, Decimal("0"))
+    bank_account_rows = [
+        {
+            "obj": b,
+            "balance": bank_balances.get(b.id, Decimal("0")),
+        }
+        for b in bank_accounts
+    ]
 
     # Chart of Accounts (all active GL accounts) for income dropdown (per your request)
-    income_accounts = CA.objects.using(tenant_db).filter(is_active=True).order_by("code")
+    income_accounts = _income_posting_accounts_for_roots(tenant_db, ["4200"])
     donors = Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
+
+    from django.db.models import Q
+    from django.utils.dateparse import parse_date
 
     from tenant_finance.models import JournalEntry as JE
 
-    recent_qs = (
+    # _income_posting_accounts_for_roots returns a list of ChartAccount (leaf accounts), not a QuerySet.
+    other_income_ids = [acc.id for acc in income_accounts]
+    reg_qs = (
         JE.objects.using(tenant_db)
-        .filter(reference__startswith="RV-")
-        .select_related("grant")
-        .order_by("-entry_date", "-id")[:50]
+        .filter(reference__startswith="RV-", status=JE.Status.POSTED)
+        .select_related("grant", "grant__donor", "grant__project", "posted_by")
     )
-    recent = []
-    for je in recent_qs:
-        total = (
+    if other_income_ids:
+        reg_qs = reg_qs.filter(
+            lines__account_id__in=other_income_ids,
+            lines__credit__gt=0,
+        ).distinct()
+    else:
+        reg_qs = reg_qs.none()
+
+    bank_acc = (request.GET.get("bank") or "").strip()
+    receipt_method = (request.GET.get("method") or "").strip().lower()
+    project_title = (request.GET.get("project") or "").strip()
+    fund_name = (request.GET.get("fund") or "").strip()
+    received_from = (request.GET.get("received_from") or "").strip()
+    voucher_no = (request.GET.get("ref") or "").strip()
+    ref_no = (request.GET.get("ref_no") or "").strip()
+    raw_from = (request.GET.get("from") or "").strip()
+    raw_to = (request.GET.get("to") or "").strip()
+    raw_min = (request.GET.get("amount_from") or "").strip()
+    raw_max = (request.GET.get("amount_to") or "").strip()
+
+    if voucher_no:
+        reg_qs = reg_qs.filter(reference__icontains=voucher_no)
+    if project_title:
+        reg_qs = reg_qs.filter(grant__title__icontains=project_title)
+    if fund_name:
+        reg_qs = reg_qs.filter(grant__donor__name__icontains=fund_name)
+    if received_from:
+        reg_qs = reg_qs.filter(Q(payee_name__icontains=received_from) | Q(memo__icontains=received_from))
+    if ref_no:
+        reg_qs = reg_qs.filter(source_document_no__icontains=ref_no)
+
+    if receipt_method in {"bank", "cash", "transfer", "cheque", "mobile_money"}:
+        reg_qs = reg_qs.filter(payment_method=receipt_method)
+
+    if bank_acc:
+        reg_qs = reg_qs.filter(
+            lines__account__type=ChartAccount.Type.ASSET,
+            lines__debit__gt=0,
+            lines__account__name__icontains=bank_acc,
+        ).distinct()
+
+    from_date = parse_date(raw_from) if raw_from else None
+    to_date = parse_date(raw_to) if raw_to else None
+    if from_date:
+        reg_qs = reg_qs.filter(entry_date__gte=from_date)
+    if to_date:
+        reg_qs = reg_qs.filter(entry_date__lte=to_date)
+
+    try:
+        min_amount = Decimal(raw_min.replace(",", "")) if raw_min else None
+    except Exception:
+        min_amount = None
+    try:
+        max_amount = Decimal(raw_max.replace(",", "")) if raw_max else None
+    except Exception:
+        max_amount = None
+
+    reg_qs = reg_qs.order_by("-entry_date", "-id")[:500]
+
+    rows = []
+    for je in reg_qs:
+        deposit_line = (
             JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
+            .select_related("account")
+            .filter(entry=je, account__type=ChartAccount.Type.ASSET, debit__gt=0)
+            .first()
         )
-        recent.append(
+        income_line = (
+            JournalLine.objects.using(tenant_db)
+            .select_related("account")
+            .filter(entry=je, account_id__in=other_income_ids, credit__gt=0)
+            .first()
+        )
+        amount = (income_line.credit if income_line else Decimal("0")) or Decimal("0")
+        if min_amount is not None and amount < min_amount:
+            continue
+        if max_amount is not None and amount > max_amount:
+            continue
+        rows.append(
             {
                 "id": je.id,
-                "reference": je.reference or f"RV-{je.id:05d}",
-                "date": je.entry_date,
-                "project": je.grant.title if je.grant else "",
-                "amount": total,
-                "memo": je.memo,
+                "voucher": je.reference or f"RV-{je.id:05d}",
+                "entry_date": je.entry_date,
+                "receipt_method": (je.payment_method or "").replace("_", " ").title(),
+                "bank_account": deposit_line.account if deposit_line else None,
+                "received_from": je.payee_name or je.memo or "",
+                "project": (
+                    je.grant.project.name
+                    if je.grant and getattr(je.grant, "project", None)
+                    else (je.grant.title if je.grant else "")
+                ),
+                "fund": getattr(getattr(je.grant, "donor", None), "name", "") if je.grant else "",
+                "income_account": income_line.account if income_line else None,
+                "reference_no": je.source_document_no or "",
+                "amount": amount,
+                "status": "Posted",
+                "posted_by": getattr(je.posted_by, "full_name", "") or getattr(je.posted_by, "email", ""),
             }
         )
+    total_amount = sum((r.get("amount") or Decimal("0")) for r in rows)
+
+    export_params = request.GET.copy()
+    if "format" in export_params:
+        export_params.pop("format")
+    export_qs = export_params.urlencode()
+    export_xlsx_url = f"{request.path}?{export_qs}&format=xlsx" if export_qs else f"{request.path}?format=xlsx"
+
+    if (request.GET.get("format") or "").strip().lower() == "xlsx":
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "OtherIncome"
+        for hdr in _tenant_export_header_rows(request, tenant_db, "Other income receipts"):
+            ws.append(hdr)
+        ws.append(
+            [
+                "Voucher",
+                "Date",
+                "Method",
+                "Bank/Cash account",
+                "Received from",
+                "Project",
+                "Fund/Donor",
+                "Income account",
+                "Reference no.",
+                "Amount",
+                "Status",
+                "Posted by",
+            ]
+        )
+        for r in rows:
+            ws.append(
+                [
+                    r.get("voucher"),
+                    r.get("entry_date"),
+                    r.get("receipt_method") or "—",
+                    (f"{r['bank_account'].code} — {r['bank_account'].name}" if r.get("bank_account") else "—"),
+                    r.get("received_from") or "—",
+                    r.get("project") or "—",
+                    r.get("fund") or "—",
+                    (
+                        f"{r['income_account'].code} — {r['income_account'].name}"
+                        if r.get("income_account")
+                        else "—"
+                    ),
+                    r.get("reference_no") or "—",
+                    r.get("amount") or Decimal("0"),
+                    r.get("status") or "",
+                    r.get("posted_by") or "—",
+                ]
+            )
+        ws.append([])
+        ws.append(["", "", "", "", "", "", "", "", "Total", total_amount, "", ""])
+        for cell in ws[5]:
+            cell.font = Font(bold=True)
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="other_income_receipts.xlsx"'
+        wb.save(response)
+        return response
+
+    status_choices = [(JournalEntry.Status.POSTED, "Posted")]
 
     return render(
         request,
@@ -2629,10 +3699,17 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
             "grants": grants,
             "donors": donors,
             "bank_accounts": bank_accounts,
+            "bank_account_rows": bank_account_rows,
+            "bank_balances": bank_balances,
             "income_accounts": income_accounts,
-            "recent": recent,
+            "rows": rows,
+            "total_amount": total_amount,
+            "create_mode": create_mode,
             "active_submenu": "receivables",
             "active_item": "recv_receipt_vouchers",
+            "can_reverse": can_reverse,
+            "export_xlsx_url": export_xlsx_url,
+            "status_choices": status_choices,
         },
     )
 
@@ -2640,16 +3717,322 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
     """
-    Donor receipts tracking page: lists receipt vouchers related to donor/grant income.
+    Enterprise donor receipts workflow and tracking register.
     """
-    from decimal import Decimal
+    from decimal import Decimal, InvalidOperation
     from django.db.models import Sum, Q
+    from django.utils import timezone
     from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
-    from tenant_grants.models import Grant
+    from tenant_finance.models import (
+        AuditLog,
+        BankAccount,
+        ChartAccount,
+        JournalEntry,
+        JournalEntryAttachment,
+        JournalLine,
+        AuditTrailSetting,
+    )
+    from tenant_grants.models import Donor, Grant
 
     tenant_db = request.tenant_db
+    user = request.tenant_user
+    _ensure_default_receipt_and_income_accounts(tenant_db)
+
+    can_create = user_has_permission(user, "finance:journals.create", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_post = user_has_permission(user, "finance:journals.post", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_reverse = user_has_permission(user, "finance:journals.reverse", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    create_mode = (request.GET.get("mode") or "").strip().lower() == "create"
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+
+        if action in {"save_draft", "submit_approval", "post"}:
+            messages.info(request, "Data entry is now in the unified Receipts form.")
+            return redirect(reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=grant_funding")
+
+            errors = []
+            raw_date = (request.POST.get("voucher_date") or "").strip()
+            grant_id = (request.POST.get("grant_id") or "").strip()
+            donor_name = (request.POST.get("donor_name") or "").strip()
+            reference_no = (request.POST.get("reference_no") or "").strip()
+            received_from = (request.POST.get("received_from") or "").strip()
+            receipt_method = (request.POST.get("receipt_method") or "").strip()
+            deposit_account_id = (request.POST.get("deposit_account_id") or "").strip()
+            income_account_id = (request.POST.get("income_account_id") or "").strip()
+            description = (request.POST.get("description") or "").strip()
+            raw_alloc_total = (request.POST.get("allocation_total") or "").strip()
+            attachment = request.FILES.get("attachment")
+
+            voucher_date = parse_date(raw_date) if raw_date else None
+            if not voucher_date:
+                errors.append("Receipt date is required.")
+            elif voucher_date > timezone.localdate():
+                errors.append("Receipt date cannot be in the future.")
+
+            grant = (
+                Grant.objects.using(tenant_db).select_related("donor", "bank_account").filter(pk=grant_id).first()
+                if grant_id.isdigit()
+                else None
+            )
+            if not grant:
+                errors.append("Grant/Project is required.")
+
+            if not donor_name:
+                errors.append("Donor is required.")
+            if not received_from:
+                errors.append("Received from is required.")
+            if not deposit_account_id:
+                errors.append("Bank account is required.")
+            if not income_account_id:
+                errors.append("Income account is required.")
+            if receipt_method not in {"bank", "cash", "transfer", "cheque", "mobile_money"}:
+                errors.append("Receipt method is required.")
+
+            try:
+                amount = Decimal((request.POST.get("amount") or "0").replace(",", ""))
+            except (InvalidOperation, AttributeError):
+                amount = Decimal("0")
+            if amount <= 0:
+                errors.append("Amount must be greater than zero.")
+
+            try:
+                allocation_total = Decimal(raw_alloc_total.replace(",", "")) if raw_alloc_total else Decimal("0")
+            except Exception:
+                allocation_total = Decimal("0")
+            if allocation_total != amount:
+                errors.append("Allocation total must equal receipt amount.")
+
+            deposit_bank_account = (
+                BankAccount.objects.using(tenant_db)
+                .select_related("account", "account__parent")
+                .filter(pk=deposit_account_id, is_active=True)
+                .first()
+                if deposit_account_id.isdigit()
+                else None
+            )
+            if not deposit_bank_account:
+                errors.append("Selected bank account is invalid or inactive.")
+            else:
+                dep_gl = deposit_bank_account.account
+                if (dep_gl.code or "").strip() == "1200":
+                    errors.append("Parent account 1200 cannot be used directly.")
+                parent_code = (dep_gl.parent.code if dep_gl.parent_id else "").strip()
+                if (
+                    parent_code != "1200"
+                    or not dep_gl.is_leaf(tenant_db)
+                    or dep_gl.type != ChartAccount.Type.ASSET
+                    or not dep_gl.is_active
+                    or (dep_gl.statement_type or "") != ChartAccount.StatementType.BALANCE_SHEET
+                ):
+                    errors.append("Bank account must be linked to a child posting account under 1200.")
+
+            income_account = (
+                ChartAccount.objects.using(tenant_db).filter(pk=income_account_id, is_active=True).first()
+                if income_account_id.isdigit()
+                else None
+            )
+            if not income_account:
+                errors.append("Income account is invalid or inactive.")
+            elif (
+                income_account.type != ChartAccount.Type.INCOME
+                or not income_account.is_leaf(tenant_db)
+                or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
+            ):
+                errors.append("Income account must be an active posting income GL account.")
+
+            if grant and getattr(grant, "bank_account_id", None):
+                if not deposit_bank_account or grant.bank_account_id != deposit_bank_account.id:
+                    errors.append("Selected bank account must match the grant-linked bank account.")
+
+            post_requested = action in {"post", "submit_approval"}
+            if post_requested:
+                if not attachment:
+                    errors.append("Attachment is required before posting.")
+                if voucher_date:
+                    try:
+                        _finance_assert_open_period(voucher_date, tenant_db, getattr(request, "tenant_user_id", None))
+                    except ValueError as exc:
+                        errors.append(str(exc))
+
+            if reference_no and deposit_bank_account:
+                duplicate_ref = (
+                    JournalEntry.objects.using(tenant_db)
+                    .filter(source_type=JournalEntry.SourceType.RECEIPT_VOUCHER, source_document_no__iexact=reference_no)
+                    .filter(lines__account_id=deposit_bank_account.account_id)
+                    .exists()
+                )
+                if duplicate_ref:
+                    errors.append("Reference number must be unique per bank account.")
+
+            if errors:
+                for msg in errors:
+                    messages.error(request, msg)
+            else:
+                approval_setting = AuditTrailSetting.objects.using(tenant_db).first()
+                approval_mode = (
+                    approval_setting.receipt_approval_mode
+                    if approval_setting
+                    else AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL
+                )
+                approval_threshold = (
+                    approval_setting.receipt_approval_threshold
+                    if approval_setting
+                    else Decimal("0")
+                ) or Decimal("0")
+
+                requires_approval = False
+                if post_requested:
+                    if approval_mode == AuditTrailSetting.ReceiptApprovalMode.ABOVE_AMOUNT:
+                        requires_approval = amount > approval_threshold
+                    elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.CASH_ONLY:
+                        requires_approval = receipt_method == "cash"
+                    elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.DONOR_ONLY:
+                        requires_approval = True
+
+                status = JournalEntry.Status.DRAFT
+                if post_requested:
+                    status = (
+                        JournalEntry.Status.PENDING_APPROVAL
+                        if requires_approval
+                        else JournalEntry.Status.POSTED
+                    )
+
+                if status == JournalEntry.Status.POSTED and not can_post:
+                    messages.error(request, "You do not have permission to post donor receipts.")
+                    return redirect(reverse("tenant_portal:recv_donor_receipts"))
+                from tenant_finance.services.journal_posting import post_receipt_voucher
+
+                credit_income_account = income_account
+                if grant:
+                    from tenant_grants.services.payment_modality import resolve_component_account_mapping
+
+                    mapping = resolve_component_account_mapping(using=tenant_db, grant=grant)
+                    mapped_receivable = mapping.get("receivable_account")
+                    mapped_income = mapping.get("income_account")
+                    if mapped_receivable is not None:
+                        credit_income_account = mapped_receivable
+                    elif mapped_income is not None:
+                        credit_income_account = mapped_income
+                    pref_bank_type = (mapping.get("bank_account_type") or "").strip()
+                    if pref_bank_type and deposit_bank_account and deposit_bank_account.account_type != pref_bank_type:
+                        alt_bank = (
+                            BankAccount.objects.using(tenant_db)
+                            .filter(is_active=True, account_type=pref_bank_type)
+                            .order_by("-is_default_operating", "bank_name", "account_name")
+                            .first()
+                        )
+                        if alt_bank and alt_bank.account_id:
+                            deposit_bank_account = alt_bank
+
+                entry = post_receipt_voucher(
+                    using=tenant_db,
+                    user=user,
+                    entry_date=voucher_date,
+                    memo=description or f"Donor receipt from {received_from}",
+                    grant=grant,
+                    deposit_chart_account=deposit_bank_account.account,
+                    income_chart_account=credit_income_account,
+                    amount=amount,
+                    description=description or f"Donor receipt {reference_no or ''}".strip(),
+                    status=status,
+                    external_reference_no=reference_no,
+                    receipt_method=receipt_method,
+                    received_from=received_from,
+                    receipt_stream="grant_funding",
+                )
+                if attachment:
+                    try:
+                        JournalEntryAttachment.objects.using(tenant_db).create(
+                            entry=entry,
+                            file=attachment,
+                            title=f"Donor receipt attachment {entry.reference}",
+                            uploaded_by=user,
+                            status=JournalEntryAttachment.DocumentStatus.POSTED
+                            if status == JournalEntry.Status.POSTED
+                            else JournalEntryAttachment.DocumentStatus.DRAFT,
+                        )
+                    except Exception as exc:
+                        messages.warning(request, f"Receipt saved but attachment upload failed: {exc}")
+                try:
+                    AuditLog.objects.using(tenant_db).create(
+                        model_name="journalentry",
+                        object_id=entry.id,
+                        action=AuditLog.Action.CREATE,
+                        user_id=getattr(user, "id", None),
+                        username=getattr(user, "full_name", "") or getattr(user, "email", ""),
+                        old_data=None,
+                        new_data={"status": entry.status, "reference": entry.reference},
+                        summary=f"Created donor receipt {entry.reference} ({entry.get_status_display()})",
+                    )
+                except Exception:
+                    pass
+                if status == JournalEntry.Status.POSTED:
+                    messages.success(request, f"Donor receipt {entry.reference} posted.")
+                elif status == JournalEntry.Status.PENDING_APPROVAL:
+                    messages.success(request, f"Donor receipt {entry.reference} submitted for approval.")
+                else:
+                    messages.success(request, f"Donor receipt {entry.reference} saved as draft.")
+                return redirect(reverse("tenant_portal:recv_donor_receipts"))
+
+        if action == "reverse":
+            if not can_reverse:
+                messages.error(request, "You do not have permission to reverse donor receipts.")
+                return redirect(reverse("tenant_portal:recv_donor_receipts"))
+            entry_id = (request.POST.get("entry_id") or "").strip()
+            reason = (request.POST.get("reversal_reason") or "").strip() or "Donor receipt reversal"
+            entry = (
+                JournalEntry.objects.using(tenant_db).select_related("grant").filter(pk=entry_id).first()
+                if entry_id.isdigit()
+                else None
+            )
+            if not entry or entry.status != JournalEntry.Status.POSTED:
+                messages.error(request, "Only posted donor receipts can be reversed.")
+                return redirect(reverse("tenant_portal:recv_donor_receipts"))
+            if entry.source_type != JournalEntry.SourceType.RECEIPT_VOUCHER:
+                messages.error(request, "Only receipt vouchers can be reversed here.")
+                return redirect(reverse("tenant_portal:recv_donor_receipts"))
+            if entry.reversals.using(tenant_db).exists():
+                messages.error(request, "This donor receipt is already reversed.")
+                return redirect(reverse("tenant_portal:recv_donor_receipts"))
+
+            lines = list(JournalLine.objects.using(tenant_db).filter(entry_id=entry.id).select_related("account"))
+            rev = JournalEntry.objects.using(tenant_db).create(
+                entry_date=timezone.localdate(),
+                memo=f"Reversal of {entry.reference}: {reason}",
+                grant=entry.grant,
+                status=JournalEntry.Status.POSTED,
+                created_by=user,
+                approved_by=user,
+                source=JournalEntry.SourceType.REVERSAL,
+                source_type=JournalEntry.SourceType.REVERSAL,
+                journal_type="reversal",
+                is_system_generated=True,
+                reversed_by=entry,
+            )
+            rev.reference = f"RV-REV-{rev.id:05d}"
+            rev.source_document_no = f"{entry.reference}-REV"
+            rev.source_id = rev.pk
+            rev.save(using=tenant_db, update_fields=["reference", "source_document_no", "source_id"])
+            for l in lines:
+                JournalLine.objects.using(tenant_db).create(
+                    entry=rev,
+                    account=l.account,
+                    description=f"Reversal: {l.description or entry.memo}",
+                    debit=l.credit or Decimal("0"),
+                    credit=l.debit or Decimal("0"),
+                )
+            rev.posted_by = user
+            rev.posted_at = timezone.now()
+            rev.save(using=tenant_db, update_fields=["posted_by", "posted_at"])
+            messages.success(request, f"Donor receipt {entry.reference} reversed.")
+            return redirect(reverse("tenant_portal:recv_donor_receipts"))
 
     # Base queryset: all receipt vouchers (RV-...)
     qs = (
@@ -2676,8 +4059,12 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
     project_title = (request.GET.get("project") or "").strip()
     grant_code = (request.GET.get("grant") or "").strip()
     bank_name = (request.GET.get("bank") or "").strip()
+    ref_no = (request.GET.get("ref_no") or "").strip()
+    receipt_method = (request.GET.get("method") or "").strip().lower()
     raw_from = (request.GET.get("from") or "").strip()
     raw_to = (request.GET.get("to") or "").strip()
+    raw_min = (request.GET.get("amount_from") or "").strip()
+    raw_max = (request.GET.get("amount_to") or "").strip()
 
     if voucher_no:
         qs = qs.filter(reference__icontains=voucher_no)
@@ -2687,6 +4074,12 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
         qs = qs.filter(grant__title__icontains=project_title)
     if grant_code:
         qs = qs.filter(grant__code__icontains=grant_code)
+    if ref_no:
+        qs = qs.filter(source_document_no__icontains=ref_no)
+    if receipt_method in {"bank", "cash", "transfer", "cheque", "mobile_money"}:
+        qs = qs.filter(payment_method=receipt_method)
+
+    qs = qs.filter(status=JournalEntry.Status.POSTED)
 
     from_date = parse_date(raw_from) if raw_from else None
     to_date = parse_date(raw_to) if raw_to else None
@@ -2699,10 +4092,36 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
     if bank_name:
         qs = qs.filter(
             lines__account__type=ChartAccount.Type.ASSET,
+            lines__debit__gt=0,
             lines__account__name__icontains=bank_name,
-        )
+        ).distinct()
 
-    qs = qs.order_by("-entry_date", "-id")[:300]
+    try:
+        min_amount = Decimal(raw_min.replace(",", "")) if raw_min else None
+    except Exception:
+        min_amount = None
+    try:
+        max_amount = Decimal(raw_max.replace(",", "")) if raw_max else None
+    except Exception:
+        max_amount = None
+
+    qs = qs.order_by("-entry_date", "-id")[:500]
+
+    grant_income_totals = {
+        (r["entry__grant_id"]): (r.get("amt") or Decimal("0"))
+        for r in (
+            JournalLine.objects.using(tenant_db)
+            .filter(
+                entry__source_type=JournalEntry.SourceType.RECEIPT_VOUCHER,
+                entry__status=JournalEntry.Status.POSTED,
+                account__type=ChartAccount.Type.INCOME,
+                credit__gt=0,
+                entry__grant_id__isnull=False,
+            )
+            .values("entry__grant_id")
+            .annotate(amt=Sum("credit"))
+        )
+    }
 
     rows = []
     for je in qs:
@@ -2729,13 +4148,24 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
             .first()
         )
 
-        total = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
+        total = (income_line.credit if income_line else Decimal("0")) or Decimal("0")
+        if min_amount is not None and total < min_amount:
+            continue
+        if max_amount is not None and total > max_amount:
+            continue
+        bank_balance = Decimal("0")
+        if deposit_line and deposit_line.account_id:
+            bank_balance = (
+                JournalLine.objects.using(tenant_db)
+                .filter(account_id=deposit_line.account_id, entry__status=JournalEntry.Status.POSTED)
+                .aggregate(b=Sum("debit") - Sum("credit"))
+                .get("b")
+                or Decimal("0")
+            )
+            linked_bank = (
+                BankAccount.objects.using(tenant_db).filter(account_id=deposit_line.account_id).only("opening_balance").first()
+            )
+            bank_balance += (linked_bank.opening_balance if linked_bank else Decimal("0"))
 
         rows.append(
             {
@@ -2745,31 +4175,103 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
                 "donor": getattr(getattr(je.grant, "donor", None), "name", "") if je.grant else "",
                 "project": je.grant.title if je.grant else "",
                 "grant_code": je.grant.code if je.grant else "",
-                "user_reference": "",  # Reserved for future explicit reference field
+                "user_reference": je.source_document_no or "",
                 "bank_account": deposit_line.account if deposit_line else None,
                 "amount": total,
                 "status": je.get_status_display(),
+                "bank_balance": bank_balance,
+                "grant_income_total": grant_income_totals.get(getattr(je, "grant_id", None), Decimal("0")),
             }
         )
 
-    donors = (
+    total_amount = sum((r.get("amount") or Decimal("0")) for r in rows)
+
+    grants = (
         Grant.objects.using(tenant_db)
-        .select_related("donor")
-        .values_list("donor__name", flat=True)
-        .distinct()
-        .order_by("donor__name")
+        .filter(status=Grant.Status.ACTIVE)
+        .select_related("donor", "bank_account", "bank_account__currency", "bank_account__account")
+        .order_by("code")
     )
-    grants = Grant.objects.using(tenant_db).order_by("code")
+    grants = [g for g in grants if not (g.end_date and g.end_date < timezone.localdate())]
+    bank_accounts = _valid_bank_accounts_under_1200(tenant_db)
+    income_accounts = _income_posting_accounts_for_roots(tenant_db, ["4100"])
+    donors = Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
+
+    export_params = request.GET.copy()
+    if "format" in export_params:
+        export_params.pop("format")
+    export_qs = export_params.urlencode()
+    export_xlsx_url = f"{request.path}?{export_qs}&format=xlsx" if export_qs else f"{request.path}?format=xlsx"
+
+    if (request.GET.get("format") or "").strip().lower() == "xlsx":
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "DonorReceipts"
+        for hdr in _tenant_export_header_rows(request, tenant_db, "Grant funding receipts"):
+            ws.append(hdr)
+        ws.append(
+            [
+                "Voucher",
+                "Date",
+                "Donor",
+                "Project",
+                "Grant",
+                "Reference",
+                "Bank Account",
+                "Amount",
+                "Bank Balance",
+                "Grant Income",
+                "Status",
+            ]
+        )
+        for r in rows:
+            ws.append(
+                [
+                    r.get("reference"),
+                    r.get("date"),
+                    r.get("donor") or "—",
+                    r.get("project") or "—",
+                    r.get("grant_code") or "—",
+                    r.get("user_reference") or "—",
+                    (f"{r['bank_account'].code} — {r['bank_account'].name}" if r.get("bank_account") else "—"),
+                    r.get("amount") or Decimal("0"),
+                    r.get("bank_balance") or Decimal("0"),
+                    r.get("grant_income_total") or Decimal("0"),
+                    r.get("status") or "",
+                ]
+            )
+        ws.append([])
+        ws.append(["", "", "", "", "", "", "Total", total_amount, "", "", ""])
+        for cell in ws[5]:
+            cell.font = Font(bold=True)
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="donor_receipts.xlsx"'
+        wb.save(response)
+        return response
 
     return render(
         request,
         "tenant_portal/recv/donor_receipts.html",
         {
             "tenant": request.tenant,
-            "tenant_user": request.tenant_user,
+            "tenant_user": user,
             "rows": rows,
-            "donors": [d for d in donors if d],
+            "donors": donors,
             "grants": grants,
+            "bank_accounts": bank_accounts,
+            "income_accounts": income_accounts,
+            "status_choices": JournalEntry.Status.choices,
+            "total_amount": total_amount,
+            "export_xlsx_url": export_xlsx_url,
+            "can_create": can_create,
+            "can_post": can_post,
+            "can_reverse": can_reverse,
+            "create_mode": create_mode,
             "active_submenu": "receivables",
             "active_item": "recv_donor_receipts",
         },
@@ -2789,11 +4291,13 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
     from tenant_grants.models import Grant
 
     tenant_db = request.tenant_db
+    if (request.GET.get("mode") or "").strip().lower() == "create":
+        return redirect(reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=cashbook")
 
     qs = (
         JournalEntry.objects.using(tenant_db)
-        .filter(reference__startswith="RV-")
-        .select_related("grant", "grant__donor", "approved_by")
+        .filter(reference__startswith="RV-", status=JournalEntry.Status.POSTED)
+        .select_related("grant", "grant__donor", "grant__project", "posted_by")
     )
 
     # Must affect a bank/cash account (asset with debit)
@@ -2809,13 +4313,8 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
     ref_no = (request.GET.get("ref_no") or "").strip()
     raw_from = (request.GET.get("from") or "").strip()
     raw_to = (request.GET.get("to") or "").strip()
-    status_code = (request.GET.get("status") or "").strip()
-
-    # Default: show posted receipts
-    if status_code:
-        qs = qs.filter(status=status_code)
-    else:
-        qs = qs.filter(status=JournalEntry.Status.POSTED)
+    # Read-only register: always posted only.
+    status_code = JournalEntry.Status.POSTED
 
     if voucher_no:
         qs = qs.filter(reference__icontains=voucher_no)
@@ -2824,7 +4323,9 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
     if fund_name:
         qs = qs.filter(grant__donor__name__icontains=fund_name)
     if received_from:
-        qs = qs.filter(memo__icontains=received_from)
+        qs = qs.filter(Q(payee_name__icontains=received_from) | Q(memo__icontains=received_from))
+    if ref_no:
+        qs = qs.filter(source_document_no__icontains=ref_no)
 
     # Receipt method heuristic: based on bank/cash words in asset account name
     if receipt_method == "bank":
@@ -2878,17 +4379,17 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
         income_line = (
             JournalLine.objects.using(tenant_db)
             .select_related("account")
-            .filter(entry=je, account__type=ChartAccount.Type.INCOME, credit__gt=0)
+            .filter(
+                entry=je,
+                account__type=ChartAccount.Type.INCOME,
+                account__is_active=True,
+                account__children__isnull=True,
+                credit__gt=0,
+            )
             .first()
         )
 
-        total = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
+        total = (deposit_line.debit if deposit_line else Decimal("0")) or Decimal("0")
 
         if min_amount is not None and total < min_amount:
             continue
@@ -2901,20 +4402,104 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
                 "entry_date": je.entry_date,
                 "voucher": je.reference or f"RV-{je.id:05d}",
                 "receipt_date": je.entry_date,
-                "receipt_method": "Bank" if deposit_line and "bank" in deposit_line.account.name.lower() else "Cash",
+                "receipt_method": (je.payment_method or "").replace("_", " ").title()
+                or ("Bank" if deposit_line and "bank" in deposit_line.account.name.lower() else "Cash"),
                 "bank_account": deposit_line.account if deposit_line else None,
-                "received_from": je.memo or "",
-                "project": je.grant.title if je.grant else "",
+                "received_from": je.payee_name or je.memo or "",
+                "project": (
+                    je.grant.project.name
+                    if je.grant and getattr(je.grant, "project", None)
+                    else (je.grant.title if je.grant else "")
+                ),
                 "fund": getattr(getattr(je.grant, "donor", None), "name", "") if je.grant else "",
                 "income_account": income_line.account if income_line else None,
-                "reference_no": ref_no or "",
+                "reference_no": je.source_document_no or "",
                 "amount": total,
-                "status": je.get_status_display(),
-                "posted_by": getattr(je.approved_by, "full_name", "") or getattr(je.approved_by, "email", ""),
+                "status": JournalEntry.Status.POSTED.title(),
+                "posted_by": getattr(je.posted_by, "full_name", "") or getattr(je.posted_by, "email", ""),
             }
         )
 
-    status_choices = JournalEntry.Status.choices
+    total_amount = sum((r.get("amount") or Decimal("0")) for r in rows)
+
+    export_params = request.GET.copy()
+    if "format" in export_params:
+        export_params.pop("format")
+    export_qs = export_params.urlencode()
+    export_xlsx_url = f"{request.path}?{export_qs}&format=xlsx" if export_qs else f"{request.path}?format=xlsx"
+
+    if (request.GET.get("format") or "").strip().lower() == "xlsx":
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "BankCashReceipts"
+
+        for hdr in _tenant_export_header_rows(request, tenant_db, "Cashbook receipts"):
+            ws.append(hdr)
+        ws.append(
+            [
+                "Entry Date",
+                "Voucher No.",
+                "Receipt Date",
+                "Receipt Method",
+                "Bank / Cash Account",
+                "Received From",
+                "Project",
+                "Fund / Donor",
+                "Income Account",
+                "Reference No.",
+                "Amount",
+                "Status",
+                "Posted By",
+            ]
+        )
+        for r in rows:
+            ws.append(
+                [
+                    r.get("entry_date"),
+                    r.get("voucher"),
+                    r.get("receipt_date"),
+                    r.get("receipt_method"),
+                    f"{r['bank_account'].code} — {r['bank_account'].name}" if r.get("bank_account") else "—",
+                    r.get("received_from") or "—",
+                    r.get("project") or "—",
+                    r.get("fund") or "—",
+                    f"{r['income_account'].code} — {r['income_account'].name}" if r.get("income_account") else "—",
+                    r.get("reference_no") or "—",
+                    r.get("amount") or Decimal("0"),
+                    r.get("status") or "",
+                    r.get("posted_by") or "—",
+                ]
+            )
+
+        ws.append([])
+        ws.append(["", "", "", "", "", "", "", "", "", "Total", total_amount, "", ""])
+
+        for c in ("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "L", "M"):
+            ws.column_dimensions[c].width = 20
+        ws.column_dimensions["K"].width = 16
+
+        header_font = Font(bold=True)
+        for cell in ws[5]:
+            cell.font = header_font
+        for row_idx in range(6, 6 + len(rows)):
+            ws[f"K{row_idx}"].number_format = "#,##0.00"
+            ws[f"K{row_idx}"].alignment = Alignment(horizontal="right")
+        total_row_idx = 7 + len(rows)
+        ws[f"K{total_row_idx}"].number_format = "#,##0.00"
+        ws[f"K{total_row_idx}"].font = Font(bold=True)
+        ws[f"J{total_row_idx}"].font = Font(bold=True)
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="bank_cash_receipt_entries.xlsx"'
+        wb.save(response)
+        return response
+
+    status_choices = [(JournalEntry.Status.POSTED, "Posted")]
 
     return render(
         request,
@@ -2923,6 +4508,8 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
+            "total_amount": total_amount,
+            "export_xlsx_url": export_xlsx_url,
             "status_choices": status_choices,
             "active_submenu": "receivables",
             "active_item": "recv_bank_cash_receipts",
@@ -2933,40 +4520,34 @@ def recv_bank_cash_receipts_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def recv_income_register_view(request: HttpRequest) -> HttpResponse:
     """
-    Income Register: list posted income transactions from receipt vouchers.
+    Income register (read-only): all posted receipt vouchers in chronological order.
+
+    Includes grant funding (credit may be receivable), other income, and cashbook receipts.
+    Draft receipts never appear. Voucher numbers are system-generated (RV-…); amounts and
+    accounts come from posted journal lines.
     """
     from decimal import Decimal
-    from django.db.models import Sum, Q
-    from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
+    from django.db.models import Q
+    from django.utils.dateparse import parse_date
+    from django.utils.translation import gettext_lazy as _
+
+    from tenant_finance.models import ChartAccount, JournalLine
+    from tenant_finance.services.income_register import infer_receipt_stream_key, posted_receipt_voucher_headers
 
     tenant_db = request.tenant_db
 
-    qs = (
-        JournalEntry.objects.using(tenant_db)
-        .filter(reference__startswith="RV-")
-        .select_related("grant", "grant__donor")
-    )
-    # Must have at least one income line
-    qs = qs.filter(lines__account__type=ChartAccount.Type.INCOME, lines__credit__gt=0).distinct()
+    qs = posted_receipt_voucher_headers(tenant_db)
 
-    # Filters
     voucher_no = (request.GET.get("ref") or "").strip()
-    income_account = (request.GET.get("income") or "").strip()
+    credit_account_q = (request.GET.get("income") or "").strip()
     received_from = (request.GET.get("received_from") or "").strip()
     project_title = (request.GET.get("project") or "").strip()
     donor_name = (request.GET.get("donor") or "").strip()
     bank_acc = (request.GET.get("bank") or "").strip()
     raw_from = (request.GET.get("from") or "").strip()
     raw_to = (request.GET.get("to") or "").strip()
-    status_code = (request.GET.get("status") or "").strip()
-
-    # Default: show posted
-    if status_code:
-        qs = qs.filter(status=status_code)
-    else:
-        qs = qs.filter(status=JournalEntry.Status.POSTED)
+    source_filter = (request.GET.get("source") or "").strip().lower()
 
     if voucher_no:
         qs = qs.filter(reference__icontains=voucher_no)
@@ -2975,7 +4556,9 @@ def recv_income_register_view(request: HttpRequest) -> HttpResponse:
     if donor_name:
         qs = qs.filter(grant__donor__name__icontains=donor_name)
     if received_from:
-        qs = qs.filter(memo__icontains=received_from)
+        qs = qs.filter(
+            Q(memo__icontains=received_from) | Q(payee_name__icontains=received_from)
+        )
 
     from_date = parse_date(raw_from) if raw_from else None
     to_date = parse_date(raw_to) if raw_to else None
@@ -2984,21 +4567,20 @@ def recv_income_register_view(request: HttpRequest) -> HttpResponse:
     if to_date:
         qs = qs.filter(entry_date__lte=to_date)
 
-    # Income account filter
-    if income_account:
-        income_q = Q(lines__account__name__icontains=income_account) | Q(
-            lines__account__code__icontains=income_account
+    if credit_account_q:
+        qs = qs.filter(
+            Q(lines__account__name__icontains=credit_account_q)
+            | Q(lines__account__code__icontains=credit_account_q),
+            lines__credit__gt=0,
         )
-        qs = qs.filter(income_q, lines__account__type=ChartAccount.Type.INCOME)
 
-    # Bank / cash filter via asset line
     if bank_acc:
         qs = qs.filter(
             lines__account__type=ChartAccount.Type.ASSET,
+            lines__debit__gt=0,
             lines__account__name__icontains=bank_acc,
         )
 
-    # Amount range – after computing totals
     raw_min = (request.GET.get("amount_from") or "").strip()
     raw_max = (request.GET.get("amount_to") or "").strip()
     try:
@@ -3010,51 +4592,85 @@ def recv_income_register_view(request: HttpRequest) -> HttpResponse:
     except Exception:
         max_amount = None
 
-    qs = qs.order_by("-entry_date", "-id")[:500]
+    qs = qs.order_by("entry_date", "id")
+
+    stream_labels = {
+        "grant_funding": _("Grant funding receipts"),
+        "other_income": _("Other income receipts"),
+        "cashbook": _("Cashbook income receipts"),
+    }
+    source_choices = (
+        ("", _("All sources")),
+        ("grant_funding", stream_labels["grant_funding"]),
+        ("other_income", stream_labels["other_income"]),
+        ("cashbook", stream_labels["cashbook"]),
+    )
 
     rows = []
     for je in qs:
-        # Deposit line (bank/cash)
         deposit_line = (
             JournalLine.objects.using(tenant_db)
             .select_related("account")
             .filter(entry=je, account__type=ChartAccount.Type.ASSET, debit__gt=0)
+            .order_by("id")
             .first()
         )
-        # Income line
-        income_line = (
+        credit_line = (
             JournalLine.objects.using(tenant_db)
             .select_related("account")
-            .filter(entry=je, account__type=ChartAccount.Type.INCOME, credit__gt=0)
+            .filter(entry=je, credit__gt=0)
+            .order_by("id")
             .first()
         )
+        if not deposit_line or not credit_line:
+            continue
 
-        amount = income_line.credit if income_line else Decimal("0")
+        amount = deposit_line.debit or Decimal("0")
+        if amount <= 0:
+            continue
         if min_amount is not None and amount < min_amount:
             continue
         if max_amount is not None and amount > max_amount:
             continue
+
+        stream_key = infer_receipt_stream_key(je)
+        if source_filter and stream_key != source_filter:
+            continue
+
+        rm = (je.payment_method or "").strip().lower()
+        if rm == "cash":
+            receipt_method_label = "Cash"
+        elif rm in {"bank", "transfer", "cheque", "mobile_money"}:
+            receipt_method_label = rm.replace("_", " ").title()
+        else:
+            receipt_method_label = (je.payment_method or "—").strip() or "—"
+
+        project_label = ""
+        if je.grant:
+            project_label = (je.grant.project.name if getattr(je.grant, "project_id", None) else "") or (
+                je.grant.title or ""
+            )
+
+        ref_doc = (je.source_document_no or "").strip() or (je.reference or "")
 
         rows.append(
             {
                 "id": je.id,
                 "reference": je.reference or f"RV-{je.id:05d}",
                 "date": je.entry_date,
-                "income_account": income_line.account if income_line else None,
-                "received_from": je.memo or "",
-                "project": je.grant.title if je.grant else "",
+                "credit_account": credit_line.account,
+                "received_from": (je.payee_name or "").strip() or (je.memo or ""),
+                "project": project_label,
                 "fund": getattr(getattr(je.grant, "donor", None), "name", "") if je.grant else "",
-                "receipt_method": "Bank"
-                if deposit_line and "bank" in deposit_line.account.name.lower()
-                else "Cash",
-                "bank_account": deposit_line.account if deposit_line else None,
-                "reference_no": "",
+                "receipt_method": receipt_method_label,
+                "bank_account": deposit_line.account,
+                "reference_no": ref_doc,
                 "amount": amount,
-                "status": je.get_status_display(),
+                "amount_fmt": f"{amount:,.2f}",
+                "source_key": stream_key,
+                "source_label": stream_labels.get(stream_key, stream_labels["other_income"]),
             }
         )
-
-    status_choices = JournalEntry.Status.choices
 
     return render(
         request,
@@ -3063,7 +4679,7 @@ def recv_income_register_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
-            "status_choices": status_choices,
+            "source_choices": source_choices,
             "active_submenu": "receivables",
             "active_item": "recv_income_register",
         },
@@ -3073,99 +4689,85 @@ def recv_income_register_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def recv_incoming_fund_register_view(request: HttpRequest) -> HttpResponse:
     """
-    Incoming Fund Register: summary per grant/donor of funding vs receipts.
+    Receivables register: summary per grant of ceiling vs eligible receivable vs posted receipts.
+
+    Totals and dates are read-only, computed from posted receipt vouchers (draft excluded);
+    remaining claimable = effective eligible (modality/tranches) minus received (not below zero).
+    Register status Active while remaining claimable > 0.
     """
     from decimal import Decimal
-    from django.db.models import Sum, Min, Max
-    from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
+    from django.utils.translation import gettext_lazy as _
+
+    from tenant_finance.services.receivables_register import (
+        grant_receipt_totals_by_grant_id,
+        remaining_claimable_receivable,
+    )
     from tenant_grants.models import Grant
+    from tenant_grants.services.receivable_modality import effective_eligible_for_claimable
 
     tenant_db = request.tenant_db
 
     donor_name = (request.GET.get("donor") or "").strip()
     project_title = (request.GET.get("project") or "").strip()
     grant_code = (request.GET.get("grant") or "").strip()
-    raw_from = (request.GET.get("from") or "").strip()
-    raw_to = (request.GET.get("to") or "").strip()
-    status_filter = (request.GET.get("status") or "").strip()
+    status_filter = (request.GET.get("status") or "").strip().lower()
 
-    grants_qs = Grant.objects.using(tenant_db).select_related("donor")
+    grants_qs = Grant.objects.using(tenant_db).select_related("donor", "project").prefetch_related("tranches")
     if donor_name:
         grants_qs = grants_qs.filter(donor__name__icontains=donor_name)
     if project_title:
         grants_qs = grants_qs.filter(title__icontains=project_title)
     if grant_code:
         grants_qs = grants_qs.filter(code__icontains=grant_code)
-    if status_filter:
-        grants_qs = grants_qs.filter(status=status_filter)
 
     grants_qs = grants_qs.order_by("code")
 
-    from_date = parse_date(raw_from) if raw_from else None
-    to_date = parse_date(raw_to) if raw_to else None
-
-    # Collect receipt vouchers by grant
-    receipts_qs = (
-        JournalEntry.objects.using(tenant_db)
-        .filter(reference__startswith="RV-", grant__isnull=False)
-        .select_related("grant")
-    )
-    if from_date:
-        receipts_qs = receipts_qs.filter(entry_date__gte=from_date)
-    if to_date:
-        receipts_qs = receipts_qs.filter(entry_date__lte=to_date)
-
-    # Only income lines
-    receipts_qs = receipts_qs.filter(
-        lines__account__type=ChartAccount.Type.INCOME, lines__credit__gt=0
-    ).distinct()
-
-    stats = {}
-    for je in receipts_qs:
-        grant_id = je.grant_id
-        if not grant_id:
-            continue
-
-        amount = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je, account__type=ChartAccount.Type.INCOME, credit__gt=0)
-            .aggregate(t=Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
-
-        s = stats.setdefault(
-            grant_id,
-            {"total_received": Decimal("0"), "first": None, "latest": None},
-        )
-        s["total_received"] += amount
-        if s["first"] is None or je.entry_date < s["first"]:
-            s["first"] = je.entry_date
-        if s["latest"] is None or je.entry_date > s["latest"]:
-            s["latest"] = je.entry_date
+    stats = grant_receipt_totals_by_grant_id(tenant_db)
 
     rows = []
     for g in grants_qs:
-        s = stats.get(g.id, None)
+        s = stats.get(g.id)
         total_received = s["total_received"] if s else Decimal("0")
-        remaining = (g.award_amount or Decimal("0")) - total_received
+        ceiling = g.grant_ceiling if g.grant_ceiling is not None else Decimal("0")
+        if ceiling <= 0 and (g.award_amount or Decimal("0")) > 0:
+            ceiling = g.award_amount or Decimal("0")
+        eligible = effective_eligible_for_claimable(g)
+        unused = g.unused_grant_balance
+        remaining = remaining_claimable_receivable(eligible, total_received)
+        register_status = "active" if remaining > 0 else "closed"
         rows.append(
             {
                 "donor": g.donor.name,
-                "project": g.title,
+                "project": (g.project.name if g.project else g.title),
                 "grant_code": g.code,
-                "total_grant": g.award_amount,
+                "grant_ceiling": ceiling,
+                "eligible_receivable": eligible,
+                "unused_grant_balance": unused,
                 "total_received": total_received,
-                "remaining": remaining,
-                "first_date": s["first"] if s else None,
-                "latest_date": s["latest"] if s else None,
-                "status": g.get_status_display(),
+                "remaining_claimable": remaining,
+                "first_date": s["first_receipt_date"] if s else None,
+                "latest_date": s["latest_receipt_date"] if s else None,
+                "register_status": register_status,
             }
         )
 
-    status_choices = Grant.Status.choices
+    if status_filter == "active":
+        rows = [r for r in rows if r["register_status"] == "active"]
+    elif status_filter == "closed":
+        rows = [r for r in rows if r["register_status"] == "closed"]
+
+    sum_ceiling = sum((r["grant_ceiling"] for r in rows), Decimal("0"))
+    sum_eligible = sum((r["eligible_receivable"] for r in rows), Decimal("0"))
+    sum_unused = sum((r["unused_grant_balance"] for r in rows), Decimal("0"))
+    sum_received = sum((r["total_received"] for r in rows), Decimal("0"))
+    sum_remaining_claimable = sum((r["remaining_claimable"] for r in rows), Decimal("0"))
+
+    register_status_choices = (
+        ("", _("All")),
+        ("active", _("Active")),
+        ("closed", _("Closed")),
+    )
 
     return render(
         request,
@@ -3174,7 +4776,12 @@ def recv_incoming_fund_register_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
-            "status_choices": status_choices,
+            "register_status_choices": register_status_choices,
+            "sum_grant_ceiling": sum_ceiling,
+            "sum_eligible_receivable": sum_eligible,
+            "sum_unused_grant_balance": sum_unused,
+            "sum_total_received": sum_received,
+            "sum_remaining_claimable": sum_remaining_claimable,
             "active_submenu": "receivables",
             "active_item": "recv_incoming_fund_register",
         },
@@ -3184,14 +4791,20 @@ def recv_incoming_fund_register_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def recv_grant_income_tracking_view(request: HttpRequest) -> HttpResponse:
     """
-    Grant Income Tracker: detailed grant/tranche receipt tracking.
+    Grant income tracking report-only:
+    - Grant ceiling and eligible receivable from grant setup.
+    - Received amount from posted receipt vouchers linked to grant (+ tranche tag).
+    - Remaining claimable = effective eligible (modality/tranches) minus received (not below zero).
     """
     from decimal import Decimal
+    import re
+
     from django.db.models import Sum
     from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
+    from tenant_finance.models import JournalEntry, JournalLine
     from tenant_grants.models import Grant
+    from tenant_grants.services.receivable_modality import effective_eligible_for_claimable
 
     tenant_db = request.tenant_db
 
@@ -3201,12 +4814,11 @@ def recv_grant_income_tracking_view(request: HttpRequest) -> HttpResponse:
     voucher_no = (request.GET.get("ref") or "").strip()
     raw_from = (request.GET.get("from") or "").strip()
     raw_to = (request.GET.get("to") or "").strip()
-    status_code = (request.GET.get("status") or "").strip()
-
     qs = (
         JournalEntry.objects.using(tenant_db)
         .filter(reference__startswith="RV-", grant__isnull=False)
-        .select_related("grant", "grant__donor")
+        .select_related("grant", "grant__donor", "grant__project")
+        .prefetch_related("grant__tranches")
     )
 
     if voucher_no:
@@ -3225,66 +4837,61 @@ def recv_grant_income_tracking_view(request: HttpRequest) -> HttpResponse:
     if to_date:
         qs = qs.filter(entry_date__lte=to_date)
 
-    # Default status: posted
-    if status_code:
-        qs = qs.filter(status=status_code)
-    else:
-        qs = qs.filter(status=JournalEntry.Status.POSTED)
+    # Report-only: posted vouchers only.
+    qs = qs.filter(status=JournalEntry.Status.POSTED)
 
     qs = qs.order_by("grant__code", "entry_date", "id")
 
-    # Precompute cumulative receipts per grant for balance remaining
-    grant_totals = {}
-    rows = []
+    def _extract_tranche(entry) -> str:
+        src = (entry.source_document_no or "") + " " + (entry.memo or "")
+        m = re.search(r"tranche\s*[:#-]?\s*([A-Za-z0-9_.-]+)", src, re.IGNORECASE)
+        return m.group(1) if m else "All"
 
+    rows_map: dict[tuple[int, str], dict] = {}
     for je in qs:
         grant = je.grant
         if not grant:
             continue
-
         amount = (
             JournalLine.objects.using(tenant_db)
-            .filter(entry=je, account__type=ChartAccount.Type.INCOME, credit__gt=0)
-            .aggregate(t=Sum("credit"))
+            .filter(entry=je, account__type="asset", debit__gt=0)
+            .aggregate(t=Sum("debit"))
             .get("t")
             or Decimal("0")
         )
-
-        g_stats = grant_totals.setdefault(
-            grant.id,
-            {"award": grant.award_amount or Decimal("0"), "received_so_far": Decimal("0"), "count": 0},
-        )
-        g_stats["count"] += 1
-        tranche_no = g_stats["count"]
-        g_stats["received_so_far"] += amount
-        balance_remaining = g_stats["award"] - g_stats["received_so_far"]
-
-        # Deposit account
-        deposit_line = (
-            JournalLine.objects.using(tenant_db)
-            .select_related("account")
-            .filter(entry=je, account__type=ChartAccount.Type.ASSET, debit__gt=0)
-            .first()
-        )
-
-        rows.append(
-            {
-                "donor": grant.donor.name,
-                "project": grant.title,
+        tranche_no = _extract_tranche(je)
+        key = (grant.id, tranche_no)
+        row = rows_map.get(key)
+        if not row:
+            ceiling = grant.grant_ceiling if grant.grant_ceiling is not None else Decimal("0")
+            if ceiling <= 0 and (grant.award_amount or Decimal("0")) > 0:
+                ceiling = grant.award_amount or Decimal("0")
+            eligible = effective_eligible_for_claimable(grant)
+            row = {
+                "donor": getattr(grant.donor, "name", "—"),
+                "project": getattr(getattr(grant, "project", None), "name", "") or grant.title,
                 "grant_code": grant.code,
                 "tranche_no": tranche_no,
-                "planned_amount": amount,  # placeholder until explicit plan is modeled
-                "received_amount": amount,
-                "receipt_date": je.entry_date,
-                "voucher": je.reference or f"RV-{je.id:05d}",
-                "bank_account": deposit_line.account if deposit_line else None,
-                "reference_no": "",
-                "balance_remaining": balance_remaining,
-                "status": je.get_status_display(),
+                "planned_amount": ceiling,
+                "eligible_amount": eligible,
+                "received_amount": Decimal("0"),
+                "balance_remaining": Decimal("0"),
+                "voucher_count": 0,
+                "latest_receipt_date": None,
             }
-        )
+            rows_map[key] = row
+        row["received_amount"] += amount
+        row["voucher_count"] += 1
+        if not row["latest_receipt_date"] or (je.entry_date and je.entry_date > row["latest_receipt_date"]):
+            row["latest_receipt_date"] = je.entry_date
 
-    status_choices = JournalEntry.Status.choices
+    rows = []
+    for row in rows_map.values():
+        elig = row.get("eligible_amount") or Decimal("0")
+        recd = row["received_amount"] or Decimal("0")
+        row["balance_remaining"] = max(elig - recd, Decimal("0"))
+        rows.append(row)
+    rows.sort(key=lambda r: (r["grant_code"], str(r["tranche_no"])))
 
     return render(
         request,
@@ -3293,21 +4900,10 @@ def recv_grant_income_tracking_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
-            "status_choices": status_choices,
             "active_submenu": "receivables",
             "active_item": "recv_grant_income_tracking",
         },
     )
-
-
-def _receivable_accounts_q():
-    """Q filter for receivable accounts: ASSET with 'receivable' in name or code."""
-    from django.db.models import Q
-    from tenant_finance.models import ChartAccount
-    q = Q(type=ChartAccount.Type.ASSET) & (
-        Q(name__icontains="receivable") | Q(code__icontains="receivable")
-    )
-    return q
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -3321,10 +4917,10 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
     from django.utils.dateparse import parse_date
 
     from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
-    from tenant_grants.models import Grant
+    from tenant_finance.receivable_accounts import receivable_accounts_q
 
     tenant_db = request.tenant_db
-    receivable_q = _receivable_accounts_q()
+    receivable_q = receivable_accounts_q()
     receivable_ids = list(
         ChartAccount.objects.using(tenant_db).filter(receivable_q).values_list("id", flat=True)
     )
@@ -3336,7 +4932,7 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
                 "tenant": request.tenant,
                 "tenant_user": request.tenant_user,
                 "rows": [],
-                "status_choices": JournalEntry.Status.choices,
+                "status_choices": [("open", "Open"), ("overdue", "Overdue"), ("settled", "Settled")],
                 "active_submenu": "receivables",
                 "active_item": "recv_ledger",
             },
@@ -3348,10 +4944,8 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
         .select_related("entry", "account")
         .order_by("entry__entry_date", "entry__id", "id")
     )
-    # Optional: only posted
-    status_code = (request.GET.get("status") or "").strip()
-    if status_code:
-        qs = qs.filter(entry__status=status_code)
+    # Read-only ledger view: show only posted movements.
+    qs = qs.filter(entry__status=JournalEntry.Status.POSTED)
 
     ref = (request.GET.get("ref") or "").strip()
     if ref:
@@ -3395,9 +4989,32 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
     balance_max = request.GET.get("balance_to")
 
     lines = list(qs)
+    entry_ids = {ln.entry_id for ln in lines}
+    income_by_entry = {}
+    if entry_ids:
+        income_qs = (
+            JournalLine.objects.using(tenant_db)
+            .select_related("account")
+            .filter(
+                entry_id__in=entry_ids,
+                entry__status=JournalEntry.Status.POSTED,
+                account__type=ChartAccount.Type.INCOME,
+                account__is_active=True,
+                account__children__isnull=True,
+                credit__gt=0,
+            )
+            .order_by("entry_id", "id")
+        )
+        for inc in income_qs:
+            income_by_entry.setdefault(inc.entry_id, inc.account)
+
     # Running balance per account
+    from django.utils import timezone
+
     balance_by_account = {}
     rows = []
+    today = timezone.localdate()
+    status_filter = (request.GET.get("status") or "").strip().lower()
     for line in lines:
         acc_id = line.account_id
         prev = balance_by_account.get(acc_id, Decimal("0"))
@@ -3412,12 +5029,32 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
                 debtor_name = g.donor.name
         if not debtor_name and entry.memo:
             debtor_name = entry.memo
+        if not debtor_name:
+            # Debtor is mandatory for receivable tracking rows.
+            continue
         recv_type_label = "Collection" if (line.credit or 0) > 0 else "Invoice"
         project_title = entry.grant.title if entry.grant_id and getattr(entry, "grant", None) else ""
         fund_donor = ""
         if entry.grant_id and getattr(entry, "grant", None) and getattr(entry.grant, "donor", None):
             fund_donor = entry.grant.donor.name
-        due_date = getattr(entry, "due_date", None) or entry.entry_date
+        if not project_title and not fund_donor:
+            fund_donor = "General fund"
+
+        due_date = getattr(entry, "due_date", None)
+        if (line.debit or Decimal("0")) > 0 and due_date is None:
+            # Due date required for receivable creation movements.
+            continue
+        due_date = due_date or entry.entry_date
+
+        if bal <= 0:
+            ledger_status = "Settled"
+        elif due_date > today:
+            ledger_status = "Open"
+        else:
+            ledger_status = "Overdue"
+
+        if status_filter and status_filter != ledger_status.lower():
+            continue
 
         row = {
             "entry_date": entry.entry_date,
@@ -3427,11 +5064,16 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
             "description": line.description or entry.memo or "",
             "project": project_title,
             "fund_donor": fund_donor,
+            "income_account": income_by_entry.get(entry.id),
+            "receivable_account": line.account,
             "debit_amount": line.debit or Decimal("0"),
             "credit_amount": line.credit or Decimal("0"),
             "balance": bal,
+            "debit_fmt": f"{(line.debit or Decimal('0')):,.2f}",
+            "credit_fmt": f"{(line.credit or Decimal('0')):,.2f}",
+            "balance_fmt": f"{bal:,.2f}",
             "due_date": due_date,
-            "status": entry.get_status_display(),
+            "status": ledger_status,
             "reference_no": entry.reference or "",
             "entry_id": entry.id,
         }
@@ -3457,7 +5099,7 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
-            "status_choices": JournalEntry.Status.choices,
+            "status_choices": [("open", "Open"), ("overdue", "Overdue"), ("settled", "Settled")],
             "transaction_url_name": transaction_url_name,
             "active_submenu": "receivables",
             "active_item": "recv_ledger",
@@ -3468,176 +5110,14 @@ def recv_receivable_ledger_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def recv_outstanding_receivables_view(request: HttpRequest) -> HttpResponse:
     """
-    Outstanding Receivables: only receivables with unpaid (positive) balance,
-    grouped by account and grant. Links to original transaction.
+    Outstanding receivables from posted GL lines on receivable accounts (FIFO per account).
+    Grant-linked balances are capped at remaining claimable (eligible receivable minus posted receipts).
+    Non-grant receivables are uncapped. Summary = sum of visible row balances.
     """
-    from collections import defaultdict
-    from decimal import Decimal
-    from django.db.models import Sum
-    from django.utils import timezone
-    from django.utils.dateparse import parse_date
-
-    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
-    from tenant_grants.models import Grant
+    from tenant_finance.services.outstanding_receivables import compute_outstanding_receivable_rows
 
     tenant_db = request.tenant_db
-    receivable_q = _receivable_accounts_q()
-    receivable_accounts = list(
-        ChartAccount.objects.using(tenant_db).filter(receivable_q).values_list("id", "code", "name")
-    )
-    if not receivable_accounts:
-        return render(
-            request,
-            "tenant_portal/recv/outstanding_receivables.html",
-            {
-                "tenant": request.tenant,
-                "tenant_user": request.tenant_user,
-                "rows": [],
-                "status_choices": JournalEntry.Status.choices,
-                "active_submenu": "receivables",
-                "active_item": "recv_outstanding",
-            },
-        )
-
-    recv_ids = [a[0] for a in receivable_accounts]
-    qs = (
-        JournalLine.objects.using(tenant_db)
-        .filter(account_id__in=recv_ids)
-        .values("entry_id", "account_id")
-        .annotate(
-            total_debit=Sum("debit"),
-            total_credit=Sum("credit"),
-        )
-    )
-    entry_ids = set()
-    for row in qs:
-        entry_ids.add(row["entry_id"])
-    entries = {
-        e.id: e
-        for e in JournalEntry.objects.using(tenant_db)
-        .filter(id__in=entry_ids)
-        .select_related("grant")
-    }
-    # Group by (account_id, grant_id) for outstanding balance
-    group = defaultdict(
-        lambda: {
-            "original": Decimal("0"),
-            "collected": Decimal("0"),
-            "first_ref": None,
-            "first_entry_id": None,
-            "due_date": None,
-            "debtor_name": "",
-            "description": "",
-            "project": "",
-            "fund_donor": "",
-            "status": "",
-        }
-    )
-    for row in qs:
-        entry = entries.get(row["entry_id"])
-        if not entry:
-            continue
-        key = (row["account_id"], entry.grant_id or 0)
-        g = group[key]
-        d = row["total_debit"] or Decimal("0")
-        c = row["total_credit"] or Decimal("0")
-        g["original"] += d
-        g["collected"] += c
-        if g["first_ref"] is None:
-            ref = entry.reference or f"AR-{entry.id:05d}"
-            g["first_ref"] = ref
-            g["first_entry_id"] = entry.id
-            g["due_date"] = getattr(entry, "due_date", None) or entry.entry_date
-            g["debtor_name"] = ""
-            if entry.grant and getattr(entry.grant, "donor", None):
-                g["debtor_name"] = entry.grant.donor.name
-            if not g["debtor_name"] and entry.memo:
-                g["debtor_name"] = entry.memo
-            g["description"] = entry.memo or ""
-            g["project"] = entry.grant.title if entry.grant else ""
-            g["fund_donor"] = entry.grant.donor.name if entry.grant and getattr(entry.grant, "donor", None) else ""
-            g["status"] = entry.get_status_display()
-
-    today = timezone.now().date()
-    rows = []
-    for (acc_id, grant_id), g in group.items():
-        balance = g["original"] - g["collected"]
-        if balance <= 0:
-            continue
-        due = g["due_date"] or today
-        try:
-            days_out = (today - due).days
-        except Exception:
-            days_out = 0
-
-        # Filters
-        debtor_filter = (request.GET.get("debtor") or "").strip()
-        if debtor_filter and debtor_filter.lower() not in (g["debtor_name"] or "").lower():
-            continue
-        type_filter = (request.GET.get("type") or "").strip().lower()
-        project_filter = (request.GET.get("project") or "").strip()
-        if project_filter and project_filter.lower() not in (g["project"] or "").lower():
-            continue
-        donor_filter = (request.GET.get("donor") or "").strip()
-        if donor_filter and donor_filter.lower() not in (g["fund_donor"] or "").lower():
-            continue
-        raw_due_from = (request.GET.get("due_from") or "").strip()
-        raw_due_to = (request.GET.get("due_to") or "").strip()
-        due_from = parse_date(raw_due_from) if raw_due_from else None
-        due_to = parse_date(raw_due_to) if raw_due_to else None
-        if due_from and due < due_from:
-            continue
-        if due_to and due > due_to:
-            continue
-        days_from = request.GET.get("days_from")
-        days_to = request.GET.get("days_to")
-        if days_from is not None and days_from != "":
-            try:
-                if days_out < int(days_from):
-                    continue
-            except ValueError:
-                pass
-        if days_to is not None and days_to != "":
-            try:
-                if days_out > int(days_to):
-                    continue
-            except ValueError:
-                pass
-        bal_from = request.GET.get("balance_from")
-        bal_to = request.GET.get("balance_to")
-        if bal_from is not None and bal_from != "":
-            try:
-                if balance < Decimal(str(bal_from).replace(",", "")):
-                    continue
-            except Exception:
-                pass
-        if bal_to is not None and bal_to != "":
-            try:
-                if balance > Decimal(str(bal_to).replace(",", "")):
-                    continue
-            except Exception:
-                pass
-        status_filter = (request.GET.get("status") or "").strip()
-        if status_filter and g["status"] != status_filter:
-            continue
-
-        rows.append({
-            "receivable_no": g["first_ref"],
-            "entry_id": g["first_entry_id"],
-            "debtor_name": g["debtor_name"],
-            "receivable_type": "Receivable",
-            "description": g["description"],
-            "project": g["project"],
-            "fund_donor": g["fund_donor"],
-            "original_amount": g["original"],
-            "amount_collected": g["collected"],
-            "outstanding_balance": balance,
-            "due_date": due,
-            "days_outstanding": days_out,
-            "status": g["status"],
-        })
-
-    rows.sort(key=lambda r: (r["due_date"], r["receivable_no"]))
+    rows, total_outstanding_amount = compute_outstanding_receivable_rows(tenant_db, request.GET)
     transaction_url_name = "tenant_portal:recv_receipt_vouchers"
     return render(
         request,
@@ -3646,7 +5126,8 @@ def recv_outstanding_receivables_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "rows": rows,
-            "status_choices": JournalEntry.Status.choices,
+            "status_choices": [("open", "Open"), ("overdue", "Overdue")],
+            "total_outstanding_amount": total_outstanding_amount,
             "transaction_url_name": transaction_url_name,
             "active_submenu": "receivables",
             "active_item": "recv_outstanding",
@@ -3793,11 +5274,11 @@ def finance_accounts_view(request: HttpRequest) -> HttpResponse:
             if account_id:
                 acc = ChartAccount.objects.using(tenant_db).filter(pk=account_id).first()
                 if acc:
-                    if acc.is_used(using=tenant_db):
+                    blockers = acc.deletion_blockers(using=tenant_db)
+                    if blockers:
                         messages.error(
                             request,
-                            "This account is used in transactions or setup and cannot be deleted. "
-                            "Use Disable to deactivate it instead.",
+                            "Account cannot be deleted. " + " ".join(blockers) + " Use inactive status only.",
                         )
                     else:
                         acc.delete(using=tenant_db)
@@ -4805,6 +6286,21 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
             elif action == "post":
                 if entry.status != JournalEntry.Status.APPROVED:
                     raise ValueError("Only approved journals can be posted.")
+                # Grant receipt vouchers: cap by ceiling and funding-modality eligible
+                if entry.grant_id:
+                    st = (entry.source_type or "").strip()
+                    jt = (entry.journal_type or "").strip().lower()
+                    if st == JournalEntry.SourceType.RECEIPT_VOUCHER or jt == "receipt_voucher":
+                        from tenant_grants.services.receipt_grant_validation import (
+                            assert_grant_receipt_posting_allowed,
+                            get_receipt_voucher_credit_amount,
+                        )
+
+                        _g = Grant.objects.using(tenant_db).prefetch_related("tranches").get(pk=entry.grant_id)
+                        _ramt = get_receipt_voucher_credit_amount(entry)
+                        assert_grant_receipt_posting_allowed(
+                            using=tenant_db, grant=_g, receipt_amount=_ramt
+                        )
                 # Backdated posting control (date before today)
                 from django.utils import timezone as _tz
 
@@ -5629,11 +7125,11 @@ def finance_account_categories_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
-    import csv
     from decimal import Decimal
 
     from django.contrib import messages
     from django.db.models import Q
+    from django.utils import timezone as dj_tz
 
     from tenant_finance.models import BankAccount, ChartAccount, JournalEntry, OrganizationSettings
     from tenant_finance.services.financial_reporting import (
@@ -5660,17 +7156,25 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
         .filter(
             gl_date__gte=f["period_start"],
             gl_date__lte=f["period_end"],
+            entry__is_system_generated=True,
         )
         .select_related(
             "account",
             "grant",
             "grant__project",
             "grant__donor",
+            "project_budget_line",
+            "project_budget_line__project_budget",
+            "project_budget_line__project_budget__project",
+            "workplan_activity",
             "entry",
             "entry__grant",
             "entry__grant__project",
             "entry__grant__donor",
             "entry__donor",
+            "entry__currency",
+            "entry__created_by",
+            "entry__approved_by",
             "entry__posted_by",
         )
         .order_by("account__code", "gl_date", "entry_id", "id")
@@ -5760,11 +7264,57 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             return g.donor.name
         return "—"
 
+    def _activity_label(ln):
+        wa = getattr(ln, "workplan_activity", None)
+        if wa:
+            code = (getattr(wa, "activity_code", "") or "").strip()
+            name = (getattr(wa, "activity", "") or "").strip()
+            if code and name:
+                return f"{code} — {name}"
+            return code or name or "—"
+        return "—"
+
+    def _budget_line_label(ln, ent, eg_id, acc_id):
+        pbl = getattr(ln, "project_budget_line", None)
+        if pbl:
+            category = (getattr(pbl, "category", "") or "").strip()
+            desc = (getattr(pbl, "description", "") or "").strip()
+            if category and desc:
+                return f"{category} — {desc}"
+            return category or desc or "—"
+        bkey = (eg_id, acc_id)
+        budget_line = budget_map.get(bkey)
+        if budget_line is None and ent.grant_id:
+            budget_line = budget_map.get((ent.grant_id, acc_id))
+        return budget_line or "—"
+
+    def _fund_label(ln, ent):
+        g = ln.grant or ent.grant
+        project = getattr(g, "project", None) if g else None
+        if project:
+            p_code = (getattr(project, "code", "") or "").strip()
+            p_name = (getattr(project, "name", "") or "").strip()
+            if p_code and p_name:
+                return f"{p_code} — {p_name}"
+            return p_code or p_name or "—"
+        return "—"
+
+    def _display_name(tenant_user):
+        if not tenant_user:
+            return "—"
+        full = (tenant_user.get_full_name() or "").strip()
+        return full or (getattr(tenant_user, "email", "") or "").strip() or "—"
+
+    org_settings = OrganizationSettings.objects.using(tenant_db).first()
     rows: list[dict] = []
     running_balance_by_account: dict[int, Decimal] = {}
     current_acc_id: int | None = None
 
+    seen_line_ids: set[int] = set()
     for line in all_lines:
+        if line.id in seen_line_ids:
+            continue
+        seen_line_ids.add(line.id)
         ent = line.entry
         acc_id = line.account_id
         if current_acc_id != acc_id:
@@ -5776,27 +7326,34 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
         running_balance_by_account[acc_id] += dr - cr
 
         eg_id = _eff_grant_id(line)
-        bkey = (eg_id, acc_id)
-        activity = budget_map.get(bkey)
-        if activity is None and ent.grant_id:
-            activity = budget_map.get((ent.grant_id, acc_id))
-        if activity is None:
-            activity = "—"
+        activity = _activity_label(line)
+        budget_line = _budget_line_label(line, ent, eg_id, acc_id)
 
         gl_date = getattr(line, "gl_date", None) or ent.posting_date or ent.entry_date
         posted_by = "—"
         if ent.posted_by_id and getattr(ent, "posted_by", None):
-            posted_by = ent.posted_by.get_full_name()
+            posted_by = _display_name(ent.posted_by)
+        prepared_by = _display_name(getattr(ent, "created_by", None))
+        approved_by = _display_name(getattr(ent, "approved_by", None))
+        currency_code = (
+            (getattr(getattr(ent, "currency", None), "code", "") or "").strip()
+            or (getattr(getattr(org_settings, "default_currency", None), "code", "") or "").strip()
+            or "—"
+        )
+        reference = (ent.reference or "").strip() or _gl_journal_number(ent)
+        document_reference = (ent.source_document_no or "").strip() or reference
 
         rows.append(
             {
                 "gl_date": gl_date,
                 "entry_id": ent.pk,
+                "reference": reference,
                 "journal_number": _gl_journal_number(ent),
                 "account_label": f"{line.account.code} — {line.account.name}",
                 "grant": _grant_label(line, ent),
                 "donor": _donor_label(line, ent),
                 "activity": activity,
+                "budget_line": budget_line,
                 "memo": (line.description or ent.memo or "").strip() or "—",
                 "debit": line.debit,
                 "credit": line.credit,
@@ -5804,6 +7361,11 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
                 "account_code": line.account.code,
                 "account_name": line.account.name,
                 "account_id": acc_id,
+                "currency": currency_code,
+                "fund": _fund_label(line, ent),
+                "document_reference": document_reference,
+                "prepared_by": prepared_by,
+                "approved_by": approved_by,
                 "posted_by": posted_by,
                 "entry_source_type": (getattr(ent, "source_type", None) or "").strip(),
                 "entry_journal_type": (getattr(ent, "journal_type", None) or "").strip().lower(),
@@ -5899,59 +7461,151 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
     if (f.get("project_id") or "").strip().isdigit():
         selected_project = projects.filter(pk=int(f["project_id"])).first()
 
-    org_settings = OrganizationSettings.objects.using(tenant_db).first()
     source_type_choices = list(JournalEntry.SourceType.choices)
+    q_export = request.GET.copy()
+    q_export["format"] = "xlsx"
+    export_xlsx_url = request.path + "?" + q_export.urlencode()
+    default_currency_code = (
+        (getattr(getattr(org_settings, "default_currency", None), "code", "") or "").strip() or "—"
+    )
+    report_project_title = (getattr(selected_project, "name", "") or "").strip() or "All projects"
+    report_donor = "All donors"
+    if selected_donor:
+        report_donor = selected_donor.name
 
-    if request.GET.get("format") == "csv":
-        from django.utils import timezone as dj_tz
+    if request.GET.get("format") in {"xlsx", "csv"}:
+        import io
+        import os
+        from openpyxl import Workbook
+        from openpyxl.drawing.image import Image as XLImage
+        from openpyxl.styles import Alignment, Font
+        from openpyxl.utils import get_column_letter
 
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = 'attachment; filename="general_ledger_export.csv"'
-        response.write("\ufeff")
-        w = csv.writer(response)
-        legal_name = ""
-        if org_settings and (org_settings.organization_name or "").strip():
-            legal_name = org_settings.organization_name.strip()
-        if not legal_name:
-            legal_name = getattr(request.tenant, "display_name", None) or getattr(
-                request.tenant, "name", ""
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "General Ledger"
+        headers = [
+            "Date",
+            "Journal Ref",
+            "Account code",
+            "Account name",
+            "Grant",
+            "Donor",
+            "Budget line",
+            "Description",
+            "Debit",
+            "Credit",
+            "Running balance",
+            "Currency",
+            "Document reference",
+        ]
+        last_col = get_column_letter(len(headers))
+
+        def _set_header_row(title_row: int) -> None:
+            ws.merge_cells(f"A{title_row}:{last_col}{title_row}")
+            org_name = _tenant_legal_name_for_official_reports(request) or "Organization"
+            ws[f"A{title_row}"] = org_name
+            ws[f"A{title_row}"].font = Font(size=13, bold=True)
+            ws[f"A{title_row}"].alignment = Alignment(horizontal="center")
+            ws.merge_cells(f"A{title_row + 1}:{last_col}{title_row + 1}")
+            ws[f"A{title_row + 1}"] = "General Ledger"
+            ws[f"A{title_row + 1}"].font = Font(size=12, bold=True)
+            ws[f"A{title_row + 1}"].alignment = Alignment(horizontal="center")
+            ws.merge_cells(f"A{title_row + 2}:{last_col}{title_row + 2}")
+            ws[f"A{title_row + 2}"] = f"Project title: {report_project_title}"
+            ws[f"A{title_row + 2}"].font = Font(size=10)
+            ws[f"A{title_row + 2}"].alignment = Alignment(horizontal="center")
+            ws.merge_cells(f"A{title_row + 3}:{last_col}{title_row + 3}")
+            ws[f"A{title_row + 3}"] = f"Donor: {report_donor}"
+            ws[f"A{title_row + 3}"].font = Font(size=10)
+            ws[f"A{title_row + 3}"].alignment = Alignment(horizontal="center")
+            ws.merge_cells(f"A{title_row + 4}:{last_col}{title_row + 4}")
+            ws[f"A{title_row + 4}"] = f"Period: {f['period_start']} - {f['period_end']}"
+            ws[f"A{title_row + 4}"].font = Font(size=10)
+            ws[f"A{title_row + 4}"].alignment = Alignment(horizontal="center")
+            ws.merge_cells(f"A{title_row + 5}:{last_col}{title_row + 5}")
+            ws[f"A{title_row + 5}"] = (
+                f"Generated date: {dj_tz.localtime(dj_tz.now()).strftime('%Y-%m-%d %H:%M')}"
             )
-        period_label = f'{f["period_start"]} – {f["period_end"]}'
-        generated = dj_tz.localtime(dj_tz.now()).strftime("%Y-%m-%d %H:%M")
-        w.writerow([legal_name])
-        w.writerow(["Report", "General Ledger"])
-        w.writerow(["Report period", period_label])
-        w.writerow(["Generated", generated])
-        w.writerow([])
-        w.writerow(
-            [
-                "Date",
-                "Journal",
-                "Account",
-                "Grant",
-                "Donor",
-                "Activity",
-                "Description",
-                "Debit",
-                "Credit",
-                "Balance",
-            ]
-        )
+            ws[f"A{title_row + 5}"].font = Font(size=10)
+            ws[f"A{title_row + 5}"].alignment = Alignment(horizontal="center")
+            ws.merge_cells(f"A{title_row + 6}:{last_col}{title_row + 6}")
+            ws[f"A{title_row + 6}"] = f"Currency: {default_currency_code}"
+            ws[f"A{title_row + 6}"].font = Font(size=10)
+            ws[f"A{title_row + 6}"].alignment = Alignment(horizontal="center")
+
+        def _embed_logo() -> int:
+            if not org_settings:
+                return 1
+            logo_field = getattr(org_settings, "report_logo", None) or getattr(
+                org_settings, "organization_logo", None
+            )
+            if not logo_field:
+                return 1
+            try:
+                logo_path = logo_field.path
+                if not logo_path or not os.path.isfile(logo_path):
+                    return 1
+                img = XLImage(logo_path)
+                img.height = 52
+                img.width = 170
+                center_col_index = max(1, (len(headers) // 2) - 1)
+                img.anchor = f"{get_column_letter(center_col_index)}1"
+                ws.add_image(img)
+                return 4
+            except Exception:
+                return 1
+
+        header_start_row = _embed_logo()
+        _set_header_row(header_start_row)
+        header_row = header_start_row + 8
+        for col_idx, header_text in enumerate(headers, start=1):
+            c = ws.cell(row=header_row, column=col_idx)
+            c.value = header_text
+            c.font = Font(bold=True)
+            c.alignment = Alignment(horizontal="center", vertical="center")
+
+        data_row = header_row + 1
         for r in rows:
-            w.writerow(
-                [
-                    r["gl_date"],
-                    r["journal_number"],
-                    r["account_label"],
-                    r["grant"],
-                    r["donor"],
-                    r["activity"],
-                    r["memo"],
-                    r["debit"],
-                    r["credit"],
-                    r["running_balance"],
-                ]
-            )
+            row_values = [
+                r["gl_date"],
+                r["journal_number"],
+                r["account_code"],
+                r["account_name"],
+                r["grant"],
+                r["donor"],
+                r["budget_line"],
+                r["memo"],
+                r["debit"] or Decimal("0"),
+                r["credit"] or Decimal("0"),
+                r["running_balance"] or Decimal("0"),
+                r["currency"],
+                r["document_reference"],
+            ]
+            for col_idx, value in enumerate(row_values, start=1):
+                ws.cell(row=data_row, column=col_idx, value=value)
+            data_row += 1
+
+        num_start = header_row + 1
+        num_end = ws.max_row
+        for r_idx in range(num_start, num_end + 1):
+            ws.cell(row=r_idx, column=9).number_format = "#,##0.00"
+            ws.cell(row=r_idx, column=10).number_format = "#,##0.00"
+            ws.cell(row=r_idx, column=11).number_format = "#,##0.00"
+
+        ws.freeze_panes = f"A{header_row + 1}"
+        widths = [12, 18, 14, 26, 24, 22, 24, 38, 14, 14, 18, 11, 24]
+        for idx, width in enumerate(widths, start=1):
+            ws.column_dimensions[get_column_letter(idx)].width = width
+
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        response = HttpResponse(
+            out.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="general_ledger_export.xlsx"'
         return response
     return render(
         request,
@@ -5983,8 +7637,11 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             "selected_grant": selected_grant,
             "selected_donor": selected_donor,
             "selected_project": selected_project,
+            "default_currency_code": default_currency_code,
+            "report_project_title": report_project_title,
+            "report_donor": report_donor,
             "org_settings": org_settings,
-            "export_csv_url": _finance_export_csv_url(request),
+            "export_xlsx_url": export_xlsx_url,
             "source_type_choices": source_type_choices,
         },
     )
@@ -5995,7 +7652,7 @@ def finance_account_ledger_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal
 
     from django.db.models import Q
-    from tenant_finance.models import ChartAccount
+    from tenant_finance.models import BankAccount, ChartAccount, JournalEntry
     from tenant_finance.services.financial_reporting import (
         assert_grant_filter_allowed,
         filter_grants_for_report_dropdown,
@@ -6006,14 +7663,30 @@ def finance_account_ledger_view(request: HttpRequest) -> HttpResponse:
     tenant_db = request.tenant_db
     f = _parse_finance_filters(request)
     account_id = request.GET.get("account_id")
+    bank_account_id = (request.GET.get("bank_account_id") or "").strip()
+    active_bank_tab = (request.GET.get("tab") or "transactions").strip().lower()
+    if active_bank_tab not in {"transactions", "reconciliation", "details"}:
+        active_bank_tab = "transactions"
+    project_id = (request.GET.get("project_id") or "").strip()
+    tx_type = (request.GET.get("transaction_type") or "").strip()
     gid = (f.get("grant_id") or "").strip()
     if gid.isdigit() and not assert_grant_filter_allowed(request.tenant_user, tenant_db, int(gid)):
         gid = ""
         f = {**f, "grant_id": ""}
+    selected_bank = None
+    if bank_account_id.isdigit():
+        selected_bank = (
+            BankAccount.objects.using(tenant_db)
+            .select_related("currency", "account", "linked_project", "linked_grant")
+            .filter(pk=int(bank_account_id))
+            .first()
+        )
+        if selected_bank and selected_bank.account_id:
+            account_id = str(selected_bank.account_id)
     lines_qs = (
         posted_journal_lines(tenant_db)
         .filter(gl_date__gte=f["period_start"], gl_date__lte=f["period_end"])
-        .select_related("entry", "account")
+        .select_related("entry", "account", "entry__grant", "entry__grant__project", "grant", "grant__project")
         .order_by("gl_date", "id")
     )
     lines_qs = restrict_journal_lines_by_grant_scope(lines_qs, request.tenant_user, tenant_db)
@@ -6022,32 +7695,135 @@ def finance_account_ledger_view(request: HttpRequest) -> HttpResponse:
     if gid.isdigit():
         g = int(gid)
         lines_qs = lines_qs.filter(Q(entry__grant_id=g) | Q(grant_id=g))
-    rows = [
-        {
-            "date": getattr(l, "gl_date", None) or l.entry.entry_date,
-            "ref": l.entry.reference or f"JE-{l.entry.id}",
-            "memo": l.entry.memo or l.description,
-            "debit": l.debit,
-            "credit": l.credit,
-        }
-        for l in lines_qs[:500]
-    ]
+    if project_id.isdigit():
+        p = int(project_id)
+        lines_qs = lines_qs.filter(Q(entry__grant__project_id=p) | Q(grant__project_id=p))
+
+    allowed_bank_source_types = {
+        JournalEntry.SourceType.PAYMENT_VOUCHER,
+        JournalEntry.SourceType.RECEIPT_VOUCHER,
+        JournalEntry.SourceType.BANK_TRANSFER,
+        JournalEntry.SourceType.INTER_FUND_TRANSFER,
+        JournalEntry.SourceType.CASH_TRANSFER,
+        JournalEntry.SourceType.FUND_TRANSFER,
+        JournalEntry.SourceType.MANUAL,
+    }
+    if selected_bank:
+        lines_qs = lines_qs.filter(entry__source_type__in=allowed_bank_source_types)
+    if tx_type:
+        if tx_type == "adjusting_journal":
+            lines_qs = lines_qs.filter(entry__source_type=JournalEntry.SourceType.MANUAL)
+        elif tx_type == "bank_transfer":
+            lines_qs = lines_qs.filter(
+                entry__source_type__in=[
+                    JournalEntry.SourceType.BANK_TRANSFER,
+                    JournalEntry.SourceType.CASH_TRANSFER,
+                    JournalEntry.SourceType.FUND_TRANSFER,
+                ]
+            )
+        else:
+            lines_qs = lines_qs.filter(entry__source_type=tx_type)
+
+    # Opening balance before selected period ensures running balance continuity.
+    opening_before_period = Decimal("0")
+    if account_id:
+        opening_before_period = (
+            posted_journal_lines(tenant_db)
+            .filter(account_id=account_id, gl_date__lt=f["period_start"])
+            .aggregate(b=Sum("debit") - Sum("credit"))
+            .get("b")
+            or Decimal("0")
+        )
+        if selected_bank:
+            opening_before_period += selected_bank.opening_balance or Decimal("0")
+
+    def _txn_type_label(entry: JournalEntry) -> str:
+        src = (entry.source_type or "").strip()
+        if src == JournalEntry.SourceType.RECEIPT_VOUCHER:
+            return "Cash receipt"
+        if src == JournalEntry.SourceType.PAYMENT_VOUCHER:
+            return "Cash payment"
+        if src in {
+            JournalEntry.SourceType.BANK_TRANSFER,
+            JournalEntry.SourceType.CASH_TRANSFER,
+            JournalEntry.SourceType.FUND_TRANSFER,
+        }:
+            return "Bank transfer"
+        if src == JournalEntry.SourceType.INTER_FUND_TRANSFER:
+            return "Inter-fund transfer"
+        if src == JournalEntry.SourceType.MANUAL:
+            return "Adjusting journal"
+        return "Other"
+
+    running = opening_before_period
+    rows = []
+    for l in lines_qs[:1000]:
+        running += (l.debit or Decimal("0")) - (l.credit or Decimal("0"))
+        row_grant = l.grant or l.entry.grant
+        row_project = row_grant.project if row_grant and getattr(row_grant, "project_id", None) else None
+        rows.append(
+            {
+                "date": getattr(l, "gl_date", None) or l.entry.entry_date,
+                "ref": l.entry.source_document_no or l.entry.reference or f"JE-{l.entry.id}",
+                "transaction_type": _txn_type_label(l.entry),
+                "description": l.description or l.entry.memo or "—",
+                "memo": l.entry.memo or l.description or "—",
+                "project_grant": f"{getattr(row_project, 'code', '—')} / {getattr(row_grant, 'code', '—')}",
+                "debit": l.debit,
+                "credit": l.credit,
+                "running_balance": running,
+            }
+        )
     accounts = ChartAccount.objects.using(tenant_db).filter(is_active=True).order_by("code")
-    from tenant_grants.models import Grant
+    from tenant_grants.models import Grant, Project
 
     grants = filter_grants_for_report_dropdown(
         Grant.objects.using(tenant_db).filter(status=Grant.Status.ACTIVE).order_by("code"),
         request.tenant_user,
         tenant_db,
     )
+    projects = Project.objects.using(tenant_db).order_by("code")
+    closing_balance = rows[-1]["running_balance"] if rows else opening_before_period
+    current_bank_balance = None
+    if selected_bank and selected_bank.account_id:
+        posted_bal = (
+            posted_journal_lines(tenant_db)
+            .filter(account_id=selected_bank.account_id)
+            .aggregate(b=Sum("debit") - Sum("credit"))
+            .get("b")
+            or Decimal("0")
+        )
+        current_bank_balance = (selected_bank.opening_balance or Decimal("0")) + posted_bal
     if request.GET.get("format") == "csv":
         import csv
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="account_ledger.csv"'
         w = csv.writer(response)
-        w.writerow(["Date", "Reference", "Memo", "Debit", "Credit"])
+        w.writerow(
+            [
+                "Date",
+                "Reference",
+                "Transaction type",
+                "Description",
+                "Project/Grant",
+                "Debit",
+                "Credit",
+                "Running balance",
+            ]
+        )
         for row in rows:
-            w.writerow([row.get("date"), row.get("ref"), row.get("memo"), row.get("debit"), row.get("credit")])
+            w.writerow(
+                [
+                    row.get("date"),
+                    row.get("ref"),
+                    row.get("transaction_type"),
+                    row.get("description"),
+                    row.get("project_grant"),
+                    row.get("debit"),
+                    row.get("credit"),
+                    row.get("running_balance"),
+                ]
+            )
         return response
     return render(
         request,
@@ -6061,7 +7837,23 @@ def finance_account_ledger_view(request: HttpRequest) -> HttpResponse:
             "rows": rows,
             "accounts": accounts,
             "grants": grants,
+            "projects": projects,
             "selected_account_id": account_id,
+            "selected_bank": selected_bank,
+            "selected_bank_id": bank_account_id,
+            "selected_project_id": project_id,
+            "selected_transaction_type": tx_type,
+            "active_bank_tab": active_bank_tab,
+            "opening_before_period": opening_before_period,
+            "closing_balance": closing_balance,
+            "current_bank_balance": current_bank_balance,
+            "transaction_type_choices": [
+                ("receipt_voucher", "Cash receipts"),
+                ("payment_voucher", "Cash payments"),
+                ("bank_transfer", "Bank transfers"),
+                ("inter_fund_transfer", "Inter-fund transfers"),
+                ("adjusting_journal", "Adjusting journals"),
+            ],
             "export_csv_url": _finance_export_csv_url(request),
         },
     )
@@ -7557,37 +9349,62 @@ def grants_home_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.manage")
 def grants_donors_view(request: HttpRequest) -> HttpResponse:
-    import re
+    from django.core.exceptions import ValidationError
+
+    from tenant_grants.donor_countries import DONOR_COUNTRY_CHOICES_PLAIN
     from tenant_grants.models import Donor
 
     tenant_db = request.tenant_db
     if request.method == "POST":
+        code = (request.POST.get("code") or "").strip().upper()
         name = (request.POST.get("name") or "").strip()
         email = (request.POST.get("email") or "").strip()
-        if not name:
-            messages.error(request, "Donor name is required.")
+        donor_type = (request.POST.get("donor_type") or "").strip() or Donor.DonorType.INSTITUTION
+        status = (request.POST.get("status") or "").strip() or Donor.Status.ACTIVE
+        country = (request.POST.get("country") or "").strip().upper()
+        currency_id_raw = (request.POST.get("preferred_currency_id") or "").strip()
+
+        d = Donor(
+            code=code,
+            name=name,
+            email=email,
+            donor_type=donor_type,
+            status=status,
+            country=country,
+        )
+        if currency_id_raw.isdigit():
+            d.preferred_currency_id = int(currency_id_raw)
+
+        try:
+            d.full_clean()
+        except ValidationError as exc:
+            if hasattr(exc, "error_dict"):
+                for _field, errs in exc.error_dict.items():
+                    for err in errs:
+                        messages.error(request, err)
+            else:
+                for err in exc.messages:
+                    messages.error(request, err)
         else:
-            base = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-")[:40].upper() or "DONOR"
-            code = base
-            n = 0
-            while Donor.objects.using(tenant_db).filter(code__iexact=code).exists():
-                n += 1
-                code = f"{base}-{n}"
-            Donor.objects.using(tenant_db).create(
-                code=code, name=name, email=email, status=Donor.Status.ACTIVE
-            )
+            d.save(using=tenant_db, audit_user=request.tenant_user)
             messages.success(request, "Donor created.")
             redir = reverse("tenant_portal:grants_donors")
             if (request.POST.get("report_nav") or "").strip() == "1":
                 redir = f"{redir}?report_nav=1"
             return redirect(redir)
 
-    donors = list(_active_donors_queryset(tenant_db))
+    donors = list(Donor.objects.using(tenant_db).select_related("preferred_currency").order_by("name"))
+    can_manage = user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
     from_reporting = (request.GET.get("report_nav") or "").strip() == "1"
     ctx = {
         "tenant": request.tenant,
         "tenant_user": request.tenant_user,
         "donors": donors,
+        "can_manage": can_manage,
+        "country_choices": DONOR_COUNTRY_CHOICES_PLAIN,
+        "currencies": _active_currencies_for_donor_form(tenant_db),
+        "donor_types": Donor.DonorType,
+        "donor_statuses": Donor.Status,
         "active_submenu": "reports" if from_reporting else "funds",
     }
     if from_reporting:
@@ -7596,12 +9413,145 @@ def grants_donors_view(request: HttpRequest) -> HttpResponse:
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
+def grants_donor_edit_view(request: HttpRequest, donor_id: int) -> HttpResponse:
+    """Donor profile / edit. GET allowed for grants.view; saves require grants.manage."""
+    from django.core.exceptions import ValidationError
+    from django.http import HttpResponseRedirect
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    from tenant_grants.donor_countries import DONOR_COUNTRY_CHOICES_PLAIN
+    from tenant_grants.models import Donor, Grant
+
+    tenant_db = request.tenant_db
+    can_manage = user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
+
+    donor = get_object_or_404(
+        Donor.objects.using(tenant_db).select_related(
+            "preferred_currency", "created_by", "updated_by"
+        ),
+        pk=donor_id,
+    )
+    active_grant_count = (
+        Grant.objects.using(tenant_db).filter(donor_id=donor.pk, status=Grant.Status.ACTIVE).count()
+    )
+
+    def _safe_next_url(raw: str) -> str:
+        raw = (raw or "").strip()
+        if raw and url_has_allowed_host_and_scheme(
+            raw,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return raw
+        return ""
+
+    default_back = reverse("tenant_portal:grants_donor_register")
+
+    next_param = _safe_next_url(request.GET.get("next") or "") or _safe_next_url(
+        request.POST.get("next") or ""
+    )
+    back_url = next_param or default_back
+    next_for_form = _safe_next_url(request.GET.get("next") or "") or _safe_next_url(
+        request.POST.get("next") or ""
+    )
+
+    currencies = _active_currencies_for_donor_form(tenant_db)
+
+    if request.method == "POST":
+        if not can_manage:
+            messages.error(request, "You do not have permission to edit donors.")
+            return HttpResponseRedirect(back_url)
+        if (request.POST.get("cancel") or "").strip():
+            return HttpResponseRedirect(back_url)
+
+        name = (request.POST.get("name") or "").strip()
+        short_name = (request.POST.get("short_name") or "").strip()
+        donor_type = (request.POST.get("donor_type") or "").strip()
+        donor_category = (request.POST.get("donor_category") or "").strip()
+        contact_person = (request.POST.get("contact_person") or "").strip()
+        phone = (request.POST.get("phone") or "").strip()
+        email = (request.POST.get("email") or "").strip()
+        country = (request.POST.get("country") or "").strip().upper()
+        currency_id_raw = (request.POST.get("preferred_currency_id") or "").strip()
+        status = (request.POST.get("status") or "").strip() or Donor.Status.ACTIVE
+
+        valid_type = {c[0] for c in Donor.DonorType.choices}
+        valid_cat = {c[0] for c in Donor.DonorCategory.choices}
+        valid_status = {c[0] for c in Donor.Status.choices}
+
+        if donor_type not in valid_type:
+            donor_type = Donor.DonorType.INSTITUTION
+        if donor_category and donor_category not in valid_cat:
+            donor_category = Donor.DonorCategory.OTHER
+        if status not in valid_status:
+            status = donor.status
+
+        donor.name = name
+        donor.short_name = short_name
+        donor.donor_type = donor_type
+        donor.donor_category = donor_category or Donor.DonorCategory.OTHER
+        donor.contact_person = contact_person
+        donor.phone = phone
+        donor.email = email
+        donor.country = country
+        donor.status = status
+        if currency_id_raw.isdigit():
+            donor.preferred_currency_id = int(currency_id_raw)
+        else:
+            donor.preferred_currency_id = None
+
+        try:
+            donor.full_clean()
+        except ValidationError as exc:
+            if hasattr(exc, "error_dict"):
+                for _field, errs in exc.error_dict.items():
+                    for err in errs:
+                        messages.error(request, err)
+            else:
+                for err in exc.messages:
+                    messages.error(request, err)
+        else:
+            donor.save(using=tenant_db, audit_user=request.tenant_user)
+            messages.success(request, "Donor saved.")
+            return HttpResponseRedirect(back_url)
+
+    return render(
+        request,
+        "tenant_portal/grants/donor_edit.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "donor": donor,
+            "active_grant_count": active_grant_count,
+            "back_url": back_url,
+            "next_for_form": next_for_form,
+            "donor_types": Donor.DonorType,
+            "donor_categories": Donor.DonorCategory,
+            "donor_statuses": Donor.Status,
+            "country_choices": DONOR_COUNTRY_CHOICES_PLAIN,
+            "currencies": currencies,
+            "can_manage": can_manage,
+            "active_submenu": "funds",
+            "active_item": "funds_donor_register",
+        },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_grants_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal, InvalidOperation
     from django.utils.dateparse import parse_date
 
     from tenant_finance.models import BankAccount
-    from tenant_grants.models import Donor, Grant
+    from tenant_grants.models import (
+        Donor,
+        DonorAgreement,
+        DonorAgreementGrant,
+        DonorAgreementProject,
+        FundingSource,
+        Grant,
+        Project,
+    )
 
     tenant_db = request.tenant_db
 
@@ -7616,8 +9566,13 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         code = (request.POST.get("code") or "").strip()
         title = (request.POST.get("title") or "").strip()
         donor_id = (request.POST.get("donor_id") or "").strip()
+        donor_contract_id = (request.POST.get("donor_contract_id") or "").strip()
+        project_id = (request.POST.get("project_id") or "").strip()
         bank_account_id = (request.POST.get("bank_account_id") or "").strip()
-        raw_award_amount = (request.POST.get("award_amount") or "").replace(",", "").strip()
+        raw_ceiling = (request.POST.get("grant_ceiling") or request.POST.get("award_amount") or "").replace(
+            ",", ""
+        ).strip()
+        raw_eligible = (request.POST.get("eligible_receivable_amount") or "").replace(",", "").strip()
         start_date = parse_date(request.POST.get("start_date") or "")
         end_date = parse_date(request.POST.get("end_date") or "")
 
@@ -7629,6 +9584,10 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             errors.append("Grant title is required.")
         if not donor_id:
             errors.append("Donor is required.")
+        if not donor_contract_id:
+            errors.append("Donor contract is required.")
+        if not project_id:
+            errors.append("Project is required.")
         if not bank_account_id:
             errors.append("Bank account is required.")
 
@@ -7641,6 +9600,18 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first() if donor_id else None
         if not donor:
             errors.append("Selected donor does not exist.")
+        donor_contract = (
+            DonorAgreement.objects.using(tenant_db).filter(pk=donor_contract_id).first()
+            if donor_contract_id
+            else None
+        )
+        if not donor_contract:
+            errors.append("Selected donor contract does not exist.")
+        elif donor and donor_contract.donor_id != donor.pk:
+            errors.append("Selected donor contract must belong to the selected donor.")
+        project = Project.objects.using(tenant_db).filter(pk=project_id, is_active=True).first() if project_id else None
+        if not project:
+            errors.append("Selected project is invalid or inactive.")
 
         # Validate bank account (active only)
         bank_account = (
@@ -7653,15 +9624,24 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         if not bank_account:
             errors.append("Selected bank account is invalid or inactive.")
 
-        # Validate award amount > 0
-        award_amount = Decimal("0")
-        if raw_award_amount:
+        grant_ceiling = Decimal("0")
+        if raw_ceiling:
             try:
-                award_amount = Decimal(raw_award_amount)
+                grant_ceiling = Decimal(raw_ceiling)
             except (InvalidOperation, ValueError):
-                errors.append("Grant amount must be a valid number.")
-        if award_amount <= 0:
-            errors.append("Grant amount must be greater than zero.")
+                errors.append("Grant ceiling must be a valid number.")
+        if grant_ceiling <= 0:
+            errors.append("Grant ceiling must be greater than zero.")
+        eligible_receivable_amount = grant_ceiling
+        if raw_eligible:
+            try:
+                eligible_receivable_amount = Decimal(raw_eligible)
+            except (InvalidOperation, ValueError):
+                errors.append("Eligible receivable must be a valid number.")
+        if eligible_receivable_amount < 0:
+            errors.append("Eligible receivable cannot be negative.")
+        if eligible_receivable_amount > grant_ceiling:
+            errors.append("Eligible receivable cannot exceed grant ceiling.")
 
         # Validate dates
         if not start_date:
@@ -7676,23 +9656,70 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             signed_date = parse_date(request.POST.get("signed_date") or "")
             reporting_rules = (request.POST.get("reporting_rules") or "").strip()
             donor_restrictions = (request.POST.get("donor_restrictions") or "").strip()
-            grant = Grant.objects.using(tenant_db).create(
-                code=code,
-                title=title,
-                donor=donor,
-                bank_account=bank_account,
-                status=Grant.Status.ACTIVE,
-                award_amount=award_amount,
-                start_date=start_date,
-                end_date=end_date,
-                signed_date=signed_date or None,
-                reporting_rules=reporting_rules,
-                donor_restrictions=donor_restrictions,
+            receivable_basis_note = (request.POST.get("receivable_basis_note") or "").strip()
+            raw_fm = (request.POST.get("funding_method") or "").strip()
+            valid_fm = {c[0] for c in Grant.FundingMethod.choices}
+            funding_method = raw_fm if raw_fm in valid_fm else ""
+            funding_modality_id = (request.POST.get("funding_modality_id") or "").strip()
+            funding_modality = (
+                FundingSource.objects.using(tenant_db)
+                .filter(pk=int(funding_modality_id), is_active=True)
+                .first()
+                if funding_modality_id.isdigit()
+                else None
             )
+            if not funding_modality:
+                messages.error(request, "Funding modality is required.")
+                return redirect(reverse("tenant_portal:grants_grants"))
+            if funding_modality is not None:
+                from tenant_grants.services.payment_modality import has_complete_gl_mapping
+
+                if not has_complete_gl_mapping(
+                    using=tenant_db,
+                    funding_source=funding_modality,
+                ):
+                    messages.error(request, "GL account mapping is missing for selected funding modality.")
+                    return redirect(reverse("tenant_portal:grants_grants"))
+            expense_report_approved = request.POST.get("expense_report_approved") == "on"
+            audit_approved = request.POST.get("audit_approved") == "on"
+            final_report_approved = request.POST.get("final_report_approved") == "on"
+            from django.db import transaction
+
+            with transaction.atomic(using=tenant_db):
+                grant = Grant.objects.using(tenant_db).create(
+                    code=code,
+                    title=title,
+                    donor=donor,
+                    project=project,
+                    bank_account=bank_account,
+                    status=Grant.Status.ACTIVE,
+                    award_amount=grant_ceiling,
+                    grant_ceiling=grant_ceiling,
+                    eligible_receivable_amount=eligible_receivable_amount,
+                    receivable_basis_note=receivable_basis_note,
+                    funding_modality=funding_modality,
+                    funding_method=funding_method,
+                    expense_report_approved=expense_report_approved,
+                    audit_approved=audit_approved,
+                    final_report_approved=final_report_approved,
+                    start_date=start_date,
+                    end_date=end_date,
+                    signed_date=signed_date or None,
+                    reporting_rules=reporting_rules,
+                    donor_restrictions=donor_restrictions,
+                )
+                DonorAgreementGrant.objects.using(tenant_db).update_or_create(
+                    grant=grant,
+                    defaults={"agreement": donor_contract},
+                )
+                DonorAgreementProject.objects.using(tenant_db).update_or_create(
+                    agreement=donor_contract,
+                    project=project,
+                )
             if request.FILES.get("signed_contract_document"):
                 grant.signed_contract_document = request.FILES["signed_contract_document"]
                 grant.save(using=tenant_db)
-            messages.success(request, "Grant agreement created.")
+            messages.success(request, "Project grant created.")
             return redirect(reverse("tenant_portal:grants_grants"))
 
     f = _parse_grants_filters(request)
@@ -7706,9 +9733,21 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         qs = qs.filter(
             Q(code__icontains=f["q"]) | Q(title__icontains=f["q"]) | Q(project_name__icontains=f["q"])
         )
-    grants = list(qs.select_related("bank_account")[:200])
+    grants = list(qs.select_related("bank_account", "funding_modality")[:200])
     donors = list(_active_donors_queryset(tenant_db))
+    donor_contracts = list(
+        DonorAgreement.objects.using(tenant_db)
+        .select_related("donor", "funding_source")
+        .exclude(status=DonorAgreement.Status.CLOSED)
+        .order_by("donor__name", "agreement_code")
+    )
+    projects = list(Project.objects.using(tenant_db).filter(is_active=True).order_by("code"))
     bank_accounts = BankAccount.objects.using(tenant_db).filter(is_active=True).order_by("bank_name", "account_name")
+    from tenant_grants.models import FundingSource
+
+    funding_modalities = list(
+        FundingSource.objects.using(tenant_db).filter(is_active=True).order_by("name")
+    )
     export_format = request.GET.get("format") or ""
     if export_format:
         rows = [
@@ -7741,7 +9780,10 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             "tenant_user": request.tenant_user,
             "grants": grants,
             "donors": donors,
+            "donor_contracts": donor_contracts,
+            "projects": projects,
             "bank_accounts": bank_accounts,
+            "funding_modalities": funding_modalities,
             "filters": f,
             "active_submenu": "funds",
             "active_item": "funds_grant_agreements",
@@ -7901,13 +9943,23 @@ def _export_table_response(
     return None
 
 
+def _active_currencies_for_donor_form(tenant_db: str):
+    """Active system currencies for donor preferred-currency pickers."""
+    from tenant_finance.models import Currency, FinancialDimension, FinancialDimensionValue
+
+    return list(Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code"))
+
+
 def _parse_donor_register_filters(request):
-    """Parse q, donor_type, donor_category, status for Donor Register."""
+    """Parse Donor Register list filters (search + dimensions)."""
     return {
         "q": (request.GET.get("q") or "").strip(),
         "donor_type": request.GET.get("donor_type") or "",
         "donor_category": request.GET.get("donor_category") or "",
+        "country": request.GET.get("country") or "",
+        "currency_id": request.GET.get("currency_id") or "",
         "status": request.GET.get("status") or "",
+        "has_grants": (request.GET.get("has_grants") or "").strip().lower(),
     }
 
 
@@ -7926,8 +9978,11 @@ def _donor_register_export_urls(request):
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
     """Donor Register: master donor setup with search, filters, export, and create modal."""
+    from django.core.exceptions import ValidationError
     from django.db.models import Count, Q
-    from tenant_grants.models import Donor
+
+    from tenant_grants.donor_countries import DONOR_COUNTRY_CHOICES_PLAIN
+    from tenant_grants.models import Donor, Grant
 
     tenant_db = request.tenant_db
     can_manage = user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
@@ -7936,59 +9991,66 @@ def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
         code = (request.POST.get("code") or "").strip().upper()
         name = (request.POST.get("name") or "").strip()
         short_name = (request.POST.get("short_name") or "").strip()
-        donor_type = (request.POST.get("donor_type") or "").strip() or None
+        donor_type = (request.POST.get("donor_type") or "").strip() or Donor.DonorType.INSTITUTION
         donor_category = (request.POST.get("donor_category") or "").strip() or None
         contact_person = (request.POST.get("contact_person") or "").strip()
         email = (request.POST.get("email") or "").strip()
         phone = (request.POST.get("phone") or "").strip()
         address = (request.POST.get("address") or "").strip()
-        country = (request.POST.get("country") or "").strip()
+        country = (request.POST.get("country") or "").strip().upper()
         website = (request.POST.get("website") or "").strip()
-        preferred_currency = (request.POST.get("preferred_currency") or "").strip()
+        currency_id_raw = (request.POST.get("preferred_currency_id") or "").strip()
         default_restriction_type = (request.POST.get("default_restriction_type") or "").strip() or None
         default_reporting_frequency = (request.POST.get("default_reporting_frequency") or "").strip() or None
         status = (request.POST.get("status") or Donor.Status.ACTIVE).strip()
         notes = (request.POST.get("notes") or "").strip()
 
-        errors = []
-        if not code:
-            errors.append("Donor code is required.")
-        if not name:
-            errors.append("Donor name is required.")
-        if code and Donor.objects.using(tenant_db).filter(code__iexact=code).exists():
-            errors.append("Donor code already exists.")
-        if name and Donor.objects.using(tenant_db).filter(name__iexact=name).exists():
-            errors.append("Donor name already exists.")
-        if status and status not in (Donor.Status.ACTIVE, Donor.Status.INACTIVE, Donor.Status.ARCHIVED):
-            status = Donor.Status.ACTIVE
+        d = Donor(
+            code=code,
+            name=name,
+            short_name=short_name,
+            donor_type=donor_type,
+            donor_category=donor_category or Donor.DonorCategory.OTHER,
+            contact_person=contact_person,
+            email=email,
+            phone=phone,
+            address=address,
+            country=country,
+            website=website or "",
+            default_restriction_type=default_restriction_type,
+            default_reporting_frequency=default_reporting_frequency,
+            status=status,
+            notes=notes,
+        )
+        if currency_id_raw.isdigit():
+            d.preferred_currency_id = int(currency_id_raw)
 
-        if errors:
-            for msg in errors:
-                messages.error(request, msg)
+        try:
+            d.full_clean()
+        except ValidationError as exc:
+            if hasattr(exc, "error_dict"):
+                for _field, errs in exc.error_dict.items():
+                    for err in errs:
+                        messages.error(request, err)
+            else:
+                for err in exc.messages:
+                    messages.error(request, err)
         else:
-            Donor.objects.using(tenant_db).create(
-                code=code,
-                name=name,
-                short_name=short_name,
-                donor_type=donor_type,
-                donor_category=donor_category,
-                contact_person=contact_person,
-                email=email,
-                phone=phone,
-                address=address,
-                country=country,
-                website=website or "",
-                preferred_currency=preferred_currency,
-                default_restriction_type=default_restriction_type,
-                default_reporting_frequency=default_reporting_frequency,
-                status=status,
-                notes=notes,
-            )
+            d.save(using=tenant_db, audit_user=request.tenant_user)
             messages.success(request, "Donor created.")
             return redirect(reverse("tenant_portal:grants_donor_register"))
 
+    from decimal import Decimal
+
+    from django.db.models import DecimalField, Sum, Value
+    from django.db.models.functions import Coalesce
+
     f = _parse_donor_register_filters(request)
-    qs = Donor.objects.using(tenant_db).annotate(grants_count=Count("grants")).order_by("name")
+    qs = (
+        Donor.objects.using(tenant_db)
+        .select_related("preferred_currency")
+        .annotate(grants_count=Count("grants", distinct=True))
+    )
     if f["q"]:
         qs = qs.filter(
             Q(code__icontains=f["q"])
@@ -8002,15 +10064,46 @@ def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
         qs = qs.filter(donor_type=f["donor_type"])
     if f["donor_category"]:
         qs = qs.filter(donor_category=f["donor_category"])
+    if f["country"]:
+        qs = qs.filter(country=f["country"])
+    if f["currency_id"].isdigit():
+        qs = qs.filter(preferred_currency_id=int(f["currency_id"]))
     if f["status"]:
         qs = qs.filter(status=f["status"])
+    if f["has_grants"] == "yes":
+        qs = qs.filter(grants_count__gt=0)
+    elif f["has_grants"] == "no":
+        qs = qs.filter(grants_count=0)
+
+    qs = qs.order_by("name")
+
+    total_donors = qs.count()
+    active_donors = qs.filter(status=Donor.Status.ACTIVE).count()
+    grant_stats = (
+        Grant.objects.using(tenant_db)
+        .filter(donor__in=qs)
+        .aggregate(
+            total_grants=Count("id"),
+            committed=Coalesce(
+                Sum("grant_ceiling"),
+                Value(Decimal("0")),
+                output_field=DecimalField(max_digits=20, decimal_places=2),
+            ),
+        )
+    )
+    total_grants_linked = int(grant_stats["total_grants"] or 0)
+    total_committed = grant_stats["committed"] or Decimal("0")
+
     donors = list(qs[:500])
+    donors_truncated = total_donors > 500
     donor_register_kpi = {
+        "total_donors": total_donors,
+        "active_donors": active_donors,
+        "total_grants_linked": total_grants_linked,
+        "total_committed": total_committed,
         "total_shown": len(donors),
         "active_shown": sum(1 for d in donors if d.status == Donor.Status.ACTIVE),
-        "grants_linked": sum(int(getattr(d, "grants_count", 0) or 0) for d in donors),
     }
-    donors_truncated = len(donors) >= 500
 
     export_format = request.GET.get("format") or ""
     if export_format:
@@ -8018,18 +10111,12 @@ def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
             [
                 d.code,
                 d.name,
-                d.short_name or "",
                 d.get_donor_type_display() if d.donor_type else "",
                 d.get_donor_category_display() if d.donor_category else "",
-                d.contact_person or "",
-                d.email or "",
-                d.phone or "",
-                d.country or "",
-                d.preferred_currency or "",
-                d.get_default_restriction_type_display() if d.default_restriction_type else "",
-                d.get_default_reporting_frequency_display() if d.default_reporting_frequency else "",
-                d.get_status_display(),
+                d.get_country_display() if d.country else "",
+                (d.preferred_currency.code if d.preferred_currency_id else ""),
                 getattr(d, "grants_count", 0),
+                d.get_status_display(),
             ]
             for d in donors
         ]
@@ -8038,14 +10125,21 @@ def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
             filename_base="donor_register",
             title="Donor Register",
             headers=[
-                "Code", "Name", "Short Name", "Donor Type", "Donor Category",
-                "Contact Person", "Email", "Phone", "Country", "Preferred Currency",
-                "Restriction Type", "Reporting Frequency", "Status", "Grants count",
+                "Code",
+                "Donor name",
+                "Type",
+                "Category",
+                "Country",
+                "Currency",
+                "Grants linked",
+                "Status",
             ],
             rows=rows,
         )
         if resp:
             return resp
+
+    filter_currency_pk = int(f["currency_id"]) if f.get("currency_id", "").isdigit() else None
 
     return render(
         request,
@@ -8055,6 +10149,7 @@ def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
             "tenant_user": request.tenant_user,
             "donors": donors,
             "filters": f,
+            "filter_currency_pk": filter_currency_pk,
             "active_submenu": "funds",
             "active_item": "funds_donor_register",
             "donor_types": Donor.DonorType,
@@ -8068,41 +10163,231 @@ def grants_donor_register_view(request: HttpRequest) -> HttpResponse:
             "can_manage": can_manage,
             "donor_register_kpi": donor_register_kpi,
             "donors_truncated": donors_truncated,
+            "country_choices": DONOR_COUNTRY_CHOICES_PLAIN,
+            "currencies": _active_currencies_for_donor_form(tenant_db),
         },
     )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.manage")
 def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
-    from tenant_grants.models import FundingSource, Donor
+    from decimal import Decimal, InvalidOperation
+
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    from tenant_finance.models import BankAccount, ChartAccount
+    from tenant_finance.receivable_accounts import receivable_accounts_q
+    from tenant_grants.models import FundingSource, FundingSourcePaymentStructure, GrantTranche
+    from tenant_grants.services.payment_modality import ensure_component_account_map_schema
 
     tenant_db = request.tenant_db
+    ensure_component_account_map_schema(tenant_db)
+    can_manage = user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
+    show_create_modal = False
+    show_edit_modal = False
+    edit_source_id = ""
+
+    def _post_is_active() -> bool:
+        status_raw = (request.POST.get("status") or "").strip().lower()
+        if status_raw == "active":
+            return True
+        if status_raw == "inactive":
+            return False
+        return request.POST.get("is_active") == "on"
+
+    def _save_structure_and_validate(obj: FundingSource, modality_type: str) -> None:
+        from tenant_grants.services.funding_source_structure import (
+            replace_funding_source_component_account_maps_from_post,
+            replace_funding_source_payment_structure_from_post,
+        )
+
+        if modality_type == FundingSource.ModalityType.MIXED_MODALITY:
+            replace_funding_source_payment_structure_from_post(request, obj, tenant_db)
+            obj.refresh_from_db()
+            obj.full_clean()
+        else:
+            FundingSourcePaymentStructure.objects.using(tenant_db).filter(funding_source_id=obj.pk).delete()
+        replace_funding_source_component_account_maps_from_post(request, obj, tenant_db)
+
     if request.method == "POST":
+        action = (request.POST.get("action") or "create").strip().lower()
+        if action == "delete":
+            edit_source_id = (request.POST.get("source_id") or "").strip()
+            if not edit_source_id.isdigit():
+                messages.error(request, "Invalid funding modality selected for delete.")
+            else:
+                obj = FundingSource.objects.using(tenant_db).filter(pk=int(edit_source_id)).first()
+                if not obj:
+                    messages.error(request, "Funding modality not found.")
+                else:
+                    in_use = (
+                        obj.projects.exists()
+                        or obj.grants.exists()
+                        or obj.donor_agreements.exists()
+                        or GrantTranche.objects.using(tenant_db).filter(grant__funding_modality_id=obj.pk).exists()
+                    )
+                    if in_use:
+                        messages.error(
+                            request,
+                            "Cannot delete: this funding modality is linked to projects, project grants, or receivable schedules. Set status to Inactive instead.",
+                        )
+                    else:
+                        obj.delete(using=tenant_db)
+                        messages.success(request, "Funding modality deleted.")
+                        return redirect(reverse("tenant_portal:grants_funding_sources"))
+
         name = (request.POST.get("name") or "").strip()
-        funding_type = request.POST.get("funding_type") or "grant"
-        donor_id = request.POST.get("donor_id") or None
+        modality_type = (request.POST.get("modality_type") or "").strip()
         description = (request.POST.get("description") or "").strip()
+        retention_raw = (request.POST.get("retention_percentage") or "").strip()
+        allow_instalments = request.POST.get("allow_instalments") == "on"
+        requires_reporting_before_next_payment = (
+            request.POST.get("requires_reporting_before_next_payment") == "on"
+        )
+        is_active = _post_is_active()
+        valid_mt = {c[0] for c in FundingSource.ModalityType.choices}
+        retention_pct = None
+        if retention_raw:
+            try:
+                retention_pct = Decimal(retention_raw.replace(",", ""))
+                if retention_pct < 0 or retention_pct > 100:
+                    messages.error(request, "Retention percentage must be between 0 and 100.")
+                    retention_pct = "invalid"
+            except (InvalidOperation, ValueError):
+                messages.error(request, "Retention percentage must be a valid number.")
+                retention_pct = "invalid"
         if not name:
             messages.error(request, "Name is required.")
+        elif modality_type not in valid_mt:
+            messages.error(request, "Modality type is required.")
+        elif retention_pct == "invalid":
+            pass
         else:
-            donor = Donor.objects.using(tenant_db).filter(pk=donor_id).first() if donor_id else None
-            FundingSource.objects.using(tenant_db).create(
-                name=name, funding_type=funding_type, donor=donor, description=description,
-            )
-            messages.success(request, "Funding source created.")
-            return redirect(reverse("tenant_portal:grants_funding_sources"))
-    f = _parse_grants_filters(request)
-    funding_type_sel = (request.GET.get("funding_type") or "").strip()
-    filters_display = {**f, "funding_type": funding_type_sel}
+            obj = None
+            if action == "edit":
+                edit_source_id = (request.POST.get("source_id") or "").strip()
+                if not edit_source_id.isdigit():
+                    messages.error(request, "Invalid funding modality selected for edit.")
+                    show_edit_modal = True
+                else:
+                    obj = FundingSource.objects.using(tenant_db).filter(pk=int(edit_source_id)).first()
+                    if not obj:
+                        messages.error(request, "Funding modality not found.")
+                        show_edit_modal = True
+            else:
+                obj = FundingSource(
+                    name=name,
+                    modality_type=modality_type,
+                    donor=None,
+                    description=description,
+                    retention_percentage=None if retention_pct is None else retention_pct,
+                    allow_instalments=allow_instalments,
+                    requires_reporting_before_next_payment=requires_reporting_before_next_payment,
+                    is_active=is_active,
+                )
 
-    sources_qs = FundingSource.objects.using(tenant_db).select_related("donor").order_by("name")
-    donors = list(_active_donors_queryset(tenant_db))
-    if f["donor_id"]:
-        sources_qs = sources_qs.filter(donor_id=f["donor_id"])
+            if obj is not None and action in ("create", "edit"):
+                if action == "edit":
+                    obj.name = name
+                    obj.modality_type = modality_type
+                    obj.donor = None
+                    obj.description = description
+                    obj.retention_percentage = None if retention_pct is None else retention_pct
+                    obj.allow_instalments = allow_instalments
+                    obj.requires_reporting_before_next_payment = requires_reporting_before_next_payment
+                    obj.is_active = is_active
+                try:
+                    obj.full_clean()
+                except ValidationError as exc:
+                    _seen: set[str] = set()
+                    for text in _humanize_validation_error_messages(exc):
+                        if text not in _seen:
+                            _seen.add(text)
+                            messages.error(request, text)
+                    if action == "edit":
+                        show_edit_modal = True
+                    else:
+                        show_create_modal = True
+                else:
+                    try:
+                        with transaction.atomic(using=tenant_db):
+                            obj.save(using=tenant_db)
+                            _save_structure_and_validate(obj, modality_type)
+                    except ValidationError as exc:
+                        _seen2: set[str] = set()
+                        for text in _humanize_validation_error_messages(exc):
+                            if text not in _seen2:
+                                _seen2.add(text)
+                                messages.error(request, text)
+                        if action == "edit":
+                            show_edit_modal = True
+                        else:
+                            show_create_modal = True
+                    else:
+                        if action == "edit":
+                            messages.success(request, "Funding modality updated.")
+                        else:
+                            messages.success(request, "Funding modality created.")
+                        return redirect(reverse("tenant_portal:grants_funding_sources"))
+
+        if action == "create" and not show_edit_modal:
+            show_create_modal = True
+    f = _parse_grants_filters(request)
+    modality_type_sel = (request.GET.get("modality_type") or "").strip()
+    status_sel = (request.GET.get("status") or "").strip().lower()
+    instalments_sel = (request.GET.get("allow_instalments") or "").strip().lower()
+    retention_min_raw = (request.GET.get("retention_min") or "").strip()
+    retention_max_raw = (request.GET.get("retention_max") or "").strip()
+    retention_min = None
+    retention_max = None
+    if retention_min_raw:
+        try:
+            retention_min = Decimal(retention_min_raw.replace(",", ""))
+        except (InvalidOperation, ValueError):
+            retention_min = None
+    if retention_max_raw:
+        try:
+            retention_max = Decimal(retention_max_raw.replace(",", ""))
+        except (InvalidOperation, ValueError):
+            retention_max = None
+    filters_display = {
+        **f,
+        "modality_type": modality_type_sel,
+        "status": status_sel,
+        "allow_instalments": instalments_sel,
+        "retention_min": retention_min_raw,
+        "retention_max": retention_max_raw,
+    }
+
+    sources_qs = (
+        FundingSource.objects.using(tenant_db)
+        .prefetch_related(
+            "payment_structure",
+            "component_account_maps",
+            "component_account_maps__receivable_account",
+            "component_account_maps__income_account",
+            "component_account_maps__deferred_income_account",
+            "component_account_maps__retention_account",
+        )
+        .order_by("name")
+    )
     if f.get("q"):
         sources_qs = sources_qs.filter(name__icontains=f["q"])
-    if funding_type_sel:
-        sources_qs = sources_qs.filter(funding_type=funding_type_sel)
+    if modality_type_sel:
+        sources_qs = sources_qs.filter(modality_type=modality_type_sel)
+    if status_sel == "active":
+        sources_qs = sources_qs.filter(is_active=True)
+    elif status_sel == "inactive":
+        sources_qs = sources_qs.filter(is_active=False)
+    if instalments_sel == "yes":
+        sources_qs = sources_qs.filter(allow_instalments=True)
+    elif instalments_sel == "no":
+        sources_qs = sources_qs.filter(allow_instalments=False)
+    if retention_min is not None:
+        sources_qs = sources_qs.filter(retention_percentage__isnull=False, retention_percentage__gte=retention_min)
+    if retention_max is not None:
+        sources_qs = sources_qs.filter(retention_percentage__isnull=False, retention_percentage__lte=retention_max)
 
     sources_list = list(sources_qs)
     funding_kpi = {
@@ -8112,21 +10397,39 @@ def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
     }
 
     if request.GET.get("format"):
-        rows = [
-            [
-                s.name,
-                (s.get_funding_type_display() if getattr(s, "funding_type", None) else ""),
-                (s.donor.name if s.donor else ""),
-                (s.description or ""),
-                (_("Active") if s.is_active else _("Inactive")),
-            ]
-            for s in sources_list
-        ]
+        rows = []
+        for s in sources_list:
+            struct_bits = []
+            if s.modality_type == FundingSource.ModalityType.MIXED_MODALITY:
+                for ln in sorted(
+                    s.payment_structure.all(),
+                    key=lambda x: (x.sort_order, x.pk),
+                ):
+                    struct_bits.append(
+                        f"{ln.get_component_type_display()} {ln.percentage}% ({ln.get_payment_trigger_display()})"
+                    )
+            rows.append(
+                [
+                    s.name,
+                    (s.get_modality_type_display() if getattr(s, "modality_type", None) else ""),
+                    (s.retention_percentage if s.retention_percentage is not None else ""),
+                    (_("Yes") if s.allow_instalments else _("No")),
+                    ("; ".join(struct_bits) if struct_bits else ""),
+                    (_("Active") if s.is_active else _("Inactive")),
+                ]
+            )
         resp = _export_table_response(
             export_format=request.GET.get("format") or "",
-            filename_base="funding_sources",
-            title="Funding Sources",
-            headers=["Name", "Type", "Donor", "Description", "Status"],
+            filename_base="funding_modalities",
+            title="Funding modalities (payment modalities)",
+            headers=[
+                "Name",
+                "Modality type",
+                "Retention %",
+                "Instalments allowed",
+                "Payment structure",
+                "Status",
+            ],
             rows=rows,
         )
         if resp:
@@ -8138,10 +10441,52 @@ def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
             "sources": sources_list,
-            "donors": donors,
             "filters": filters_display,
-            "funding_types": FundingSource.FundingType,
+            "modality_types": FundingSource.ModalityType,
+            "ps_component_choices": FundingSourcePaymentStructure.ComponentType.choices,
+            "ps_trigger_choices": FundingSourcePaymentStructure.PaymentTrigger.choices,
+            "mixed_modality_value": FundingSource.ModalityType.MIXED_MODALITY,
             "funding_kpi": funding_kpi,
+            "can_manage": can_manage,
+            "show_create_modal": show_create_modal,
+            "show_edit_modal": show_edit_modal,
+            "edit_source_id": edit_source_id,
+            "bank_account_type_choices": BankAccount.AccountType.choices,
+            "gl_accounts_income": list(
+                ChartAccount.objects.using(tenant_db)
+                .filter(
+                    type=ChartAccount.Type.INCOME,
+                    is_active=True,
+                    children__isnull=True,
+                )
+                .order_by("code")
+            ),
+            "gl_accounts_receivable": list(
+                ChartAccount.objects.using(tenant_db)
+                .filter(is_active=True, children__isnull=True)
+                .filter(receivable_accounts_q())
+                .order_by("code")
+            ),
+            "gl_accounts_deferred_income": list(
+                ChartAccount.objects.using(tenant_db)
+                .filter(
+                    type=ChartAccount.Type.LIABILITY,
+                    is_active=True,
+                    statement_type=ChartAccount.StatementType.BALANCE_SHEET,
+                    children__isnull=True,
+                )
+                .order_by("code")
+            ),
+            "gl_accounts_retention": list(
+                ChartAccount.objects.using(tenant_db)
+                .filter(
+                    type__in=[ChartAccount.Type.ASSET, ChartAccount.Type.LIABILITY],
+                    is_active=True,
+                    statement_type=ChartAccount.StatementType.BALANCE_SHEET,
+                    children__isnull=True,
+                )
+                .order_by("code")
+            ),
             "active_submenu": "funds",
             "active_item": "funds_funding_sources",
             "export_csv_url": _grants_export_urls(request)["csv"],
@@ -8161,13 +10506,16 @@ def _parse_donor_agreement_filters(request: HttpRequest) -> dict:
         "q": (request.GET.get("q") or "").strip(),
         "signed_from": parse_date(request.GET.get("signed_from") or "") or None,
         "signed_to": parse_date(request.GET.get("signed_to") or "") or None,
-        "ag_start_from": parse_date(request.GET.get("ag_start_from") or "") or None,
-        "ag_start_to": parse_date(request.GET.get("ag_start_to") or "") or None,
-        "ag_end_from": parse_date(request.GET.get("ag_end_from") or "") or None,
-        "ag_end_to": parse_date(request.GET.get("ag_end_to") or "") or None,
+        "ag_start_from": parse_date(request.GET.get("ag_start_from") or request.GET.get("start_from") or "") or None,
+        "ag_start_to": parse_date(request.GET.get("ag_start_to") or request.GET.get("start_to") or "") or None,
+        "ag_end_from": parse_date(request.GET.get("ag_end_from") or request.GET.get("end_from") or "") or None,
+        "ag_end_to": parse_date(request.GET.get("ag_end_to") or request.GET.get("end_to") or "") or None,
         "currency_id": (request.GET.get("currency_id") or "").strip(),
         "status": (request.GET.get("status") or "").strip(),
         "agreement_type": (request.GET.get("agreement_type") or "").strip(),
+        "funding_source_id": (request.GET.get("funding_source_id") or "").strip(),
+        "program_category": (request.GET.get("program_category") or "").strip(),
+        "has_file": (request.GET.get("has_file") or "").strip().lower(),
     }
 
 
@@ -8219,6 +10567,15 @@ def _donor_agreement_filter_queryset(qs, f: dict):
         qs = qs.filter(status=f["status"])
     if f.get("agreement_type"):
         qs = qs.filter(agreement_type=f["agreement_type"])
+    if f.get("funding_source_id"):
+        qs = qs.filter(funding_source_id=f["funding_source_id"])
+    if f.get("program_category"):
+        qs = qs.filter(project_links__project__funding_type=f["program_category"])
+    has_file = (f.get("has_file") or "").strip().lower()
+    if has_file == "yes":
+        qs = qs.exclude(file="").filter(file__isnull=False)
+    elif has_file == "no":
+        qs = qs.filter(Q(file__isnull=True) | Q(file=""))
     if f.get("signed_from"):
         qs = qs.filter(signed_date__gte=f["signed_from"])
     if f.get("signed_to"):
@@ -8502,15 +10859,18 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
     qs = (
         DonorAgreement.objects.using(tenant_db)
         .select_related("donor", "currency", "funding_source")
-        .prefetch_related("grant_links__grant")
-        .annotate(linked_grants_count=Count("grant_links", distinct=True))
+        .prefetch_related("grant_links__grant", "project_links__project")
+        .annotate(
+            linked_grants_count=Count("grant_links", distinct=True),
+            linked_projects_count=Count("project_links", distinct=True),
+        )
         .order_by("-signed_date", "-created_at")
     )
     qs = _donor_agreement_filter_queryset(qs, f)
-    agreements = list(qs[:500])
+    agreements = list(qs.distinct()[:500])
 
     today = timezone.now().date()
-    soon = today + timedelta(days=90)
+    soon = today + timedelta(days=30)
     expiring_soon = sum(
         1
         for a in agreements
@@ -8522,6 +10882,9 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
     missing_file_n = sum(1 for a in agreements if not a.file)
     over_limit_ids: list[int] = []
     for a in agreements:
+        a.expiring_within_30_days = bool(
+            a.status == DonorAgreement.Status.ACTIVE and a.end_date and today < a.end_date <= soon
+        )
         if a.funding_limit is None:
             continue
         total_award = Decimal("0")
@@ -8541,6 +10904,16 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
     donors = list(_active_donors_queryset(tenant_db))
     currencies = list(Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code"))
     funding_sources = list(FundingSource.objects.using(tenant_db).filter(is_active=True).order_by("name"))
+    prog_dim = FinancialDimension.objects.using(tenant_db).filter(dimension_code="PROG").first()
+    program_categories = (
+        list(
+            FinancialDimensionValue.objects.using(tenant_db)
+            .filter(dimension_id=prog_dim.pk, status=FinancialDimensionValue.Status.ACTIVE)
+            .order_by("name")
+        )
+        if prog_dim
+        else []
+    )
     grants = list(Grant.objects.using(tenant_db).select_related("donor").order_by("code")[:500])
     projects = list(Project.objects.using(tenant_db).order_by("code")[:500])
 
@@ -8558,7 +10931,9 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
                     a.end_date or "",
                     a.funding_limit or "",
                     a.currency.code if a.currency else "",
+                    a.funding_source.name if a.funding_source else "",
                     getattr(a, "linked_grants_count", 0) or 0,
+                    getattr(a, "linked_projects_count", 0) or 0,
                     a.get_status_display(),
                     (_("Yes") if a.file else _("No")),
                 ]
@@ -8577,7 +10952,9 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
                 "End date",
                 "Funding limit",
                 "Currency",
+                "Funding modality",
                 "Linked grants",
+                "Linked projects",
                 "Status",
                 "Signed file",
             ],
@@ -8596,6 +10973,7 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
             "donors": donors,
             "currencies": currencies,
             "funding_sources": funding_sources,
+            "program_categories": program_categories,
             "grants": grants,
             "projects": projects,
             "filters": f,
@@ -9411,7 +11789,7 @@ def grants_grant_allocation_view(request: HttpRequest) -> HttpResponse:
         resp = _export_table_response(
             export_format=request.GET.get("format") or "",
             filename_base="grant_allocation",
-            title="Grant Allocation (Multi-donor)",
+            title="Grant allocation (shared funding)",
             headers=["Grant", "Donor", "Amount", "Percentage"],
             rows=rows,
         )
@@ -10810,8 +13188,19 @@ def grants_pr_create_view(request: HttpRequest) -> HttpResponse:
         WorkplanActivity,
         Grant,
     )
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
 
     tenant_db = request.tenant_db
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Create purchase requisition"),
+        active_submenu="funds",
+        active_item="funds_pr",
+    )
+    if blocked:
+        return blocked
+
     activity_id = request.GET.get("activity_id") or request.POST.get("workplan_activity_id")
     activity = None
     if activity_id:
@@ -12544,25 +14933,41 @@ def budget_creation_view(request: HttpRequest) -> HttpResponse:
                 wb = openpyxl.load_workbook(upload)
                 ws = wb.active
                 created = 0
+                skipped = 0
                 for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                    code, category, amount, description = (row + (None,) * 4)[:4]
-                    if not code or not category:
+                    grant_code, budget_line_code, budget_line_name, description, amount = (row + (None,) * 5)[:5]
+                    if not grant_code or not budget_line_code or not budget_line_name:
+                        skipped += 1
                         continue
-                    grant = Grant.objects.using(tenant_db).filter(code=str(code).strip()).first()
+                    grant = Grant.objects.using(tenant_db).filter(code=str(grant_code).strip()).first()
                     if not grant:
+                        skipped += 1
+                        continue
+                    coa = ChartAccount.objects.using(tenant_db).filter(
+                        code=str(budget_line_code).strip()
+                    ).first()
+                    if not coa:
+                        skipped += 1
                         continue
                     try:
                         amt = Decimal(str(amount or "0"))
                     except Exception:
                         amt = Decimal("0")
-                    BudgetLine.objects.using(tenant_db).create(
+                    BudgetLine.objects.using(tenant_db).update_or_create(
                         grant=grant,
-                        category=str(category).strip(),
-                        description=(description or "") if description is not None else "",
-                        amount=amt,
+                        budget_line_code=str(budget_line_code).strip(),
+                        defaults={
+                            "account": coa,
+                            "category": str(budget_line_name).strip(),
+                            "description": (description or "") if description is not None else "",
+                            "amount": amt,
+                        },
                     )
                     created += 1
-                messages.success(request, f"Imported {created} budget lines from Excel.")
+                messages.success(
+                    request,
+                    f"Imported {created} budget lines from Excel. Skipped {skipped} invalid rows.",
+                )
                 return redirect(reverse("tenant_portal:budget_creation"))
             except Exception:
                 messages.error(request, "Could not read the Excel file. Please check the format.")
@@ -12571,12 +14976,15 @@ def budget_creation_view(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and request.POST.get("action") != "import":
         grant_id = request.POST.get("grant_id")
         account_id = request.POST.get("account_id") or None
+        budget_line_code = (request.POST.get("budget_line_code") or "").strip()
         category = (request.POST.get("category") or "").strip()
         description = (request.POST.get("description") or "").strip()
         amount = request.POST.get("amount") or "0"
         notes = (request.POST.get("notes") or "").strip()
-        if not grant_id or not category:
-            messages.error(request, "Please select a project/grant and provide a category.")
+        if not grant_id or not category or not budget_line_code:
+            messages.error(
+                request, "Please select a project/grant and provide budget line code and name."
+            )
         else:
             grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first()
             account = (
@@ -12584,9 +14992,21 @@ def budget_creation_view(request: HttpRequest) -> HttpResponse:
                 if account_id
                 else None
             )
+            coa_by_code = ChartAccount.objects.using(tenant_db).filter(code=budget_line_code).first()
+            if not coa_by_code:
+                messages.error(
+                    request, "Budget line code must exist in Chart of Accounts (COA account code)."
+                )
+                return redirect(reverse("tenant_portal:budget_creation"))
+            if account and account.pk != coa_by_code.pk:
+                messages.error(
+                    request, "Selected COA account must match Budget line code."
+                )
+                return redirect(reverse("tenant_portal:budget_creation"))
             BudgetLine.objects.using(tenant_db).create(
                 grant=grant,
-                account=account,
+                budget_line_code=budget_line_code,
+                account=coa_by_code,
                 category=category,
                 description=description,
                 amount=amount or 0,
@@ -12648,18 +15068,23 @@ def budget_creation_view(request: HttpRequest) -> HttpResponse:
             rows.append(
                 [
                     g.code if g else "",
-                    g.title if g else "",
-                    g.donor.name if getattr(g, "donor", None) else "",
+                    b.budget_line_code or "",
                     b.category,
+                    b.description or "",
                     b.amount,
-                    b.notes or "",
                 ]
             )
         resp = _export_table_response(
             export_format=export_format,
             filename_base="budget_creation",
             title="Budget Creation",
-            headers=["Grant code", "Grant title", "Donor", "Category", "Amount", "Notes"],
+            headers=[
+                "GrantCode",
+                "BudgetLineCode",
+                "BudgetLineName",
+                "Description",
+                "Amount",
+            ],
             rows=rows,
         )
         if resp:
@@ -12691,13 +15116,43 @@ def budget_creation_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def budget_templates_view(request: HttpRequest) -> HttpResponse:
-    """
-    Budget Templates: currently reuses the Budget Creation screen.
-    """
-    from django.urls import reverse
-    from django.http import HttpResponseRedirect
+    """Budget templates list (reusable donor/project budget structures)."""
+    from tenant_grants.models import BudgetTemplate
 
-    return HttpResponseRedirect(reverse("tenant_portal:budget_creation") + ("?" + request.GET.urlencode() if request.GET else ""))
+    tenant_db = request.tenant_db
+    templates = list(
+        BudgetTemplate.objects.using(tenant_db)
+        .select_related("donor", "grant")
+        .prefetch_related("lines")
+        .order_by("name")
+    )
+    rows: list[list[str]] = []
+    for t in templates:
+        rows.append(
+            [
+                t.name,
+                t.get_scope_display(),
+                t.donor.name if t.donor_id else "—",
+                f"{t.grant.code} — {t.grant.title}" if t.grant_id else "—",
+                str(t.lines.count()),
+                (t.notes or "").strip() or "—",
+            ]
+        )
+    return render(
+        request,
+        "tenant_portal/budget/budget_simple_list.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "budget",
+            "active_item": "budget_templates",
+            "page_title": "Budget templates",
+            "page_subtitle": "Reusable structures for donors and projects.",
+            "table_headers": ["Template name", "Scope", "Donor", "Grant", "Lines", "Notes"],
+            "table_rows": rows,
+            "empty_message": "No budget templates found.",
+        },
+    )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -12713,13 +15168,342 @@ def budget_versions_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def budget_structures_view(request: HttpRequest) -> HttpResponse:
-    """
-    Project & Donor Budget Structure: reuse Budget Creation (budgets by project/donor).
-    """
-    from django.urls import reverse
-    from django.http import HttpResponseRedirect
+    """Enterprise budget structure view with filters, import, export, and control metrics."""
+    from decimal import Decimal
+    import io
+    import openpyxl
+    from django.db.models import Sum
+    from django.utils import timezone as dj_tz
+    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.utils import get_column_letter
+    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine, OrganizationSettings
+    from tenant_grants.models import BudgetLine, Donor, Grant, Project, PurchaseRequisition
 
-    return HttpResponseRedirect(reverse("tenant_portal:budget_creation") + ("?" + request.GET.urlencode() if request.GET else ""))
+    tenant_db = request.tenant_db
+
+    # ----- Filters -----
+    f = _parse_finance_filters(request)
+    project_id = (request.GET.get("project_id") or "").strip()
+    donor_id = (request.GET.get("donor_id") or "").strip()
+    grant_id = (request.GET.get("grant_id") or "").strip()
+    budget_version = (request.GET.get("budget_version") or "").strip() or "main"
+    status = (request.GET.get("status") or "").strip().lower()
+    view_mode = (request.GET.get("view") or "table").strip().lower()
+    if view_mode not in {"table", "tree"}:
+        view_mode = "table"
+
+    # ----- Actions -----
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        if action == "import":
+            upload = request.FILES.get("budget_structure_file")
+            if not upload:
+                messages.error(request, "Please select an Excel file to import.")
+                return redirect(request.path + ("?" + request.GET.urlencode() if request.GET else ""))
+            try:
+                wb = openpyxl.load_workbook(upload, data_only=True)
+                ws = wb.active
+                created = 0
+                updated = 0
+                skipped = 0
+                for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    p_code, g_code, d_name, bl_code, bl_name, coa_code, currency, amount = (row + (None,) * 8)[:8]
+                    p_code = (str(p_code or "")).strip()
+                    g_code = (str(g_code or "")).strip()
+                    d_name = (str(d_name or "")).strip()
+                    bl_code = (str(bl_code or "")).strip()
+                    bl_name = (str(bl_name or "")).strip()
+                    coa_code = (str(coa_code or "")).strip()
+                    if not (p_code and g_code and bl_code and coa_code):
+                        skipped += 1
+                        continue
+                    grant = (
+                        Grant.objects.using(tenant_db)
+                        .select_related("project", "donor")
+                        .filter(code=g_code)
+                        .first()
+                    )
+                    coa = ChartAccount.objects.using(tenant_db).filter(code=coa_code).first()
+                    if not grant or not coa or not getattr(grant, "project_id", None) or not getattr(grant, "donor_id", None):
+                        skipped += 1
+                        continue
+                    if (grant.project.code or "").strip() != p_code:
+                        skipped += 1
+                        continue
+                    if d_name and (grant.donor.name or "").strip().lower() != d_name.lower():
+                        skipped += 1
+                        continue
+                    try:
+                        amt = Decimal(str(amount or "0"))
+                    except Exception:
+                        amt = Decimal("0")
+                    obj, is_created = BudgetLine.objects.using(tenant_db).update_or_create(
+                        grant=grant,
+                        budget_line_code=bl_code,
+                        defaults={
+                            "account": coa,
+                            "category": bl_name or bl_code,
+                            "description": (f"{currency}".strip() if currency else ""),
+                            "amount": amt,
+                        },
+                    )
+                    if is_created:
+                        created += 1
+                    else:
+                        updated += 1
+                messages.success(
+                    request,
+                    f"Import complete. Created {created}, updated {updated}, skipped {skipped}.",
+                )
+            except Exception:
+                messages.error(request, "Could not read Excel file. Use the required import template columns.")
+            return redirect(request.path + ("?" + request.GET.urlencode() if request.GET else ""))
+        if action == "activate_version":
+            messages.info(
+                request,
+                "Budget version activation is available for the Main version only in current setup.",
+            )
+            return redirect(request.path + ("?" + request.GET.urlencode() if request.GET else ""))
+
+    projects = list(Project.objects.using(tenant_db).order_by("code"))
+    donors = list(Donor.objects.using(tenant_db).order_by("name"))
+    grants = list(Grant.objects.using(tenant_db).select_related("project", "donor").order_by("code"))
+
+    qs = (
+        BudgetLine.objects.using(tenant_db)
+        .select_related("grant", "grant__project", "grant__donor", "grant__currency", "account")
+        .order_by("grant__project__code", "grant__code", "budget_line_code")
+    )
+    if project_id.isdigit():
+        qs = qs.filter(grant__project_id=int(project_id))
+    if donor_id.isdigit():
+        qs = qs.filter(grant__donor_id=int(donor_id))
+    if grant_id.isdigit():
+        qs = qs.filter(grant_id=int(grant_id))
+
+    raw_lines = list(qs)
+    posted_actuals = (
+        JournalLine.objects.using(tenant_db)
+        .filter(
+            entry__status=JournalEntry.Status.POSTED,
+            entry__entry_date__gte=f["period_start"],
+            entry__entry_date__lte=f["period_end"],
+        )
+        .values("entry__grant_id", "account_id")
+        .annotate(spent=(Sum("debit") - Sum("credit")))
+    )
+    actual_map = {(r["entry__grant_id"], r["account_id"]): (r["spent"] or Decimal("0")) for r in posted_actuals}
+
+    pr_open = (
+        PurchaseRequisition.objects.using(tenant_db)
+        .exclude(
+            status__in=[
+                PurchaseRequisition.Status.REJECTED,
+                PurchaseRequisition.Status.CANCELLED,
+                PurchaseRequisition.Status.FULFILLED,
+            ]
+        )
+        .values("grant_id", "budget_line")
+        .annotate(committed=Sum("estimated_total_cost"))
+    )
+    commit_map = {
+        (r["grant_id"], (r["budget_line"] or "").strip()): (r["committed"] or Decimal("0"))
+        for r in pr_open
+    }
+
+    def _status_for_line(line) -> str:
+        g_status = (getattr(line.grant, "status", "") or "").lower()
+        if g_status == "draft":
+            return "draft"
+        if g_status == "active":
+            return "active"
+        if g_status == "closed":
+            return "closed"
+        return "approved"
+
+    rows: list[dict] = []
+    for b in raw_lines:
+        actual = actual_map.get((b.grant_id, b.account_id), Decimal("0"))
+        committed = commit_map.get((b.grant_id, (b.budget_line_code or "").strip()), Decimal("0"))
+        approved = b.amount or Decimal("0")
+        revised = approved
+        available = revised - actual - committed
+        row = {
+            "project_code": b.grant.project.code if getattr(b.grant, "project_id", None) else "—",
+            "project_name": b.grant.project.name if getattr(b.grant, "project_id", None) else "—",
+            "donor": b.grant.donor.name if getattr(b.grant, "donor_id", None) else "—",
+            "grant_code": b.grant.code if b.grant_id else "—",
+            "budget_line_code": b.budget_line_code or "—",
+            "budget_line_name": b.category or "—",
+            "coa_code": b.account.code if b.account_id else "—",
+            "coa_name": b.account.name if b.account_id else "—",
+            "currency": b.grant.currency.code if getattr(b.grant, "currency_id", None) else "—",
+            "approved_budget": approved,
+            "revised_budget": revised,
+            "actual_spent": actual,
+            "committed_amount": committed,
+            "available_balance": available,
+            "status": _status_for_line(b),
+        }
+        if status and row["status"] != status:
+            continue
+        rows.append(row)
+
+    # ----- Export -----
+    if request.GET.get("format") == "xlsx":
+        headers = [
+            "Project Code",
+            "Project Name",
+            "Donor",
+            "Grant Code",
+            "Budget Line Code",
+            "Budget Line Name",
+            "COA Code",
+            "COA Name",
+            "Currency",
+            "Approved Budget",
+            "Revised Budget",
+            "Actual Spent",
+            "Committed Amount",
+            "Available Balance",
+            "Status",
+        ]
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Budget Structure"
+        org_settings = OrganizationSettings.objects.using(tenant_db).first()
+        last_col = get_column_letter(len(headers))
+        ws.merge_cells(f"A1:{last_col}1")
+        ws["A1"] = _tenant_legal_name_for_official_reports(request) or "Organization"
+        ws["A1"].font = Font(size=13, bold=True)
+        ws["A1"].alignment = Alignment(horizontal="center")
+        ws.merge_cells(f"A2:{last_col}2")
+        ws["A2"] = "Project & Grant Budget Structure"
+        ws["A2"].font = Font(size=12, bold=True)
+        ws["A2"].alignment = Alignment(horizontal="center")
+        ws.merge_cells(f"A3:{last_col}3")
+        ws["A3"] = (
+            f"Project: {project_id or 'All'} | Grant: {grant_id or 'All'} | "
+            f"Period: {f['period_start']} - {f['period_end']} | Version: {budget_version}"
+        )
+        ws["A3"].alignment = Alignment(horizontal="center")
+        ws.merge_cells(f"A4:{last_col}4")
+        ws["A4"] = f"Generated: {dj_tz.localtime(dj_tz.now()).strftime('%Y-%m-%d %H:%M')}"
+        ws["A4"].alignment = Alignment(horizontal="center")
+
+        if org_settings:
+            try:
+                import os
+
+                logo_field = getattr(org_settings, "report_logo", None) or getattr(
+                    org_settings, "organization_logo", None
+                )
+                if logo_field and logo_field.path and os.path.isfile(logo_field.path):
+                    img = XLImage(logo_field.path)
+                    img.height = 50
+                    img.width = 160
+                    img.anchor = "F1"
+                    ws.add_image(img)
+            except Exception:
+                pass
+
+        for cidx, h in enumerate(headers, start=1):
+            cell = ws.cell(row=6, column=cidx, value=h)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center")
+
+        row_idx = 7
+        for r in rows:
+            ws.append(
+                [
+                    r["project_code"],
+                    r["project_name"],
+                    r["donor"],
+                    r["grant_code"],
+                    r["budget_line_code"],
+                    r["budget_line_name"],
+                    r["coa_code"],
+                    r["coa_name"],
+                    r["currency"],
+                    r["approved_budget"],
+                    r["revised_budget"],
+                    r["actual_spent"],
+                    r["committed_amount"],
+                    r["available_balance"],
+                    r["status"].title(),
+                ]
+            )
+            row_idx += 1
+
+        for idx in (10, 11, 12, 13, 14):
+            for r_idx in range(7, ws.max_row + 1):
+                ws.cell(row=r_idx, column=idx).number_format = "#,##0.00"
+        ws.freeze_panes = "A7"
+        for i, w in enumerate([14, 26, 20, 14, 16, 24, 12, 24, 10, 16, 16, 16, 18, 18, 12], start=1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        response = HttpResponse(
+            out.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="budget_structure.xlsx"'
+        return response
+
+    # ----- Tree View -----
+    tree_rows: dict[str, dict] = {}
+    for r in rows:
+        proj_key = f'{r["project_code"]} — {r["project_name"]}'
+        grant_key = r["grant_code"]
+        proj_bucket = tree_rows.setdefault(proj_key, {"grants": {}})
+        grant_bucket = proj_bucket["grants"].setdefault(grant_key, [])
+        grant_bucket.append(r)
+
+    q_export = request.GET.copy()
+    q_export["format"] = "xlsx"
+    export_xlsx_url = request.path + "?" + q_export.urlencode()
+    q_table = request.GET.copy()
+    q_table["view"] = "table"
+    table_view_url = request.path + "?" + q_table.urlencode()
+    q_tree = request.GET.copy()
+    q_tree["view"] = "tree"
+    tree_view_url = request.path + "?" + q_tree.urlencode()
+
+    return render(
+        request,
+        "tenant_portal/budget/budget_structures.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "budget",
+            "active_item": "budget_structures",
+            "filters": f,
+            "projects": projects,
+            "donors": donors,
+            "grants": grants,
+            "selected_project_id": project_id,
+            "selected_donor_id": donor_id,
+            "selected_grant_id": grant_id,
+            "selected_budget_version": budget_version,
+            "selected_status": status,
+            "view_mode": view_mode,
+            "rows": rows,
+            "tree_rows": tree_rows,
+            "export_xlsx_url": export_xlsx_url,
+            "table_view_url": table_view_url,
+            "tree_view_url": tree_view_url,
+            "status_choices": [
+                ("draft", "Draft"),
+                ("approved", "Approved"),
+                ("active", "Active"),
+                ("closed", "Closed"),
+            ],
+            "version_choices": [("main", "Main")],
+        },
+    )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -12746,13 +15530,46 @@ def budget_approvals_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def budget_revisions_view(request: HttpRequest) -> HttpResponse:
-    """
-    Budget Revisions: reuse grant approvals screen (approvals for revised budgets).
-    """
-    from django.urls import reverse
-    from django.http import HttpResponseRedirect
+    """Budget revisions history (grant period extension approvals)."""
+    from tenant_grants.models import GrantPeriodExtension
 
-    return HttpResponseRedirect(reverse("tenant_portal:grants_approvals") + ("?" + request.GET.urlencode() if request.GET else ""))
+    tenant_db = request.tenant_db
+    revisions = list(
+        GrantPeriodExtension.objects.using(tenant_db)
+        .select_related("grant", "approved_by")
+        .order_by("-approved_at", "-created_at")
+    )
+    rows: list[list[str]] = []
+    for r in revisions:
+        approver = "—"
+        if r.approved_by_id and getattr(r, "approved_by", None):
+            approver = (r.approved_by.get_full_name() or "").strip() or getattr(
+                r.approved_by, "email", "—"
+            )
+        rows.append(
+            [
+                r.grant.code if r.grant_id else "—",
+                r.revised_end_date.strftime("%Y-%m-%d") if r.revised_end_date else "—",
+                r.reason or "—",
+                approver,
+                r.approved_at.strftime("%Y-%m-%d %H:%M") if r.approved_at else "Pending",
+            ]
+        )
+    return render(
+        request,
+        "tenant_portal/budget/budget_simple_list.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "budget",
+            "active_item": "budget_revisions",
+            "page_title": "Budget revisions",
+            "page_subtitle": "Approved and pending grant period/budget revision history.",
+            "table_headers": ["Grant code", "Revised end date", "Reason", "Approved by", "Approved at"],
+            "table_rows": rows,
+            "empty_message": "No budget revisions found.",
+        },
+    )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -12844,9 +15661,10 @@ def cash_dashboard_view(request: HttpRequest) -> HttpResponse:
     )
     cash_account_ids = [ba.account_id for ba in bank_accounts if ba.account_id]
 
-    # Total Bank Balance & Total Cash Balance (same source: posted balances on these accounts)
     total_bank_balance = Decimal("0")
     total_cash_balance = Decimal("0")
+    total_petty_cash_balance = Decimal("0")
+    account_balance_map: dict[int, Decimal] = {}
     if cash_account_ids:
         bal_rows = (
             JournalLine.objects.using(tenant_db)
@@ -12854,28 +15672,52 @@ def cash_dashboard_view(request: HttpRequest) -> HttpResponse:
             .values("account_id")
             .annotate(bal=Sum("debit") - Sum("credit"))
         )
-        total_bank_balance = sum((r.get("bal") or Decimal("0")) for r in bal_rows)
-        total_cash_balance = total_bank_balance  # same pool for this module
+        account_balance_map = {r["account_id"]: (r.get("bal") or Decimal("0")) for r in bal_rows}
 
-    # Petty Cash Accounts: count where account name suggests petty
-    petty_count = sum(
-        1 for ba in bank_accounts if ba.account_name and "petty" in ba.account_name.lower()
-    )
+    # Split bank/cash/petty buckets from account labels
+    inactive_bank_accounts = 0
+    account_rows: list[dict] = []
+    for ba in bank_accounts:
+        bal = account_balance_map.get(ba.account_id, Decimal("0"))
+        acc_name = (ba.account_name or "").lower()
+        acc_type = "Bank"
+        if "petty" in acc_name:
+            acc_type = "Petty cash"
+            total_petty_cash_balance += bal
+        elif "cash" in acc_name:
+            acc_type = "Cash"
+            total_cash_balance += bal
+        else:
+            total_bank_balance += bal
+        if not getattr(ba, "is_active", True):
+            inactive_bank_accounts += 1
+        project_link = "Shared core account"
+        if getattr(ba, "project_id", None) and getattr(ba, "project", None):
+            project_link = f"{ba.project.code} — {ba.project.name}"
+        account_rows.append(
+            {
+                "account_name": ba.account_name or (ba.account.name if ba.account_id else "—"),
+                "account_type": acc_type,
+                "currency": ba.currency.code if getattr(ba, "currency_id", None) else "—",
+                "current_balance": bal,
+                "project_linked": project_link,
+                "status": "Active" if getattr(ba, "is_active", True) else "Inactive",
+            }
+        )
 
-    # Pending Reconciliation: placeholder (e.g. count of active accounts as "to reconcile")
+    petty_count = sum(1 for ba in bank_accounts if ba.account_name and "petty" in ba.account_name.lower())
     pending_recon = sum(1 for ba in bank_accounts if getattr(ba, "is_active", True))
+    unreconciled_transactions = 0
+    last_reconciliation_date = None
 
-    # Recent activity: last 10 posted entries (no grant) that touch cash/bank accounts
+    # Recent activity: last 10 posted entries touching cash/bank accounts
     recent_activity = []
     if cash_account_ids:
-        from django.db.models import Q
-
         entry_ids = (
             JournalLine.objects.using(tenant_db)
             .filter(
                 account_id__in=cash_account_ids,
                 entry__status=JournalEntry.Status.POSTED,
-                entry__grant__isnull=True,
             )
             .values_list("entry_id", flat=True)
             .distinct()
@@ -12883,23 +15725,69 @@ def cash_dashboard_view(request: HttpRequest) -> HttpResponse:
         entries = (
             JournalEntry.objects.using(tenant_db)
             .filter(id__in=entry_ids)
-            .select_related("created_by")
+            .select_related("created_by", "grant", "grant__project")
             .order_by("-entry_date", "-id")[:10]
         )
         for entry in entries:
             lines = list(
                 JournalLine.objects.using(tenant_db)
+                .select_related("account")
                 .filter(entry=entry, account_id__in=cash_account_ids)
-                .values_list("debit", "credit")
             )
-            amount = sum((d or Decimal("0")) - (c or Decimal("0")) for d, c in lines)
-            ref = entry.reference or f"JE-{entry.id:05d}"
+            amount = sum(((ln.debit or Decimal("0")) - (ln.credit or Decimal("0")) for ln in lines), Decimal("0"))
+            if not lines:
+                continue
+            primary_line = lines[0]
+            txn_type = (entry.source_type or entry.journal_type or "journal").replace("_", " ").title()
+            ref = entry.source_document_no or entry.reference or f"JE-{entry.id:05d}"
+            project_lbl = "—"
+            if getattr(entry, "grant_id", None) and getattr(entry.grant, "project_id", None):
+                project_lbl = f"{entry.grant.project.code}"
             recent_activity.append({
                 "date": entry.entry_date,
                 "reference": ref,
-                "description": (entry.memo or "—")[:80],
+                "transaction_type": txn_type,
+                "account": f"{primary_line.account.code} — {primary_line.account.name}",
+                "project": project_lbl,
+                "description": (entry.memo or primary_line.description or "—")[:80],
                 "amount": amount,
+                "status": (entry.status or "posted").replace("_", " ").title(),
             })
+        unreconciled_transactions = len(recent_activity)
+        if recent_activity:
+            last_reconciliation_date = recent_activity[0]["date"]
+
+    # Dynamic role-based alerts
+    alerts: list[dict] = []
+    if pending_recon > 0:
+        alerts.append({"level": "warning", "text": "Bank reconciliation pending."})
+    if any(r["current_balance"] < 0 for r in account_rows):
+        alerts.append({"level": "critical", "text": "Negative cash/bank balance detected."})
+    if petty_count and total_petty_cash_balance <= Decimal("0"):
+        alerts.append({"level": "warning", "text": "Petty cash balance is at or below minimum threshold."})
+    if inactive_bank_accounts:
+        alerts.append({"level": "info", "text": "Inactive bank account detected in account setup."})
+    unposted_txn_count = JournalEntry.objects.using(tenant_db).filter(status=JournalEntry.Status.DRAFT).count()
+    if unposted_txn_count:
+        alerts.append({"level": "warning", "text": "Unposted transactions exist."})
+    pending_approval_count = JournalEntry.objects.using(tenant_db).filter(
+        status=JournalEntry.Status.PENDING_APPROVAL
+    ).count()
+    if pending_approval_count:
+        alerts.append({"level": "info", "text": "Pending approvals affecting cash exist."})
+    if pending_recon and unreconciled_transactions:
+        alerts.append({"level": "critical", "text": "Reconciliation difference detected."})
+    zero_balance_accounts = sum(1 for r in account_rows if r["current_balance"] == Decimal("0"))
+    if zero_balance_accounts:
+        alerts.append({"level": "info", "text": "One or more cash/bank accounts have zero balance."})
+
+    reconciliation_workflow = [
+        {"step": "Import bank statement", "status": "Completed" if unreconciled_transactions else "Not started"},
+        {"step": "Match system transactions", "status": "In progress" if unreconciled_transactions else "Not started"},
+        {"step": "Identify differences", "status": "Difference detected" if pending_recon and unreconciled_transactions else "Not started"},
+        {"step": "Adjust entries (if required)", "status": "Not started"},
+        {"step": "Approve reconciliation", "status": "Completed" if pending_recon == 0 and bank_accounts else "Not started"},
+    ]
 
     return render(
         request,
@@ -12911,18 +15799,22 @@ def cash_dashboard_view(request: HttpRequest) -> HttpResponse:
             "active_item": "cash_dashboard",
             "total_bank_balance": total_bank_balance,
             "total_cash_balance": total_cash_balance,
-            "petty_count": petty_count,
+            "total_petty_cash_balance": total_petty_cash_balance,
             "pending_recon": pending_recon,
+            "unreconciled_transactions": unreconciled_transactions,
+            "last_reconciliation_date": last_reconciliation_date,
             "recent_activity": recent_activity,
+            "alerts": alerts,
+            "balances_by_account": account_rows,
+            "reconciliation_workflow": reconciliation_workflow,
             "can_manage": can_manage,
-            "global_indicators": _get_global_financial_indicators(request),
         },
     )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def cost_home_view(request: HttpRequest) -> HttpResponse:
-    """Multi-donor sharing module home: allocation KPIs, distribution summary, and navigation."""
+    """Cost allocation module home: shared funding KPIs, distribution summary, and navigation."""
     from decimal import Decimal
 
     from django.db.models import Sum
@@ -13038,7 +15930,7 @@ def cost_home_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def controls_home_view(request: HttpRequest) -> HttpResponse:
     """
-    Governance Center: module home with KPIs, grouped navigation cards, and recent activity.
+    Internal Control center: module home with KPIs, grouped navigation cards, and recent activity.
     """
     from datetime import timedelta
 
@@ -13180,13 +16072,77 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
     """
     from decimal import Decimal, InvalidOperation
 
+    from django.db import transaction
     from django.db.models import Q, Sum, Count
     from django.utils.dateparse import parse_date
 
     from tenant_finance.models import BankAccount, ChartAccount, Currency, JournalEntry, JournalLine
+    from tenant_grants.models import Grant, Project
 
     tenant_db = request.tenant_db
     user = request.tenant_user
+
+    def _create_bank_gl_sub_account(*, bank_name: str, currency_code: str):
+        """
+        Create a dedicated child GL account under control account 1200.
+        Example: 1201 Amal Bank USD, 1202 Dahabshiil USD.
+        """
+        parent = (
+            ChartAccount.objects.using(tenant_db)
+            .filter(code="1200")
+            .order_by("id")
+            .first()
+        )
+        if not parent:
+            raise ValueError("Control account 1200 — Bank Accounts is required before creating bank accounts.")
+
+        children = list(
+            ChartAccount.objects.using(tenant_db)
+            .filter(parent_id=parent.pk)
+            .values_list("code", flat=True)
+        )
+        next_code = ""
+        if (parent.code or "").isdigit():
+            parent_num = int(parent.code)
+            # Bank sub-accounts under 1200 follow 10-step pattern: 1210, 1220, 1230...
+            max_child_num = parent_num + 10
+            for c in children:
+                if (c or "").isdigit():
+                    max_child_num = max(max_child_num, int(c))
+            candidate = max(parent_num + 10, max_child_num + 10)
+            remainder = candidate % 10
+            if remainder:
+                candidate += 10 - remainder
+            while ChartAccount.objects.using(tenant_db).filter(code=str(candidate)).exists():
+                candidate += 10
+            next_code = str(candidate)
+        else:
+            base = f"{parent.code}-"
+            suffixes = []
+            for c in children:
+                if c and c.startswith(base):
+                    tail = c[len(base):]
+                    if tail.isdigit():
+                        suffixes.append(int(tail))
+            candidate = (max(suffixes) + 1) if suffixes else 1
+            code = f"{base}{candidate:03d}"
+            while ChartAccount.objects.using(tenant_db).filter(code=code).exists():
+                candidate += 1
+                code = f"{base}{candidate:03d}"
+            next_code = code
+
+        gl_name = f"{bank_name} {currency_code}".strip()
+        return ChartAccount.objects.using(tenant_db).create(
+            code=next_code,
+            name=gl_name[:150],
+            type=parent.type,
+            statement_type=parent.statement_type or ChartAccount.StatementType.BALANCE_SHEET,
+            is_active=True,
+            parent=parent,
+            category=parent.category,
+            created_by=user,
+            updated_by=user,
+        )
 
     # Permissions: manage = create/edit/activate/deactivate, view = read-only.
     can_manage = user_has_permission(user, "module:finance.manage", using=tenant_db)
@@ -13204,12 +16160,44 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
             if ba_id:
                 ba = BankAccount.objects.using(tenant_db).filter(pk=ba_id).first()
                 if ba:
-                    ba.is_active = not ba.is_active
-                    ba.save(update_fields=["is_active"])
-                    messages.success(
-                        request,
-                        f"Bank account {ba.account_number} is now {'active' if ba.is_active else 'inactive'}.",
-                    )
+                    if ba.is_active:
+                        current_bal = (
+                            (JournalLine.objects.using(tenant_db)
+                             .filter(account_id=ba.account_id, entry__status=JournalEntry.Status.POSTED)
+                             .aggregate(b=Sum("debit") - Sum("credit"))
+                             .get("b") or Decimal("0"))
+                            + (ba.opening_balance or Decimal("0"))
+                        )
+                        if current_bal != Decimal("0"):
+                            messages.error(
+                                request,
+                                "Cannot deactivate bank account with non-zero balance.",
+                            )
+                        else:
+                            ba.is_active = False
+                            ba.save(update_fields=["is_active"])
+                            messages.success(request, f"Bank account {ba.account_number} is now inactive.")
+                    else:
+                        ba.is_active = True
+                        ba.save(update_fields=["is_active"])
+                        messages.success(request, f"Bank account {ba.account_number} is now active.")
+            return redirect(reverse("tenant_portal:cash_bank_accounts"))
+
+        if action == "set_default":
+            ba_id = request.POST.get("bank_account_id") or ""
+            ba = BankAccount.objects.using(tenant_db).filter(pk=ba_id).first() if ba_id else None
+            if not ba:
+                messages.error(request, "Bank account not found.")
+                return redirect(reverse("tenant_portal:cash_bank_accounts"))
+            if ba.account_type != BankAccount.AccountType.OPERATING:
+                messages.error(request, "Only Operating accounts can be default.")
+                return redirect(reverse("tenant_portal:cash_bank_accounts"))
+            BankAccount.objects.using(tenant_db).filter(is_default_operating=True).update(
+                is_default_operating=False
+            )
+            ba.is_default_operating = True
+            ba.save(update_fields=["is_default_operating"])
+            messages.success(request, "Default operating account updated.")
             return redirect(reverse("tenant_portal:cash_bank_accounts"))
 
         if action == "delete":
@@ -13241,8 +16229,11 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
         branch = (request.POST.get("branch") or "").strip()
         office = (request.POST.get("office") or "").strip()
         description = (request.POST.get("description") or "").strip()
+        account_type = (request.POST.get("account_type") or BankAccount.AccountType.OPERATING).strip()
+        project_id = (request.POST.get("project_id") or "").strip()
+        grant_id = (request.POST.get("grant_id") or "").strip()
+        is_default_operating = (request.POST.get("is_default_operating") or "").strip() == "1"
         currency_id = request.POST.get("currency_id") or ""
-        account_id = request.POST.get("account_id") or ""
         raw_opening_balance = (request.POST.get("opening_balance") or "").replace(",", "").strip()
         raw_opening_date = (request.POST.get("opening_balance_date") or "").strip()
         status = (request.POST.get("status") or "active").strip().lower()
@@ -13257,9 +16248,6 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
             errors.append("Account number is required.")
         if not currency_id:
             errors.append("Currency is required.")
-        if not account_id:
-            errors.append("Linked chart of account is required.")
-
         # Validate uniqueness of account number within tenant DB.
         if account_number:
             exists = BankAccount.objects.using(tenant_db).filter(account_number__iexact=account_number).exists()
@@ -13286,20 +16274,19 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
                 if opening_balance_date > timezone.localdate():
                     errors.append("Opening balance date cannot be in the future.")
 
+        project = Project.objects.using(tenant_db).filter(pk=project_id).first() if project_id.isdigit() else None
+        grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first() if grant_id.isdigit() else None
+        if grant and project and grant.project_id and grant.project_id != project.pk:
+            errors.append("Selected grant must belong to selected project.")
+        if account_type == BankAccount.AccountType.PROJECT and not project:
+            errors.append("Project account type requires a project.")
+        if account_type == BankAccount.AccountType.RESTRICTED and not grant:
+            errors.append("Restricted account type requires a grant.")
+
         # Resolve FK objects
         currency = Currency.objects.using(tenant_db).filter(pk=currency_id).first() if currency_id else None
         if not currency:
             errors.append("Selected currency does not exist.")
-
-        account = (
-            ChartAccount.objects.using(tenant_db)
-            .filter(pk=account_id, is_active=True)
-            .first()
-            if account_id
-            else None
-        )
-        if not account:
-            errors.append("Selected chart of account is invalid or inactive.")
 
         if errors:
             for msg in errors:
@@ -13313,27 +16300,64 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
                 "branch": branch,
                 "office": office,
                 "description": description,
+                "account_type": account_type,
+                "project_id": project_id,
+                "grant_id": grant_id,
+                "is_default_operating": "1" if is_default_operating else "",
                 "currency_id": currency_id or "",
-                "account_id": account_id or "",
                 "opening_balance": raw_opening_balance or "",
                 "opening_balance_date": raw_opening_date or "",
                 "status": status,
             }
         else:
             is_active = status != "inactive"
-            BankAccount.objects.using(tenant_db).create(
-                bank_name=bank_name,
-                account_name=account_name,
-                account_number=account_number,
-                branch=branch,
-                office=office,
-                description=description,
-                currency=currency,
-                account=account,
-                opening_balance=opening_balance,
-                opening_balance_date=opening_balance_date,
-                is_active=is_active,
-            )
+            if is_default_operating and account_type == BankAccount.AccountType.OPERATING:
+                BankAccount.objects.using(tenant_db).filter(is_default_operating=True).update(
+                    is_default_operating=False
+                )
+            try:
+                with transaction.atomic(using=tenant_db):
+                    account = _create_bank_gl_sub_account(
+                        bank_name=bank_name,
+                        currency_code=currency.code,
+                    )
+                    BankAccount.objects.using(tenant_db).create(
+                        bank_name=bank_name,
+                        account_name=account_name,
+                        account_number=account_number,
+                        branch=branch,
+                        office=office,
+                        description=description,
+                        account_type=account_type,
+                        linked_project=project,
+                        linked_grant=grant,
+                        is_default_operating=is_default_operating and account_type == BankAccount.AccountType.OPERATING,
+                        currency=currency,
+                        account=account,
+                        opening_balance=opening_balance,
+                        opening_balance_date=opening_balance_date,
+                        is_active=is_active,
+                    )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                request._bank_account_create_errors = True
+                request._bank_account_create_post = {
+                    "bank_name": bank_name,
+                    "account_name": account_name,
+                    "account_number": account_number,
+                    "branch": branch,
+                    "office": office,
+                    "description": description,
+                    "account_type": account_type,
+                    "project_id": project_id,
+                    "grant_id": grant_id,
+                    "is_default_operating": "1" if is_default_operating else "",
+                    "currency_id": currency_id or "",
+                    "opening_balance": raw_opening_balance or "",
+                    "opening_balance_date": raw_opening_date or "",
+                    "status": status,
+                }
+                return redirect(reverse("tenant_portal:cash_bank_accounts"))
             messages.success(request, "Bank account created.")
             return redirect(reverse("tenant_portal:cash_bank_accounts"))
 
@@ -13342,12 +16366,15 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
     status_f = (request.GET.get("status") or "").strip().lower()
     currency_f = (request.GET.get("currency") or "").strip()
     coa_f = (request.GET.get("account_id") or "").strip()
+    account_type_f = (request.GET.get("account_type") or "").strip()
+    project_f = (request.GET.get("project_id") or "").strip()
+    grant_f = (request.GET.get("grant_id") or "").strip()
     q = (request.GET.get("q") or "").strip()
     view_mode = (request.GET.get("view") or "").strip().lower()
 
     qs = (
         BankAccount.objects.using(tenant_db)
-        .select_related("currency", "account")
+        .select_related("currency", "account", "linked_project", "linked_grant")
         .order_by("bank_name", "account_name")
     )
 
@@ -13361,6 +16388,12 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
         qs = qs.filter(is_active=False)
     if coa_f:
         qs = qs.filter(account_id=coa_f)
+    if account_type_f:
+        qs = qs.filter(account_type=account_type_f)
+    if project_f.isdigit():
+        qs = qs.filter(linked_project_id=int(project_f))
+    if grant_f.isdigit():
+        qs = qs.filter(linked_grant_id=int(grant_f))
     if q:
         qs = qs.filter(Q(account_name__icontains=q) | Q(account_number__icontains=q))
 
@@ -13408,6 +16441,8 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
         )
 
     currencies = Currency.objects.using(tenant_db).order_by("code")
+    projects = Project.objects.using(tenant_db).order_by("code")
+    grants = Grant.objects.using(tenant_db).order_by("code")
 
     # Prefer active asset-type accounts for linking bank accounts. If none exist
     # (e.g. tenant just seeded the chart of accounts with different types),
@@ -13428,7 +16463,15 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
     kpi_total_count = len(all_bank)
     kpi_active_count = sum(1 for _ in all_bank if _[2])
     kpi_inactive_count = kpi_total_count - kpi_active_count
-    all_account_ids = [x[1] for x in all_bank if x[1]]
+    parent_bank_control = ChartAccount.objects.using(tenant_db).filter(code="1200").first()
+    bank_child_ids = set()
+    if parent_bank_control:
+        bank_child_ids = set(
+            ChartAccount.objects.using(tenant_db)
+            .filter(parent_id=parent_bank_control.pk)
+            .values_list("id", flat=True)
+        )
+    all_account_ids = [x[1] for x in all_bank if x[1] and (not bank_child_ids or x[1] in bank_child_ids)]
     kpi_total_balance = Decimal("0")
     if all_account_ids:
         kpi_bal_rows = (
@@ -13460,8 +16503,14 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
                 "status": status_f,
                 "currency": currency_f,
                 "account_id": coa_f,
+                "account_type": account_type_f,
+                "project_id": project_f,
+                "grant_id": grant_f,
                 "q": q,
             },
+            "projects": projects,
+            "grants": grants,
+            "account_type_choices": BankAccount.AccountType.choices,
             "can_manage": can_manage,
             "show_create_only": view_mode == "create",
             "show_create_modal": getattr(request, "_bank_account_create_errors", False),
@@ -13632,9 +16681,20 @@ def cash_bank_transfers_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.models import BankAccount, ChartAccount
     from tenant_grants.models import Grant
     from tenant_finance.services.journal_posting import post_bank_transfer
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
 
     tenant_db = request.tenant_db
     user = request.tenant_user
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Bank transfer"),
+        active_submenu="cash",
+        active_item="cash_bank_transfers",
+    )
+    if blocked:
+        return blocked
+
     can_post = user_has_permission(user, "module:finance.manage", using=tenant_db)
 
     bank_rows = (
@@ -13720,9 +16780,20 @@ def cash_cash_transfers_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.models import BankAccount, ChartAccount
     from tenant_grants.models import Grant
     from tenant_finance.services.journal_posting import post_cash_transfer
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
 
     tenant_db = request.tenant_db
     user = request.tenant_user
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Cash transfer"),
+        active_submenu="cash",
+        active_item="cash_cash_transfers",
+    )
+    if blocked:
+        return blocked
+
     can_post = user_has_permission(user, "module:finance.manage", using=tenant_db)
 
     bank_ids = list(
@@ -13978,6 +17049,17 @@ def finance_interfund_transfer_create_view(request: HttpRequest) -> HttpResponse
             _("Inter-fund transfers are created from Post transaction → Inter-Fund Transfer."),
         )
         return redirect(reverse("tenant_portal:finance_post_transaction"))
+
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Inter-fund transfer"),
+        active_submenu="core",
+        active_item="core_interfund",
+    )
+    if blocked:
+        return blocked
 
     from tenant_finance.services.interfund_project_bank import (
         build_payload_from_projects_and_banks,
@@ -14553,7 +17635,7 @@ def cash_cash_recon_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
-    """Outgoing fund module home: payment KPIs and navigation to payables workflows."""
+    """Payables module home: payment KPIs and navigation to disbursement workflows."""
     import calendar
     from collections import defaultdict
     from datetime import date
@@ -14619,6 +17701,9 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
     top_vendors_display = "—"
     expense_mom_display = "—"
     recent_payments: list[dict] = []
+    budget_variance_fmt = "—"
+    budget_variance_hint = _("No grant budget baseline")
+    budget_variance_tone = "neutral"
 
     try:
         posted_period = JournalEntry.objects.using(tenant_db).filter(
@@ -14672,14 +17757,30 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
             .values("entry__grant_id")
             .annotate(spent=Sum("debit"))
         }
+        total_grant_budget = Decimal("0")
+        total_grant_spent_total = Decimal("0")
         for g in active_grants_qs.only("id", "award_amount"):
             b = budgets_by_grant.get(g.id, Decimal("0"))
             ceiling = b if b > 0 else Decimal(str(g.award_amount or 0))
             if ceiling <= 0:
                 continue
             spent = spend_by_grant.get(g.id, Decimal("0"))
+            total_grant_budget += ceiling
+            total_grant_spent_total += spent
             if spent > ceiling:
                 over_budget_n += 1
+
+        if total_grant_budget > 0:
+            remaining = total_grant_budget - total_grant_spent_total
+            pct = (remaining / total_grant_budget) * Decimal("100")
+            budget_variance_fmt = f"{pct.quantize(Decimal('0.1')):+.1f}%"
+            budget_variance_hint = _("Remaining vs grant budgets, budget lines, and award amounts")
+            if pct >= Decimal("5"):
+                budget_variance_tone = "positive"
+            elif pct >= 0:
+                budget_variance_tone = "warning"
+            else:
+                budget_variance_tone = "negative"
 
         vendor_totals: defaultdict[str, Decimal] = defaultdict(Decimal)
         for row in posted_period.values("id", "payee_name"):
@@ -14728,15 +17829,47 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
     except Exception:
         pass
 
-    outgoing_kpis = [
-        {"label": _("Total payments this period"), "value": _fmt_money(total_payments_period)},
-        {"label": _("Total expenses this month"), "value": _fmt_money(expenses_this_month)},
-        {"label": _("Outstanding payables"), "value": _fmt_money(outstanding_pay)},
-        {"label": _("Payments pending approval"), "value": f"{pending_payments_n:,}"},
-        {"label": _("Budget exceeded alerts"), "value": f"{over_budget_n:,}"},
-        {"label": _("Top vendors"), "value": top_vendors_display},
-        {"label": _("Expense vs prior month"), "value": expense_mom_display},
-        {"label": _("Payment vouchers this period"), "value": f"{posted_pv_period_n:,}"},
+    outgoing_kpis_other = [
+        {"label": _("Total payments (period)"), "value": _fmt_money(total_payments_period)},
+        {"label": _("Expenses (month to date)"), "value": _fmt_money(expenses_this_month)},
+        {"label": _("Budget line alerts"), "value": f"{over_budget_n:,}"},
+        {"label": _("Payment vouchers (period)"), "value": f"{posted_pv_period_n:,}"},
+        {"label": _("Top payees / vendors"), "value": top_vendors_display},
+    ]
+
+    kpi_primary = [
+        {
+            "id": "budget_variance",
+            "label": _("Budget variance"),
+            "value": budget_variance_fmt,
+            "hint": budget_variance_hint,
+            "href": "",
+            "tone": budget_variance_tone,
+        },
+        {
+            "id": "pending_approvals",
+            "label": _("Pending approvals"),
+            "value": f"{pending_payments_n:,}",
+            "hint": _("Draft or submitted payment vouchers"),
+            "href": reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
+            "tone": "neutral",
+        },
+        {
+            "id": "outstanding_payables",
+            "label": _("Outstanding payables"),
+            "value": _fmt_money(outstanding_pay),
+            "hint": _("Open vendor and accrual balances"),
+            "href": reverse("tenant_portal:pay_outstanding"),
+            "tone": "neutral",
+        },
+        {
+            "id": "expense_variance_prior",
+            "label": _("Expense vs prior period"),
+            "value": expense_mom_display,
+            "hint": _("Posted expense vs prior calendar month"),
+            "href": "",
+            "tone": "neutral",
+        },
     ]
 
     return render(
@@ -14747,10 +17880,257 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
             "tenant_user": request.tenant_user,
             "active_submenu": "payables",
             "active_item": "pay_center_home",
-            "outgoing_kpis": outgoing_kpis,
+            "outgoing_kpis_other": outgoing_kpis_other,
+            "kpi_primary": kpi_primary,
             "recent_payments": recent_payments,
             "outgoing_period_hint": f"{ps.isoformat()} — {pe.isoformat()}",
         },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_advances_prepayments_view(request: HttpRequest) -> HttpResponse:
+    """Advances & prepayments hub: links to GL search and journal entry (Dynamics-style landing)."""
+    from urllib.parse import urlencode
+
+    adv_q = urlencode({"q": "advance"})
+    prep_q = urlencode({"q": "prepayment"})
+    base = reverse("tenant_portal:finance_journals")
+    return render(
+        request,
+        "tenant_portal/pay/advances_prepayments.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "payables",
+            "active_item": "pay_center_home",
+            "finance_journal_advance_url": f"{base}?{adv_q}",
+            "finance_journal_prepayment_url": f"{base}?{prep_q}",
+            "finance_journal_create_url": reverse("tenant_portal:finance_journal_create"),
+        },
+    )
+
+
+def _pay_outgoing_hub_render(
+    request: HttpRequest,
+    *,
+    page_title: str,
+    page_intro: str,
+    hub_links: list[dict],
+) -> HttpResponse:
+    return render(
+        request,
+        "tenant_portal/pay/outgoing_hub.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "payables",
+            "active_item": "pay_center_home",
+            "page_title": page_title,
+            "page_intro": page_intro,
+            "hub_links": hub_links,
+        },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_payment_batches_view(request: HttpRequest) -> HttpResponse:
+    """Payment batches: NGO hub linking batch approval and vouchers (project / grant / budget line)."""
+    from django.utils.translation import gettext as _
+
+    return _pay_outgoing_hub_render(
+        request,
+        page_title=_("Payment batches"),
+        page_intro=_(
+            "Group and process outgoing payments in batches for approval and posting. "
+            "Keep project, donor, grant, and budget line tagging consistent across each batch."
+        ),
+        hub_links=[
+            {
+                "label": _("Bulk payment voucher approval"),
+                "url": reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
+                "hint": _("Review and approve multiple vouchers in one queue."),
+            },
+            {
+                "label": _("Payment vouchers"),
+                "url": reverse("tenant_portal:pay_payment_vouchers"),
+                "hint": _("Create or edit vouchers before batch submission."),
+            },
+            {
+                "label": _("General journal (register)"),
+                "url": reverse("tenant_portal:finance_journals"),
+                "hint": _("Audit posted batches in the GL register."),
+            },
+        ],
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_supporting_documents_view(request: HttpRequest) -> HttpResponse:
+    """Document Management register for transaction supporting files (auto-registered from vouchers/journals)."""
+    from decimal import Decimal
+    from django.db.models import Count, Sum
+    from django.utils.translation import gettext as _
+
+    from tenant_finance.models import JournalEntry, JournalEntryAttachment, JournalLine
+
+    tenant_db = request.tenant_db
+    user = request.tenant_user
+    can_manage = user_has_permission(user, "module:finance.manage", using=tenant_db)
+
+    if request.method == "POST":
+        messages.warning(
+            request,
+            _(
+                "Upload supporting documents inside the transaction form. "
+                "Files are registered here automatically."
+            ),
+        )
+        return redirect(reverse("tenant_portal:pay_supporting_documents"))
+
+    f = _parse_finance_filters(request)
+    grant_id = f.get("grant_id")
+
+    vouchers_qs = (
+        JournalEntry.objects.using(tenant_db)
+        .filter(
+            reference__startswith="PV-",
+            entry_date__gte=f["period_start"],
+            entry_date__lte=f["period_end"],
+        )
+        .select_related("grant")
+        .annotate(att_count=Count("attachments", distinct=True))
+        .order_by("-entry_date", "-id")
+    )
+    if grant_id:
+        vouchers_qs = vouchers_qs.filter(grant_id=grant_id)
+
+    vouchers = []
+    for je in vouchers_qs[:200]:
+        pv_ref = je.reference or f"PV-{je.id:05d}"
+        amt = (
+            JournalLine.objects.using(tenant_db)
+            .filter(entry=je)
+            .aggregate(t=Sum("debit") - Sum("credit"))
+            .get("t")
+            or Decimal("0")
+        )
+        vouchers.append(
+            {
+                "id": je.id,
+                "reference": pv_ref,
+                "date": je.entry_date,
+                "payee": (je.payee_name or "").strip() or "—",
+                "project": je.grant.title if je.grant else "",
+                "attachment_count": getattr(je, "att_count", 0) or 0,
+                "amount": amt,
+            }
+        )
+
+    docs_qs = (
+        JournalEntryAttachment.objects.using(tenant_db)
+        .select_related("entry", "grant", "project", "donor", "uploaded_by")
+        .filter(
+            entry__entry_date__gte=f["period_start"],
+            entry__entry_date__lte=f["period_end"],
+        )
+        .order_by("-uploaded_at")
+    )
+    if grant_id:
+        docs_qs = docs_qs.filter(entry__grant_id=grant_id)
+    docs_qs = docs_qs[:300]
+
+    documents = []
+    for doc in docs_qs:
+        e = doc.entry
+        ref = doc.voucher_number or e.reference or f"JE-{e.id:05d}"
+        src_url = None
+        st = (e.source_type or "").strip()
+        try:
+            if st == JournalEntry.SourceType.PAYMENT_VOUCHER:
+                src_url = reverse("tenant_portal:pay_payment_voucher_detail", args=[e.id])
+            elif st == JournalEntry.SourceType.RECEIPT_VOUCHER:
+                src_url = reverse("tenant_portal:finance_journal_detail", args=[e.id])
+            else:
+                src_url = reverse("tenant_portal:finance_journal_detail", args=[e.id])
+        except Exception:
+            src_url = None
+        documents.append(
+            {
+                "id": doc.id,
+                "filename": doc.original_filename or "document",
+                "category": doc.get_document_category_display() if doc.document_category else "Other",
+                "status": doc.get_status_display(),
+                "module": doc.module or "finance",
+                "submodule": doc.submodule or "general",
+                "linked_record_type": doc.linked_record_type or "journal_entry",
+                "linked_record_id": doc.linked_record_id or e.id,
+                "voucher_number": ref,
+                "project": getattr(doc.project, "name", "") or "",
+                "grant": getattr(doc.grant, "code", "") or "",
+                "donor": getattr(doc.donor, "name", "") or "",
+                "uploaded_by": (
+                    getattr(doc.uploaded_by, "full_name", "")
+                    or getattr(doc.uploaded_by, "email", "")
+                    or "—"
+                ),
+                "uploaded_at": doc.uploaded_at,
+                "storage_provider": doc.storage_provider or "default",
+                "file_url": getattr(doc.file, "url", ""),
+                "source_url": src_url,
+            }
+        )
+
+    return render(
+        request,
+        "tenant_portal/pay/supporting_documents.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": user,
+            "active_submenu": "payables",
+            "active_item": "pay_supporting_documents",
+            "filters": f,
+            "vouchers": vouchers,
+            "documents": documents,
+            "can_manage_finance": can_manage,
+        },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_payables_aging_view(request: HttpRequest) -> HttpResponse:
+    """Payables aging: links to alerts, outstanding, and ledger for NGO AP control."""
+    from django.utils.translation import gettext as _
+
+    return _pay_outgoing_hub_render(
+        request,
+        page_title=_("Payables aging"),
+        page_intro=_(
+            "Monitor open payables by timing and risk. Use grant and vendor context alongside budget lines "
+            "where transactions are tagged."
+        ),
+        hub_links=[
+            {
+                "label": _("Financial alerts"),
+                "url": reverse("tenant_portal:finance_financial_alerts"),
+                "hint": _("Overdue and risk signals for payables and operations."),
+            },
+            {
+                "label": _("Outstanding payables"),
+                "url": reverse("tenant_portal:pay_outstanding"),
+                "hint": _("Open balances and accruals."),
+            },
+            {
+                "label": _("Payables ledger"),
+                "url": reverse("tenant_portal:pay_ledger"),
+                "hint": _("AP and liability activity in the general ledger."),
+            },
+            {
+                "label": _("Trial balance"),
+                "url": reverse("tenant_portal:finance_trial_balance"),
+                "hint": _("Validate liability balances by account."),
+            },
+        ],
     )
 
 
@@ -14760,7 +18140,8 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
     Dedicated Payment Voucher screen.
 
     - Users enter a payment voucher (date, bank/cash account, expense account,
-      project/grant, amount, payee, description, attachment).
+      project/grant, amount, payee, description). Supporting documents are linked
+      on the Supporting documents page after save.
     - On submit, we POST a balanced JournalEntry:
         * Debit: expense account
         * Credit: payment (bank/cash) account
@@ -14780,9 +18161,21 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         AuditLog,
     )
     from tenant_grants.models import Grant, GrantAssignment
+    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
 
     tenant_db = request.tenant_db
     user = request.tenant_user
+
+    blocked = render_if_setup_incomplete_for_transactions(
+        request,
+        page_title=_("Payment vouchers"),
+        active_submenu="payables",
+        active_item="pay_payment_vouchers",
+    )
+    if blocked:
+        return blocked
+
+    _ensure_default_receipt_and_income_accounts(tenant_db)
 
     # Determine if user is finance manager (can see all projects)
     is_manager = user_has_permission(user, "module:finance.manage", using=tenant_db)
@@ -14826,31 +18219,51 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         if not description:
             errors.append("Purpose of payment is required.")
 
-        # collect detail line amounts (multiple budget lines)
-        from decimal import Decimal as _D
+        # Detail lines: amount + optional per-line grant (NGO multi-grant lines)
+        import re
 
-        detail_amounts = []
-        for key, value in request.POST.items():
-            if key.startswith("detail_amount_"):
-                try:
-                    val = Decimal(str(value or "0"))
-                except (InvalidOperation, ValueError):
-                    continue
-                if val > 0:
-                    detail_amounts.append(val)
+        detail_line_indices = set()
+        for k in request.POST:
+            m = re.match(r"detail_amount_(\d+)$", k)
+            if m:
+                detail_line_indices.add(int(m.group(1)))
 
-        # fallback if older single-line field used
-        if not detail_amounts:
+        detail_lines: list[dict] = []
+        for i in sorted(detail_line_indices):
+            try:
+                val = Decimal(str(request.POST.get(f"detail_amount_{i}") or "0"))
+            except (InvalidOperation, ValueError):
+                continue
+            if val <= 0:
+                continue
+            raw_gid = (request.POST.get(f"detail_grant_id_{i}") or "").strip()
+            line_grant = (
+                Grant.objects.using(tenant_db).filter(pk=raw_gid).first() if raw_gid else None
+            )
+            detail_lines.append({"amount": val, "grant": line_grant})
+
+        if not detail_lines:
             try:
                 single = Decimal(str(request.POST.get("amount") or "0"))
             except (InvalidOperation, ValueError):
                 single = Decimal("0")
             if single > 0:
-                detail_amounts.append(single)
+                detail_lines.append({"amount": single, "grant": None})
 
-        attachment = request.FILES.get("attachment")
+        total_amount = sum(d["amount"] for d in detail_lines) if detail_lines else Decimal("0")
 
-        total_amount = sum(detail_amounts) if detail_amounts else Decimal("0")
+        def _parse_exchange_rate(raw: str):
+            s = (raw or "").strip()
+            if not s:
+                return None
+            try:
+                return Decimal(s.replace(",", ""))
+            except (InvalidOperation, ValueError):
+                return None
+
+        exchange_rate = _parse_exchange_rate(request.POST.get("exchange_rate"))
+        raw_due = (request.POST.get("payment_due_date") or "").strip()
+        payment_due_date = parse_date(raw_due) if raw_due else None
         if total_amount <= 0:
             errors.append("Total payment amount must be greater than zero and at least one payment detail line is required.")
 
@@ -14909,9 +18322,21 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     )
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
-            payment_account = ChartAccount.objects.using(tenant_db).filter(pk=payment_account_id).first()
+            valid_payment_account_ids = {a.id for a in _bank_cash_posting_gl_accounts(tenant_db)}
+            payment_account = (
+                ChartAccount.objects.using(tenant_db).filter(pk=payment_account_id).first()
+                if payment_account_id
+                else None
+            )
             expense_account = ChartAccount.objects.using(tenant_db).filter(pk=expense_account_id).first()
             grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first() if grant_id else None
+
+            if not payment_account or payment_account.id not in valid_payment_account_ids:
+                messages.error(
+                    request,
+                    "Bank / cash account must be an active posting asset account under 1200 — Bank Accounts.",
+                )
+                return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
             # Finance officer restriction: must have an active assignment for the selected grant
             if not is_manager:
@@ -14970,6 +18395,8 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     source_type=JournalEntry.SourceType.PAYMENT_VOUCHER,
                     journal_type="payment_voucher",
                     is_system_generated=True,
+                    exchange_rate=exchange_rate,
+                    payment_due_date=payment_due_date,
                 )
                 # Set reference with PV prefix
                 entry.reference = f"PV-{entry.id:05d}"
@@ -14998,14 +18425,16 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     # Audit logging should never block the main transaction
                     pass
 
-                # Debit expense per detail line, credit bank/cash with total
-                for amt in detail_amounts:
+                # Debit expense per detail line (optional grant per line), credit bank/cash with total
+                for row in detail_lines:
+                    line_grant = row.get("grant") or grant
                     JournalLine.objects.using(tenant_db).create(
                         entry=entry,
                         account=expense_account,
                         description=description,
-                        debit=amt,
+                        debit=row["amount"],
                         credit=Decimal("0"),
+                        grant=line_grant,
                     )
                 JournalLine.objects.using(tenant_db).create(
                     entry=entry,
@@ -15013,15 +18442,25 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     description=description,
                     debit=Decimal("0"),
                     credit=total_amount,
+                    grant=grant,
                 )
 
-                # Attachment
-                if attachment:
-                    JournalEntryAttachment.objects.using(tenant_db).create(
-                        entry=entry,
-                        file=attachment,
-                        original_filename=getattr(attachment, "name", "") or "",
-                    )
+                # NGO source documents (invoice, receipt, approval memo)
+                _attach_specs = (
+                    ("attach_invoice", JournalEntryAttachment.DocumentCategory.INVOICE),
+                    ("attach_receipt", JournalEntryAttachment.DocumentCategory.RECEIPT),
+                    ("attach_approval_memo", JournalEntryAttachment.DocumentCategory.APPROVAL_MEMO),
+                )
+                for field_name, cat in _attach_specs:
+                    fobj = request.FILES.get(field_name)
+                    if fobj:
+                        JournalEntryAttachment.objects.using(tenant_db).create(
+                            entry=entry,
+                            file=fobj,
+                            original_filename=getattr(fobj, "name", "") or "",
+                            document_category=cat,
+                            uploaded_by=request.tenant_user,
+                        )
 
                 if status == JournalEntry.Status.DRAFT:
                     messages.success(request, f"Payment voucher {entry.reference} saved as draft.")
@@ -15090,11 +18529,7 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
 
     from tenant_finance.models import ChartAccount as CA
 
-    payment_accounts = (
-        CA.objects.using(tenant_db)
-        .filter(type=CA.Type.ASSET)
-        .order_by("code")
-    )
+    payment_accounts = _bank_cash_posting_gl_accounts(tenant_db)
     expense_accounts = (
         CA.objects.using(tenant_db)
         .filter(type=CA.Type.EXPENSE)
@@ -15112,6 +18547,32 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             status=Grant.Status.ACTIVE, id__in=assigned_ids
         ).order_by("code")
 
+    from decimal import Decimal as _PVDec
+
+    from django.db.models import Sum as _Sum
+
+    from tenant_finance.models import get_grant_posted_expense_total
+    from tenant_grants.models import BudgetLine
+
+    def _grant_budget_snapshot(g: Grant) -> dict:
+        bl_sum = (
+            BudgetLine.objects.using(tenant_db)
+            .filter(grant=g)
+            .aggregate(s=_Sum("amount"))
+            .get("s")
+            or _PVDec("0")
+        )
+        envelope = bl_sum if bl_sum > 0 else (g.award_amount or _PVDec("0"))
+        posted = get_grant_posted_expense_total(g.id, tenant_db)
+        available = envelope - posted
+        return {
+            "envelope": str(envelope),
+            "posted": str(posted),
+            "available": str(available),
+        }
+
+    grant_budget = {str(g.id): _grant_budget_snapshot(g) for g in grants}
+
     return render(
         request,
         "tenant_portal/pay/payment_vouchers.html",
@@ -15123,6 +18584,7 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             "payment_accounts": payment_accounts,
             "expense_accounts": expense_accounts,
             "grants": grants,
+            "grant_budget": grant_budget,
             "active_submenu": "payables",
             "active_item": "pay_payment_vouchers",
             "export_csv_url": _grants_export_urls(request)["csv"],
@@ -16179,7 +19641,7 @@ def grants_reports_view(request: HttpRequest) -> HttpResponse:
         from django.http import HttpResponse
 
         response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="grant_financial_overview.csv"'
+        response["Content-Disposition"] = 'attachment; filename="grant_financial_summary.csv"'
         w = csv.writer(response)
         if start or end:
             _period = f"{start or '—'} to {end or '—'}"
@@ -16188,7 +19650,7 @@ def grants_reports_view(request: HttpRequest) -> HttpResponse:
         _official_csv_preamble(
             w,
             request,
-            "Grant financial overview",
+            "Grant financial summary",
             [
                 ("Activity period", _period),
                 ("Grant filter", grant_filter or "All grants"),
@@ -16319,7 +19781,7 @@ def core_accounting_center_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def reporting_center_view(request: HttpRequest) -> HttpResponse:
-    """Reporting module home: dashboard of links to financial, budget, grant, and donor reports."""
+    """Reports module home: links to financial, budget, grant, and donor reports."""
     return render(
         request,
         "tenant_portal/reporting/reporting_center.html",

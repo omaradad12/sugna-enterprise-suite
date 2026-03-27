@@ -3,6 +3,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from tenant_grants.donor_countries import DONOR_COUNTRY_CHOICES, DONOR_COUNTRY_CODES
+
 
 class ActiveDonorManager(models.Manager):
     """Return only active donors for grant/agreement/tracking dropdowns; inactive/archived remain for history."""
@@ -54,7 +56,7 @@ class Donor(models.Model):
     name = models.CharField(max_length=200, unique=True)
     short_name = models.CharField(max_length=80, blank=True)
     donor_type = models.CharField(
-        max_length=20, choices=DonorType.choices, default=DonorType.INSTITUTION, blank=True
+        max_length=20, choices=DonorType.choices, default=DonorType.INSTITUTION
     )
     donor_category = models.CharField(
         max_length=20, choices=DonorCategory.choices, default=DonorCategory.OTHER, blank=True
@@ -63,9 +65,21 @@ class Donor(models.Model):
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
-    country = models.CharField(max_length=100, blank=True)
+    country = models.CharField(
+        max_length=2,
+        choices=DONOR_COUNTRY_CHOICES,
+        blank=True,
+        help_text=_("ISO 3166-1 alpha-2 code from the predefined country list."),
+    )
     website = models.URLField(blank=True)
-    preferred_currency = models.CharField(max_length=10, blank=True)
+    preferred_currency = models.ForeignKey(
+        "tenant_finance.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="donors_preferred",
+        help_text=_("Must be a currency from the system currency list."),
+    )
     default_restriction_type = models.CharField(
         max_length=20,
         choices=DefaultRestrictionType.choices,
@@ -85,6 +99,20 @@ class Donor(models.Model):
     agreement_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_by = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="donors_created",
+    )
+    updated_by = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="donors_updated",
+    )
 
     objects = models.Manager()
     active = ActiveDonorManager()
@@ -96,18 +124,131 @@ class Donor(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def clean(self) -> None:
+        super().clean()
+        if self.code:
+            self.code = (self.code or "").strip().upper()
+        if self.name:
+            self.name = (self.name or "").strip()
+        if self.country:
+            self.country = (self.country or "").strip().upper()
+        errors: dict = {}
+        code = (self.code or "").strip().upper()
+        name = (self.name or "").strip()
+        if not code:
+            errors["code"] = _("Donor code is required.")
+        if not name:
+            errors["name"] = _("Donor name is required.")
+        valid_types = {c[0] for c in self.DonorType.choices}
+        if not self.donor_type or self.donor_type not in valid_types:
+            errors["donor_type"] = _("Donor type is required.")
+        valid_status = {c[0] for c in self.Status.choices}
+        if not self.status or self.status not in valid_status:
+            errors["status"] = _("Status is required.")
+
+        db = getattr(self._state, "db", None) or "default"
+        if code:
+            qs_code = Donor.objects.using(db).filter(code__iexact=code)
+            if self.pk:
+                qs_code = qs_code.exclude(pk=self.pk)
+            if qs_code.exists():
+                errors["code"] = _("A donor with this code already exists.")
+        if name:
+            qs_name = Donor.objects.using(db).filter(name__iexact=name)
+            if self.pk:
+                qs_name = qs_name.exclude(pk=self.pk)
+            if qs_name.exists():
+                errors["name"] = _("A donor with this name already exists.")
+
+        ctry = (self.country or "").strip().upper()
+        if ctry and ctry not in DONOR_COUNTRY_CODES:
+            errors["country"] = _("Country must be selected from the predefined list.")
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, audit_user=None, update_fields=None, **kwargs):
+        """Pass audit_user (TenantUser instance) to set created_by / updated_by."""
+        if self.code:
+            self.code = (self.code or "").strip().upper()
+        if self.name:
+            self.name = (self.name or "").strip()
+        if audit_user is not None:
+            if self._state.adding:
+                self.created_by = audit_user
+            self.updated_by = audit_user
+            if update_fields is not None:
+                uf = set(update_fields)
+                if self._state.adding:
+                    uf.update({"created_by", "updated_by"})
+                else:
+                    uf.add("updated_by")
+                update_fields = list(uf)
+        super().save(*args, update_fields=update_fields, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        """Block delete when linked to grants or posted transactions; use status instead."""
+        db = using or getattr(self._state, "db", None) or "default"
+        Grant = self._meta.apps.get_model("tenant_grants", "Grant")
+        JournalEntry = self._meta.apps.get_model("tenant_finance", "JournalEntry")
+        if Grant.objects.using(db).filter(donor_id=self.pk).exists():
+            raise ValidationError(
+                _(
+                    "Cannot delete this donor while grant agreements are linked. "
+                    "Set status to Inactive or Archived instead."
+                )
+            )
+        if JournalEntry.objects.using(db).filter(donor_id=self.pk).exists():
+            raise ValidationError(
+                _(
+                    "Cannot delete this donor while accounting transactions reference it. "
+                    "Set status to Inactive or Archived instead."
+                )
+            )
+        return super().delete(using=using, keep_parents=keep_parents)
+
 
 class FundingSource(models.Model):
-    """Funding types (grants, donations, contributions) linked to donors and optionally projects."""
+    """
+    Funding modality templates (payment modalities): reusable global patterns of how
+    grant cash is released.
 
-    class FundingType(models.TextChoices):
-        GRANT = "grant", "Grant"
-        DONATION = "donation", "Donation"
-        CONTRIBUTION = "contribution", "Contribution"
+    Templates are selected on grant agreements / project funding setup and drive
+    receivable scheduling, retention tracking, and reimbursement controls. The
+    donor link is optional reference metadata only (not the controlling key).
+    """
+
+    class ModalityType(models.TextChoices):
+        ADVANCE = "advance", _("Advance")
+        INSTALMENT = "instalment", _("Instalment")
+        REIMBURSEMENT = "reimbursement", _("Reimbursement")
+        ADVANCE_WITH_RETENTION = "advance_with_retention", _("Advance with retention")
+        MILESTONE_BASED = "milestone_based", _("Milestone based")
+        COST_SHARE = "cost_share", _("Cost share")
+        MIXED_MODALITY = "mixed_modality", _("Mixed modality")
 
     name = models.CharField(max_length=120)
-    funding_type = models.CharField(
-        max_length=20, choices=FundingType.choices, default=FundingType.GRANT
+    modality_type = models.CharField(
+        max_length=30,
+        choices=ModalityType.choices,
+        default=ModalityType.MIXED_MODALITY,
+        db_index=True,
+        help_text="How payments are structured (advance, reimbursement, retention, etc.).",
+    )
+    retention_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Optional retention held back until conditions are met (0–100).",
+    )
+    allow_instalments = models.BooleanField(
+        default=False,
+        help_text="Whether multiple payment tranches are allowed under this modality.",
+    )
+    requires_reporting_before_next_payment = models.BooleanField(
+        default=False,
+        help_text="If true, narrative/financial reporting gates the next instalment.",
     )
     donor = models.ForeignKey(
         Donor, on_delete=models.PROTECT, related_name="funding_sources", null=True, blank=True
@@ -119,7 +260,184 @@ class FundingSource(models.Model):
         ordering = ["name"]
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.get_funding_type_display()})"
+        return f"{self.name} ({self.get_modality_type_display()})"
+
+    def clean(self) -> None:
+        from decimal import Decimal
+
+        from django.core.exceptions import ValidationError
+
+        errs = {}
+        rp = self.retention_percentage
+        if rp is not None:
+            if rp < 0 or rp > 100:
+                errs["retention_percentage"] = _("Retention percentage must be between 0 and 100.")
+        if self.modality_type == self.ModalityType.MIXED_MODALITY and self.pk:
+            lines = list(self.payment_structure.all())
+            if not lines:
+                errs["modality_type"] = _(
+                    "Payment structure required for Mixed modality. "
+                    "Please add at least one component such as Advance %%, Reimbursement %%, or Retention %%."
+                )
+            else:
+                total = sum((ln.percentage for ln in lines), Decimal("0"))
+                if abs(total - Decimal("100")) > Decimal("0.02"):
+                    errs["modality_type"] = _(
+                        "Mixed modality: payment structure percentages must total 100%% (currently %(pct)s%%)."
+                    ) % {"pct": total}
+        if errs:
+            raise ValidationError(errs)
+
+
+class FundingSourcePaymentStructure(models.Model):
+    """
+    Percentage split for Mixed modality funding sources: components must total 100%%.
+    Drives automatic receivable (grant tranche) generation for grants using this modality.
+    """
+
+    class ComponentType(models.TextChoices):
+        ADVANCE = "advance", _("Advance")
+        REIMBURSEMENT = "reimbursement", _("Reimbursement")
+        RETENTION = "retention", _("Retention")
+        INSTALMENT = "instalment", _("Instalment")
+        MILESTONE_BASED = "milestone_based", _("Milestone based")
+
+    class PaymentTrigger(models.TextChoices):
+        AGREEMENT_SIGNED = "agreement_signed", _("Agreement signed")
+        EXPENSE_REPORT_APPROVED = "expense_report_approved", _("Expense report approved")
+        MILESTONE_COMPLETED = "milestone_completed", _("Milestone completed")
+        FINAL_AUDIT_APPROVED = "final_audit_approved", _("Final audit approved")
+
+    funding_source = models.ForeignKey(
+        "FundingSource",
+        on_delete=models.CASCADE,
+        related_name="payment_structure",
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    component_type = models.CharField(max_length=24, choices=ComponentType.choices, db_index=True)
+    percentage = models.DecimalField(max_digits=6, decimal_places=2)
+    payment_trigger = models.CharField(max_length=40, choices=PaymentTrigger.choices, db_index=True)
+
+    class Meta:
+        ordering = ["funding_source", "sort_order", "id"]
+        verbose_name = _("Payment structure line")
+        verbose_name_plural = _("Payment structure")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["funding_source", "sort_order"],
+                name="uq_fs_payment_structure_order_per_modality",
+            )
+        ]
+
+    def clean(self) -> None:
+        from decimal import Decimal
+
+        from django.core.exceptions import ValidationError
+
+        errs = {}
+        p = self.percentage
+        if p is not None and (p <= Decimal("0") or p > Decimal("100")):
+            errs["percentage"] = _("Each line must have a percentage between 0 and 100.")
+        if errs:
+            raise ValidationError(errs)
+
+    def __str__(self) -> str:
+        return f"{self.funding_source_id}: {self.get_component_type_display()} {self.percentage}%"
+
+
+class FundingSourceComponentAccountMap(models.Model):
+    """
+    Optional GL mapping per modality template component type.
+
+    Used to auto-select receivable/income posting accounts and preferred bank account
+    class when grants post donor receipts.
+    """
+
+    funding_source = models.ForeignKey(
+        "FundingSource",
+        on_delete=models.CASCADE,
+        related_name="component_account_maps",
+    )
+    component_type = models.CharField(
+        max_length=24,
+        choices=FundingSourcePaymentStructure.ComponentType.choices,
+        db_index=True,
+    )
+    receivable_account = models.ForeignKey(
+        "tenant_finance.ChartAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="funding_modality_receivable_maps",
+    )
+    income_account = models.ForeignKey(
+        "tenant_finance.ChartAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="funding_modality_income_maps",
+    )
+    deferred_income_account = models.ForeignKey(
+        "tenant_finance.ChartAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="funding_modality_deferred_income_maps",
+    )
+    retention_account = models.ForeignKey(
+        "tenant_finance.ChartAccount",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="funding_modality_retention_maps",
+    )
+    bank_account_type = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Preferred bank account type for this payment component (operating/project/restricted/petty_cash).",
+    )
+
+    class Meta:
+        ordering = ["funding_source", "component_type"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["funding_source", "component_type"],
+                name="uq_funding_source_component_account_map",
+            )
+        ]
+
+    def clean(self) -> None:
+        from django.core.exceptions import ValidationError
+
+        from tenant_finance.models import BankAccount, ChartAccount
+
+        errs = {}
+        valid_bank_types = {c[0] for c in BankAccount.AccountType.choices}
+        bt = (self.bank_account_type or "").strip()
+        if bt and bt not in valid_bank_types:
+            errs["bank_account_type"] = _("Invalid bank account type.")
+        if self.receivable_account_id:
+            acc = self.receivable_account
+            if acc and acc.type != ChartAccount.Type.ASSET:
+                errs["receivable_account"] = _("Receivable account must be an Asset account.")
+        if self.income_account_id:
+            acc = self.income_account
+            if acc and acc.type != ChartAccount.Type.INCOME:
+                errs["income_account"] = _("Income account must be an Income account.")
+        if self.deferred_income_account_id:
+            acc = self.deferred_income_account
+            if acc and acc.type != ChartAccount.Type.LIABILITY:
+                errs["deferred_income_account"] = _("Deferred income account must be a Liability account.")
+        if self.retention_account_id:
+            acc = self.retention_account
+            if acc and acc.type not in (ChartAccount.Type.ASSET, ChartAccount.Type.LIABILITY):
+                errs["retention_account"] = _("Retention account must be an Asset or Liability account.")
+        if errs:
+            raise ValidationError(errs)
+
+    def __str__(self) -> str:
+        return f"{self.funding_source_id}: {self.component_type}"
 
 
 class DonorAgreement(models.Model):
@@ -815,7 +1133,15 @@ class Project(models.Model):
         max_length=30,
         choices=FundingType.choices,
         blank=True,
-        help_text="Primary funding modality for this project (optional).",
+        help_text="Program / category label (optional).",
+    )
+    funding_modality = models.ForeignKey(
+        "FundingSource",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="projects",
+        help_text="Payment modality: receivable schedule, retention, reimbursement controls.",
     )
     currency = models.ForeignKey(
         "tenant_finance.Currency",
@@ -905,7 +1231,7 @@ class Project(models.Model):
         if not self.code or not self.code.strip():
             errors["code"] = "Project code is required."
         if self.start_date and self.end_date and self.start_date > self.end_date:
-            errors["end_date"] = "End date must be on or after start date."
+            errors["end_date"] = "Operational end date must be on or after the start date."
         # Keep baseline fields consistent
         if not self.original_end_date and self.end_date:
             self.original_end_date = self.end_date
@@ -1050,6 +1376,12 @@ class Grant(models.Model):
         MEDIUM = "medium", "Medium"
         HIGH = "high", "High"
 
+    class FundingMethod(models.TextChoices):
+        ADVANCE_INSTALMENTS = "advance_instalments", _("Advance instalments")
+        ADVANCE_WITH_RETENTION = "advance_with_retention", _("Advance with retention %")
+        REIMBURSEMENT = "reimbursement", _("Reimbursement")
+        MIXED = "mixed", _("Mixed")
+
     code = models.CharField(max_length=50, unique=True)
     title = models.CharField(max_length=255)
     donor = models.ForeignKey(Donor, on_delete=models.PROTECT, related_name="grants")
@@ -1111,6 +1443,50 @@ class Grant(models.Model):
         related_name="grants",
     )
     award_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    grant_ceiling = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Maximum approved funding (total donor commitment).",
+    )
+    eligible_receivable_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Amount currently allowed to claim from the donor (eligible expenses, approved tranche, milestones, etc.).",
+    )
+    receivable_basis_note = models.TextField(
+        blank=True,
+        help_text="Optional: how eligibility is determined (e.g. eligible expenses, approved tranche, milestone).",
+    )
+    funding_modality = models.ForeignKey(
+        "FundingSource",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="grants",
+        help_text="Payment modality for this agreement; syncs funding method rules when set.",
+    )
+    funding_method = models.CharField(
+        max_length=32,
+        choices=FundingMethod.choices,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="How donor funds are released (instalments, retention, reimbursement, or mixed).",
+    )
+    expense_report_approved = models.BooleanField(
+        default=False,
+        help_text="For tranches tied to expense report approval: receivable only when True.",
+    )
+    audit_approved = models.BooleanField(
+        default=False,
+        help_text="For tranches tied to audit approval: receivable only when True.",
+    )
+    final_report_approved = models.BooleanField(
+        default=False,
+        help_text="For retention tranches: receivable only after final report is approved.",
+    )
     signed_date = models.DateField(
         null=True, blank=True, help_text="Date the agreement was signed."
     )
@@ -1129,6 +1505,19 @@ class Grant(models.Model):
     def effective_end_date(self):
         return self.revised_end_date or self.original_end_date or self.end_date
 
+    @property
+    def unused_grant_balance(self):
+        """Portion of the ceiling not yet eligible to claim (ceiling minus eligible receivable)."""
+        from decimal import Decimal
+
+        ceiling = self.grant_ceiling if self.grant_ceiling is not None else Decimal("0")
+        eligible = (
+            self.eligible_receivable_amount
+            if self.eligible_receivable_amount is not None
+            else Decimal("0")
+        )
+        return max(ceiling - eligible, Decimal("0"))
+
     def is_active_on(self, dt) -> bool:
         if not dt:
             return False
@@ -1145,6 +1534,8 @@ class Grant(models.Model):
         return True
 
     def clean(self) -> None:
+        from decimal import Decimal
+
         from django.core.exceptions import ValidationError
 
         errors = {}
@@ -1158,8 +1549,21 @@ class Grant(models.Model):
             errors["code"] = "Grant code is required."
         if self.start_date and self.end_date and self.start_date > self.end_date:
             errors["end_date"] = "End date must be on or after start date."
-        # Budget must be greater than zero for active grants
-        if self.award_amount is not None and self.award_amount <= 0:
+        ceiling = self.grant_ceiling if self.grant_ceiling is not None else Decimal("0")
+        if ceiling <= 0 and (self.award_amount or Decimal("0")) > 0:
+            ceiling = self.award_amount or Decimal("0")
+        eligible = (
+            self.eligible_receivable_amount
+            if self.eligible_receivable_amount is not None
+            else Decimal("0")
+        )
+        if eligible > ceiling:
+            errors["eligible_receivable_amount"] = "Eligible receivable cannot exceed grant ceiling."
+        # Budget / ceiling must be greater than zero for active grants
+        if self.status == self.Status.ACTIVE:
+            if ceiling <= 0:
+                errors["grant_ceiling"] = "Grant ceiling must be greater than zero for active grants."
+        elif self.award_amount is not None and self.award_amount <= 0 and ceiling <= 0:
             errors["award_amount"] = "Budget (award amount) must be greater than zero."
         # Grant must belong to a project
         if not self.project_id:
@@ -1167,11 +1571,105 @@ class Grant(models.Model):
         if errors:
             raise ValidationError(errors)
 
+    def save(self, *args, **kwargs):
+        from decimal import Decimal
+
+        from tenant_grants.services.payment_modality import sync_grant_from_funding_modality
+
+        sync_grant_from_funding_modality(self)
+        # Keep legacy award_amount aligned with grant ceiling for reporting and existing code paths.
+        if self.grant_ceiling is not None and self.grant_ceiling > 0:
+            self.award_amount = self.grant_ceiling
+        elif (self.award_amount or Decimal("0")) > 0 and (not self.grant_ceiling or self.grant_ceiling <= 0):
+            self.grant_ceiling = self.award_amount
+            if not self.eligible_receivable_amount or self.eligible_receivable_amount <= 0:
+                self.eligible_receivable_amount = self.award_amount
+        using = kwargs.get("using")
+        super().save(*args, **kwargs)
+        if self.pk and self.funding_modality_id:
+            from tenant_grants.services.grant_tranches import sync_grant_tranches_from_funding_structure
+
+            sync_grant_tranches_from_funding_structure(self, using=using)
+
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"{self.code} — {self.title}"
+
+
+class GrantTranche(models.Model):
+    """
+    Funding tranches under a grant agreement (advance instalments, retention, reimbursement, mixed).
+    Drives receivable timing together with Grant.funding_method and approval flags on Grant.
+    """
+
+    class PaymentType(models.TextChoices):
+        ADVANCE = "advance", _("Advance")
+        REIMBURSEMENT = "reimbursement", _("Reimbursement")
+        RETENTION = "retention", _("Retention")
+        INSTALMENT = "instalment", _("Instalment")
+        MILESTONE_BASED = "milestone_based", _("Milestone based")
+
+    class TriggerCondition(models.TextChoices):
+        CONTRACT_SIGNING = "contract_signing", _("Agreement signed")
+        EXPENSE_REPORT_APPROVAL = "expense_report_approval", _("Expense report approved")
+        AUDIT_APPROVAL = "audit_approval", _("Final audit approved")
+        MILESTONE_COMPLETED = "milestone_completed", _("Milestone completed")
+
+    grant = models.ForeignKey(Grant, on_delete=models.CASCADE, related_name="tranches")
+    tranche_no = models.PositiveSmallIntegerField()
+    payment_type = models.CharField(max_length=20, choices=PaymentType.choices, db_index=True)
+    percentage = models.DecimalField(
+        max_digits=9,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of grant ceiling (use when amount is not set).",
+    )
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Fixed tranche value (use when percentage is not set).",
+    )
+    trigger_condition = models.CharField(max_length=40, choices=TriggerCondition.choices)
+    due_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Advance tranches: when due (receivable recognised when due and trigger is met).",
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    notes = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["grant", "sort_order", "tranche_no"]
+        unique_together = [("grant", "tranche_no")]
+        verbose_name = "Grant tranche"
+        verbose_name_plural = "Grant tranches"
+
+    def clean(self) -> None:
+        from decimal import Decimal
+
+        errors = {}
+        has_pct = self.percentage is not None and self.percentage > 0
+        has_amt = self.amount is not None and self.amount > 0
+        if not has_pct and not has_amt:
+            errors["amount"] = "Set either a positive percentage or a positive amount."
+        if has_pct and has_amt:
+            errors["amount"] = "Use either percentage or amount for a tranche line, not both."
+        if self.percentage is not None and self.percentage < 0:
+            errors["percentage"] = "Percentage cannot be negative."
+        if self.amount is not None and self.amount < 0:
+            errors["amount"] = "Amount cannot be negative."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self) -> str:
+        return f"{self.grant.code} / T{self.tranche_no}"
 
 
 class ProjectPeriodExtension(models.Model):
@@ -1983,6 +2481,10 @@ class GrantDocument(models.Model):
 
 class BudgetLine(models.Model):
     grant = models.ForeignKey(Grant, on_delete=models.CASCADE, related_name="budget_lines")
+    budget_line_code = models.CharField(
+        max_length=50,
+        help_text="Budget line code mapped to COA account code (unique per grant/project).",
+    )
     # Link to chart of accounts for proper coding of the budget line.
     account = models.ForeignKey(
         "tenant_finance.ChartAccount",
@@ -1998,6 +2500,12 @@ class BudgetLine(models.Model):
 
     class Meta:
         ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["grant", "budget_line_code"],
+                name="uniq_budgetline_grant_code",
+            )
+        ]
 
     def clean(self) -> None:
         from decimal import Decimal
@@ -2005,11 +2513,20 @@ class BudgetLine(models.Model):
         errors = {}
         if self.amount is not None and self.amount < Decimal("0"):
             errors["amount"] = _("Budget line amount cannot be negative.")
+        code = (self.budget_line_code or "").strip()
+        if not code:
+            errors["budget_line_code"] = _("Budget line code is required.")
+        else:
+            self.budget_line_code = code
+            if self.account_id and (self.account.code or "").strip() != code:
+                errors["budget_line_code"] = _(
+                    "Budget line code must match the selected COA account code."
+                )
         if errors:
             raise ValidationError(errors)
 
     def __str__(self) -> str:
-        return f"{self.grant.code}: {self.category}"
+        return f"{self.grant.code}: {self.budget_line_code} — {self.category}"
 
 
 class GrantApproval(models.Model):

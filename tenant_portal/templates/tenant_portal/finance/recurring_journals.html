@@ -246,7 +246,7 @@ function recurringJournalPage() {
         { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
       ];
       this.modalOpen = true;
-      this.$nextTick(() => { if (window.feather) feather.replace(); });
+      this.$nextTick(() => { if (window.feather) feather.replace({ 'stroke-width': 1.6 }); });
     },
     openEdit(id) {
       const row = this.payload.find((r) => r.id === id);
@@ -273,7 +273,7 @@ function recurringJournalPage() {
         { account_id: '', grant_id: '', description: '', debit: '', credit: '' },
       ];
       this.modalOpen = true;
-      this.$nextTick(() => { if (window.feather) feather.replace(); });
+      this.$nextTick(() => { if (window.feather) feather.replace({ 'stroke-width': 1.6 }); });
     },
     addLine() {
       this.lines.push({ account_id: '', grant_id: '', description: '', debit: '', credit: '' });

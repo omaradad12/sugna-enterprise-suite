@@ -6,13 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Platform Admin{% endblock %} | Sugna Enterprise Suite</title>
   <link rel="icon" href="{% url 'platform_dashboard:logo' %}" type="image/png">
-  <!-- Microsoft Fluent / Dynamics 365: Segoe UI (system font) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Segoe UI', 'Segoe UI Web (West European)', 'Segoe UI', '-apple-system', 'BlinkMacSystemFont', 'Roboto', 'Helvetica Neue', 'sans-serif'] },
+          fontFamily: { sans: ['Inter', 'Segoe UI', 'Segoe UI Web (West European)', '-apple-system', 'BlinkMacSystemFont', 'Roboto', 'Helvetica Neue', 'sans-serif'] },
           colors: {
             /* Microsoft Fluent / Dynamics 365 primary blue */
             primary: {
@@ -34,6 +36,8 @@
       }
     }
   </script>
+  <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/sugna_design_system.css' %}" />
   <style>
     [x-cloak] { display: none !important; }
     /* Sidebar: professional nav with clear hierarchy */
@@ -89,24 +93,24 @@
     .avatar-cell { width: 2.5rem; height: 2.5rem; border-radius: 4px; font-weight: 600; font-size: 0.875rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .page-heading { letter-spacing: -0.01em; }
     .dynamics-card {
-      border: 1px solid #edebe9;
+      border: 1px solid #E6EAF0;
       border-radius: 10px;
-      background: linear-gradient(180deg, #ffffff 0%, #fcfbfa 100%);
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
     .transition-shadow {
       transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
     }
     .transition-shadow:hover,
     .shadow-card-hover:hover {
-      box-shadow: 0 12px 30px rgba(0,0,0,.08);
-      border-color: #b5d4f1;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+      border-color: #E6EAF0;
       transform: translateY(-2px);
     }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-surface-50 font-sans text-surface-800 antialiased min-h-full" style="--ms-primary: #0078D4;">
+<body class="bg-[#F8FAFC] font-sans text-[#111827] antialiased min-h-full" style="--ms-primary: #0F5BA7;">
   <div class="flex min-h-screen" x-data="{ sidebarOpen: true }">
     <!-- Sidebar: professional nav pane -->
     <aside
@@ -306,7 +310,7 @@
     </div>
   </div>
   <script src="https://unpkg.com/feather-icons"></script>
-  <script>document.addEventListener('DOMContentLoaded', function() { feather.replace(); });</script>
+  <script>document.addEventListener('DOMContentLoaded', function() { feather.replace({ 'stroke-width': 1.6 }); });</script>
   <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
   {% block extra_js %}{% endblock %}
 </body>

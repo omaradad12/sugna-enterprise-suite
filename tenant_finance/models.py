@@ -1,5 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 
 
@@ -334,9 +336,40 @@ class ChartAccount(models.Model):
         db = using or getattr(self._state, "db", None) or "default"
         return not ChartAccount.objects.using(db).filter(parent_id=self.pk).exists()
 
+    def rolled_up_balance(self, using: str | None = None):
+        """
+        Summary balance for this account tree (posted journals only).
+        For posting/leaf accounts this returns own balance.
+        For summary accounts this returns children aggregate automatically.
+        """
+        db = using or getattr(self._state, "db", None) or "default"
+        from tenant_finance.models import JournalEntry, JournalLine
+
+        account_ids = [self.pk]
+        frontier = [self.pk]
+        while frontier:
+            child_ids = list(
+                ChartAccount.objects.using(db)
+                .filter(parent_id__in=frontier)
+                .values_list("id", flat=True)
+            )
+            if not child_ids:
+                break
+            account_ids.extend(child_ids)
+            frontier = child_ids
+
+        return (
+            JournalLine.objects.using(db)
+            .filter(account_id__in=account_ids, entry__status=JournalEntry.Status.POSTED)
+            .aggregate(b=models.Sum("debit") - models.Sum("credit"))
+            .get("b")
+            or 0
+        )
+
     def is_used(self, using: str | None = None) -> bool:
         """True if account is referenced in any transaction or setup (cannot delete; restrict code/type changes)."""
         db = using or "default"
+        from django.db.utils import OperationalError, ProgrammingError
         from tenant_finance.models import (
             BankAccount,
             DefaultAccountMapping,
@@ -353,11 +386,93 @@ class ChartAccount(models.Model):
             return True
         if DefaultAccountMapping.objects.using(db).filter(account_id=self.pk).exists():
             return True
-        if PostingRule.objects.using(db).filter(debit_account_id=self.pk).exists():
-            return True
-        if PostingRule.objects.using(db).filter(credit_account_id=self.pk).exists():
-            return True
+        try:
+            if PostingRule.objects.using(db).filter(debit_account_id=self.pk).exists():
+                return True
+            if PostingRule.objects.using(db).filter(credit_account_id=self.pk).exists():
+                return True
+        except (ProgrammingError, OperationalError):
+            # Tenant schema drift: posting-rule table/columns may be missing.
+            # Do not hard-fail account operations; other blockers still protect data integrity.
+            pass
         return False
+
+    def deletion_blockers(self, using: str | None = None) -> list[str]:
+        """
+        Return human-readable reasons why this account cannot be deleted.
+        Rules:
+        - account must be inactive
+        - no posted transactions
+        - no journal references at all
+        - no opening balances
+        - not linked to bank accounts
+        - not used by budgets
+        """
+        db = using or getattr(self._state, "db", None) or "default"
+        from django.db import connections
+        from django.db.utils import OperationalError, ProgrammingError
+        from tenant_finance.models import (
+            BankAccount,
+            JournalEntry,
+            JournalLine,
+            OpeningBalance,
+            PostingRule,
+        )
+
+        reasons: list[str] = []
+        if self.is_active:
+            reasons.append("Account is active. Disable it before deleting.")
+
+        has_posted = JournalLine.objects.using(db).filter(
+            account_id=self.pk,
+            entry__status=JournalEntry.Status.POSTED,
+        ).exists()
+        if has_posted:
+            reasons.append("Posted transactions exist for this account.")
+
+        has_journal_refs = JournalLine.objects.using(db).filter(account_id=self.pk).exists()
+        if has_journal_refs:
+            reasons.append("This account is referenced in journal entries.")
+
+        if OpeningBalance.objects.using(db).filter(account_id=self.pk).exists():
+            reasons.append("Opening balances exist for this account.")
+
+        if BankAccount.objects.using(db).filter(account_id=self.pk).exists():
+            reasons.append("This account is linked to a bank account.")
+
+        try:
+            from tenant_grants.models import BudgetLine
+
+            if BudgetLine.objects.using(db).filter(account_id=self.pk).exists():
+                reasons.append("This account is used in budget lines.")
+        except Exception:
+            # If grants app/table isn't available in a tenant, skip this check gracefully.
+            pass
+
+        # Guard for tenant schema drift: deleting this account triggers FK checks
+        # against PostingRule, which can crash if tenant DB is missing expected columns.
+        try:
+            conn = connections[db]
+            table = PostingRule._meta.db_table
+            with conn.cursor() as cursor:
+                existing_tables = set(conn.introspection.table_names(cursor))
+                if table in existing_tables:
+                    cols = {c.name for c in conn.introspection.get_table_description(cursor, table)}
+                    if "transaction_type" not in cols:
+                        reasons.append(
+                            "Posting-rule schema is outdated (missing transaction_type). Run tenant migrations before deleting accounts."
+                        )
+                # If table does not exist, block delete to avoid referential uncertainty.
+                else:
+                    reasons.append(
+                        "Posting-rule table is missing in tenant schema. Run tenant migrations before deleting accounts."
+                    )
+        except (ProgrammingError, OperationalError):
+            reasons.append(
+                "Unable to verify posting-rule references due to schema mismatch. Run tenant migrations before deleting accounts."
+            )
+
+        return reasons
 
     def _statement_type_for_type(self) -> str:
         if self.type in (self.Type.ASSET, self.Type.LIABILITY, self.Type.EQUITY):
@@ -414,6 +529,14 @@ class ChartAccount(models.Model):
             errors["parent"] = _(
                 "Parent account must have the same type as the child (e.g. Asset with Asset)."
             )
+        if self.parent and (self.code or "").isdigit() and (self.parent.code or "").isdigit():
+            if len(self.code) == len(self.parent.code) and len(self.code) >= 4:
+                child_prefix = self.code[:-2]
+                parent_prefix = self.parent.code[:-2]
+                if child_prefix != parent_prefix:
+                    errors["parent"] = _(
+                        "Child account code must align with parent hierarchy prefix."
+                    )
 
         # Circular parent hierarchy: walk up parent chain
         _db = getattr(self._state, "db", None) or "default"
@@ -610,6 +733,33 @@ class JournalEntry(models.Model):
         blank=True,
         related_name="journal_entries_posted",
         help_text=_("User who posted the journal to the general ledger."),
+    )
+    exchange_rate = models.DecimalField(
+        max_digits=18,
+        decimal_places=8,
+        null=True,
+        blank=True,
+        help_text=_("Functional currency exchange rate when voucher currency differs from base (optional)."),
+    )
+    payment_due_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("Expected payment date for payables / cash planning (optional)."),
+    )
+
+    class ReceiptStream(models.TextChoices):
+        """Sub-type for unified receipt vouchers (income register / reporting)."""
+
+        GRANT_FUNDING = "grant_funding", _("Grant funding")
+        OTHER_INCOME = "other_income", _("Other income")
+        CASHBOOK = "cashbook", _("Cashbook")
+
+    receipt_stream = models.CharField(
+        max_length=20,
+        choices=ReceiptStream.choices,
+        blank=True,
+        db_index=True,
+        help_text=_("Receipt voucher stream: grant funding vs other income vs cashbook."),
     )
 
     class Meta:
@@ -857,9 +1007,10 @@ class JournalEntry(models.Model):
                         "start": project.start_date
                     }
                 if effective_project_end and d and d > effective_project_end:
-                    errors[field_label] = _("Transaction date must be on or before project end date (%(end)s).") % {
-                        "end": effective_project_end
-                    }
+                    errors[field_label] = _(
+                        "Transaction date must be on or before the project effective end date (%(end)s). "
+                        "Use an approved extension (revised end date) on the project if posting must continue."
+                    ) % {"end": effective_project_end}
         else:
             errors["grant"] = _("Grant must belong to a project for transaction posting.")
         if errors:
@@ -892,13 +1043,148 @@ def get_grant_posted_expense_total(grant_id, using: str):
 class JournalEntryAttachment(models.Model):
     """Document attached to a journal entry."""
 
+    class DocumentCategory(models.TextChoices):
+        INVOICE = "invoice", _("Invoice")
+        RECEIPT = "receipt", _("Receipt")
+        APPROVAL_MEMO = "approval_memo", _("Approval memo")
+        OTHER = "other", _("Other")
+
+    class DocumentStatus(models.TextChoices):
+        DRAFT = "draft", _("Draft")
+        PENDING_APPROVAL = "pending_approval", _("Pending approval")
+        POSTED = "posted", _("Posted")
+        REVERSED = "reversed", _("Reversed")
+        ARCHIVED = "archived", _("Archived")
+
     entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name="attachments")
     file = models.FileField(upload_to="finance/journal_attachments/%Y/%m/")
     original_filename = models.CharField(max_length=255, blank=True)
+    tenant = models.CharField(max_length=120, blank=True, db_index=True)
+    module = models.CharField(max_length=50, blank=True, db_index=True)
+    submodule = models.CharField(max_length=50, blank=True, db_index=True)
+    linked_record_type = models.CharField(max_length=80, blank=True, db_index=True)
+    linked_record_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    voucher_number = models.CharField(max_length=120, blank=True, db_index=True)
+    project = models.ForeignKey(
+        "tenant_grants.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="journal_attachments",
+    )
+    grant = models.ForeignKey(
+        "tenant_grants.Grant",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="journal_attachments",
+    )
+    donor = models.ForeignKey(
+        "tenant_grants.Donor",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="journal_attachments",
+    )
+    document_category = models.CharField(
+        max_length=32,
+        choices=DocumentCategory.choices,
+        blank=True,
+        db_index=True,
+        help_text=_("NGO source document type for audit and donor reporting."),
+    )
+    uploaded_by = models.ForeignKey(
+        "tenant_users.TenantUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="journal_attachments_uploaded",
+    )
+    status = models.CharField(
+        max_length=24,
+        choices=DocumentStatus.choices,
+        default=DocumentStatus.DRAFT,
+        db_index=True,
+    )
+    storage_provider = models.CharField(max_length=80, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-uploaded_at"]
+
+    @classmethod
+    def status_for_entry(cls, entry_status: str) -> str:
+        mapping = {
+            JournalEntry.Status.DRAFT: cls.DocumentStatus.DRAFT,
+            JournalEntry.Status.PENDING_APPROVAL: cls.DocumentStatus.PENDING_APPROVAL,
+            JournalEntry.Status.APPROVED: cls.DocumentStatus.PENDING_APPROVAL,
+            JournalEntry.Status.POSTED: cls.DocumentStatus.POSTED,
+            JournalEntry.Status.REVERSED: cls.DocumentStatus.REVERSED,
+        }
+        return mapping.get(entry_status or "", cls.DocumentStatus.ARCHIVED)
+
+    @classmethod
+    def module_context_for_entry(cls, entry: "JournalEntry") -> tuple[str, str]:
+        source_type = (entry.source_type or "").strip()
+        if source_type == JournalEntry.SourceType.PAYMENT_VOUCHER:
+            return "finance", "payables"
+        if source_type == JournalEntry.SourceType.RECEIPT_VOUCHER:
+            return "finance", "receivables"
+        if source_type in (
+            JournalEntry.SourceType.CASH_TRANSFER,
+            JournalEntry.SourceType.BANK_TRANSFER,
+            JournalEntry.SourceType.FUND_TRANSFER,
+            JournalEntry.SourceType.INTER_FUND_TRANSFER,
+        ):
+            return "finance", "cash_bank"
+        if source_type in (JournalEntry.SourceType.MANUAL, JournalEntry.SourceType.REVERSAL):
+            return "finance", "core_accounting"
+        return "finance", "general"
+
+    @classmethod
+    def sync_for_entry(cls, *, using: str, entry: "JournalEntry") -> None:
+        module, submodule = cls.module_context_for_entry(entry)
+        grant = getattr(entry, "grant", None)
+        donor_id = getattr(entry, "donor_id", None) or getattr(grant, "donor_id", None)
+        project_id = getattr(grant, "project_id", None)
+        cls.objects.using(using).filter(entry_id=entry.id).update(
+            tenant=using,
+            module=module,
+            submodule=submodule,
+            linked_record_type="journal_entry",
+            linked_record_id=entry.id,
+            voucher_number=(entry.reference or entry.source_document_no or f"JE-{entry.id:05d}"),
+            project_id=project_id,
+            grant_id=getattr(entry, "grant_id", None),
+            donor_id=donor_id,
+            status=cls.status_for_entry(entry.status),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.entry_id:
+            entry = self.entry
+            module, submodule = self.module_context_for_entry(entry)
+            self.tenant = self.tenant or (self._state.db or "")
+            self.module = module
+            self.submodule = submodule
+            self.linked_record_type = "journal_entry"
+            self.linked_record_id = entry.id
+            self.voucher_number = entry.reference or entry.source_document_no or f"JE-{entry.id:05d}"
+            self.grant_id = getattr(entry, "grant_id", None)
+            self.project_id = getattr(entry.grant, "project_id", None) if getattr(entry, "grant_id", None) else None
+            self.donor_id = getattr(entry, "donor_id", None) or (
+                getattr(entry.grant, "donor_id", None) if getattr(entry, "grant_id", None) else None
+            )
+            self.status = self.status_for_entry(entry.status)
+        if self.file and not self.storage_provider:
+            self.storage_provider = self.file.storage.__class__.__name__
+        super().save(*args, **kwargs)
+
+
+@receiver(post_save, sender=JournalEntry)
+def _sync_journal_attachment_metadata(sender, instance: JournalEntry, **kwargs):
+    using = getattr(instance._state, "db", None) or "default"
+    JournalEntryAttachment.sync_for_entry(using=using, entry=instance)
 
 
 class JournalLine(models.Model):
@@ -940,6 +1226,21 @@ class JournalLine(models.Model):
 
     def __str__(self) -> str:
         return f"{self.account.code} D{self.debit} C{self.credit}"
+
+    def clean(self) -> None:
+        errors = {}
+        if self.account_id:
+            # Control account 1200 is a parent/summary account and must not be posted to directly.
+            if (self.account.code or "").strip() == "1200":
+                errors["account"] = _("Transactions cannot be posted directly to 1200 — Bank Accounts.")
+            elif not self.account.is_leaf(getattr(self._state, "db", None) or "default"):
+                errors["account"] = _("Transactions must post to a leaf/sub-account, not a parent account.")
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class JournalEntryLine(JournalLine):
@@ -1327,6 +1628,12 @@ class OpeningBalance(models.Model):
 class BankAccount(models.Model):
     """Master data for organisational bank accounts used for receipts/payments/transfers."""
 
+    class AccountType(models.TextChoices):
+        OPERATING = "operating", "Operating"
+        PROJECT = "project", "Project"
+        RESTRICTED = "restricted", "Restricted"
+        PETTY_CASH = "petty_cash", "Petty Cash"
+
     bank_name = models.CharField(max_length=120)
     account_name = models.CharField(max_length=150)
     account_number = models.CharField(max_length=60, unique=True)
@@ -1335,6 +1642,26 @@ class BankAccount(models.Model):
     account = models.ForeignKey(ChartAccount, on_delete=models.PROTECT)
     description = models.CharField(max_length=255, blank=True)
     office = models.CharField(max_length=120, blank=True)
+    account_type = models.CharField(
+        max_length=20, choices=AccountType.choices, default=AccountType.OPERATING, db_index=True
+    )
+    linked_project = models.ForeignKey(
+        "tenant_grants.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="linked_bank_accounts",
+        related_query_name="linked_bank_account",
+    )
+    linked_grant = models.ForeignKey(
+        "tenant_grants.Grant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="linked_bank_accounts",
+        related_query_name="linked_bank_account",
+    )
+    is_default_operating = models.BooleanField(default=False, db_index=True)
     opening_balance = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     opening_balance_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
@@ -1343,9 +1670,64 @@ class BankAccount(models.Model):
 
     class Meta:
         ordering = ["bank_name", "account_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["is_default_operating"],
+                condition=models.Q(is_default_operating=True),
+                name="uniq_single_default_operating_bank",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.bank_name} — {self.account_name} ({self.account_number})"
+
+    def clean(self):
+        errs = {}
+        db = getattr(self._state, "db", None) or "default"
+        if self.account_id:
+            if (self.account.code or "").strip() == "1200":
+                errs["account"] = _("1200 — Bank Accounts is a parent control account and cannot be linked directly.")
+            parent_ok = False
+            if self.account.parent_id:
+                parent_code = (
+                    ChartAccount.objects.using(db)
+                    .filter(pk=self.account.parent_id)
+                    .values_list("code", flat=True)
+                    .first()
+                )
+                parent_ok = (parent_code or "").strip() == "1200"
+            if not parent_ok:
+                errs["account"] = _("Bank account GL must be a child account under 1200 — Bank Accounts.")
+            if not self.account.is_leaf(db):
+                errs["account"] = _("Bank account GL must be a posting leaf account (not a parent).")
+            duplicate_gl = (
+                BankAccount.objects.using(db)
+                .filter(account_id=self.account_id)
+                .exclude(pk=self.pk)
+                .exists()
+            )
+            if duplicate_gl:
+                errs["account"] = _("Each bank account must use a unique GL account.")
+        if self.linked_grant_id and self.linked_project_id and getattr(self.linked_grant, "project_id", None):
+            if self.linked_grant.project_id != self.linked_project_id:
+                errs["linked_grant"] = _("Grant must belong to the selected project.")
+        if self.account_type == self.AccountType.PROJECT and not self.linked_project_id:
+            errs["linked_project"] = _("Project-linked account type requires a project.")
+        if self.account_type == self.AccountType.RESTRICTED and not self.linked_grant_id:
+            errs["linked_grant"] = _("Restricted account type requires a grant.")
+
+        if self.pk:
+            old = BankAccount.objects.using(db).filter(pk=self.pk).only("currency_id").first()
+            if old and old.currency_id != self.currency_id:
+                has_txn = JournalLine.objects.using(db).filter(account_id=self.account_id).exists()
+                if has_txn:
+                    errs["currency"] = _("Currency cannot be changed after transactions exist.")
+        if errs:
+            raise ValidationError(errs)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class AuditLog(models.Model):
@@ -1389,6 +1771,7 @@ class FinancialDimension(models.Model):
         PROGRAM = "program", "Program"
         GRANT = "grant", "Grant"
         ACTIVITY = "activity", "Activity"
+        CLASSIFICATION = "classification", "Classification"
         CUSTOM = "custom", "Custom"
 
     class Status(models.TextChoices):
@@ -1426,6 +1809,52 @@ class FinancialDimension(models.Model):
             errors["dimension_name"] = _("Dimension name is required.")
         if not self.dimension_type:
             errors["dimension_type"] = _("Dimension type is required.")
+        if errors:
+            raise ValidationError(errors)
+
+
+class FinancialDimensionValue(models.Model):
+    """Master values under a financial dimension (e.g. Program dimension members)."""
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        INACTIVE = "inactive", "Inactive"
+
+    dimension = models.ForeignKey(
+        FinancialDimension,
+        on_delete=models.CASCADE,
+        related_name="values",
+    )
+    code = models.CharField(max_length=30)
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        "tenant_users.TenantUser", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["dimension__dimension_code", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dimension", "code"],
+                name="uq_fin_dimension_value_code_per_dimension",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.dimension.dimension_code}:{self.code} — {self.name}"
+
+    def clean(self) -> None:
+        errors = {}
+        if not self.dimension_id:
+            errors["dimension"] = _("Dimension is required.")
+        if not (self.code or "").strip():
+            errors["code"] = _("Code is required.")
+        if not (self.name or "").strip():
+            errors["name"] = _("Name is required.")
         if errors:
             raise ValidationError(errors)
 
@@ -2494,6 +2923,12 @@ class AuditTrailSetting(models.Model):
         MEDIUM = "medium", "Medium"
         HIGH = "high", "High"
 
+    class ReceiptApprovalMode(models.TextChoices):
+        NO_APPROVAL = "no_approval", "No approval required"
+        ABOVE_AMOUNT = "above_amount", "Approval required above configurable amount"
+        CASH_ONLY = "cash_only", "Approval required for cash receipts only"
+        DONOR_ONLY = "donor_only", "Approval required for donor receipts only"
+
     enable_audit_logging = models.BooleanField(default=True)
     track_voucher_edits = models.BooleanField(default=True)
     track_approvals = models.BooleanField(default=True)
@@ -2572,6 +3007,18 @@ class AuditTrailSetting(models.Model):
     allow_users_see_own_activity = models.BooleanField(
         default=False,
         help_text="If enabled, non-audit users can see only their own activity log entries.",
+    )
+    receipt_approval_mode = models.CharField(
+        max_length=30,
+        choices=ReceiptApprovalMode.choices,
+        default=ReceiptApprovalMode.NO_APPROVAL,
+        help_text="Optional approval policy for receipt transactions.",
+    )
+    receipt_approval_threshold = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Threshold amount used when mode is 'Approval required above configurable amount'.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,0 +1,50 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Audit files" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[1280px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Audit files" %}</h1>
+      <p class="text-[13px] text-[#6b7280] m-0 mt-1">{% trans "Audit evidence and audit-tagged documents." %}</p>
+    </div>
+  </div>
+  <div class="erp-section">
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "File" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Module" %}</th>
+            <th>{% trans "Uploaded" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in page_obj %}
+          <tr>
+            <td><a class="text-[#0f5ba7] text-[13px]" href="{% url 'tenant_portal:documents_detail' d.pk %}">{{ d.original_filename|default:d.file.name }}</a></td>
+            <td class="text-[13px]">{{ d.get_document_type_display }}</td>
+            <td class="text-[13px]">{{ d.module|default:"—" }}</td>
+            <td class="text-[13px]">{{ d.uploaded_at|date:"Y-m-d" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-[13px] text-[#6b7280]">{% trans "No audit files found." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="mt-3 text-[13px]">
+    {% if page_obj.has_previous %}
+    <a class="text-[#0f5ba7]" href="?{% if query_no_page %}{{ query_no_page }}&{% endif %}page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+    {% endif %}
+    <span class="mx-2">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="text-[#0f5ba7]" href="?{% if query_no_page %}{{ query_no_page }}&{% endif %}page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

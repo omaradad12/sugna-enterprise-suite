@@ -115,6 +115,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
 
     # Third-party
     'rest_framework',
@@ -130,6 +131,7 @@ INSTALLED_APPS = [
     'rbac',
     'tenant_portal',
     'tenant_finance',
+    'tenant_documents',
     'tenant_grants',
     'tenant_integrations',
     'tenant_audit_risk',
@@ -185,6 +187,10 @@ TEMPLATES = [
         'DIRS': [BASE_DIR / 'platform_dashboard' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
+            'builtins': [
+                'django.contrib.humanize.templatetags.humanize',
+                'tenant_portal.templatetags.erp_format',
+            ],
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -217,11 +223,14 @@ if os.environ.get("DB_EXTRA_TENANTS", _db_extra_tenants_default).lower() in ("tr
     for alias, db_name in [("wardi", "wardi_db"), ("hurdo", "hurdo_db")]:
         DATABASES[alias] = {**_db_defaults.copy(), "NAME": db_name}
 
-# Multi-tenant routing (DB-per-tenant). Add tenant module app labels here as you introduce them.
+# Multi-tenant routing (DB-per-tenant). Models in these apps use the tenant DB at runtime and are
+# migrated only on tenant databases (see TenantDatabaseRouter.allow_migrate). Platform DB (default)
+# never receives tables for these apps — run `migrate` on default, then `migrate_all_tenants` or
+# `migrate_tenant --tenant <slug>` so e.g. tenant_documents_document exists in each tenant schema.
 TENANT_APP_LABELS = (
     os.environ.get("TENANT_APP_LABELS", "").split(",")
     if os.environ.get("TENANT_APP_LABELS")
-    else ["tenant_users", "rbac", "tenant_finance", "tenant_grants", "tenant_integrations", "tenant_audit_risk"]
+    else ["tenant_users", "rbac", "tenant_finance", "tenant_documents", "tenant_grants", "tenant_integrations", "tenant_audit_risk"]
 )
 DATABASE_ROUTERS = ["sugna_core.db_router.TenantDatabaseRouter"]
 

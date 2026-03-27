@@ -21,6 +21,14 @@ from .portal_support_content import (
     SUP_LEAD,
 )
 from .portal_templates_content import TPL_ACCOUNT_NOTE, TPL_CATEGORIES, TPL_LEAD, TPL_STANDARDS
+from .academy_content import (
+    ACADEMY_COURSES,
+    CERTIFICATIONS,
+    LEARNING_PATHS,
+    TRAINING_CATEGORIES,
+    TUTORIALS,
+    WEBINAR_TRACKS,
+)
 from .module_pages import MODULE_PAGES_BY_SLUG, MODULE_PAGES_ORDERED
 from .mail_notify import format_contact_email, format_demo_request_email, send_website_notification
 
@@ -100,26 +108,80 @@ class PricingOnboardingView(TemplateView):
     template_name = "website/pricing_onboarding.html"
 
 
-class TrainingView(TemplateView):
-    template_name = "website/training.html"
+class AcademyHomeView(TemplateView):
+    """Sugna Academy — central hub for learning, onboarding, and certifications."""
+
+    template_name = "website/academy_home.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_categories"] = TRAINING_CATEGORIES
+        ctx["featured_courses"] = ACADEMY_COURSES[:6]
+        ctx["learning_paths_preview"] = LEARNING_PATHS
+        ctx["certifications_preview"] = CERTIFICATIONS
+        return ctx
 
 
-class TrainingRoleBasedView(TemplateView):
-    template_name = "website/training_role_based.html"
+class AcademyCoursesView(TemplateView):
+    template_name = "website/academy_courses.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["training_categories"] = TRAINING_CATEGORIES
+        sections: list[dict] = []
+        for cat in TRAINING_CATEGORIES:
+            slug = cat["slug"]
+            rows = [c for c in ACADEMY_COURSES if c.get("category_slug") == slug]
+            if rows:
+                sections.append({"category": cat, "courses": rows})
+        ctx["course_sections"] = sections
+        return ctx
 
 
-class TrainingWebinarsView(TemplateView):
-    template_name = "website/training_webinars.html"
+class AcademyLearningPathsView(TemplateView):
+    template_name = "website/academy_learning_paths.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["learning_paths"] = LEARNING_PATHS
+        return ctx
 
 
-class TrainingCertificationView(TemplateView):
-    template_name = "website/training_certification.html"
+class AcademyCertificationsView(TemplateView):
+    template_name = "website/academy_certifications.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["certifications"] = CERTIFICATIONS
+        return ctx
 
 
-class TrainingSupportView(TemplateView):
-    """Training-side support (schedules, access, escalation) — distinct from site Support hub."""
+class AcademyTutorialsView(TemplateView):
+    template_name = "website/academy_tutorials.html"
 
-    template_name = "website/training_support.html"
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["tutorials"] = TUTORIALS
+        return ctx
+
+
+class AcademyWebinarsView(TemplateView):
+    template_name = "website/academy_webinars.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["webinar_tracks"] = WEBINAR_TRACKS
+        return ctx
+
+
+class AcademyDocumentationView(TemplateView):
+    template_name = "website/academy_documentation.html"
+
+
+class AcademyHelpView(TemplateView):
+    """Help center under Academy — links to support, contact, and escalation paths."""
+
+    template_name = "website/academy_help.html"
 
 
 class ResourcesView(TemplateView):
@@ -197,7 +259,7 @@ CUSTOMER_PORTAL_SECTIONS: dict[str, dict[str, str]] = {
     "training-onboarding": {
         "title": "Training & Onboarding",
         "description": (
-            "Learning paths, live sessions, sandbox options, and completion records for donor assurance."
+            "Sugna Academy learning paths, live sessions, sandbox options, and completion records for donor assurance."
         ),
     },
     "system-updates": {
@@ -229,7 +291,7 @@ def _support_center_option_hrefs() -> dict[str, str]:
     return {
         "contact": reverse("website:contact"),
         "kb": reverse("website:customer_portal_section", kwargs={"slug": "knowledge-base"}),
-        "training": reverse("website:training"),
+        "training": reverse("website:academy_home"),
         "fragment_sla": "#cp-support-sla",
         "fragment_status": "#cp-support-status",
     }

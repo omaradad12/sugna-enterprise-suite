@@ -1,0 +1,99 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "All documents" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[1280px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "All documents" %}</h1>
+      {% if dm_can_upload %}
+      <a href="{% url 'tenant_portal:documents_upload' %}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[13px] font-medium bg-[#0f5ba7] text-white no-underline hover:bg-[#0d4f90]">{% trans "Upload" %}</a>
+      {% endif %}
+    </div>
+    <div class="erp-section-body px-4 py-3">
+      <form method="get" class="flex flex-wrap gap-2 items-end">
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Search" %}</label>
+          <input name="q" value="{{ request.GET.q }}" class="border border-[#edebe9] rounded px-2 py-1.5 text-[13px]" placeholder="{% trans 'Name, voucher, tags' %}" />
+        </div>
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Module" %}</label>
+          <input name="module" value="{{ request.GET.module }}" class="border border-[#edebe9] rounded px-2 py-1.5 text-[13px]" />
+        </div>
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Status" %}</label>
+          <select name="status" class="border border-[#edebe9] rounded px-2 py-1.5 text-[13px]">
+            <option value="">—</option>
+            {% for v, lbl in status_choices %}
+            <option value="{{ v }}" {% if request.GET.status == v %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Category" %}</label>
+          <select name="category" class="border border-[#edebe9] rounded px-2 py-1.5 text-[13px]">
+            <option value="">—</option>
+            {% for c in categories %}
+            <option value="{{ c.pk }}" {% if request.GET.category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Document type" %}</label>
+          <select name="document_type" class="border border-[#edebe9] rounded px-2 py-1.5 text-[13px]">
+            <option value="">—</option>
+            {% for v, lbl in document_type_choices %}
+            <option value="{{ v }}" {% if request.GET.document_type == v %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="px-3 py-1.5 rounded border border-[#edebe9] bg-white text-[13px] text-[#323130]">{% trans "Filter" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="erp-section">
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "File" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Module" %}</th>
+            <th>{% trans "Voucher / ref" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Uploaded by" %}</th>
+            <th>{% trans "Date" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in page_obj %}
+          <tr>
+            <td><a class="text-[#0f5ba7] hover:underline text-[13px]" href="{% url 'tenant_portal:documents_detail' d.pk %}">{{ d.original_filename|default:d.file.name }}</a></td>
+            <td class="text-[13px]">{{ d.get_document_type_display }}</td>
+            <td class="text-[13px]">{{ d.module|default:"—" }}</td>
+            <td class="text-[13px]">{{ d.voucher_number|default:"—" }}</td>
+            <td class="text-[13px]">{{ d.get_status_display }}</td>
+            <td class="text-[13px]">{{ d.uploaded_by.email|default:"—" }}</td>
+            <td class="text-[13px]">{{ d.uploaded_at|date:"Y-m-d" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-[13px] text-[#6b7280]">{% trans "No documents match your filters." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="mt-3 text-[13px] text-[#323130]">
+    {% if page_obj.has_previous %}
+    <a class="text-[#0f5ba7]" href="?{% if query_no_page %}{{ query_no_page }}&{% endif %}page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+    {% endif %}
+    <span class="mx-2">{% trans "Page" %} {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="text-[#0f5ba7]" href="?{% if query_no_page %}{{ query_no_page }}&{% endif %}page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

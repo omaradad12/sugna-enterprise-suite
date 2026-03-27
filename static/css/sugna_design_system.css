@@ -1,0 +1,447 @@
+/**
+ * Sugna Enterprise Suite — Hybrid UI design system
+ *
+ * Composition (intent, not rigid pixels):
+ *   ~60% Microsoft Dynamics / Fluent — primary #0078D4, command surfaces, band headers,
+ *       neutral grays (#323130, #605e5c, #edebe9), left-accent panels, tight density.
+ *   ~30% NetSuite ERP — card-based record layout, grouped sections, list + detail rhythm,
+ *       KPI strips, subtle section chrome on white.
+ *   ~10% Modern SaaS — Inter-first stack, 8–10px radius, soft elevation, focus rings,
+ *       restrained motion.
+ *
+ * Use with static/css/erp-typography.css (load this file after it).
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Tokens                                                                     */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* 60% Dynamics / Fluent */
+  --sns-dynamics-blue: #0078d4;
+  --sns-dynamics-blue-hover: #106ebe;
+  --sns-dynamics-blue-active: #005a9e;
+  --sns-dynamics-tint: #deecf9;
+  --sns-dynamics-tint-soft: #f3f9fd;
+  --sns-fabric-border: #edebe9;
+  --sns-fabric-border-strong: #e1dfdd;
+  --sns-fabric-gray-130: #323130;
+  --sns-fabric-gray-110: #201f1e;
+  --sns-fabric-gray-90: #605e5c;
+  --sns-fabric-gray-40: #a19f9d;
+  --sns-fabric-bg: #faf9f8;
+  --sns-fabric-panel: #f3f2f1;
+
+  /* 30% NetSuite-style structure */
+  --sns-card-bg: #ffffff;
+  --sns-card-border: #e6eaf0;
+  --sns-card-radius: 10px;
+  --sns-section-gap: 20px;
+  --sns-list-stripe: #f9fafb;
+  --sns-subnav-bg: #f3f4f6;
+
+  /* 10% SaaS polish */
+  --sns-radius-input: 8px;
+  --sns-radius-pill: 9999px;
+  --sns-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --sns-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --sns-focus-ring: 0 0 0 3px rgba(0, 120, 212, 0.22);
+  --sns-transition: 150ms ease;
+
+  /* Typography: Inter first (polish), Segoe as fallback (Dynamics alignment) */
+  --sns-font-ui: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.sns-ds-root {
+  font-family: var(--sns-font-ui);
+}
+
+/* Harmonize with erp-typography when both load */
+.sns-ds-root {
+  --font-family-sans: var(--sns-font-ui);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Page shell (NetSuite “center” + Dynamics density)                          */
+/* -------------------------------------------------------------------------- */
+
+.sns-page {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sns-page--wide {
+  max-width: 1400px;
+}
+
+.sns-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sns-section-gap);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cards & sections (NetSuite record blocks + Dynamics accents)             */
+/* -------------------------------------------------------------------------- */
+
+.sns-card {
+  background: var(--sns-card-bg);
+  border: 1px solid var(--sns-card-border);
+  border-radius: var(--sns-card-radius);
+  box-shadow: var(--sns-shadow-sm);
+  overflow: hidden;
+  transition: box-shadow var(--sns-transition), border-color var(--sns-transition), transform var(--sns-transition);
+}
+
+.sns-card:hover {
+  box-shadow: var(--sns-shadow-md);
+}
+
+.sns-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sns-fabric-gray-130);
+  background: var(--sns-subnav-bg);
+  border-bottom: 1px solid var(--sns-card-border);
+}
+
+.sns-card__header--accent {
+  background: var(--sns-dynamics-blue);
+  color: #ffffff;
+  border-bottom-color: transparent;
+  letter-spacing: 0.06em;
+}
+
+.sns-card__body {
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--sns-fabric-gray-130);
+}
+
+.sns-card__body--flush {
+  padding: 0;
+}
+
+/* Left accent bar — Dynamics report-hero pattern */
+.sns-card--accent-left {
+  border-left: 4px solid var(--sns-dynamics-blue);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record header row (NetSuite title + Dynamics-style actions)               */
+/* -------------------------------------------------------------------------- */
+
+.sns-record-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: var(--sns-section-gap);
+}
+
+.sns-record-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--sns-fabric-gray-110);
+  margin: 0;
+}
+
+.sns-record-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sns-fabric-gray-90);
+  line-height: 1.45;
+  max-width: 42rem;
+}
+
+.sns-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons (Dynamics primary + SaaS radius)                                   */
+/* -------------------------------------------------------------------------- */
+
+.sns-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  padding: 0.5rem 1rem;
+  border-radius: var(--sns-radius-input);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--sns-transition), border-color var(--sns-transition),
+    box-shadow var(--sns-transition), color var(--sns-transition);
+}
+
+.sns-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--sns-focus-ring);
+}
+
+.sns-btn--primary {
+  background: var(--sns-dynamics-blue);
+  color: #ffffff;
+  border-color: var(--sns-dynamics-blue);
+}
+
+.sns-btn--primary:hover {
+  background: var(--sns-dynamics-blue-hover);
+  border-color: var(--sns-dynamics-blue-hover);
+}
+
+.sns-btn--secondary {
+  background: #ffffff;
+  color: var(--sns-fabric-gray-130);
+  border-color: var(--sns-fabric-border-strong);
+}
+
+.sns-btn--secondary:hover {
+  background: var(--sns-fabric-bg);
+}
+
+.sns-btn--ghost {
+  background: transparent;
+  color: var(--sns-dynamics-blue);
+  border-color: transparent;
+}
+
+.sns-btn--ghost:hover {
+  background: var(--sns-dynamics-tint);
+}
+
+.sns-btn--pill {
+  border-radius: var(--sns-radius-pill);
+}
+
+/* -------------------------------------------------------------------------- */
+/* KPI strip (NetSuite dashboard metrics + Dynamics typography scale)         */
+/* -------------------------------------------------------------------------- */
+
+.sns-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.sns-kpi {
+  background: var(--sns-card-bg);
+  border: 1px solid var(--sns-card-border);
+  border-radius: var(--sns-card-radius);
+  box-shadow: var(--sns-shadow-sm);
+  padding: 0.75rem 1rem;
+  min-height: 3.5rem;
+  transition: box-shadow var(--sns-transition), border-color var(--sns-transition), transform var(--sns-transition);
+}
+
+.sns-kpi:hover {
+  box-shadow: var(--sns-shadow-md);
+}
+
+.sns-kpi__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sns-fabric-gray-90);
+  margin: 0 0 0.25rem;
+}
+
+.sns-kpi__value {
+  font-size: var(--erp-kpi, 14px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sns-fabric-gray-110);
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Data table variant (NetSuite list density + Fabric borders)                */
+/* -------------------------------------------------------------------------- */
+
+.sns-table-wrap {
+  overflow-x: auto;
+  border-radius: 0 0 var(--sns-card-radius) var(--sns-card-radius);
+}
+
+.sns-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sns-data-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--sns-fabric-gray-90);
+  background: var(--sns-list-stripe);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--sns-card-border);
+}
+
+.sns-data-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--sns-fabric-border);
+  color: var(--sns-fabric-gray-130);
+}
+
+.sns-data-table tbody tr:hover td {
+  background: var(--sns-dynamics-tint-soft);
+}
+
+.sns-data-table--zebra tbody tr:nth-child(even) td {
+  background: var(--sns-list-stripe);
+}
+
+.sns-data-table--zebra tbody tr:nth-child(even):hover td {
+  background: var(--sns-dynamics-tint-soft);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Filter / command strip (Dynamics command-bar feel)                         */
+/* -------------------------------------------------------------------------- */
+
+.sns-command-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: var(--sns-fabric-bg);
+  border: 1px solid var(--sns-fabric-border);
+  border-radius: var(--sns-card-radius);
+  box-shadow: var(--sns-shadow-sm);
+  margin-bottom: var(--sns-section-gap);
+  transition: box-shadow var(--sns-transition), border-color var(--sns-transition);
+}
+
+.sns-command-strip:hover {
+  box-shadow: var(--sns-shadow-md);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Icon tiles (suite-wide)                                                    */
+/* -------------------------------------------------------------------------- */
+
+.sns-icon-tile,
+.sns-icon-wrap,
+.sns-icon-badge {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+}
+
+.sns-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.sns-icon-tile > i,
+.sns-icon-tile svg {
+  width: 18px;
+  height: 18px;
+  color: #0f5ba7;
+}
+.sns-command-strip__title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sns-fabric-gray-90);
+  margin-right: auto;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Form controls (SaaS polish on Dynamics form scale)                         */
+/* -------------------------------------------------------------------------- */
+
+.sns-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 0.25rem;
+}
+
+.sns-input,
+.sns-select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--sns-fabric-border);
+  border-radius: var(--sns-radius-input);
+  background: #ffffff;
+  color: var(--sns-fabric-gray-130);
+  transition: border-color var(--sns-transition), box-shadow var(--sns-transition);
+}
+
+.sns-input:focus,
+.sns-select:focus {
+  outline: none;
+  border-color: var(--sns-dynamics-blue);
+  box-shadow: var(--sns-focus-ring);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Micro labels & badges                                                       */
+/* -------------------------------------------------------------------------- */
+
+.sns-micro-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sns-fabric-gray-90);
+}
+
+.sns-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: var(--sns-dynamics-tint);
+  color: var(--sns-dynamics-blue);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Optional: upgrade existing .erp-section when wrapped in .sns-ds-root       */
+/* -------------------------------------------------------------------------- */
+
+.sns-ds-root .erp-section {
+  border-radius: var(--sns-card-radius);
+  border-color: var(--sns-card-border);
+  box-shadow: var(--sns-shadow-sm);
+}
+
+.sns-ds-root .erp-section-header[style*="background:#0078D4"],
+.sns-ds-root .erp-section-header[style*="#0078D4"] {
+  border-radius: var(--sns-card-radius) var(--sns-card-radius) 0 0;
+}

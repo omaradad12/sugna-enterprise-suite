@@ -1,0 +1,221 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% if can_manage %}{% trans "Edit donor" %}{% else %}{% trans "Donor profile" %}{% endif %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .de-root { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #323130; -webkit-font-smoothing: antialiased; }
+  .de-card {
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0,0,0,.06), 0 3.2px 7.2px rgba(0,0,0,.04);
+  }
+  .de-section { padding: 1rem 1.25rem; border-bottom: 1px solid #edebe9; }
+  .de-section:last-of-type { border-bottom: none; }
+  .de-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin: 0 0 0.85rem;
+  }
+  .de-input {
+    width: 100%;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid #edebe9;
+    border-radius: 2px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .de-input:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 1px #0078d4; }
+  .de-label { display: block; font-size: 11px; font-weight: 600; color: #605e5c; margin-bottom: 0.35rem; }
+  .de-audit { font-size: 11px; color: #605e5c; padding: 0.85rem 1.25rem; background: #faf9f8; border-top: 1px solid #edebe9; }
+</style>
+
+<div class="de-root max-w-3xl mx-auto w-full px-4 py-6 pb-12">
+  <nav class="text-[12px] text-[#605e5c] mb-3" aria-label="{% trans 'Breadcrumb' %}">
+    <a href="{% url 'tenant_portal:grants_home' %}" class="text-[#0078d4] font-semibold hover:underline">{% trans "Funds & Donors" %}</a>
+    <span class="mx-1 text-[#a19f9d]">/</span>
+    <a href="{{ back_url }}" class="text-[#0078d4] font-semibold hover:underline">{% trans "Donor register" %}</a>
+    <span class="mx-1 text-[#a19f9d]">/</span>
+    <span class="text-[#323130]">{% if can_manage %}{% trans "Edit" %}{% else %}{% trans "Profile" %}{% endif %}</span>
+  </nav>
+
+  <h1 class="text-[20px] font-bold text-[#201f1e] tracking-tight m-0">{% if can_manage %}{% trans "Edit donor" %}{% else %}{% trans "Donor profile" %}{% endif %}</h1>
+  <p class="text-[13px] text-[#605e5c] mt-1 mb-5">
+    {% if can_manage %}{% trans "Update profile details. Donor code stays fixed for audit trail." %}{% else %}{% trans "View donor profile. Contact an administrator to make changes." %}{% endif %}
+    <span class="font-mono text-[#323130] font-semibold">{{ donor.code }}</span>
+  </p>
+
+  {% if active_grant_count %}
+  <div class="mb-5 rounded border px-4 py-3 text-[13px]" style="border-color:#edebe9;background:#f3f9fd;border-left:4px solid #0078d4;">
+    <p class="font-semibold text-[#201f1e] m-0">{% trans "Linked to active grants" %}</p>
+    <p class="text-[#605e5c] mt-1.5 mb-0 leading-relaxed">
+      {% blocktrans count n=active_grant_count %}This donor is linked to {{ n }} active project grant.{% plural %}This donor is linked to {{ n }} active project grants.{% endblocktrans %}
+      {% trans "You cannot remove the donor record while those links exist. Use status (Inactive or Archived) to retire the donor instead of deleting." %}
+    </p>
+  </div>
+  {% endif %}
+
+  {% if not can_manage %}
+  <div class="de-card">
+    <div class="de-section">
+      <h2 class="de-section-title">{% trans "Identification" %}</h2>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3.5 text-[13px] m-0">
+        <div><dt class="de-label m-0">{% trans "Donor name" %}</dt><dd class="mt-0.5 text-[#323130] font-semibold m-0">{{ donor.name }}</dd></div>
+        <div><dt class="de-label m-0">{% trans "Short name" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{{ donor.short_name|default:"—" }}</dd></div>
+        <div><dt class="de-label m-0">{% trans "Donor type" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{{ donor.get_donor_type_display }}</dd></div>
+        <div><dt class="de-label m-0">{% trans "Category" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{{ donor.get_donor_category_display }}</dd></div>
+        <div class="sm:col-span-2"><dt class="de-label m-0">{% trans "Status" %}</dt><dd class="mt-0.5 m-0">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-semibold"
+                style="{% if donor.status == 'active' %}background:#dff6dd;color:#0b5a0b;{% elif donor.status == 'archived' %}background:#fde7e9;color:#a4262c;{% else %}background:#fff4ce;color:#7a5c00;{% endif %}">
+            {{ donor.get_status_display }}
+          </span>
+        </dd></div>
+      </dl>
+    </div>
+    <div class="de-section">
+      <h2 class="de-section-title">{% trans "Contact" %}</h2>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3.5 text-[13px] m-0">
+        <div><dt class="de-label m-0">{% trans "Email" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{{ donor.email|default:"—" }}</dd></div>
+        <div><dt class="de-label m-0">{% trans "Phone" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{{ donor.phone|default:"—" }}</dd></div>
+        <div class="sm:col-span-2"><dt class="de-label m-0">{% trans "Contact person" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{{ donor.contact_person|default:"—" }}</dd></div>
+      </dl>
+    </div>
+    <div class="de-section">
+      <h2 class="de-section-title">{% trans "Regional" %}</h2>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3.5 text-[13px] m-0">
+        <div><dt class="de-label m-0">{% trans "Country" %}</dt><dd class="mt-0.5 text-[#323130] m-0">{% if donor.country %}{{ donor.get_country_display }}{% else %}—{% endif %}</dd></div>
+        <div><dt class="de-label m-0">{% trans "Preferred currency" %}</dt><dd class="mt-0.5 text-[#323130] font-mono m-0">{% if donor.preferred_currency %}{{ donor.preferred_currency.code }}{% else %}—{% endif %}</dd></div>
+      </dl>
+    </div>
+    <div class="de-audit space-y-1">
+      {% if donor.created_at %}
+      <p class="m-0">{% trans "Created" %}: {{ donor.created_at|date:"SHORT_DATETIME_FORMAT" }}{% if donor.created_by %} · {{ donor.created_by.email|default:donor.created_by }}{% endif %}</p>
+      {% endif %}
+      {% if donor.updated_at %}
+      <p class="m-0">{% trans "Last updated" %}: {{ donor.updated_at|date:"SHORT_DATETIME_FORMAT" }}{% if donor.updated_by %} · {{ donor.updated_by.email|default:donor.updated_by }}{% endif %}</p>
+      {% endif %}
+    </div>
+    <div class="px-5 py-4 border-t border-[#edebe9]">
+      <a href="{{ back_url }}" class="inline-flex items-center justify-center px-4 py-2 rounded text-[13px] font-semibold border border-[#c8c6c4] text-[#323130] bg-white hover:bg-[#faf9f8] no-underline">{% trans "Back" %}</a>
+    </div>
+  </div>
+  {% else %}
+  <form method="post" class="de-card">
+    {% csrf_token %}
+    {% if next_for_form %}
+    <input type="hidden" name="next" value="{{ next_for_form }}" />
+    {% endif %}
+
+    <div class="de-section">
+      <h2 class="de-section-title">{% trans "Identification" %}</h2>
+      <div class="space-y-3.5">
+        <div>
+          <label class="de-label" for="id-donor-name">{% trans "Donor name" %} <span class="text-[#A4262C]">*</span></label>
+          <input id="id-donor-name" name="name" required value="{{ donor.name }}" maxlength="200" class="de-input" />
+        </div>
+        <div>
+          <label class="de-label" for="id-short-name">{% trans "Short name" %}</label>
+          <input id="id-short-name" name="short_name" value="{{ donor.short_name }}" maxlength="80" class="de-input" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="de-label" for="id-donor-type">{% trans "Donor type" %} <span class="text-[#A4262C]">*</span></label>
+            <select id="id-donor-type" name="donor_type" required class="de-input bg-white">
+              {% for value, label in donor_types.choices %}
+              <option value="{{ value }}" {% if donor.donor_type == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="de-label" for="id-donor-category">{% trans "Category" %}</label>
+            <select id="id-donor-category" name="donor_category" class="de-input bg-white">
+              {% for value, label in donor_categories.choices %}
+              <option value="{{ value }}" {% if donor.donor_category == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="de-label" for="id-status">{% trans "Status" %} <span class="text-[#A4262C]">*</span></label>
+          <select id="id-status" name="status" required class="de-input bg-white">
+            {% for value, label in donor_statuses.choices %}
+            <option value="{{ value }}" {% if donor.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="de-section">
+      <h2 class="de-section-title">{% trans "Contact" %}</h2>
+      <div class="space-y-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="de-label" for="id-email">{% trans "Email" %}</label>
+            <input id="id-email" name="email" type="email" value="{{ donor.email }}" maxlength="254" class="de-input" />
+          </div>
+          <div>
+            <label class="de-label" for="id-phone">{% trans "Phone" %}</label>
+            <input id="id-phone" name="phone" value="{{ donor.phone }}" maxlength="50" class="de-input" />
+          </div>
+        </div>
+        <div>
+          <label class="de-label" for="id-contact">{% trans "Contact person" %}</label>
+          <input id="id-contact" name="contact_person" value="{{ donor.contact_person }}" maxlength="120" class="de-input" />
+        </div>
+      </div>
+    </div>
+
+    <div class="de-section">
+      <h2 class="de-section-title">{% trans "Regional" %}</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div>
+          <label class="de-label" for="id-country">{% trans "Country" %}</label>
+          <select id="id-country" name="country" class="de-input bg-white">
+            <option value="">—</option>
+            {% for code, cname in country_choices %}
+            <option value="{{ code }}" {% if donor.country == code %}selected{% endif %}>{{ cname }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="de-label" for="id-currency">{% trans "Preferred currency" %}</label>
+          <select id="id-currency" name="preferred_currency_id" class="de-input bg-white">
+            <option value="">—</option>
+            {% for c in currencies %}
+            <option value="{{ c.pk }}" {% if donor.preferred_currency_id == c.pk %}selected{% endif %}>{{ c.code }}{% if c.name %} — {{ c.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="de-audit space-y-1">
+      {% if donor.created_at %}
+      <p class="m-0">{% trans "Created" %}: {{ donor.created_at|date:"SHORT_DATETIME_FORMAT" }}{% if donor.created_by %} · {{ donor.created_by.email|default:donor.created_by }}{% endif %}</p>
+      {% endif %}
+      {% if donor.updated_at %}
+      <p class="m-0">{% trans "Last updated" %}: {{ donor.updated_at|date:"SHORT_DATETIME_FORMAT" }}{% if donor.updated_by %} · {{ donor.updated_by.email|default:donor.updated_by }}{% endif %}</p>
+      {% endif %}
+    </div>
+
+    <div class="px-5 py-3.5 flex flex-wrap gap-2 border-t border-[#edebe9]">
+      <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded text-[13px] font-semibold text-white shadow-sm hover:shadow" style="background:#0078D4;">
+        <i data-feather="save" class="w-4 h-4"></i> {% trans "Save" %}
+      </button>
+      <a href="{{ back_url }}" class="inline-flex items-center justify-center px-4 py-2 rounded text-[13px] font-semibold border border-[#c8c6c4] text-[#323130] bg-white hover:bg-[#faf9f8] no-underline">
+        {% trans "Cancel" %}
+      </a>
+    </div>
+  </form>
+  {% endif %}
+</div>
+<script>
+  if (window.feather) { feather.replace(); }
+</script>
+{% endblock %}

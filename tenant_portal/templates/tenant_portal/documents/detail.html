@@ -1,0 +1,69 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{{ document.original_filename|default:document.file.name }} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[960px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3 flex flex-wrap justify-between gap-2">
+      <div>
+        <h1 class="text-[18px] font-semibold text-[#111827] m-0">{{ document.original_filename|default:document.file.name }}</h1>
+        <p class="text-[13px] text-[#6b7280] m-0 mt-1">{% trans "Status" %}: {{ document.get_status_display }} · {% trans "Locked" %}: {% if document.is_locked %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</p>
+      </div>
+      <div class="flex flex-col items-end gap-1">
+        {% if document.file %}
+        <a href="{{ document.file.url }}" class="inline-flex items-center gap-1 text-[13px] text-[#0f5ba7]" target="_blank" rel="noopener">{% trans "Download" %}</a>
+        {% endif %}
+        <a href="{% url 'tenant_portal:documents_version_history' document.pk %}" class="text-[13px] text-[#0f5ba7]">{% trans "Version history & audit" %}</a>
+      </div>
+    </div>
+    <div class="erp-section-body px-4 py-4 text-[13px] space-y-2">
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Module" %}:</span> {{ document.module|default:"—" }} / {{ document.submodule|default:"—" }}</p>
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Linked record" %}:</span> {{ document.linked_record_type }} #{{ document.linked_record_id|default:"—" }}</p>
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Voucher / ref" %}:</span> {{ document.voucher_number|default:"—" }}</p>
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Document type" %}:</span> {{ document.get_document_type_display }}</p>
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "MIME" %}:</span> {{ document.mime_type|default:"—" }} · <span class="text-[12px] text-[#6b7280]">{% trans "Size" %}:</span> {{ document.size_bytes|default:"—" }}</p>
+      {% if document.file_sha256 %}
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "SHA-256" %}:</span> <code class="text-[12px]">{{ document.file_sha256|slice:":16" }}…</code></p>
+      {% endif %}
+      {% if document.retention_until %}
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Retention until" %}:</span> {{ document.retention_until }}</p>
+      {% endif %}
+      {% if document.metadata_synced_at %}
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Transaction metadata synced" %}:</span> {{ document.metadata_synced_at|date:"Y-m-d H:i" }}</p>
+      {% endif %}
+      <p class="m-0"><span class="text-[12px] text-[#6b7280]">{% trans "Storage" %}:</span> {{ document.storage_provider|default:"—" }}</p>
+      {% if document.source_journal_attachment_id %}
+      <p class="m-0">
+        <span class="text-[12px] text-[#6b7280]">{% trans "Source transaction" %}:</span>
+        <a class="text-[#0f5ba7]" href="{% url 'tenant_portal:finance_journal_detail' document.source_journal_attachment.entry_id %}">{% trans "Open journal entry" %}</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="erp-section">
+    <div class="erp-section-header px-4 py-2"><span class="text-[13px] font-semibold">{% trans "Recent audit events" %}</span></div>
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "When" %}</th>
+            <th>{% trans "Action" %}</th>
+            <th>{% trans "Message" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td class="text-[13px]">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-[13px]">{{ e.get_action_display }}</td>
+            <td class="text-[13px]">{{ e.message|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-[13px] text-[#6b7280]">{% trans "No events." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -5,12 +5,12 @@
 <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
   <div>
     <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
-    <p class="text-sm mt-1" style="color:#605e5c;">{% if grant %}Update grant.{% else %}Add a grant dimension. Code must be unique. Grants must belong to a project. Grant budget cannot be exceeded in transactions.{% endif %}</p>
+    <p class="text-sm mt-1" style="color:#605e5c;">{% if grant %}Update project grant.{% else %}Add a project grant. Code must be unique. Project grants must belong to a project and donor contract.{% endif %}</p>
   </div>
   <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="text-sm font-medium" style="color:#0078d4;">Back to Project / Grant Dimensions</a>
 </div>
 
-<div class="erp-section max-w-2xl">
+<div class="erp-section max-w-5xl">
   <div class="erp-section-header">Grant details</div>
   <div class="erp-section-body">
     <form method="post" class="space-y-4">
@@ -34,6 +34,15 @@
         </select>
       </div>
       <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor contract <span style="color:#a4262c;">*</span></label>
+        <select name="donor_contract_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select donor contract —</option>
+          {% for c in donor_contracts %}
+          <option value="{{ c.pk }}" {% if current_donor_contract_id and current_donor_contract_id == c.pk %}selected{% endif %}>{{ c.agreement_code }} — {{ c.title }} ({{ c.donor.name }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
         <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project <span style="color:#a4262c;">*</span></label>
         <select name="project_id" required class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
           <option value="">— Select project —</option>
@@ -45,9 +54,9 @@
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Budget</label>
-          <input type="number" name="award_amount" value="{% if grant %}{{ grant.award_amount }}{% else %}0{% endif %}" min="0" step="0.01" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-          <p class="text-xs mt-1" style="color:#605e5c;">Grant budget cannot be exceeded.</p>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Budget (grant ceiling) <span style="color:#a4262c;">*</span></label>
+          <input type="number" name="grant_ceiling" value="{% if grant %}{{ grant.grant_ceiling }}{% else %}0{% endif %}" min="0.01" step="0.01" required class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Maximum approved funding (synced to legacy budget field).</p>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1" style="color:#323130;">Currency</label>
@@ -59,6 +68,189 @@
           </select>
         </div>
       </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Eligible receivable</label>
+          <input type="number" name="eligible_receivable_amount" value="{% if grant %}{{ grant.eligible_receivable_amount }}{% else %}0{% endif %}" min="0" step="0.01" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Amount currently allowed to claim from the donor.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Unused grant balance</label>
+          <input type="text" readonly class="w-full px-3 py-2 rounded border bg-[#faf9f8]" style="border-color:#edebe9;" value="{% if grant %}{{ grant.unused_grant_balance|floatformat:2 }}{% else %}0.00{% endif %}" />
+          <p class="text-xs mt-1" style="color:#605e5c;">Ceiling minus eligible (read-only).</p>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Receivable basis (optional)</label>
+        <textarea name="receivable_basis_note" rows="2" class="w-full px-3 py-2 rounded border resize-y" style="border-color:#edebe9;">{% if grant %}{{ grant.receivable_basis_note }}{% endif %}</textarea>
+      </div>
+
+      <div>
+          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Funding modality (payment) <span style="color:#a4262c;">*</span></label>
+        <select name="funding_modality_id" required class="w-full max-w-md px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Select funding modality —</option>
+          {% for m in funding_modalities %}
+          <option value="{{ m.pk }}" {% if grant and grant.funding_modality_id == m.pk %}selected{% endif %}>{{ m.name }} — {{ m.get_modality_type_display }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">Defines payment structure; syncs the funding method used for tranche validation when set.</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Funding method</label>
+        <select name="funding_method" class="w-full max-w-md px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <option value="">— Not set —</option>
+          {% for value, label in funding_method_choices %}
+          <option value="{{ value }}" {% if grant and grant.funding_method == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="text-xs mt-1" style="color:#605e5c;">Advance instalments, retention, reimbursement, or mixed. Tranche lines below refine timing.</p>
+      </div>
+      <div class="flex flex-wrap gap-6">
+        <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+          <input type="checkbox" name="expense_report_approved" {% if grant and grant.expense_report_approved %}checked{% endif %} />
+          Expense report approved
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+          <input type="checkbox" name="audit_approved" {% if grant and grant.audit_approved %}checked{% endif %} />
+          Audit approved
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm" style="color:#323130;">
+          <input type="checkbox" name="final_report_approved" {% if grant and grant.final_report_approved %}checked{% endif %} />
+          Final report approved
+        </label>
+      </div>
+      <p class="text-xs" style="color:#605e5c;">Use these flags for tranche triggers (expense report / audit / retention release).</p>
+
+      <script type="application/json" id="funding-modality-map">{{ funding_modality_type_map_json|safe }}</script>
+
+      <div class="border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+        <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide" style="background:#faf9f8; color:#605e5c;">Funding tranches (receivable schedule)</div>
+        {% if grant_uses_mixed_modality %}
+        <p class="text-xs mt-2 px-3 mb-0" style="background:#fff4ce; color:#805b00;">This grant uses a <strong>Mixed modality</strong> funding source. The receivable schedule is generated automatically from the modality’s payment structure (percentages and triggers). Edit the tranches on the funding modality page, then save this grant again to refresh.</p>
+        <div class="overflow-x-auto p-2">
+          <table class="w-full text-xs border-collapse" style="min-width:720px;">
+            <thead>
+              <tr style="border-bottom:1px solid #edebe9;">
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">No.</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Payment</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">%</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Trigger</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Due date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in tranches %}
+              <tr class="border-t" style="border-color:#f3f2f1;">
+                <td class="py-1 px-1">{{ t.tranche_no }}</td>
+                <td class="py-1 px-1">{{ t.get_payment_type_display }}</td>
+                <td class="py-1 px-1">{% if t.percentage %}{{ t.percentage }}%{% else %}—{% endif %}</td>
+                <td class="py-1 px-1">{{ t.get_trigger_condition_display }}</td>
+                <td class="py-1 px-1">{% if t.due_date %}{{ t.due_date|date:'Y-m-d' }}{% else %}—{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="py-2 px-3 text-xs" style="color:#605e5c;">Save the grant to generate tranches from the funding modality.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div id="grant-tranche-editor" class="overflow-x-auto p-2">
+          <table class="w-full text-xs border-collapse" style="min-width:720px;">
+            <thead>
+              <tr style="border-bottom:1px solid #edebe9;">
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">No.</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Payment</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">%</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Amount</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Trigger</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Due date</th>
+                <th class="text-left py-2 px-1 font-semibold" style="color:#323130;">Sort</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in tranches %}
+              <tr class="border-t" style="border-color:#f3f2f1;">
+                <td class="py-1 px-1"><input type="number" name="tranche_no" min="1" value="{{ t.tranche_no }}" class="w-14 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1">
+                  <select name="tranche_payment_type" class="w-full min-w-[8rem] px-1 py-1 rounded border bg-white text-xs" style="border-color:#edebe9;">
+                    {% for v, lab in tranche_payment_choices %}
+                    <option value="{{ v }}" {% if t.payment_type == v %}selected{% endif %}>{{ lab }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="py-1 px-1"><input type="text" name="tranche_percentage" value="{% if t.percentage %}{{ t.percentage }}{% endif %}" placeholder="%" class="w-20 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1"><input type="text" name="tranche_amount" value="{% if t.amount %}{{ t.amount }}{% endif %}" class="w-24 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1">
+                  <select name="tranche_trigger" class="w-full min-w-[9rem] px-1 py-1 rounded border bg-white text-xs" style="border-color:#edebe9;">
+                    {% for v, lab in tranche_trigger_choices %}
+                    <option value="{{ v }}" {% if t.trigger_condition == v %}selected{% endif %}>{{ lab }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="py-1 px-1"><input type="date" name="tranche_due_date" value="{% if t.due_date %}{{ t.due_date|date:'Y-m-d' }}{% endif %}" class="w-full min-w-[7rem] px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1"><input type="number" name="tranche_sort_order" min="0" value="{{ t.sort_order }}" class="w-14 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+              </tr>
+              {% endfor %}
+              {% for _ in "12345678" %}
+              <tr class="border-t tranche-blank-row" style="border-color:#f3f2f1;">
+                <td class="py-1 px-1"><input type="number" name="tranche_no" min="1" value="" class="w-14 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1">
+                  <select name="tranche_payment_type" class="w-full min-w-[8rem] px-1 py-1 rounded border bg-white text-xs" style="border-color:#edebe9;">
+                    {% for v, lab in tranche_payment_choices %}
+                    <option value="{{ v }}">{{ lab }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="py-1 px-1"><input type="text" name="tranche_percentage" value="" class="w-20 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1"><input type="text" name="tranche_amount" value="" class="w-24 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1">
+                  <select name="tranche_trigger" class="w-full min-w-[9rem] px-1 py-1 rounded border bg-white text-xs" style="border-color:#edebe9;">
+                    {% for v, lab in tranche_trigger_choices %}
+                    <option value="{{ v }}">{{ lab }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="py-1 px-1"><input type="date" name="tranche_due_date" value="" class="w-full min-w-[7rem] px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+                <td class="py-1 px-1"><input type="number" name="tranche_sort_order" min="0" value="" class="w-14 px-1 py-1 rounded border" style="border-color:#edebe9;" /></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p id="grant-tranche-hint" class="text-xs px-3 pb-2" style="color:#605e5c;">Enter either <strong>% of ceiling</strong> or <strong>amount</strong> per row (not both). Advance rows use <strong>due date</strong>. Retention requires <strong>final report approved</strong> above.</p>
+        <p id="grant-tranche-mixed-hint" class="text-xs px-3 pb-2 hidden" style="background:#fff4ce; color:#805b00;">You selected a <strong>Mixed modality</strong> funding source. The receivable schedule will be generated from its payment structure when you save (manual tranche rows below are ignored).</p>
+        <script>
+        (function () {
+          var mapEl = document.getElementById("funding-modality-map");
+          var sel = document.querySelector('select[name="funding_modality_id"]');
+          var mixed = "{{ mixed_modality_value|escapejs }}";
+          var editor = document.getElementById("grant-tranche-editor");
+          var hint = document.getElementById("grant-tranche-hint");
+          var mh = document.getElementById("grant-tranche-mixed-hint");
+          if (!mapEl || !sel || !editor || !hint || !mh) return;
+          var map = {};
+          try { map = JSON.parse(mapEl.textContent || "{}"); } catch (e) {}
+          function sync() {
+            var id = (sel.value || "").trim();
+            var isMixed = id && map[id] === mixed;
+            if (isMixed) {
+              editor.classList.add("hidden");
+              hint.classList.add("hidden");
+              mh.classList.remove("hidden");
+            } else {
+              editor.classList.remove("hidden");
+              hint.classList.remove("hidden");
+              mh.classList.add("hidden");
+            }
+          }
+          sel.addEventListener("change", sync);
+          sync();
+        })();
+        </script>
+        {% endif %}
+      </div>
+
       <div>
         <label class="block text-xs font-semibold mb-1" style="color:#323130;">Status</label>
         <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">

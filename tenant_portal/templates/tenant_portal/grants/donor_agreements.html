@@ -1,10 +1,10 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Donor agreements" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}{% trans "Donor contracts" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div x-data="{ createOpen: false, moreFilters: false }" class="contents">
-{% trans "Donor agreements" as da_official_title %}
+{% trans "Donor contracts" as da_official_title %}
 {% include "tenant_portal/finance/_official_org_print_header.html" with report_title=da_official_title official_report_period_line=official_report_period_line %}
 {% include "tenant_portal/grants/_donor_agreements_styles.html" %}
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
@@ -288,14 +288,12 @@
 <div class="da-agi-root dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
   <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
     <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Donor management" %}</p>
-    <h1 class="dynamics-hero-title">{% trans "Donor agreements" %}</h1>
-    <p class="dynamics-hero-subtitle">{% trans "Upload and manage signed donor agreements; track terms, funding limits, duration, and linked grants or projects." %}</p>
   </header>
 
   {% if alert_expiring_soon or alert_expired or alert_missing_file or over_limit_ids %}
   <div class="da-agi-alerts-strip flex flex-wrap gap-2 mb-4 hidden-print" role="status">
     {% if alert_expiring_soon %}
-    <span class="da-agi-alert da-agi-alert-warn">{% blocktrans count n=alert_expiring_soon %}{{ n }} agreement expiring within 90 days{% plural %}{{ n }} agreements expiring within 90 days{% endblocktrans %}</span>
+    <span class="da-agi-alert da-agi-alert-warn">{% blocktrans count n=alert_expiring_soon %}{{ n }} agreement expiring within 30 days{% plural %}{{ n }} agreements expiring within 30 days{% endblocktrans %}</span>
     {% endif %}
     {% if alert_expired %}
     <span class="da-agi-alert da-agi-alert-danger">{% blocktrans count n=alert_expired %}{{ n }} expired in this view{% plural %}{{ n }} expired in this view{% endblocktrans %}</span>
@@ -333,12 +331,20 @@
     <form method="get" action="" class="space-y-0">
       <div class="dynamics-filter-grid">
         <div class="dynamics-filter-field">
-          <label for="da-signed-from">{% trans "Signed from" %}</label>
-          <input id="da-signed-from" type="date" name="signed_from" value="{% if filters.signed_from %}{{ filters.signed_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
+          <label for="da-start-from">{% trans "Start date from" %}</label>
+          <input id="da-start-from" type="date" name="start_from" value="{% if filters.ag_start_from %}{{ filters.ag_start_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
         </div>
         <div class="dynamics-filter-field">
-          <label for="da-signed-to">{% trans "Signed to" %}</label>
-          <input id="da-signed-to" type="date" name="signed_to" value="{% if filters.signed_to %}{{ filters.signed_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
+          <label for="da-start-to">{% trans "Start date to" %}</label>
+          <input id="da-start-to" type="date" name="start_to" value="{% if filters.ag_start_to %}{{ filters.ag_start_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="da-end-from">{% trans "End date from" %}</label>
+          <input id="da-end-from" type="date" name="end_from" value="{% if filters.ag_end_from %}{{ filters.ag_end_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="da-end-to">{% trans "End date to" %}</label>
+          <input id="da-end-to" type="date" name="end_to" value="{% if filters.ag_end_to %}{{ filters.ag_end_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full min-w-[140px]" />
         </div>
         <div class="dynamics-filter-field">
           <label for="da-donor">{% trans "Donor" %}</label>
@@ -360,14 +366,38 @@
           </select>
         </div>
         <div class="dynamics-filter-field">
-          <label for="da-at">{% trans "Agreement type" %}</label>
-          <select id="da-at" name="agreement_type" class="dynamics-select w-full min-w-[170px]">
-            <option value="">{% trans "All types" %}</option>
-            <option value="grant" {% if filters.agreement_type == 'grant' %}selected{% endif %}>{% trans "Grant agreement" %}</option>
-            <option value="framework" {% if filters.agreement_type == 'framework' %}selected{% endif %}>{% trans "Framework agreement" %}</option>
-            <option value="partnership" {% if filters.agreement_type == 'partnership' %}selected{% endif %}>{% trans "Partnership agreement" %}</option>
-            <option value="contribution" {% if filters.agreement_type == 'contribution' %}selected{% endif %}>{% trans "Contribution agreement" %}</option>
-            <option value="mou" {% if filters.agreement_type == 'mou' %}selected{% endif %}>{% trans "Memorandum of understanding" %}</option>
+          <label for="da-fs">{% trans "Funding modality" %}</label>
+          <select id="da-fs" name="funding_source_id" class="dynamics-select w-full min-w-[170px]">
+            <option value="">{% trans "All modalities" %}</option>
+            {% for fs in funding_sources %}
+            <option value="{{ fs.pk }}" {% if filters.funding_source_id == fs.pk|stringformat:'s' %}selected{% endif %}>{{ fs.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="da-cur">{% trans "Currency" %}</label>
+          <select id="da-cur" name="currency_id" class="dynamics-select w-full min-w-[120px]">
+            <option value="">{% trans "All" %}</option>
+            {% for c in currencies %}
+            <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="da-prog">{% trans "Program category" %}</label>
+          <select id="da-prog" name="program_category" class="dynamics-select w-full min-w-[170px]">
+            <option value="">{% trans "All categories" %}</option>
+            {% for pc in program_categories %}
+            <option value="{{ pc.code }}" {% if filters.program_category == pc.code %}selected{% endif %}>{{ pc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="da-file">{% trans "File attached" %}</label>
+          <select id="da-file" name="has_file" class="dynamics-select w-full min-w-[130px]">
+            <option value="">{% trans "All" %}</option>
+            <option value="yes" {% if filters.has_file == 'yes' %}selected{% endif %}>{% trans "Yes" %}</option>
+            <option value="no" {% if filters.has_file == 'no' %}selected{% endif %}>{% trans "No" %}</option>
           </select>
         </div>
         <div class="dynamics-filter-field flex flex-col justify-end pb-px">
@@ -391,40 +421,6 @@
               <span class="dynamics-da-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
               <input id="da-q" type="search" name="q" value="{{ filters.q }}" class="dynamics-input" placeholder="{% trans 'Code, title, donor, reference…' %}" autocomplete="off" />
             </div>
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="da-cur">{% trans "Currency" %}</label>
-            <select id="da-cur" name="currency_id" class="dynamics-select w-full min-w-[120px]">
-              <option value="">{% trans "All" %}</option>
-              {% for c in currencies %}
-              <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="dynamics-filter-subtle">
-        <button type="button" @click="moreFilters = !moreFilters" class="text-xs font-semibold dynamics-gfr-action-link border-0 bg-transparent cursor-pointer p-0">
-          <span x-show="!moreFilters">{% trans "More filters" %}</span>
-          <span x-show="moreFilters" x-cloak>{% trans "Hide extra date filters" %}</span>
-        </button>
-        <div x-show="moreFilters" x-cloak class="mt-3 dynamics-filter-grid">
-          <div class="dynamics-filter-field">
-            <label for="da-ag-sf">{% trans "Agreement start from" %}</label>
-            <input id="da-ag-sf" type="date" name="ag_start_from" value="{% if filters.ag_start_from %}{{ filters.ag_start_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="da-ag-st">{% trans "Agreement start to" %}</label>
-            <input id="da-ag-st" type="date" name="ag_start_to" value="{% if filters.ag_start_to %}{{ filters.ag_start_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="da-ag-ef">{% trans "Agreement end from" %}</label>
-            <input id="da-ag-ef" type="date" name="ag_end_from" value="{% if filters.ag_end_from %}{{ filters.ag_end_from|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
-          </div>
-          <div class="dynamics-filter-field">
-            <label for="da-ag-et">{% trans "Agreement end to" %}</label>
-            <input id="da-ag-et" type="date" name="ag_end_to" value="{% if filters.ag_end_to %}{{ filters.ag_end_to|date:'Y-m-d' }}{% endif %}" class="dynamics-input w-full" />
           </div>
         </div>
       </div>
@@ -474,7 +470,11 @@
             <th>{% trans "End" %}</th>
             <th class="text-right">{% trans "Funding limit" %}</th>
             <th>{% trans "Currency" %}</th>
+            <th>{% trans "Funding modality" %}</th>
             <th class="text-right">{% trans "Grants" %}</th>
+            <th class="text-right">{% trans "Projects" %}</th>
+            <th>{% trans "File" %}</th>
+            <th>{% trans "Alert" %}</th>
             <th>{% trans "Status" %}</th>
             <th>{% trans "Actions" %}</th>
           </tr>
@@ -493,7 +493,23 @@
             <td class="tabular-nums" style="color:#323130;">{{ a.end_date|date:"Y-m-d"|default:"—" }}</td>
             <td class="text-right tabular-nums font-semibold" style="color:#201f1e;">{% if a.funding_limit %}{% if a.currency and a.currency.symbol %}{{ a.currency.symbol }}{% endif %}{{ a.funding_limit|floatformat:2 }}{% else %}—{% endif %}</td>
             <td style="color:#605e5c;">{{ a.currency.code|default:"—" }}</td>
+            <td style="color:#605e5c;">{{ a.funding_source.name|default:"—" }}</td>
             <td class="text-right tabular-nums font-semibold">{{ a.linked_grants_count|default:0 }}</td>
+            <td class="text-right tabular-nums font-semibold">{{ a.linked_projects_count|default:0 }}</td>
+            <td class="whitespace-nowrap">
+              {% if a.file %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--ok" title="{% trans 'File attached' %}"><i data-feather="check-circle" class="w-3.5 h-3.5 mr-1"></i>{% trans "Yes" %}</span>
+              {% else %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--neutral" title="{% trans 'No file attached' %}"><i data-feather="x-circle" class="w-3.5 h-3.5 mr-1"></i>{% trans "No" %}</span>
+              {% endif %}
+            </td>
+            <td class="whitespace-nowrap">
+              {% if a.expiring_within_30_days %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--warn" title="{% trans 'Expiring within 30 days' %}"><i data-feather="alert-triangle" class="w-3.5 h-3.5 mr-1"></i>30d</span>
+              {% else %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--neutral">—</span>
+              {% endif %}
+            </td>
             <td class="whitespace-nowrap">
               {% if a.status == 'active' %}
               <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{{ a.get_status_display }}</span>
@@ -521,7 +537,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="12" class="p-0 border-0">
+            <td colspan="16" class="p-0 border-0">
               <div class="dynamics-gfr-empty">
                 <div class="dynamics-gfr-empty-icon" aria-hidden="true"><i data-feather="file-text" class="w-6 h-6"></i></div>
                 <p class="dynamics-gfr-empty-title">{% trans "No donor agreements recorded yet." %}</p>

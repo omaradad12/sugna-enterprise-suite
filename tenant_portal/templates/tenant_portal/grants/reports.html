@@ -3,7 +3,7 @@
 {% block title %}{% trans "Grant report" %} | {% trans "Grants" %}{% endblock %}
 
 {% block content %}
-{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Grant financial overview" report_subtitle="Award, budget, and spend by grant" official_report_period_line=official_report_period_line %}
+{% include "tenant_portal/finance/_official_org_print_header.html" with report_title="Grant financial summary" report_subtitle="Award, budget, and spend by grant" official_report_period_line=official_report_period_line %}
 
 <div class="dynamics-financial-report grp-rpt-root max-w-[1200px] mx-auto w-full pb-8">
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
@@ -190,7 +190,7 @@
   <div class="dynamics-filter-pane hidden-print max-w-[1200px] mx-auto">
     <div class="dynamics-filter-head">
       <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
-      <span class="dynamics-filter-head-hint">{% trans "Refine grant financial overview" %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Refine grant financial summary" %}</span>
     </div>
     <form method="get" action="" id="grp-reports-filter-form">
       <div class="dynamics-filter-grid dynamics-filter-grid--inline-actions">

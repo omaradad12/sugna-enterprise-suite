@@ -21,6 +21,7 @@ CATEGORY_BUDGET = "budget"
 CATEGORY_PAYABLES = "payables"
 CATEGORY_RECEIVABLES = "receivables"
 CATEGORY_AUDIT_RISK = "audit_risk"
+CATEGORY_PROJECTS = "projects"
 
 # Petty cash threshold below which we raise an alert (configurable)
 PETTY_CASH_THRESHOLD = Decimal("500")
@@ -52,15 +53,93 @@ def get_smart_alerts(tenant_db: str) -> list[dict]:
     return alerts
 
 
-def _add(alerts: list, category: str, priority: str, title: str, message: str, link_url: str, link_label: str = ""):
-    alerts.append({
+def _add(
+    alerts: list,
+    category: str,
+    priority: str,
+    title: str,
+    message: str,
+    link_url: str,
+    link_label: str = "",
+    *,
+    restrict_to_pm_admin: bool = False,
+    project_ids: list | None = None,
+):
+    row = {
         "category": category,
         "priority": priority,
         "title": title,
         "message": message,
         "link_url": link_url,
         "link_label": link_label or title,
-    })
+    }
+    if restrict_to_pm_admin:
+        row["restrict_to_pm_admin"] = True
+        row["project_ids"] = list(project_ids or [])
+    alerts.append(row)
+
+
+def _project_end_alerts(tenant_db: str, today, alerts: list) -> None:
+    from django.urls import reverse
+
+    from tenant_grants.models import Project
+    from tenant_grants.services.project_end_schedule import project_end_alert_state
+
+    qs = (
+        Project.objects.using(tenant_db)
+        .exclude(status__in=[Project.Status.CLOSED, Project.Status.COMPLETED])
+        .only("id", "code", "name", "status", "end_date", "original_end_date", "revised_end_date", "start_date")
+    )
+    list_url = reverse("tenant_portal:grants_projects_list")
+    max_project_alerts = 48
+    n_proj_alerts = 0
+    for p in qs.iterator(chunk_size=100):
+        if n_proj_alerts >= max_project_alerts:
+            break
+        state = project_end_alert_state(p, today)
+        if not state:
+            continue
+        code = p.code or ""
+        name = (p.name or "").strip() or code
+        if state == "ending_soon":
+            _add(
+                alerts,
+                CATEGORY_PROJECTS,
+                PRIORITY_WARNING,
+                f"Project {code} approaching end",
+                f"Project {code} – {name} is approaching end date. Please review closure or extension.",
+                list_url + (f"?q={code}" if code else ""),
+                "Project list",
+                restrict_to_pm_admin=True,
+                project_ids=[p.pk],
+            )
+            n_proj_alerts += 1
+        elif state == "on_end":
+            _add(
+                alerts,
+                CATEGORY_PROJECTS,
+                PRIORITY_WARNING,
+                f"Project {code} ends today",
+                f"Project {code} – {name} reaches its effective end date today. Review closure or extension.",
+                list_url + (f"?q={code}" if code else ""),
+                "Project list",
+                restrict_to_pm_admin=True,
+                project_ids=[p.pk],
+            )
+            n_proj_alerts += 1
+        else:
+            _add(
+                alerts,
+                CATEGORY_PROJECTS,
+                PRIORITY_CRITICAL,
+                f"Project {code} past end date",
+                f"Project {code} has passed the end date. Posting transactions should be restricted unless extension approved (revised end date).",
+                list_url + (f"?q={code}" if code else ""),
+                "Project list",
+                restrict_to_pm_admin=True,
+                project_ids=[p.pk],
+            )
+            n_proj_alerts += 1
 
 
 def _cash_bank_alerts(tenant_db: str, today, alerts: list):
@@ -224,11 +303,11 @@ def _payables_alerts(tenant_db: str, today, alerts: list):
 
 def _receivables_alerts(tenant_db: str, today, alerts: list):
     from tenant_finance.models import ChartAccount, JournalLine
-    from django.db.models import Q
+    from tenant_finance.receivable_accounts import receivable_accounts_q
 
-    # Receivable accounts (asset, typically 1.x receivables)
-    recv_q = Q(type=ChartAccount.Type.ASSET) & (Q(code__startswith="1") | Q(name__icontains="receivable"))
-    recv_ids = list(ChartAccount.objects.using(tenant_db).filter(recv_q).values_list("id", flat=True))
+    recv_ids = list(
+        ChartAccount.objects.using(tenant_db).filter(receivable_accounts_q()).values_list("id", flat=True)
+    )
     if not recv_ids:
         return
     from tenant_finance.models import JournalEntry
@@ -273,7 +352,7 @@ def _receivables_alerts(tenant_db: str, today, alerts: list):
                 CATEGORY_RECEIVABLES,
                 PRIORITY_INFO,
                 "Outstanding receivables",
-                f"Total outstanding: {recv_balance}.",
+                f"Total outstanding: {recv_balance:,.2f}.",
                 reverse("tenant_portal:recv_outstanding_receivables"),
                 "Outstanding receivables",
             )

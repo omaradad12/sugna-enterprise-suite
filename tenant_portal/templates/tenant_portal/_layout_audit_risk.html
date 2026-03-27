@@ -12,14 +12,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/sugna_design_system.css' %}" />
   <style>
     [x-cloak]{display:none!important}
-    .erp-section { border: 1px solid #edebe9; margin-bottom: 20px; border-radius: 4px; overflow: hidden; background: #ffffff; }
-    .erp-section-header { background: #f3f2f1; color: #323130; padding: 8px 12px; border-bottom: 1px solid #edebe9; }
-    .erp-section-body { background: #ffffff; padding: 12px 14px 14px; }
-    .erp-table { width: 100%; border-collapse: collapse; }
-    .erp-table th { background: #f3f2f1; color: #323130; padding: 6px 8px; border: 1px solid #edebe9; text-align: left; }
-    .erp-table td { background: #ffffff; padding: 6px 8px; border: 1px solid #edebe9; }
     .audit-secondary-bar,
     .audit-secondary-bar a {
       font-size: 13px;
@@ -31,10 +26,10 @@
     }
   </style>
 </head>
-<body class="h-screen overflow-hidden bg-[#faf9f8] text-[#323130]">
+<body class="sns-ds-root h-screen overflow-hidden bg-[#F8FAFC] text-[#111827]">
   <div class="h-full flex flex-col" x-data="{ userOpen: false, notifOpen: false, sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }">
 
-    <header class="h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30" style="background:#0078D4;">
+    <header class="h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30" style="background:#0F5BA7;">
       <div class="flex items-center gap-3 min-w-0">
         {% if org_settings and org_settings.organization_logo %}
         <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo" class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
@@ -113,7 +108,7 @@
     </div>
 
     <div class="flex flex-1 min-h-0">
-      <aside class="tenant-sidebar flex-shrink-0 flex flex-col h-full border-r overflow-hidden transition-all duration-200 bg-[#f7f9fc]" style="border-color:#e5e7eb;" :class="sidebarCollapsed ? 'w-14' : 'w-64'">
+      <aside class="tenant-sidebar flex-shrink-0 flex flex-col h-full border-r overflow-hidden transition-all duration-200 bg-[#F8FAFC]" style="border-color:#E6EAF0;" :class="sidebarCollapsed ? 'w-14' : 'w-64'">
         <div class="flex items-center justify-between px-3 py-3 border-b" style="border-color:#e5e7eb;">
           <p class="sidebar-header-title truncate" x-show="!sidebarCollapsed">Audit &amp; Risk</p>
           <button type="button" class="inline-flex items-center justify-center w-7 h-7 rounded-md border text-[#6b7280] hover:bg-white hover:text-[#111827]" style="border-color:#e5e7eb;" @click="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
@@ -121,10 +116,10 @@
             <i data-feather="chevron-right" class="w-3 h-3" x-show="sidebarCollapsed"></i>
           </button>
         </div>
-        <nav class="py-2 flex-1 overflow-y-auto px-2 pt-3 space-y-3 border-t" style="border-color:#e5e7eb;">
+        <nav class="py-2 flex-1 overflow-y-auto px-2 pt-3 space-y-3 border-t" style="border-color:#E6EAF0;">
           <div class="space-y-1">
-            <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">Audit dashboard</p>
-            <a href="{% url 'tenant_portal:audit_risk_home' %}" @click="activeItem = 'audit_risk_overview'" class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md" :class="activeItem === 'audit_risk_overview' ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]' : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'"><i data-feather="activity" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'audit_risk_overview' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i><span x-show="!sidebarCollapsed" class="truncate">Risk overview</span></a>
+            <p class="px-3 text-[12px] font-semibold uppercase tracking-wide text-[#6b7280]" style="letter-spacing:0.04em;" x-show="!sidebarCollapsed">Audit dashboard</p>
+            <a href="{% url 'tenant_portal:audit_risk_home' %}" @click="activeItem = 'audit_risk_overview'" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md" :class="activeItem === 'audit_risk_overview' ? 'bg-[#E8F1FB] font-semibold text-[#0F5BA7]' : 'text-[#1F2937] hover:bg-[#eef2f7] hover:text-[#0F5BA7]'"><i data-feather="activity" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'audit_risk_overview' ? 'text-[#0F5BA7]' : 'text-[#94a3b8] group-hover:text-[#0F5BA7]'"></i><span x-show="!sidebarCollapsed" class="truncate">Risk overview</span></a>
             <a href="{% url 'tenant_portal:audit_risk_fraud_alerts' %}" @click="activeItem = 'audit_risk_fraud_alerts'" class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md" :class="activeItem === 'audit_risk_fraud_alerts' ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]' : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'"><i data-feather="alert-triangle" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'audit_risk_fraud_alerts' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i><span x-show="!sidebarCollapsed" class="truncate">Fraud alerts</span></a>
             <a href="{% url 'tenant_portal:audit_risk_high_risk' %}" @click="activeItem = 'audit_risk_high_risk'" class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md" :class="activeItem === 'audit_risk_high_risk' ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]' : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'"><i data-feather="trending-up" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'audit_risk_high_risk' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i><span x-show="!sidebarCollapsed" class="truncate">High risk transactions</span></a>
             <a href="{% url 'tenant_portal:audit_risk_control_violations' %}" @click="activeItem = 'audit_risk_control_violations'" class="group flex w-full items-center gap-2 px-3 py-2.5 text-[13px] rounded-md" :class="activeItem === 'audit_risk_control_violations' ? 'border-l-4 border-[#2563eb] bg-[#e5f0ff] font-semibold text-[#1d4ed8]' : 'border-l-4 border-transparent text-[#374151] hover:bg-[#eef3ff] hover:text-[#1d4ed8]'"><i data-feather="shield-off" class="w-4 h-4 flex-shrink-0" :class="activeItem === 'audit_risk_control_violations' ? 'text-[#1d4ed8]' : 'text-[#9ca3af] group-hover:text-[#1d4ed8]'"></i><span x-show="!sidebarCollapsed" class="truncate">Control violations</span></a>
@@ -193,6 +188,6 @@
       </main>
     </div>
   </div>
-  <script>feather.replace();</script>
+  <script>feather.replace({ 'stroke-width': 1.6 });</script>
 </body>
 </html>

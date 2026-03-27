@@ -1,0 +1,185 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}Project & Grant Budget Structure | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="text-2xl font-bold tracking-tight">Project &amp; Grant Budget Structure</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">
+    Defines the relationship between Project, Donor, Grant, Budget Line, and Chart of Accounts (COA) to support budget control, donor compliance, and financial reporting.
+  </p>
+</div>
+
+<div class="bg-white border rounded-lg p-4 mb-4" style="border-color:#edebe9;">
+  <form method="get" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 text-sm">
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Fiscal Period</label>
+      <div class="grid grid-cols-2 gap-2">
+        <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+        <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+      </div>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Project</label>
+      <select name="project_id" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+        <option value="">All projects</option>
+        {% for p in projects %}
+        <option value="{{ p.id }}" {% if selected_project_id == p.id|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Donor</label>
+      <select name="donor_id" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+        <option value="">All donors</option>
+        {% for d in donors %}
+        <option value="{{ d.id }}" {% if selected_donor_id == d.id|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Grant</label>
+      <select name="grant_id" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+        <option value="">All grants</option>
+        {% for g in grants %}
+        <option value="{{ g.id }}" {% if selected_grant_id == g.id|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Budget Version</label>
+      <select name="budget_version" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+        {% for v, lbl in version_choices %}
+        <option value="{{ v }}" {% if selected_budget_version == v %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Status</label>
+      <select name="status" class="w-full rounded border px-2 py-2" style="border-color:#edebe9;">
+        <option value="">All statuses</option>
+        {% for s, lbl in status_choices %}
+        <option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ lbl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <input type="hidden" name="view" value="{{ view_mode }}">
+    <div class="md:col-span-2 xl:col-span-6 flex flex-wrap items-center gap-2 pt-1">
+      <button class="px-3 py-2 rounded text-white text-sm font-semibold" style="background:#0078d4;">Apply</button>
+      <a href="." class="px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">Reset</a>
+      <div class="ml-auto flex items-center gap-2">
+        <a href="{% url 'tenant_portal:budget_creation' %}" class="px-3 py-2 rounded text-white text-sm font-semibold" style="background:#0078d4;">New Budget Structure</a>
+        <button type="button" class="px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" onclick="document.getElementById('budget-structure-file').click()">Import Excel</button>
+        <form method="post" enctype="multipart/form-data" id="importForm" class="hidden">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="import">
+          <input id="budget-structure-file" type="file" name="budget_structure_file" accept=".xlsx" onchange="this.form.submit()">
+        </form>
+        <a href="{{ export_xlsx_url }}" class="px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">Export Excel</a>
+        <a href="{% url 'tenant_portal:budget_templates' %}" class="px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">Copy From Template</a>
+        <form method="post" class="inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="activate_version">
+          <button class="px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">Activate Version</button>
+        </form>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="mb-3 flex items-center gap-2 text-sm">
+  <span class="text-[#605e5c] font-semibold">View:</span>
+  <a href="{{ table_view_url }}" class="px-3 py-1.5 rounded border {% if view_mode == 'table' %}text-white{% endif %}" style="border-color:#edebe9;{% if view_mode == 'table' %}background:#0078d4;{% endif %}">Table View</a>
+  <a href="{{ tree_view_url }}" class="px-3 py-1.5 rounded border {% if view_mode == 'tree' %}text-white{% endif %}" style="border-color:#edebe9;{% if view_mode == 'tree' %}background:#0078d4;{% endif %}">Tree View</a>
+</div>
+
+{% if view_mode == "tree" %}
+<div class="bg-white border rounded-lg p-4" style="border-color:#edebe9;">
+  {% if tree_rows %}
+    {% for project, pdata in tree_rows.items %}
+    <div class="mb-3">
+      <div class="font-semibold">Project {{ project }}</div>
+      {% for grant, lines in pdata.grants.items %}
+      <div class="pl-4 mt-1">
+        <div class="font-medium">Grant {{ grant }}</div>
+        <ul class="pl-5 list-disc text-sm text-[#323130]">
+          {% for line in lines %}
+          <li>{{ line.budget_line_code }} {{ line.budget_line_name }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="text-center py-12">
+      <div class="text-base font-semibold text-[#323130]">No budget structure found</div>
+      <a href="{% url 'tenant_portal:budget_creation' %}" class="inline-flex mt-3 px-4 py-2 rounded text-white text-sm font-semibold" style="background:#0078d4;">Create Budget Structure</a>
+    </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="bg-white border rounded-lg overflow-auto" style="border-color:#edebe9;">
+  <table class="min-w-full text-sm">
+    <thead style="background:#f3f2f1;">
+      <tr>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Project Code</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Project Name</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Donor</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Grant Code</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Budget Line Code</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Budget Line Name</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">COA Code</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">COA Name</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Currency</th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">Approved Budget</th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">Revised Budget</th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">Actual Spent</th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">Committed Amount</th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-[#605e5c]">Available Balance</th>
+        <th class="text-left px-4 py-3 text-xs font-semibold text-[#605e5c]">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="border-b last:border-0" style="border-color:#edebe9;">
+        <td class="px-4 py-3">{{ r.project_code }}</td>
+        <td class="px-4 py-3">{{ r.project_name }}</td>
+        <td class="px-4 py-3">{{ r.donor }}</td>
+        <td class="px-4 py-3">{{ r.grant_code }}</td>
+        <td class="px-4 py-3 font-mono">{{ r.budget_line_code }}</td>
+        <td class="px-4 py-3">{{ r.budget_line_name }}</td>
+        <td class="px-4 py-3 font-mono">{{ r.coa_code }}</td>
+        <td class="px-4 py-3">{{ r.coa_name }}</td>
+        <td class="px-4 py-3">{{ r.currency }}</td>
+        <td class="px-4 py-3 text-right">{{ r.approved_budget|floatformat:2 }}</td>
+        <td class="px-4 py-3 text-right">{{ r.revised_budget|floatformat:2 }}</td>
+        <td class="px-4 py-3 text-right">{{ r.actual_spent|floatformat:2 }}</td>
+        <td class="px-4 py-3 text-right">{{ r.committed_amount|floatformat:2 }}</td>
+        <td class="px-4 py-3 text-right font-semibold">{{ r.available_balance|floatformat:2 }}</td>
+        <td class="px-4 py-3">
+          {% if r.status == "draft" %}
+          <span class="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">Draft</span>
+          {% elif r.status == "approved" %}
+          <span class="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-700">Approved</span>
+          {% elif r.status == "active" %}
+          <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-700">Active</span>
+          {% else %}
+          <span class="px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">Closed</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="15" class="py-12 text-center">
+          <div class="text-base font-semibold text-[#323130]">No budget structure found</div>
+          <a href="{% url 'tenant_portal:budget_creation' %}" class="inline-flex mt-3 px-4 py-2 rounded text-white text-sm font-semibold" style="background:#0078d4;">Create Budget Structure</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+

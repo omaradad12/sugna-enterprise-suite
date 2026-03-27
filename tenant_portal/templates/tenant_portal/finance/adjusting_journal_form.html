@@ -231,7 +231,7 @@ function adjustingJournalForm() {
         try { this.chartAccounts = JSON.parse(aEl.textContent); } catch (e) { this.chartAccounts = []; }
       }
       this.updateAccountingPeriodLabel();
-      if (window.feather) window.feather.replace();
+      if (window.feather) window.feather.replace({ 'stroke-width': 1.6 });
     },
     updateAccountingPeriodLabel() {
       const d = this.postingDate;
@@ -257,7 +257,7 @@ function adjustingJournalForm() {
     addLine() {
       const g = this.headerGrant || '';
       this.lines.push({ account: '', grant: g, description: '', debit: '', credit: '' });
-      this.$nextTick(() => { if (window.feather) window.feather.replace(); });
+      this.$nextTick(() => { if (window.feather) window.feather.replace({ 'stroke-width': 1.6 }); });
     },
     removeLine(idx) {
       if (this.lines.length <= 2) return;

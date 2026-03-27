@@ -1,0 +1,39 @@
+{% extends "website/academy_page_base.html" %}
+{% load static %}
+{% block title %}Documentation{% endblock %}
+{% block meta_description %}Documentation hub for Sugna Enterprise Suite — guides, resources, and knowledge base entry points.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Guides &amp; references</p>
+    <h1 class="academy-page-title">Documentation</h1>
+    <p class="academy-page-lead">Central pointers to product documentation, implementation assets, and the customer knowledge base — consistent with how regulated teams expect to find answers.</p>
+  </div>
+</div>
+<section class="academy-section">
+  <div class="container">
+    <div class="academy-doc-grid">
+      <article class="academy-doc-card">
+        <h2 class="academy-doc-card__title">Knowledge base</h2>
+        <p class="academy-doc-card__desc">User guides for Finance, Grants, HR, Procurement, AI Auditor, and general workspace usage — available through the customer portal.</p>
+        <a class="academy-text-link" href="{% url 'website:customer_portal_section' slug='knowledge-base' %}">Open knowledge base <span aria-hidden="true">→</span></a>
+      </article>
+      <article class="academy-doc-card">
+        <h2 class="academy-doc-card__title">Resources hub</h2>
+        <p class="academy-doc-card__desc">Articles, insights, and product context for evaluators and existing customers.</p>
+        <a class="academy-text-link" href="{% url 'website:resources' %}">Browse resources <span aria-hidden="true">→</span></a>
+      </article>
+      <article class="academy-doc-card">
+        <h2 class="academy-doc-card__title">Support center</h2>
+        <p class="academy-doc-card__desc">Channels, hours, and escalation aligned to your support agreement.</p>
+        <a class="academy-text-link" href="{% url 'website:support' %}">Support hub <span aria-hidden="true">→</span></a>
+      </article>
+      <article class="academy-doc-card">
+        <h2 class="academy-doc-card__title">Release readiness</h2>
+        <p class="academy-doc-card__desc">Pair documentation with webinars and sandbox validation before production changes.</p>
+        <a class="academy-text-link" href="{% url 'website:academy_webinars' %}">View webinars <span aria-hidden="true">→</span></a>
+      </article>
+    </div>
+  </div>
+</section>
+{% endblock %}

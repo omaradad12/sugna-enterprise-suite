@@ -1,253 +1,524 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Project list | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% load erp_format %}
+{% block title %}{% trans "Project list" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="pl-print-root dynamics-financial-report max-w-[1200px] mx-auto">
+<div
+  x-data="{ filtersOpen: {% if has_active_filters %}true{% else %}false{% endif %}, showExtraCols: false }"
+  class="contents"
+>
+<div class="pl-print-root dynamics-financial-report max-w-[1400px] mx-auto w-full pb-8 pl-screen-only">
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
 <style>
-  .pl-page-title { font-size: 24px; font-weight: 600; color: #201f1e; letter-spacing: -0.01em; }
-  .pl-page-desc { font-size: 13px; color: #605e5c; margin-top: 2px; max-width: 720px; }
+  .pl-page-title { font-size: 20px; font-weight: 700; color: #201f1e; letter-spacing: 0.02em; margin: 0; }
   .pl-command-bar {
     display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px;
-    padding: 14px 20px 18px; margin: 0 -20px 18px; border-bottom: 1px solid #e1dfdd;
-    background: linear-gradient(90deg, #f3f2f1 0, #faf9f8 40%, #ffffff 100%);
+    margin-bottom: 1rem;
   }
-  .pl-cards { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.25rem; }
-  .pl-card {
-    min-width: 100px; padding: 10px 14px; border: 1px solid #edebe9; border-radius: 4px; background: #fff;
-    font-size: 11px; color: #605e5c; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+  .pl-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.65rem 1rem;
+    margin-bottom: 1.25rem;
   }
-  .pl-card strong { display: block; font-size: 17px; color: #201f1e; font-weight: 600; margin-top: 4px; text-transform: none; letter-spacing: 0; }
-  .pl-data-section { background: #fff; border: 1px solid #edebe9; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  @media (min-width: 900px) {
+    .pl-kpi-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  }
+  .pl-kpi-card {
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-top: 3px solid #0078d4;
+    padding: 0.65rem 0.75rem;
+    box-shadow: 0 0.6px 1.8px rgba(0,0,0,.06);
+  }
+  .pl-kpi-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #605e5c;
+  }
+  .pl-kpi-value { font-size: 1.2rem; font-weight: 700; color: #201f1e; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+  .pl-filter-pane {
+    background: #faf9f8;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    margin-bottom: 1.25rem;
+  }
+  .pl-filter-pane.pl-filter-pane--collapsed { padding: 0.5rem 1rem; }
+  .pl-filter-pane:not(.pl-filter-pane--collapsed) { padding: 0.75rem 1rem 1rem; }
+  .pl-filter-bar {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 0.65rem 1rem;
+    flex-wrap: wrap; min-height: 36px;
+  }
+  @media (min-width: 900px) { .pl-filter-bar { align-items: center; } }
+  .pl-filter-bar-left { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; min-width: 0; }
+  .pl-filter-bar-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #323130; margin: 0;
+  }
+  .pl-filter-bar-hint { font-size: 12px; color: #8a8886; font-weight: 400; }
+  .pl-filter-bar-actions {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem;
+    flex: 1 1 auto; min-width: 0;
+  }
+  .pl-filter-body { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e1dfdd; }
+  .pl-filter-rows { display: flex; flex-direction: column; gap: 0.65rem; }
+  .pl-filter-row { display: grid; gap: 0.65rem 1rem; align-items: end; }
+  .pl-filter-row--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pl-filter-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 560px; }
+  @media (max-width: 1100px) {
+    .pl-filter-row--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .pl-filter-row--4, .pl-filter-row--2 { grid-template-columns: 1fr; max-width: none; }
+  }
+  .pl-filter-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+    margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e1dfdd;
+  }
+  .pl-data-section { background: #fff; border: 1px solid #edebe9; border-radius: 4px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
   .pl-data-head {
-    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #323130;
-    padding: 10px 16px; background: #faf9f8; border-bottom: 1px solid #edebe9;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #323130;
+    padding: 0.55rem 1rem; background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%);
+    border-bottom: 1px solid #e1dfdd; border-left: 4px solid #0078d4;
+    display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;
   }
-  .pl-data-body { padding: 14px 16px 16px; }
-  .pl-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .pl-table-wrap { overflow-x: auto; max-width: 100%; }
+  .pl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .pl-table th {
-    text-align: left; font-weight: 600; color: #323130; background: #f3f2f1; padding: 8px 10px; border: 1px solid #edebe9; white-space: nowrap;
+    text-align: left; font-weight: 600; color: #605e5c; background: #f3f2f1;
+    padding: 0.5rem 0.65rem; border-bottom: 2px solid #e1dfdd; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
   }
-  .pl-table td { padding: 7px 10px; border: 1px solid #edebe9; background: #fff; vertical-align: middle; }
-  .pl-table tbody tr:nth-child(even) td { background: #fbfbfb; }
-  .pl-code { font-family: Consolas, Menlo, Monaco, monospace; font-size: 11px; }
+  .pl-table td {
+    padding: 0.45rem 0.65rem; border-bottom: 1px solid #edebe9; vertical-align: middle;
+    background: #fff; line-height: 1.4;
+  }
+  .pl-table tbody tr:hover td { background: #f3f9fd; }
+  .pl-table tfoot td { background: #faf9f8; font-weight: 600; border-top: 2px solid #e1dfdd; }
+  .pl-code { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 600; color: #0078d4; }
+  .pl-num { font-variant-numeric: tabular-nums; text-align: right; }
+  .pl-title-cell { max-width: 220px; }
+  .pl-title-cell span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pl-pagination { margin-top: 12px; font-size: 13px; color: #605e5c; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .pl-empty { text-align: center; padding: 28px 16px; color: #605e5c; font-size: 13px; }
   .pl-badge {
-    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500;
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: 600;
   }
+  .pl-badge-draft { background: #edebe9; color: #323130; }
+  .pl-badge-planning { background: #deecf9; color: #004578; }
   .pl-badge-active { background: #dff6dd; color: #0b5a0b; }
-  .pl-badge-draft, .pl-badge-planning { background: #f3f2f1; color: #605e5c; }
-  .pl-badge-hold { background: #fff4ce; color: #8a6d1a; }
-  .pl-badge-completed { background: #deecf9; color: #004578; }
-  .pl-badge-closed { background: #e8e8e8; color: #323130; }
-  .pl-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; background: #dff6dd; color: #0b5a0b; }
-  .pl-pill-warn { background: #fff4ce; color: #8a6d1a; }
+  .pl-badge-hold { background: #fff4ce; color: #7a5c00; }
+  .pl-badge-closed { background: #3b3a39; color: #f3f2f1; }
+  .pl-badge-completed {
+    background: transparent; color: #0b5a0b;
+    border: 1px solid #107c10; box-sizing: border-box;
+  }
+  .pl-pill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 2px; font-size: 11px; font-weight: 600; background: #dff6dd; color: #0b5a0b; font-variant-numeric: tabular-nums; }
+  .pl-pill-warn { background: #fff4ce; color: #7a5c00; }
   .pl-pill-neg { background: #fde7e9; color: #a4262c; }
-  .pl-link { color: #0078d4; text-decoration: none; font-size: 13px; }
+  .pl-link { color: #0078d4; text-decoration: none; font-size: 12px; font-weight: 600; }
   .pl-link:hover { text-decoration: underline; }
   .pl-btn-primary {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
-    min-height: 32px; padding: 0 1rem; font-size: 14px; font-weight: 600; color: #fff; background: #0078d4;
+    min-height: 32px; padding: 0 1rem; font-size: 13px; font-weight: 600; color: #fff; background: #0078d4;
     border: none; border-radius: 2px; cursor: pointer; text-decoration: none;
   }
   .pl-btn-primary:hover { background: #106ebe; }
   @media print {
-    .pl-print-root .hidden-print-pl { display: none !important; }
-    .pl-print-root .pl-table { font-size: 8px; }
-    .pl-print-root .pl-table th, .pl-print-root .pl-table td { padding: 4px 5px !important; }
+    @page { size: A4 portrait !important; margin: 10mm 12mm; }
+    .pl-screen-only { display: none !important; }
+    .pl-print-document { max-width: 100%; }
+    .pl-print-document .official-rpt-print-title {
+      text-transform: none !important;
+      font-size: 15px !important;
+      letter-spacing: 0.02em !important;
+    }
+    /* Donor-report style: fixed layout so short values do not stretch columns */
+    .pl-print-document .pl-print-table {
+      table-layout: fixed;
+      width: 100%;
+      max-width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      line-height: 1.35;
+      margin-top: 0.5rem;
+      color: #201f1e;
+    }
+    .pl-print-document .pl-print-table th,
+    .pl-print-document .pl-print-table td {
+      border: 1px solid #d2d0ce;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      hyphens: auto;
+    }
+    .pl-print-document .pl-print-table th {
+      background: #f3f2f1;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+      color: #323130;
+      text-transform: none;
+    }
+    .pl-print-document .pl-print-table td.pl-print-num,
+    .pl-print-document .pl-print-table th.pl-print-num {
+      text-align: right;
+    }
+    .pl-print-document .pl-print-num {
+      font-variant-numeric: tabular-nums;
+    }
   }
 </style>
 
 <div class="pl-command-bar hidden-print-pl">
   <div>
-    <h1 class="pl-page-title">Project list</h1>
-    <p class="pl-page-desc">Single source of truth: rows reflect the latest saved project master. Budget, spent, and remaining are computed from linked grants, budget lines, and posted expenses.</p>
+    <h1 class="pl-page-title">{% trans "Project list" %}</h1>
   </div>
-  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+  <div class="flex flex-col items-end gap-2">
     {% if can_manage %}
-    <a href="{% url 'tenant_portal:setup_project_dimension_add' %}" class="pl-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> New project</a>
+    <a href="{% url 'tenant_portal:setup_project_dimension_add' %}" class="pl-btn-primary"><i data-feather="plus" class="w-4 h-4"></i> {% trans "New project" %}</a>
     {% endif %}
-    <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="pl-link">Projects &amp; grants setup</a>
+    <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}" class="pl-link">{% trans "Projects & grants setup" %}</a>
   </div>
 </div>
 
-<div class="pl-cards hidden-print-pl">
-  <div class="pl-card">All projects<strong>{{ projects_total_count }}</strong></div>
-  <div class="pl-card">Match filter<strong>{{ projects_page.paginator.count }}</strong></div>
-  {% for row in status_summary_rows %}
-  <div class="pl-card">{{ row.label }}<strong>{{ row.count }}</strong></div>
+<div class="pl-kpi-grid hidden-print-pl">
+  {% for row in kpi_cards %}
+  <div class="pl-kpi-card">
+    <div class="pl-kpi-label">{{ row.label }}</div>
+    <div class="pl-kpi-value">{{ row.count|erp_int }}</div>
+  </div>
   {% endfor %}
 </div>
 
-<div class="dynamics-filter-pane hidden-print-pl w-full">
-  <div class="dynamics-filter-head">
-    <span class="dynamics-filter-head-title">Filters</span>
-    <span class="dynamics-filter-head-hint">Refine the project list</span>
+<div class="pl-filter-pane hidden-print-pl mb-5" :class="{ 'pl-filter-pane--collapsed': !filtersOpen }">
+  <div class="pl-filter-bar">
+    <div class="pl-filter-bar-left">
+      <p class="pl-filter-bar-title">{% trans "Filters" %}</p>
+      <span class="pl-filter-bar-hint" x-show="filtersOpen" x-cloak>{% trans "Narrow projects and KPI totals" %}</span>
+    </div>
+    <div class="pl-filter-bar-actions">
+      <div class="flex flex-wrap gap-2 items-center">
+        <a href="{% url 'tenant_portal:grants_projects_list' %}?{{ projects_export_query }}" class="dynamics-btn-secondary no-underline">
+          <i data-feather="download" class="w-4 h-4"></i>
+          {% trans "Export Excel" %}
+        </a>
+        <a href="{% url 'tenant_portal:grants_projects_list' %}?{{ projects_export_csv_query }}" class="dynamics-btn-secondary no-underline text-[12px]">
+          {% trans "Export CSV" %}
+        </a>
+        <button type="button" onclick="window.print()" class="dynamics-btn-secondary dynamics-btn-print">
+          <i data-feather="printer" class="w-4 h-4"></i>
+          {% trans "Print" %}
+        </button>
+      </div>
+      <button
+        type="button"
+        class="dynamics-btn-secondary"
+        :aria-expanded="filtersOpen"
+        aria-controls="pl-filter-panel-body"
+        @click="filtersOpen = !filtersOpen; $nextTick(() => { if (window.feather) feather.replace(); })"
+      >
+        <span x-text="filtersOpen ? '{% trans "Hide filters" %}' : '{% trans "Show filters" %}'"></span>
+      </button>
+    </div>
   </div>
-  <form method="get" action="">
-    <div class="dynamics-filter-grid">
-      <div class="dynamics-filter-field">
-        <label for="pl-q">Search</label>
-        <input id="pl-q" type="text" name="q" value="{{ filter_q }}" class="dynamics-input min-w-[140px]" placeholder="Code or title…" />
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-status">Status</label>
-        <select id="pl-status" name="status" class="dynamics-select min-w-[140px]">
-          <option value="">All statuses</option>
-          {% for val, label in project_status_choices %}
-          <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-donor">Donor</label>
-        <select id="pl-donor" name="donor_id" class="dynamics-select min-w-[180px] max-w-[260px]">
-          <option value="">All donors</option>
-          {% for d in donors_for_project_filter %}
-          <option value="{{ d.pk }}" {% if filter_donor_id == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-program">Program <span class="dynamics-label-muted">(contains)</span></label>
-        <input id="pl-program" type="text" name="program" value="{{ filter_program }}" class="dynamics-input min-w-[120px]" placeholder="Program…" />
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-location">Location <span class="dynamics-label-muted">(contains)</span></label>
-        <input id="pl-location" type="text" name="location" value="{{ filter_location }}" class="dynamics-input min-w-[120px]" placeholder="Location…" />
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-start-after">Start on or after</label>
-        <input id="pl-start-after" type="date" name="start_after" value="{{ filter_start_after }}" class="dynamics-input" />
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-end-before">Effective end by</label>
-        <input id="pl-end-before" type="date" name="end_before" value="{{ filter_end_before }}" class="dynamics-input" />
-      </div>
-      <div class="dynamics-filter-field">
-        <label for="pl-sort">Sort</label>
-        <select id="pl-sort" name="sort" class="dynamics-select min-w-[160px] max-w-[220px]">
-          <option value="code" {% if filter_sort == 'code' %}selected{% endif %}>Code</option>
-          <option value="-code" {% if filter_sort == '-code' %}selected{% endif %}>Code (desc)</option>
-          <option value="name" {% if filter_sort == 'name' %}selected{% endif %}>Title</option>
-          <option value="donor" {% if filter_sort == 'donor' %}selected{% endif %}>Donor</option>
-          <option value="start" {% if filter_sort == 'start' %}selected{% endif %}>Start date</option>
-          <option value="end" {% if filter_sort == 'end' %}selected{% endif %}>End date</option>
-          <option value="status" {% if filter_sort == 'status' %}selected{% endif %}>Status</option>
-          <option value="updated" {% if filter_sort == 'updated' %}selected{% endif %}>Recently updated</option>
-        </select>
-      </div>
-      <div class="dynamics-filter-field dynamics-filter-field--actions">
-        <span class="dynamics-filter-actions-label" aria-hidden="true">&nbsp;</span>
-        <div class="dynamics-filter-inline-actions">
-          <button type="submit" class="dynamics-btn-primary">
-            <i data-feather="filter" class="w-4 h-4"></i>
-            Apply filters
-          </button>
-          <a href="{% url 'tenant_portal:grants_projects_list' %}?{{ projects_export_query }}" class="dynamics-btn-secondary">
-            <i data-feather="download" class="w-4 h-4"></i>
-            Export Excel
-          </a>
-          <button type="button" onclick="window.print()" class="dynamics-btn-secondary">
-            <i data-feather="printer" class="w-4 h-4"></i>
-            Print / PDF
-          </button>
-          <a href="{% url 'tenant_portal:grants_projects_list' %}" class="dynamics-btn-secondary">Clear</a>
+
+  <div id="pl-filter-panel-body" class="pl-filter-body" x-show="filtersOpen" x-cloak>
+    <form method="get" action="">
+      <div class="pl-filter-rows">
+        <div class="pl-filter-row pl-filter-row--4">
+          <div class="dynamics-filter-field">
+            <label for="pl-title">{% trans "Project title" %}</label>
+            <input id="pl-title" type="text" name="title" value="{{ filter_title }}" class="dynamics-input w-full min-w-0" placeholder="{% trans 'Contains…' %}" />
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-donor">{% trans "Donor" %}</label>
+            <select id="pl-donor" name="donor_id" class="dynamics-select w-full min-w-0">
+              <option value="">{% trans "All" %}</option>
+              {% for d in donors_for_project_filter %}
+              <option value="{{ d.pk }}" {% if filter_donor_id == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-pm">{% trans "Manager" %}</label>
+            <select id="pl-pm" name="project_manager_id" class="dynamics-select w-full min-w-0">
+              <option value="">{% trans "All" %}</option>
+              {% for u in project_managers_for_filter %}
+              <option value="{{ u.pk }}" {% if filter_project_manager_id == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-location">{% trans "Location" %} <span class="dynamics-label-muted">{% trans "(contains)" %}</span></label>
+            <input id="pl-location" type="text" name="location" value="{{ filter_location }}" class="dynamics-input w-full min-w-0" placeholder="{% trans 'Location…' %}" />
+          </div>
+        </div>
+        <div class="pl-filter-row pl-filter-row--4">
+          <div class="dynamics-filter-field">
+            <label for="pl-status">{% trans "Status" %}</label>
+            <select id="pl-status" name="status" class="dynamics-select w-full min-w-0">
+              <option value="">{% trans "All" %}</option>
+              {% for val, label in project_status_choices %}
+              <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-phase">{% trans "Phase" %}</label>
+            <select id="pl-phase" name="phase" class="dynamics-select w-full min-w-0">
+              <option value="">{% trans "All" %}</option>
+              {% for val, label in phase_filter_choices %}
+              <option value="{{ val }}" {% if filter_phase == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-ccy">{% trans "Currency" %}</label>
+            <select id="pl-ccy" name="currency_id" class="dynamics-select w-full min-w-0">
+              <option value="">{% trans "All" %}</option>
+              {% for c in currencies_for_project_filter %}
+              <option value="{{ c.pk }}" {% if filter_currency_id == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.code }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-q">{% trans "Search (code or title)" %}</label>
+            <input id="pl-q" type="search" name="q" value="{{ filter_q }}" class="dynamics-input w-full min-w-0" placeholder="{% trans 'Quick search…' %}" />
+          </div>
+        </div>
+        <div class="pl-filter-row pl-filter-row--4">
+          <div class="dynamics-filter-field">
+            <label for="pl-code">{% trans "Code" %}</label>
+            <input id="pl-code" type="text" name="code" value="{{ filter_code }}" class="dynamics-input w-full min-w-0" placeholder="{% trans 'Contains…' %}" />
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-start-after">{% trans "Start from" %}</label>
+            <input id="pl-start-after" type="date" name="start_after" value="{{ filter_start_after }}" class="dynamics-input w-full min-w-0" />
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-start-before">{% trans "Start to" %}</label>
+            <input id="pl-start-before" type="date" name="start_before" value="{{ filter_start_before }}" class="dynamics-input w-full min-w-0" />
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-sort">{% trans "Sort" %}</label>
+            <select id="pl-sort" name="sort" class="dynamics-select w-full min-w-0">
+              <option value="code" {% if filter_sort == 'code' %}selected{% endif %}>{% trans "Code" %}</option>
+              <option value="-code" {% if filter_sort == '-code' %}selected{% endif %}>{% trans "Code (desc)" %}</option>
+              <option value="name" {% if filter_sort == 'name' %}selected{% endif %}>{% trans "Title" %}</option>
+              <option value="donor" {% if filter_sort == 'donor' %}selected{% endif %}>{% trans "Donor" %}</option>
+              <option value="start" {% if filter_sort == 'start' %}selected{% endif %}>{% trans "Start date" %}</option>
+              <option value="end" {% if filter_sort == 'end' %}selected{% endif %}>{% trans "End date" %}</option>
+              <option value="status" {% if filter_sort == 'status' %}selected{% endif %}>{% trans "Status" %}</option>
+              <option value="updated" {% if filter_sort == 'updated' %}selected{% endif %}>{% trans "Recently updated" %}</option>
+            </select>
+          </div>
+        </div>
+        <div class="pl-filter-row pl-filter-row--4" style="grid-template-columns: repeat(2, minmax(0, 280px)); max-width: 600px;">
+          <div class="dynamics-filter-field">
+            <label for="pl-end-after">{% trans "End from" %}</label>
+            <input id="pl-end-after" type="date" name="end_after" value="{{ filter_end_after }}" class="dynamics-input w-full min-w-0" />
+          </div>
+          <div class="dynamics-filter-field">
+            <label for="pl-end-before">{% trans "End by" %}</label>
+            <input id="pl-end-before" type="date" name="end_before" value="{{ filter_end_before }}" class="dynamics-input w-full min-w-0" />
+          </div>
         </div>
       </div>
-    </div>
-  </form>
-</div>
-
-<div class="pl-data-section print-area">
-  <div class="pl-data-head hidden-print-pl">Results</div>
-  <div class="pl-data-body">
-    <div style="overflow-x:auto;">
-      <table class="pl-table">
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Title</th>
-            <th>Donor</th>
-            <th>Manager</th>
-            <th>Location</th>
-            <th>Program</th>
-            <th>Start</th>
-            <th>End (eff.)</th>
-            <th>Benef.</th>
-            <th>Funding</th>
-            <th>CCY</th>
-            <th>Grants</th>
-            <th>Budget</th>
-            <th>Spent</th>
-            <th>Remaining</th>
-            <th>Status</th>
-            <th>Phase</th>
-            <th>Updated</th>
-            {% if can_manage %}<th class="hidden-print-pl">Actions</th>{% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in projects_page %}
-          <tr>
-            <td class="pl-code">{{ p.code }}</td>
-            <td>{{ p.name }}</td>
-            <td>{{ p.donor.name|default:"—" }}</td>
-            <td>{% if p.project_manager %}{{ p.project_manager.get_full_name|default:p.project_manager.email }}{% else %}—{% endif %}</td>
-            <td>{{ p.location|default:"—" }}</td>
-            <td>{{ p.program_sector|default:"—" }}</td>
-            <td>{{ p.start_date|date:"Y-m-d"|default:"—" }}</td>
-            <td>{% if p.effective_end %}{{ p.effective_end|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-            <td>{{ p.total_beneficiaries }}</td>
-            <td>{% if p.funding_type %}{{ p.get_funding_type_display }}{% else %}—{% endif %}</td>
-            <td>{% if p.currency %}{{ p.currency.code }}{% elif p.fin.primary_currency %}{{ p.fin.primary_currency.code }}{% else %}—{% endif %}</td>
-            <td>{{ p.fin.grant_count }}</td>
-            <td>{{ p.fin.total_budget|floatformat:2 }}</td>
-            <td>{{ p.fin.total_spent|floatformat:2 }}</td>
-            <td>
-              {% if p.fin.remaining < 0 %}
-              <span class="pl-pill pl-pill-neg">{{ p.fin.remaining|floatformat:2 }}</span>
-              {% elif p.fin.remaining == 0 %}
-              <span class="pl-pill pl-pill-warn">{{ p.fin.remaining|floatformat:2 }}</span>
-              {% else %}
-              <span class="pl-pill">{{ p.fin.remaining|floatformat:2 }}</span>
-              {% endif %}
-            </td>
-            <td>
-              <span class="pl-badge {% if p.status == 'active' %}pl-badge-active{% elif p.status == 'on_hold' %}pl-badge-hold{% elif p.status == 'completed' %}pl-badge-completed{% elif p.status == 'closed' %}pl-badge-closed{% else %}pl-badge-planning{% endif %}">
-                {{ p.get_status_display }}
-              </span>
-            </td>
-            <td>{{ p.calendar_phase_label|default:"—" }}</td>
-            <td>{{ p.updated_at|date:"Y-m-d H:i"|default:"—" }}</td>
-            {% if can_manage %}
-            <td class="hidden-print-pl">
-              <a href="{% url 'tenant_portal:setup_project_dimension_edit' p.pk %}" class="pl-link">Edit</a>
-              <span style="color:#c8c6c4;">|</span>
-              <a href="{% url 'tenant_portal:setup_project_dimension_delete' p.pk %}" class="pl-link" style="color:#a4262c;">Delete</a>
-            </td>
-            {% endif %}
-          </tr>
-          {% empty %}
-          <tr><td colspan="{% if can_manage %}19{% else %}18{% endif %}" class="pl-empty">No projects match your filters.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {% if projects_page.has_other_pages %}
-    <div class="pl-pagination hidden-print-pl">
-      {% if projects_page.has_previous %}
-      <a class="pl-link" href="?{% if base_query %}{{ base_query }}&amp;{% endif %}page={{ projects_page.previous_page_number }}">Previous</a>
-      {% endif %}
-      <span>Page {{ projects_page.number }} of {{ projects_page.paginator.num_pages }}</span>
-      {% if projects_page.has_next %}
-      <a class="pl-link" href="?{% if base_query %}{{ base_query }}&amp;{% endif %}page={{ projects_page.next_page_number }}">Next</a>
-      {% endif %}
-    </div>
-    {% endif %}
+      <div class="pl-filter-actions">
+        <button type="submit" class="dynamics-btn-primary">{% trans "Apply filters" %}</button>
+        <a href="{% url 'tenant_portal:grants_projects_list' %}" class="dynamics-btn-secondary no-underline">{% trans "Reset filters" %}</a>
+      </div>
+    </form>
   </div>
 </div>
+
+<div class="pl-data-section">
+  <div class="pl-data-head hidden-print-pl">
+    <span>{% trans "Projects" %}</span>
+    <div class="flex flex-wrap items-center gap-2 text-[12px] font-semibold normal-case tracking-normal">
+      <label class="inline-flex items-center gap-1.5 cursor-pointer text-[#323130]">
+        <input type="checkbox" x-model="showExtraCols" class="rounded border-[#8a8886]" />
+        {% trans "Show detail columns" %}
+      </label>
+    </div>
+  </div>
+  <div class="pl-table-wrap">
+    <table class="pl-table">
+      <thead>
+        <tr>
+          <th>{% trans "Code" %}</th>
+          <th>{% trans "Project title" %}</th>
+          <th>{% trans "Donor" %}</th>
+          <th>{% trans "Start date" %}</th>
+          <th>{% trans "End date" %}</th>
+          <th>{% trans "Currency" %}</th>
+          <th class="text-right">{% trans "Budget" %}</th>
+          <th class="text-right">{% trans "Spent" %}</th>
+          <th class="text-right">{% trans "Remaining" %}</th>
+          <th class="text-right">{% trans "Util. %" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th>{% trans "End alert" %}</th>
+          <th x-show="showExtraCols" x-cloak>{% trans "Manager" %}</th>
+          <th x-show="showExtraCols" x-cloak>{% trans "Location" %}</th>
+          <th x-show="showExtraCols" x-cloak>{% trans "Program" %}</th>
+          <th class="text-right" x-show="showExtraCols" x-cloak>{% trans "Beneficiaries" %}</th>
+          <th x-show="showExtraCols" x-cloak>{% trans "Funding type" %}</th>
+          <th class="text-right" x-show="showExtraCols" x-cloak>{% trans "Grants" %}</th>
+          <th x-show="showExtraCols" x-cloak>{% trans "Phase" %}</th>
+          <th x-show="showExtraCols" x-cloak>{% trans "Last updated" %}</th>
+          {% if can_manage %}<th class="hidden-print-pl text-right">{% trans "Actions" %}</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in projects_page %}
+        <tr>
+          <td class="pl-code">{{ p.code }}</td>
+          <td class="pl-title-cell"><span title="{{ p.name }}">{{ p.name }}</span></td>
+          <td>{{ p.donor.name|default:"—" }}</td>
+          <td>{{ p.start_date|date:"Y-m-d"|default:"—" }}</td>
+          <td>{% if p.effective_end %}{{ p.effective_end|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+          <td class="font-mono text-[12px]">{% if p.currency %}{{ p.currency.code }}{% elif p.fin.primary_currency %}{{ p.fin.primary_currency.code }}{% else %}—{% endif %}</td>
+          <td class="pl-num">{{ p.fin.total_budget|erp_amount_whole }}</td>
+          <td class="pl-num">{{ p.fin.total_spent|erp_amount_whole }}</td>
+          <td class="pl-num">
+            {% if p.fin.remaining < 0 %}
+            <span class="pl-pill pl-pill-neg">{{ p.fin.remaining|erp_amount_whole }}</span>
+            {% elif p.fin.remaining == 0 %}
+            <span class="pl-pill pl-pill-warn">{{ p.fin.remaining|erp_amount_whole }}</span>
+            {% else %}
+            <span class="pl-pill">{{ p.fin.remaining|erp_amount_whole }}</span>
+            {% endif %}
+          </td>
+          <td class="pl-num text-[#323130]">
+            {% if p.fin.utilization_pct is not None %}{{ p.fin.utilization_pct|floatformat:1 }}%{% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="pl-badge {% if p.status == 'draft' %}pl-badge-draft{% elif p.status == 'planning' %}pl-badge-planning{% elif p.status == 'active' %}pl-badge-active{% elif p.status == 'on_hold' %}pl-badge-hold{% elif p.status == 'closed' %}pl-badge-closed{% elif p.status == 'completed' %}pl-badge-completed{% else %}pl-badge-draft{% endif %}">
+              {{ p.get_status_display }}
+            </span>
+          </td>
+          <td x-show="showExtraCols" x-cloak>{% if p.project_manager %}{{ p.project_manager.get_full_name|default:p.project_manager.email }}{% else %}—{% endif %}</td>
+          <td x-show="showExtraCols" x-cloak>{{ p.location|default:"—" }}</td>
+          <td x-show="showExtraCols" x-cloak>{{ p.program_sector|default:"—" }}</td>
+          <td class="text-right" x-show="showExtraCols" x-cloak>{{ p.total_beneficiaries|erp_int }}</td>
+          <td x-show="showExtraCols" x-cloak>{% if p.funding_type %}{{ p.get_funding_type_display }}{% else %}—{% endif %}</td>
+          <td class="text-right font-semibold" x-show="showExtraCols" x-cloak>{{ p.fin.grant_count|erp_int }}</td>
+          <td x-show="showExtraCols" x-cloak>{{ p.calendar_phase_label|default:"—" }}</td>
+          <td x-show="showExtraCols" x-cloak class="whitespace-nowrap text-[12px]">{{ p.updated_at|date:"Y-m-d H:i"|default:"—" }}</td>
+          {% if can_manage %}
+          <td class="hidden-print-pl text-right whitespace-nowrap">
+            <a href="{% url 'tenant_portal:setup_project_dimension_edit' p.pk %}" class="pl-link">{% trans "Edit" %}</a>
+            <span class="text-[#c8c6c4]">|</span>
+            <a href="{% url 'tenant_portal:setup_project_dimension_delete' p.pk %}" class="pl-link" style="color:#a4262c;">{% trans "Delete" %}</a>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="{% if can_manage %}21{% else %}20{% endif %}" class="pl-empty">{% trans "No projects match your filters." %}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if projects_filtered_count %}
+      <tfoot>
+        <tr>
+          <td colspan="6" class="text-[#605e5c] text-[12px]">{% trans "Totals (filtered set)" %}</td>
+          <td class="pl-num">{{ projects_totals.total_budget|erp_amount_whole }}</td>
+          <td class="pl-num">{{ projects_totals.total_spent|erp_amount_whole }}</td>
+          <td class="pl-num">
+            {% if projects_totals.remaining < 0 %}
+            <span class="pl-pill pl-pill-neg">{{ projects_totals.remaining|erp_amount_whole }}</span>
+            {% else %}
+            <span class="pl-pill">{{ projects_totals.remaining|erp_amount_whole }}</span>
+            {% endif %}
+          </td>
+          <td class="pl-num">{% if projects_totals.utilization_pct is not None %}{{ projects_totals.utilization_pct|floatformat:1 }}%{% else %}—{% endif %}</td>
+          <td></td>
+          <td></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          <td x-show="showExtraCols" x-cloak></td>
+          {% if can_manage %}<td class="hidden-print-pl"></td>{% endif %}
+        </tr>
+        <tr class="hidden-print-pl">
+          <td colspan="{% if can_manage %}21{% else %}20{% endif %}" class="text-[11px] text-[#605e5c] font-normal py-2 border-t border-[#edebe9]">
+            {% trans "Grant links (filtered)" %}: {{ projects_totals.grant_count|erp_int }}
+          </td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+
+  {% if projects_page.has_other_pages %}
+  <div class="pl-pagination hidden-print-pl px-4 pb-3">
+    {% if projects_page.has_previous %}
+    <a class="pl-link" href="?{% if base_query %}{{ base_query }}&amp;{% endif %}page={{ projects_page.previous_page_number }}">{% trans "Previous" %}</a>
+    {% endif %}
+    <span>{% trans "Page" %} {{ projects_page.number }} {% trans "of" %} {{ projects_page.paginator.num_pages }}</span>
+    {% if projects_page.has_next %}
+    <a class="pl-link" href="?{% if base_query %}{{ base_query }}&amp;{% endif %}page={{ projects_page.next_page_number }}">{% trans "Next" %}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+</div>
+
+<div class="print-only print-area pl-print-document">
+  {% include "tenant_portal/finance/_official_org_print_header.html" with report_title=_("Project List") %}
+  {# Column %: code 12, name 22, donor 16, loc 14, budget 10 (inserted), ben 14, start 11, end 11 = 110 → scaled to 100 #}
+  <table class="pl-print-table">
+    <colgroup>
+      <col style="width:10.91%" />
+      <col style="width:20.00%" />
+      <col style="width:14.55%" />
+      <col style="width:12.73%" />
+      <col style="width:9.09%" />
+      <col style="width:12.73%" />
+      <col style="width:10.00%" />
+      <col style="width:10.00%" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th scope="col">{% trans "Project code" %}</th>
+        <th scope="col">{% trans "Project name" %}</th>
+        <th scope="col">{% trans "Donor" %}</th>
+        <th scope="col">{% trans "Location" %}</th>
+        <th scope="col" class="pl-print-num">{% trans "Total budget" %}</th>
+        <th scope="col" class="pl-print-num">{% trans "Number of beneficiaries" %}</th>
+        <th scope="col">{% trans "Start date" %}</th>
+        <th scope="col">{% trans "End date" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in projects_export_all %}
+      <tr>
+        <td>{{ p.code }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.donor.name|default:"" }}</td>
+        <td>{{ p.location|default:"" }}</td>
+        <td class="pl-print-num">{{ p.fin.total_budget|erp_amount_whole }}</td>
+        <td class="pl-print-num">{{ p.total_beneficiaries|erp_int }}</td>
+        <td>{% if p.start_date %}{{ p.start_date|date:"Y-m-d" }}{% endif %}</td>
+        <td>{% if p.effective_end %}{{ p.effective_end|date:"Y-m-d" }}{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center text-[#605e5c] py-4">{% trans "No projects match the current filters." %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  if (window.feather) { feather.replace(); }
+</script>
 </div>
 {% endblock %}

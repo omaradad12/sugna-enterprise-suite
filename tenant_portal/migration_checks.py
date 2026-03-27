@@ -29,6 +29,12 @@ TENANT_FINANCE_JOURNALLINE_0044 = (
     "0044_journalline_project_budget_workplan",
 )
 
+# DocumentPolicyConfig + file_sha256 / retention (Document Management policy)
+TENANT_DOCUMENTS_POLICY_0002 = (
+    "tenant_documents",
+    "0002_documentpolicyconfig_document_file_sha256_and_more",
+)
+
 
 def migration_applied(using: str, app_label: str, migration_name: str) -> bool:
     """True if django_migrations records this migration on the given DB alias."""
@@ -49,6 +55,10 @@ def tenant_grants_reporting_deadlines_ready(using: str) -> bool:
 
 def tenant_finance_journalline_project_budget_ready(using: str) -> bool:
     return migration_applied(using, *TENANT_FINANCE_JOURNALLINE_0044)
+
+
+def tenant_documents_policy_ready(using: str) -> bool:
+    return migration_applied(using, *TENANT_DOCUMENTS_POLICY_0002)
 
 
 def apply_all_migrations_for_alias(using: str) -> bool:
@@ -105,4 +115,17 @@ def ensure_journalline_project_budget_schema(using: str, *, auto_migrate: bool) 
     if auto_migrate:
         apply_all_migrations_for_alias(using)
         return tenant_finance_journalline_project_budget_ready(using)
+    return False
+
+
+def ensure_document_policy_schema(using: str, *, auto_migrate: bool) -> bool:
+    """
+    Return True if DocumentPolicyConfig and related Document fields exist.
+    If auto_migrate and not ready, run migrate on `using` once and re-check.
+    """
+    if tenant_documents_policy_ready(using):
+        return True
+    if auto_migrate:
+        apply_all_migrations_for_alias(using)
+        return tenant_documents_policy_ready(using)
     return False

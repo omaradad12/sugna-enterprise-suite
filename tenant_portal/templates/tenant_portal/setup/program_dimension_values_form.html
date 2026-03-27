@@ -1,0 +1,74 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .dyn-form-wrap { max-width: 760px; margin: 0 auto; }
+  .dyn-card { background:#fff; border:1px solid #edebe9; border-radius:4px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,.02); }
+  .dyn-card-head { padding:12px 16px; border-bottom:1px solid #edebe9; background:#f3f2f1; font-size:12px; font-weight:600; color:#323130; text-transform:uppercase; letter-spacing:.05em; }
+  .dyn-card-body { padding:16px; }
+  .dyn-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .dyn-field label { display:block; font-size:12px; font-weight:600; color:#605e5c; margin-bottom:4px; }
+  .dyn-input, .dyn-select, .dyn-textarea { width:100%; border:1px solid #edebe9; border-radius:2px; font-size:13px; padding:8px; background:#fff; color:#323130; }
+  .dyn-textarea { min-height:96px; resize:vertical; }
+  .dyn-actions { display:flex; align-items:center; gap:8px; border-top:1px solid #edebe9; background:#faf9f8; padding:12px 16px; }
+  .dyn-btn-primary { height:32px; padding:0 12px; font-size:13px; font-weight:500; border:none; border-radius:2px; background:#0078d4; color:#fff; }
+  .dyn-btn-secondary { height:32px; padding:0 12px; font-size:13px; font-weight:500; border:1px solid #edebe9; border-radius:2px; background:#fff; color:#323130; text-decoration:none; display:inline-flex; align-items:center; }
+  @media (max-width: 767px) { .dyn-grid { grid-template-columns:1fr; } }
+</style>
+
+<div class="dyn-form-wrap">
+  <div class="mb-4 flex items-center justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-semibold text-[#323130]">{{ form_title }}</h1>
+      <p class="text-[13px] text-[#605e5c] mt-1">Financial Setup → Dimensions → Program → Values</p>
+    </div>
+    <a href="{% url 'tenant_portal:setup_program_dimension_values_list' %}" class="text-[13px] text-[#0078d4] hover:underline">Back to values</a>
+  </div>
+
+  <form method="post" class="dyn-card">
+    {% csrf_token %}
+    <div class="dyn-card-head">Program value details</div>
+    <div class="dyn-card-body space-y-3">
+      <div class="dyn-grid">
+        <div class="dyn-field">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <label class="!mb-0">Dimension</label>
+            <a href="{% url 'tenant_portal:setup_dimensions_add' %}" class="text-[11px] font-semibold text-[#0078d4] hover:underline">+ Create dimension</a>
+          </div>
+          <select class="dyn-select bg-[#f3f2f1]" disabled>
+            <option selected>{{ prog_dimension.dimension_code }} — {{ prog_dimension.dimension_name }}</option>
+          </select>
+          <p class="text-[11px] text-[#605e5c] mt-1">This form is scoped to Program values; dimension selection is fixed here.</p>
+        </div>
+        <div class="dyn-field">
+          <label>Status</label>
+          <select name="status" class="dyn-select">
+            {% for value_opt, label_opt in status_choices %}
+            <option value="{{ value_opt }}" {% if value and value.status == value_opt %}selected{% elif not value and value_opt == 'active' %}selected{% endif %}>{{ label_opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="dyn-grid">
+        <div class="dyn-field">
+          <label>Code <span style="color:#a4262c;">*</span></label>
+          <input type="text" name="code" maxlength="30" required class="dyn-input" value="{% if value %}{{ value.code }}{% endif %}" />
+        </div>
+        <div class="dyn-field">
+          <label>Name <span style="color:#a4262c;">*</span></label>
+          <input type="text" name="name" maxlength="120" required class="dyn-input" value="{% if value %}{{ value.name }}{% endif %}" />
+        </div>
+      </div>
+      <div class="dyn-field">
+        <label>Description</label>
+        <textarea name="description" class="dyn-textarea">{% if value %}{{ value.description }}{% endif %}</textarea>
+      </div>
+    </div>
+    <div class="dyn-actions">
+      <button type="submit" class="dyn-btn-primary">Save</button>
+      <a href="{% url 'tenant_portal:setup_program_dimension_values_list' %}" class="dyn-btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

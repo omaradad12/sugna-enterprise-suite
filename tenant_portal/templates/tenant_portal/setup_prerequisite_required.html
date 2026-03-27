@@ -1,0 +1,43 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto px-4 py-16 sm:py-20">
+  <div class="text-center">
+    <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#f3f2f1] text-[#0078d4] mb-6" aria-hidden="true">
+      <i data-feather="layers" class="w-7 h-7"></i>
+    </div>
+    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#605e5c] mb-2">
+      {% trans "Setup path" %}
+    </p>
+    <h1 class="text-[1.5rem] sm:text-[1.65rem] font-semibold text-[#323130] leading-tight tracking-tight">
+      {{ missing_step.headline }}
+    </h1>
+    <p class="mt-4 text-[0.9375rem] text-[#605e5c] leading-relaxed">
+      {{ missing_step.body }}
+    </p>
+    <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center">
+      <a
+        href="{{ missing_step.setup_url }}"
+        class="inline-flex items-center justify-center px-5 py-2.5 rounded font-medium text-white shadow-sm"
+        style="background:#0078D4;"
+      >
+        {{ missing_step.action_label }}
+      </a>
+      <a
+        href="{% url 'tenant_portal:home' %}"
+        class="inline-flex items-center justify-center px-5 py-2.5 rounded font-medium border border-[#c8c6c4] text-[#323130] bg-white hover:bg-[#faf9f8]"
+      >
+        {% trans "Back to console" %}
+      </a>
+    </div>
+    <p class="mt-10 text-xs text-[#a19f9d] leading-relaxed max-w-md mx-auto">
+      {% trans "Recommended order: Donor → Project → Grant agreement → Budget → Transactions." %}
+    </p>
+  </div>
+</div>
+<script>
+  if (window.feather) { feather.replace(); }
+</script>
+{% endblock %}

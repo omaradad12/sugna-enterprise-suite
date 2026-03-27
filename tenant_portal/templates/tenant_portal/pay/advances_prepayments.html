@@ -1,0 +1,37 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Advances & Prepayments" %} | {% trans "Finance" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto pb-6" style="font-family: Inter, system-ui, sans-serif;">
+  <div class="mb-4">
+    <h1 class="text-xl font-semibold text-[#111827] tracking-tight">{% trans "Advances & Prepayments" %}</h1>
+    <p class="mt-1 text-[13px] text-[#6b7280] leading-relaxed">
+      {% trans "Record staff advances and vendor prepayments; clear them against project, donor, grant, and budget line when invoices or reports are received." %}
+    </p>
+  </div>
+  <div class="bg-white border rounded-[10px] p-4 mb-3" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,0.04);">
+    <h2 class="text-[13px] font-semibold text-[#374151] uppercase tracking-wide mb-3">{% trans "General ledger" %}</h2>
+    <div class="flex flex-col sm:flex-row flex-wrap gap-2">
+      <a href="{{ finance_journal_advance_url }}"
+         class="inline-flex items-center justify-center px-4 py-2 rounded-lg border text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f9fafb]"
+         style="border-color:#e5e7eb;">
+        {% trans "Search journals — advance" %}
+      </a>
+      <a href="{{ finance_journal_prepayment_url }}"
+         class="inline-flex items-center justify-center px-4 py-2 rounded-lg border text-[13px] font-medium text-[#374151] bg-white hover:bg-[#f9fafb]"
+         style="border-color:#e5e7eb;">
+        {% trans "Search journals — prepayment" %}
+      </a>
+      <a href="{{ finance_journal_create_url }}"
+         class="inline-flex items-center justify-center px-4 py-2 rounded-lg border text-[13px] font-medium text-white bg-[#374151] hover:bg-[#1f2937]"
+         style="border-color:#374151;">
+        {% trans "New journal entry" %}
+      </a>
+    </div>
+  </div>
+  <p class="text-[12px] text-[#9ca3af]">
+    {% trans "Use your chart of accounts (advance / prepaid categories) and tag lines with project and grant for donor reporting." %}
+  </p>
+</div>
+{% endblock %}

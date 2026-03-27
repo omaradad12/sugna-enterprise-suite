@@ -165,6 +165,18 @@
                         {% if a.is_active %}Disable{% else %}Enable{% endif %}
                       </button>
                     </form>
+                    {% if not a.is_active %}
+                    <form method="post" class="border-t border-[#e5e7eb] mt-1 pt-1"
+                          onsubmit="return confirm('Delete this inactive account? This is allowed only when there are no posted transactions, no opening balances, no bank links, no budgets, and no journal references.');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete" />
+                      <input type="hidden" name="account_id" value="{{ a.pk }}" />
+                      <button type="submit"
+                              class="w-full text-left px-3 py-1.5 text-[#991b1b] hover:bg-[#fef2f2]">
+                        Delete
+                      </button>
+                    </form>
+                    {% endif %}
                   </div>
                 </div>
               </details>

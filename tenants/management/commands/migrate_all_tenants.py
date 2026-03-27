@@ -13,7 +13,11 @@ from tenants.models import Tenant
 
 
 class Command(BaseCommand):
-    help = "Run migrations for every tenant that has a database configured."
+    help = (
+        "Run migrations for every tenant that has a database configured. "
+        "Tenant-scoped apps (TENANT_APP_LABELS), including tenant_documents, "
+        "only receive schema changes here — not on migrate --database=default."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

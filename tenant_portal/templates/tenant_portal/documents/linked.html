@@ -1,0 +1,61 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Linked documents" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[1280px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Linked documents" %}</h1>
+      <p class="text-[13px] text-[#6b7280] m-0 mt-1">{% trans "Documents tied to business records (vouchers, journals, grants, etc.)." %}</p>
+    </div>
+    <div class="erp-section-body px-4 py-3">
+      <form method="get" class="flex flex-wrap gap-2 items-end">
+        <div>
+          <label class="block text-[12px] text-[#6b7280] mb-1">{% trans "Search" %}</label>
+          <input name="q" value="{{ request.GET.q }}" class="border border-[#edebe9] rounded px-2 py-1.5 text-[13px]" />
+        </div>
+        <button type="submit" class="px-3 py-1.5 rounded border border-[#edebe9] bg-white text-[13px]">{% trans "Filter" %}</button>
+      </form>
+    </div>
+  </div>
+  <div class="erp-section">
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "File" %}</th>
+            <th>{% trans "Record type" %}</th>
+            <th>{% trans "Record id" %}</th>
+            <th>{% trans "Voucher / ref" %}</th>
+            <th>{% trans "Status" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in page_obj %}
+          <tr>
+            <td><a class="text-[#0f5ba7] text-[13px]" href="{% url 'tenant_portal:documents_detail' d.pk %}">{{ d.original_filename|default:d.file.name }}</a></td>
+            <td class="text-[13px]">{{ d.linked_record_type }}</td>
+            <td class="text-[13px]">{{ d.linked_record_id|default:"—" }}</td>
+            <td class="text-[13px]">{{ d.voucher_number|default:"—" }}</td>
+            <td class="text-[13px]">{{ d.get_status_display }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-[13px] text-[#6b7280]">{% trans "No linked documents." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="mt-3 text-[13px]">
+    {% if page_obj.has_previous %}
+    <a class="text-[#0f5ba7]" href="?{% if query_no_page %}{{ query_no_page }}&{% endif %}page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>
+    {% endif %}
+    <span class="mx-2">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="text-[#0f5ba7]" href="?{% if query_no_page %}{{ query_no_page }}&{% endif %}page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

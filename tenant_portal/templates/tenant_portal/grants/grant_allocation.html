@@ -1,6 +1,6 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}{% trans "Grant allocation (multi-donor)" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}{% trans "Grant allocation (shared funding)" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
@@ -165,8 +165,8 @@
 
 <div class="dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
   <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
-    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Grant management" %}</p>
-    <h1 class="dynamics-hero-title">{% trans "Grant allocation (multi-donor)" %}</h1>
+    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Project grants" %}</p>
+    <h1 class="dynamics-hero-title">{% trans "Grant allocation (shared funding)" %}</h1>
     <p class="dynamics-hero-subtitle">{% trans "Split a grant across donors using amount or percentage. Filter the list by period, donor, or grant, then export or print." %}</p>
   </header>
 

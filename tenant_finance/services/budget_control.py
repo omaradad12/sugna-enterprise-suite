@@ -85,7 +85,7 @@ class BudgetControlEngine:
     def _get_commitments_by_budget_line(self, grant: Grant) -> dict[str, Decimal]:
         """
         Commitments are sourced from PRs (Purchase Requisitions) not in terminal states.
-        They are grouped by PR line 'budget_line' text (typically matches BudgetLine.category).
+        They are grouped by PR line 'budget_line' text (should match BudgetLine.budget_line_code).
         """
         from tenant_grants.models import PurchaseRequisition
 
@@ -182,11 +182,14 @@ class BudgetControlEngine:
         for bl in budget_lines:
             budget_amt = bl.amount or Decimal("0")
             acct_id = bl.account_id
+            line_code = (getattr(bl, "budget_line_code", "") or "").strip()
+            line_name = (bl.category or "").strip()
             if not acct_id:
                 # Can't enforce line-level without account coding; skip but record.
                 details["lines"].append(
                     {
                         "budget_line_id": bl.id,
+                        "budget_line_code": line_code,
                         "category": bl.category,
                         "budget": str(budget_amt),
                         "note": "No account mapped on budget line; skipped.",
@@ -196,7 +199,7 @@ class BudgetControlEngine:
 
             actual = actuals_by_account.get(acct_id, Decimal("0"))
             new = entry_by_account.get(acct_id, Decimal("0"))
-            commit = commitments_by_category.get((bl.category or "").strip(), Decimal("0"))
+            commit = commitments_by_category.get(line_code, Decimal("0"))
             projected = actual + new + (commit if rules.include_commitments else Decimal("0"))
 
             util = (projected / budget_amt * Decimal("100")) if budget_amt > 0 else None
@@ -205,24 +208,24 @@ class BudgetControlEngine:
             line_status = "ok"
             if budget_amt <= 0 and new > 0:
                 line_status = "block"
-                msg = f"Budget control: no budget amount for line '{bl.category}' but entry posts {new}."
+                msg = f"Budget control: no budget amount for line '{line_code or line_name}' but entry posts {new}."
             elif util is not None:
                 if util >= rules.block_at_percent:
                     line_status = "block"
                     msg = (
-                        f"Budget line '{bl.category}' will exceed budget {budget_amt} "
+                        f"Budget line '{line_code or line_name}' will exceed budget {budget_amt} "
                         f"(projected {projected}, utilization {util:.2f}%)."
                     )
                 elif util >= rules.critical_at_percent:
                     line_status = "critical"
                     msg = (
-                        f"Budget line '{bl.category}' will reach critical utilization {util:.2f}% "
+                        f"Budget line '{line_code or line_name}' will reach critical utilization {util:.2f}% "
                         f"of budget {budget_amt} (projected {projected})."
                     )
                 elif util >= rules.warn_at_percent:
                     line_status = "warn"
                     msg = (
-                        f"Budget line '{bl.category}' will reach warning utilization {util:.2f}% "
+                        f"Budget line '{line_code or line_name}' will reach warning utilization {util:.2f}% "
                         f"of budget {budget_amt} (projected {projected})."
                     )
                 else:
@@ -233,6 +236,7 @@ class BudgetControlEngine:
             details["lines"].append(
                 {
                     "budget_line_id": bl.id,
+                    "budget_line_code": line_code,
                     "category": bl.category,
                     "account_id": acct_id,
                     "budget": str(budget_amt),

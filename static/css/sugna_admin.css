@@ -2,9 +2,57 @@
 
 /* Global font + smoothing */
 body {
-    font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
     -webkit-font-smoothing: antialiased;
-    background-color: #f3f2f1;
+    font-size: 13px;
+    background-color: #f8fafc;
+}
+
+/* Standardize all date/numeric/financial figures in admin shell */
+:root {
+    --sugna-figure-size: 12px;
+    --sugna-kpi-size: 14px;
+}
+
+.tabular-nums,
+[class*="amount"],
+[class*="balance"],
+[class*="total"],
+[class*="number"],
+[class*="numeric"],
+[class*="date"],
+td.text-right,
+th.text-right,
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="number"] {
+    font-size: var(--sugna-figure-size) !important;
+    font-variant-numeric: tabular-nums;
+}
+
+td.text-right,
+th.text-right,
+.tabular-nums,
+[class*="amount"],
+[class*="balance"],
+[class*="total"],
+[class*="number"],
+[class*="numeric"] {
+    text-align: right;
+}
+
+label,
+.form-label {
+    font-size: 12px;
+}
+
+.kpi-value,
+.kpi-number,
+.metric-value {
+    font-size: var(--sugna-kpi-size);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
 /* --- Login page layout --- */
@@ -281,38 +329,41 @@ body.login-page {
 
 /* Circular KPI glyphs (reference: colored round icons) */
 .kpi-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
 }
 
 .kpi-icon i {
-    font-size: 16px;
+    font-size: 18px;
+    color: #0f5ba7;
 }
 
 .kpi-icon-primary {
-    background: rgba(0, 120, 212, 0.08);
-    color: #0078d4;
+    background: #eff6ff;
+    color: #0f5ba7;
 }
 
 .kpi-icon-success {
-    background: rgba(22, 163, 74, 0.10);
-    color: #15803d;
+    background: #eff6ff;
+    color: #0f5ba7;
 }
 
 .kpi-icon-warning {
-    background: rgba(245, 158, 11, 0.12);
-    color: #d97706;
+    background: #eff6ff;
+    color: #0f5ba7;
 }
 
 .kpi-icon-danger {
-    background: rgba(220, 38, 38, 0.10);
-    color: #dc2626;
+    background: #eff6ff;
+    color: #0f5ba7;
 }
 
 .jazzy-erp-kpi-grid {
@@ -349,15 +400,16 @@ body.login-page {
 }
 
 .jazzy-erp-kpi-grid .kpi-value {
-    font-size: 22px;
-    font-weight: 800;
+    font-size: var(--sugna-kpi-size);
+    font-weight: 700;
     color: #111827;
+    font-variant-numeric: tabular-nums;
 }
 
 /* System Health: large green “Healthy” (reference) */
 .jazzy-erp-kpi-grid .kpi-value.kpi-value--healthy {
     color: #107c10 !important;
-    font-size: 24px;
+    font-size: var(--sugna-kpi-size);
 }
 
 .jazzy-erp-kpi-grid .kpi-value.kpi-value--warn {
@@ -619,11 +671,12 @@ body.login-page {
 }
 
 .jazzy-erp-module-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 16px;
-    background: rgba(0, 120, 212, 0.08);
-    color: #0078d4;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    color: #0f5ba7;
     display: flex;
     align-items: center;
     justify-content: center;

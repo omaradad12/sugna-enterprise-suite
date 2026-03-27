@@ -2,14 +2,11 @@
 {% block title %}Bank accounts | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-[1600px] mx-auto px-4 pb-8" style="background:#faf9f8;" x-data="{ createModalOpen: {{ show_create_modal|yesno:'true,false' }} }">
+<div class="max-w-[1700px] mx-auto px-4 pb-6" style="background:#faf9f8;" x-data="{ createModalOpen: {{ show_create_modal|yesno:'true,false' }} }">
   <!-- Page header -->
-  <div class="pt-6 pb-5 flex items-center justify-between gap-3 flex-wrap">
+  <div class="pt-4 pb-3 flex items-center justify-between gap-3 flex-wrap">
     <div>
-      <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Bank Accounts</h1>
-      {% if not show_create_only %}
-      <p class="text-sm text-[#605e5c] mt-1">Manage organizational bank accounts used for receipts, payments, transfers, and reconciliation.</p>
-      {% endif %}
+      <h1 class="text-[20px] font-semibold text-[#323130] tracking-tight">Bank Accounts</h1>
     </div>
     {% if can_manage and not show_create_only %}
     <button type="button" @click="createModalOpen = true"
@@ -21,7 +18,7 @@
     {% endif %}
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
     {% if show_create_only %}
     <!-- Full-width New bank account card (separate window mode) -->
     <div class="lg:col-span-8 xl:col-span-6">
@@ -84,23 +81,43 @@
                             class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white placeholder-[#a19f9d] resize-y"
                             style="border-color:#edebe9;"></textarea>
                 </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Account Type</label>
+                  <select name="account_type" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+                    {% for val, lbl in account_type_choices %}
+                    <option value="{{ val }}">{{ lbl }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[13px] font-medium text-[#323130] mb-1">Project (optional)</label>
+                    <select name="project_id" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+                      <option value="">—</option>
+                      {% for p in projects %}<option value="{{ p.id }}">{{ p.code }}</option>{% endfor %}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[13px] font-medium text-[#323130] mb-1">Grant (optional)</label>
+                    <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+                      <option value="">—</option>
+                      {% for g in grants %}<option value="{{ g.id }}">{{ g.code }}</option>{% endfor %}
+                    </select>
+                  </div>
+                </div>
+                <label class="inline-flex items-center gap-2 text-[13px] text-[#323130]">
+                  <input type="checkbox" name="is_default_operating" value="1" class="rounded border" style="border-color:#edebe9;">
+                  Set as default operating account
+                </label>
               </div>
             </div>
 
             <div class="pt-4 border-t" style="border-color:#edebe9;">
               <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Accounting setup</h3>
               <div class="space-y-3">
-                <div>
-                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Linked chart of account<span class="text-[#a4262c]">*</span></label>
-                  <select name="account_id" required
-                          class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]"
-                          style="border-color:#edebe9;">
-                    <option value="">Select GL account</option>
-                    {% for a in coa_accounts %}
-                    <option value="{{ a.pk }}">{{ a.code }} — {{ a.name|truncatewords:8 }}</option>
-                    {% endfor %}
-                  </select>
-                  <p class="text-[11px] text-[#605e5c] mt-1.5">Must be an asset-type account in the chart of accounts (e.g. bank).</p>
+                <div class="rounded border px-3 py-2 text-[13px]" style="border-color:#edebe9; background:#f8fafc;">
+                  <p class="font-medium text-[#323130]">GL account linkage</p>
+                  <p class="text-[#605e5c] mt-1">System auto-creates a unique sub-account under <span class="font-semibold">1200 — Bank Accounts</span> for every new bank account.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
@@ -144,40 +161,43 @@
 
     {% else %}
     <!-- KPI summary cards -->
-    <div class="lg:col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
-        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+    <div class="lg:col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+      <div class="bg-white rounded-lg border p-3 flex items-center gap-3 shadow-sm" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,.05);">
+        <div class="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
           <i data-feather="briefcase" class="w-6 h-6 text-[#0078D4]"></i>
         </div>
-        <div>
-          <p class="text-2xl font-bold text-[#323130]">{{ kpi_total_count }}</p>
+        <div class="flex flex-col justify-center">
+          <p class="text-[13px] font-semibold text-[#323130] leading-tight">{{ kpi_total_count }}</p>
           <p class="text-[13px] text-[#605e5c]">Total Accounts</p>
         </div>
       </div>
-      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
-        <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
+      <div class="bg-white rounded-lg border p-3 flex items-center gap-3 shadow-sm" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,.05);">
+        <div class="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0" style="background:#deecf9;">
           <i data-feather="dollar-sign" class="w-6 h-6 text-[#0078D4]"></i>
         </div>
-        <div>
-          <p class="text-2xl font-bold text-[#323130]">${{ kpi_total_balance|floatformat:2 }}</p>
+        <div class="flex flex-col justify-center">
+          <p class="text-[13px] font-semibold text-[#323130] leading-tight">
+            {{ kpi_total_balance|floatformat:2 }}
+            <span class="text-[12px] font-medium text-[#6b7280]">USD</span>
+          </p>
           <p class="text-[13px] text-[#605e5c]">Total Balance</p>
         </div>
       </div>
-      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
-        <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#dff6dd;">
+      <div class="bg-white rounded-lg border p-3 flex items-center gap-3 shadow-sm" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,.05);">
+        <div class="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style="background:#dff6dd;">
           <i data-feather="check-circle" class="w-6 h-6" style="color:#0b5a0b;"></i>
         </div>
-        <div>
-          <p class="text-2xl font-bold text-[#323130]">{{ kpi_active_count }}</p>
+        <div class="flex flex-col justify-center">
+          <p class="text-[13px] font-semibold text-[#323130] leading-tight">{{ kpi_active_count }}</p>
           <p class="text-[13px] text-[#605e5c]">Active Accounts</p>
         </div>
       </div>
-      <div class="bg-white rounded-lg border p-4 flex items-center gap-4 shadow-sm" style="border-color:#edebe9;">
-        <div class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fef3c7;">
+      <div class="bg-white rounded-lg border p-3 flex items-center gap-3 shadow-sm" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,.05);">
+        <div class="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0" style="background:#fef3c7;">
           <i data-feather="x-circle" class="w-6 h-6" style="color:#b45309;"></i>
         </div>
-        <div>
-          <p class="text-2xl font-bold text-[#323130]">{{ kpi_inactive_count }}</p>
+        <div class="flex flex-col justify-center">
+          <p class="text-[13px] font-semibold text-[#323130] leading-tight">{{ kpi_inactive_count }}</p>
           <p class="text-[13px] text-[#605e5c]">Inactive Accounts</p>
         </div>
       </div>
@@ -187,7 +207,7 @@
     <div class="lg:col-span-12">
       <div class="bg-white rounded-lg border shadow-sm overflow-hidden" style="border-color:#edebe9;">
         <!-- Filters row -->
-        <form method="get" class="flex flex-wrap items-end gap-3 px-5 py-4 border-b" style="border-color:#edebe9; background:#ffffff;">
+        <form method="get" class="flex flex-wrap items-end gap-2 px-4 py-3 border-b" style="border-color:#edebe9; background:#ffffff;">
           <div class="min-w-[140px]">
             <label class="block text-xs font-semibold text-[#605e5c] mb-1">Bank</label>
             <input type="text" name="bank_name" value="{{ filters.bank_name }}"
@@ -220,6 +240,33 @@
               {% endfor %}
             </select>
           </div>
+          <div class="min-w-[140px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Account Type</label>
+            <select name="account_type" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+              <option value="">All</option>
+              {% for val, lbl in account_type_choices %}
+              <option value="{{ val }}" {% if filters.account_type == val %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="min-w-[160px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Project</label>
+            <select name="project_id" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+              <option value="">All</option>
+              {% for p in projects %}
+              <option value="{{ p.id }}" {% if filters.project_id == p.id|stringformat:'s' %}selected{% endif %}>{{ p.code }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="min-w-[160px]">
+            <label class="block text-xs font-semibold text-[#605e5c] mb-1">Grant</label>
+            <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-[13px] text-[#323130]" style="border-color:#edebe9;">
+              <option value="">All</option>
+              {% for g in grants %}
+              <option value="{{ g.id }}" {% if filters.grant_id == g.id|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>
+              {% endfor %}
+            </select>
+          </div>
           <div class="min-w-[200px] flex-1">
             <label class="block text-xs font-semibold text-[#605e5c] mb-1">Search</label>
             <input type="text" name="q" value="{{ filters.q }}"
@@ -247,6 +294,8 @@
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Account name</th>
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Account number</th>
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Currency</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Account Type</th>
+                <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Project / Grant</th>
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">COA Account</th>
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Office / Location</th>
                 <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Current balance</th>
@@ -262,6 +311,11 @@
                 <td class="px-5 py-3 text-[#323130]">{{ ba.account_name }}</td>
                 <td class="px-5 py-3 text-[#323130] font-mono">{{ ba.account_number }}</td>
                 <td class="px-5 py-3 text-[#323130]">{{ ba.currency.code }}</td>
+                <td class="px-5 py-3 text-[#323130]">{{ ba.get_account_type_display }}</td>
+                <td class="px-5 py-3 text-[#323130]">
+                  {% if ba.linked_project_id %}{{ ba.linked_project.code }}{% else %}—{% endif %}
+                  {% if ba.linked_grant_id %} / {{ ba.linked_grant.code }}{% endif %}
+                </td>
                 <td class="px-5 py-3 text-[#323130]">{{ ba.account.code }} — {{ ba.account.name|truncatewords:4 }}</td>
                 <td class="px-5 py-3 text-[#323130]">{{ ba.office|default:"—" }}</td>
                 <td class="px-5 py-3 text-[#323130] text-right tabular-nums">
@@ -269,14 +323,14 @@
                 </td>
                 <td class="px-5 py-3">
                   {% if ba.is_active %}
-                  <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#dff6dd; color:#0b5a0b;">Active</span>
+                  <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#ecfdf3; color:#166534; border:1px solid #bbf7d0;">Active</span>
                   {% else %}
                   <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#fef3c7; color:#b45309;">Inactive</span>
                   {% endif %}
                 </td>
                 <td class="px-5 py-3">
                   <div class="flex flex-wrap items-center gap-2">
-                    <a href="{% url 'tenant_portal:finance_account_ledger' %}?account_id={{ ba.account_id }}"
+                    <a href="{% url 'tenant_portal:finance_account_ledger' %}?bank_account_id={{ ba.id }}&tab=transactions"
                        class="inline-flex items-center gap-1 text-[#0078D4] hover:underline text-[12px] font-medium"
                        title="View transactions">
                       <i data-feather="eye" class="w-4 h-4"></i>
@@ -298,6 +352,16 @@
                       <button type="submit" class="text-[12px] font-medium text-[#a4262c] hover:underline">Delete</button>
                     </form>
                     {% endif %}
+                    {% if can_manage and ba.account_type == 'operating' %}
+                    <form method="post" class="inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="set_default" />
+                      <input type="hidden" name="bank_account_id" value="{{ ba.pk }}" />
+                      <button type="submit" class="text-[12px] font-medium {% if ba.is_default_operating %}text-[#107c10]{% else %}text-[#0078D4]{% endif %} hover:underline">
+                        {% if ba.is_default_operating %}Default{% else %}Set default{% endif %}
+                      </button>
+                    </form>
+                    {% endif %}
                     {% else %}
                     <span class="text-[11px] text-[#a19f9d]">Read-only</span>
                     {% endif %}
@@ -307,7 +371,7 @@
               {% endwith %}
               {% empty %}
               <tr>
-                <td colspan="9" class="px-5 py-16 text-center">
+                <td colspan="11" class="px-5 py-16 text-center">
                   <div class="flex flex-col items-center justify-center">
                     <div class="w-14 h-14 rounded-full flex items-center justify-center mb-3" style="background:#f3f2f1;">
                       <i data-feather="credit-card" class="w-7 h-7 text-[#605e5c]"></i>
@@ -399,20 +463,42 @@
                 <label class="block text-[13px] font-medium text-[#323130] mb-1">Description</label>
                 <textarea name="description" rows="2" class="w-full px-3 py-2 rounded border text-[13px] bg-white resize-y" style="border-color:#edebe9;" placeholder="Optional notes">{{ create_form_data.description|default:'' }}</textarea>
               </div>
+              <div>
+                <label class="block text-[13px] font-medium text-[#323130] mb-1">Account Type</label>
+                <select name="account_type" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+                  {% for val, lbl in account_type_choices %}
+                  <option value="{{ val }}" {% if create_form_data.account_type == val %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Project (optional)</label>
+                  <select name="project_id" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+                    <option value="">—</option>
+                    {% for p in projects %}<option value="{{ p.id }}" {% if create_form_data.project_id == p.id|stringformat:'s' %}selected{% endif %}>{{ p.code }}</option>{% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[13px] font-medium text-[#323130] mb-1">Grant (optional)</label>
+                  <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+                    <option value="">—</option>
+                    {% for g in grants %}<option value="{{ g.id }}" {% if create_form_data.grant_id == g.id|stringformat:'s' %}selected{% endif %}>{{ g.code }}</option>{% endfor %}
+                  </select>
+                </div>
+              </div>
+              <label class="inline-flex items-center gap-2 text-[13px] text-[#323130]">
+                <input type="checkbox" name="is_default_operating" value="1" {% if create_form_data.is_default_operating == '1' %}checked{% endif %} class="rounded border" style="border-color:#edebe9;">
+                Set as default operating account
+              </label>
             </div>
           </div>
           <div class="pt-4 border-t" style="border-color:#edebe9;">
             <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Accounting setup</h3>
             <div class="space-y-3">
-              <div>
-                <label class="block text-[13px] font-medium text-[#323130] mb-1">Linked chart of account<span class="text-[#a4262c]">*</span></label>
-                <select name="account_id" required class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
-                  <option value="">Select GL account</option>
-                  {% for a in coa_accounts %}
-                  <option value="{{ a.pk }}" {% if create_form_data.account_id == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.code }} — {{ a.name|truncatewords:8 }}</option>
-                  {% endfor %}
-                </select>
-                <p class="text-[11px] text-[#605e5c] mt-1">Must be an asset-type account.</p>
+              <div class="rounded border px-3 py-2 text-[13px]" style="border-color:#edebe9; background:#f8fafc;">
+                <p class="font-medium text-[#323130]">GL account linkage</p>
+                <p class="text-[#605e5c] mt-1">System auto-creates a unique sub-account under <span class="font-semibold">1200 — Bank Accounts</span> for every new bank account.</p>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>

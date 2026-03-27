@@ -65,7 +65,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Total Tenants</p>
-          <p class="text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ total_tenants }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ total_tenants|erp_int }}</p>
           {% with t=kpi_trends.total_tenants %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">
             {% if t.dir == 'up' %}<span class="trend-up font-semibold flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">— 0%</span>{% endif %}
@@ -83,7 +83,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Active Tenants</p>
-          <p class="text-2xl sm:text-3xl font-bold text-success-600 mt-1 tabular-nums">{{ active_tenants }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold text-success-600 mt-1 tabular-nums">{{ active_tenants|erp_int }}</p>
           {% with t=kpi_trends.active_tenants %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">
             {% if t.dir == 'up' %}<span class="trend-up font-semibold">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold">{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">— 0%</span>{% endif %}
@@ -101,7 +101,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Trial Tenants</p>
-          <p class="text-2xl sm:text-3xl font-bold text-warning-600 mt-1 tabular-nums">{{ trial_tenants }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold text-warning-600 mt-1 tabular-nums">{{ trial_tenants|erp_int }}</p>
           {% with t=kpi_trends.trial_tenants %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">
             {% if t.dir == 'up' %}<span class="trend-up font-semibold">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold">{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">— 0%</span>{% endif %}
@@ -119,7 +119,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Expired Tenants</p>
-          <p class="text-2xl sm:text-3xl font-bold text-danger-600 mt-1 tabular-nums">{{ expired_tenants }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold text-danger-600 mt-1 tabular-nums">{{ expired_tenants|erp_int }}</p>
           {% with t=kpi_trends.expired_tenants %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">
             {% if t.dir == 'down' and t.pct %}<span class="trend-up font-semibold">{{ t.pct }}%</span>{% elif t.dir == 'up' %}<span class="trend-down font-semibold">+{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}
@@ -137,7 +137,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Monthly Revenue</p>
-          <p class="text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">${{ monthly_revenue|floatformat:0 }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">${{ monthly_revenue|erp_amount }}</p>
           {% with t=kpi_trends.monthly_revenue %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">
             {% if t.dir == 'up' %}<span class="trend-up font-semibold">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold">{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}
@@ -155,7 +155,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Active Modules</p>
-          <p class="text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ active_modules }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ active_modules|erp_int }}</p>
           <p class="mt-2 text-xs" style="color: #a19f9d;">available to tenants</p>
         </div>
       </div>
@@ -168,7 +168,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Pending Registrations</p>
-          <p class="text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ pending_registrations }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ pending_registrations|erp_int }}</p>
           {% with t=kpi_trends.pending_registrations %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">{% if t.value > 0 %}<span class="text-warning-600 font-semibold">{{ t.value }} {{ t.label }}</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}</p>
           {% endwith %}
@@ -183,7 +183,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium" style="color: #605e5c;">Support Tickets</p>
-          <p class="text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ support_tickets }}</p>
+          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ support_tickets|erp_int }}</p>
           {% with t=kpi_trends.support_tickets %}
           <p class="mt-2 flex items-center gap-1.5 text-xs">{% if t.value > 0 %}<span class="text-warning-600 font-medium">{{ t.value }} {{ t.label }}</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}</p>
           {% endwith %}
@@ -418,7 +418,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  if (typeof feather !== 'undefined') feather.replace();
+  if (typeof feather !== 'undefined') feather.replace({ 'stroke-width': 1.6 });
   const growthLabels = {{ growth_labels|safe }};
   const growthData = {{ growth_data|safe }};
   const revenueLabels = {{ revenue_labels|safe }};

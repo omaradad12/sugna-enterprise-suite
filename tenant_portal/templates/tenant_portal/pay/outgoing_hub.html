@@ -1,0 +1,22 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{{ page_title }} | {% trans "Finance" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto pb-8" style="font-family: Inter, system-ui, sans-serif;">
+  <div class="mb-4">
+    <h1 class="text-xl font-semibold text-[#111827] tracking-tight">{{ page_title }}</h1>
+    <p class="mt-1 text-[13px] text-[#6b7280] leading-relaxed">{{ page_intro }}</p>
+  </div>
+  <div class="bg-white border rounded-[10px] p-4 space-y-3" style="border-color:#e5e7eb; box-shadow:0 1px 2px rgba(15,23,42,0.05);">
+    {% for link in hub_links %}
+    <div class="border-b border-[#f3f4f6] last:border-0 last:pb-0 pb-3 last:pb-0">
+      <a href="{{ link.url }}" class="text-[13px] font-medium text-[#374151] hover:text-[#111827] hover:underline">{{ link.label }}</a>
+      {% if link.hint %}
+      <p class="mt-0.5 text-[12px] text-[#9ca3af] leading-snug">{{ link.hint }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

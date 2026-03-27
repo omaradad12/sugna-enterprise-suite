@@ -2,118 +2,427 @@
 {% block title %}{{ form_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+<div x-data="{ createModalityOpen: {{ show_create_modality_modal|yesno:'true,false' }} }">
+<style>
+  .pj-root { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: #323130; -webkit-font-smoothing: antialiased; }
+  .pj-card {
+    background: #fff;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    border-left: 4px solid #0078d4;
+    box-shadow: 0 0.6px 1.8px rgba(0,0,0,.06), 0 3.2px 7.2px rgba(0,0,0,.04);
+  }
+  .pj-section { padding: 0.85rem 1rem; border-bottom: 1px solid #edebe9; }
+  .pj-section:last-of-type { border-bottom: none; }
+  .pj-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #605e5c;
+    margin: 0 0 0.75rem;
+  }
+  .pj-input {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #edebe9;
+    border-radius: 2px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .pj-input:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 1px #0078d4; }
+  .pj-label { display: block; font-size: 11px; font-weight: 600; color: #605e5c; margin-bottom: 0.3rem; }
+  .pj-hint { font-size: 11px; color: #605e5c; margin-top: 0.25rem; }
+  .pj-btn-link {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 11px; font-weight: 600; color: #0078d4; text-decoration: none;
+  }
+  .pj-btn-link:hover { text-decoration: underline; }
+</style>
+
+<div class="mb-5 flex flex-wrap items-center justify-between gap-3 pj-root">
   <div>
-    <h1 class="text-2xl font-bold tracking-tight" style="color:#323130;">{{ form_title }}</h1>
-    <p class="text-sm mt-1" style="color:#605e5c;">Project master is the single source of truth; the <a href="{{ projects_list_url }}" class="font-medium" style="color:#0078d4;">project list</a> always loads live data from the database. Workflow status drives posting: only <strong>Active</strong> projects are open for transactions (<code>is_active</code> syncs automatically).</p>
+    <h1 class="text-xl font-bold tracking-tight m-0" style="color:#323130;">{{ form_title }}</h1>
   </div>
-  <a href="{{ projects_list_url }}" class="text-sm font-medium" style="color:#0078d4;">Back to project list</a>
+  <a href="{{ projects_list_url }}" class="text-xs font-medium" style="color:#0078d4;">Back to list</a>
 </div>
 
-<div class="erp-section max-w-3xl">
-  <div class="erp-section-header">Project details</div>
-  <div class="erp-section-body">
-    <form method="post" class="space-y-4">
-      {% csrf_token %}
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="pj-card max-w-3xl">
+  <form method="post" class="m-0">
+    {% csrf_token %}
+
+    <div class="pj-section">
+      <h2 class="pj-section-title">Basic project info</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Code <span style="color:#a4262c;">*</span></label>
-          <input type="text" name="code" value="{% if project %}{{ project.code }}{% endif %}" required maxlength="50" class="w-full px-3 py-2 rounded border font-mono" style="border-color:#edebe9;" placeholder="e.g. PRJ-001" />
-          <p class="text-xs mt-1" style="color:#605e5c;">Unique project code.</p>
+          <label class="pj-label">Project code <span style="color:#a4262c;">*</span></label>
+          <input type="text" name="code" required maxlength="50" class="pj-input font-mono"
+            value="{% if form_post %}{{ form_post.code }}{% elif project %}{{ project.code }}{% endif %}"
+            placeholder="e.g. PRJ-001" />
+          <p class="pj-hint">Unique; used across grants and dimensions.</p>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Workflow status <span style="color:#a4262c;">*</span></label>
-          <select name="status" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;" required>
+          <label class="pj-label">Workflow status <span style="color:#a4262c;">*</span></label>
+          <select name="status" required class="pj-input bg-white">
             {% for val, label in project_statuses %}
-            <option value="{{ val }}" {% if project %}{% if project.status == val %}selected{% endif %}{% else %}{% if val == 'planning' %}selected{% endif %}{% endif %}>{{ label }}</option>
+            <option value="{{ val }}"
+              {% if form_post %}{% if form_post.status == val %}selected{% endif %}
+              {% elif project %}{% if project.status == val %}selected{% endif %}
+              {% else %}{% if val == 'planning' %}selected{% endif %}{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
         </div>
       </div>
-      <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project title / name <span style="color:#a4262c;">*</span></label>
-        <input type="text" name="name" value="{% if project %}{{ project.name }}{% endif %}" required maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+      <div class="mt-3">
+        <label class="pj-label">Project title <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="name" required maxlength="255" class="pj-input"
+          value="{% if form_post %}{{ form_post.name }}{% elif project %}{{ project.name }}{% endif %}" />
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    </div>
+
+    <div class="pj-section">
+      <h2 class="pj-section-title">Donor &amp; financial structure</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Donor</label>
-          <select name="donor_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <label class="pj-label">Donor</label>
+          <select name="donor_id" class="pj-input bg-white">
             <option value="">— None —</option>
             {% for d in donors %}
-            <option value="{{ d.pk }}" {% if project and project.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
+            <option value="{{ d.pk }}"
+              {% if form_post %}{% if form_post.donor_id == d.pk|stringformat:"s" %}selected{% endif %}
+              {% elif project and project.donor_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.code }})</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Project manager / coordinator</label>
-          <select name="project_manager_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
-            <option value="">— None —</option>
-            {% for u in users %}
-            <option value="{{ u.pk }}" {% if project and project.project_manager_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Location</label>
-          <input type="text" name="location" value="{% if project %}{{ project.location }}{% endif %}" maxlength="255" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" placeholder="Region, site, country…" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Program / sector</label>
-          <input type="text" name="program_sector" value="{% if project %}{{ project.program_sector }}{% endif %}" maxlength="120" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-        </div>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Funding type</label>
-          <select name="funding_type" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <label class="pj-label">Program category</label>
+          <select name="funding_type" class="pj-input bg-white" {% if program_dimension_values %}required{% endif %}>
+            {% if not program_dimension_values %}
             <option value="">— Not set —</option>
-            {% for val, label in funding_types %}
-            <option value="{{ val }}" {% if project and project.funding_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endif %}
+            {% for pv in program_dimension_values %}
+            <option value="{{ pv.code }}"
+              {% if form_post %}{% if form_post.funding_type == pv.code %}selected{% endif %}
+              {% elif project and project.funding_type == pv.code %}selected{% endif %}>{{ pv.name }}</option>
             {% endfor %}
           </select>
+          <p class="pj-hint">Values are managed in Financial Setup → Dimensions → Program → Values.</p>
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Reporting currency</label>
-          <select name="currency_id" class="w-full px-3 py-2 rounded border bg-white" style="border-color:#edebe9;">
+          <label class="pj-label">Funding modality (payment)</label>
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="text-[11px] font-semibold" style="color:#605e5c;">Template</span>
+            <button
+              type="button"
+              class="pj-btn-link"
+              @click="createModalityOpen = true"
+            >
+              + New modality
+            </button>
+          </div>
+          <select name="funding_modality_id" class="pj-input bg-white">
+            <option value="">— Not set —</option>
+            {% for m in funding_modalities %}
+            <option value="{{ m.pk }}"
+              {% if form_post %}{% if form_post.funding_modality_id == m.pk|stringformat:"s" %}selected{% endif %}
+              {% elif project and project.funding_modality_id == m.pk %}selected{% endif %}>{{ m.name }} — {{ m.get_modality_type_display }}</option>
+            {% endfor %}
+          </select>
+          <p class="pj-hint">Template drives payment structure, receivable behavior, and GL posting controls.</p>
+        </div>
+        <div>
+          <label class="pj-label">Reporting currency</label>
+          <select name="currency_id" class="pj-input bg-white">
             <option value="">— None —</option>
             {% for c in currencies %}
-            <option value="{{ c.pk }}" {% if project and project.currency_id == c.pk %}selected{% endif %}>{{ c.code }}{% if c.name %} — {{ c.name }}{% endif %}</option>
+            <option value="{{ c.pk }}"
+              {% if form_post %}{% if form_post.currency_id == c.pk|stringformat:"s" %}selected{% endif %}
+              {% elif project and project.currency_id == c.pk %}selected{% endif %}>{{ c.code }}{% if c.name %} — {{ c.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <p class="pj-hint">Must be an active system currency.</p>
+        </div>
+        <div>
+          <label class="pj-label">Program / sector</label>
+          <select name="program_sector" class="pj-input bg-white">
+            <option value="">— Not set —</option>
+            {% for sv in sector_dimension_values %}
+            <option value="{{ sv.code }}"
+              {% if form_post %}{% if form_post.program_sector == sv.code %}selected{% endif %}
+              {% elif project and project.program_sector == sv.code %}selected{% endif %}>{{ sv.name }}</option>
             {% endfor %}
           </select>
         </div>
       </div>
+    </div>
+
+    <div class="pj-section">
+      <h2 class="pj-section-title">Management &amp; classification</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="pj-label">Project manager</label>
+          <select name="project_manager_id" class="pj-input bg-white">
+            <option value="">— None —</option>
+            {% for u in users %}
+            <option value="{{ u.pk }}"
+              {% if form_post %}{% if form_post.project_manager_id == u.pk|stringformat:"s" %}selected{% endif %}
+              {% elif project and project.project_manager_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="pj-label">Location</label>
+          <input type="text" name="location" maxlength="255" class="pj-input"
+            value="{% if form_post %}{{ form_post.location }}{% elif project %}{{ project.location }}{% endif %}"
+            placeholder="Region, site, country…" />
+        </div>
+      </div>
+      <div class="mt-3 max-w-xs">
+        <label class="pj-label">Planned beneficiaries</label>
+        <input type="number" name="total_beneficiaries" min="0" step="1" class="pj-input"
+          value="{% if form_post %}{{ form_post.total_beneficiaries }}{% elif project %}{{ project.total_beneficiaries }}{% else %}1{% endif %}" />
+        <p class="pj-hint">Positive whole number (planning / summary).</p>
+      </div>
+    </div>
+
+    <div class="pj-section">
+      <h2 class="pj-section-title">Timeline</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="pj-label">Start date <span style="color:#a4262c;">*</span></label>
+          <input type="date" name="start_date" required class="pj-input"
+            value="{% if form_post %}{{ form_post.start_date }}{% elif project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" />
+        </div>
+        <div>
+          <label class="pj-label">Operational end date <span style="color:#a4262c;">*</span></label>
+          <input type="date" name="end_date" required class="pj-input"
+            value="{% if form_post %}{{ form_post.end_date }}{% elif project and project.end_date %}{{ project.end_date|date:'Y-m-d' }}{% endif %}" />
+        </div>
+        <div>
+          <label class="pj-label">Original end date (baseline)</label>
+          <input type="date" name="original_end_date" class="pj-input"
+            value="{% if form_post %}{{ form_post.original_end_date }}{% elif project and project.original_end_date %}{{ project.original_end_date|date:'Y-m-d' }}{% endif %}" />
+        </div>
+        <div>
+          <label class="pj-label">Revised end date (extension)</label>
+          <input type="date" name="revised_end_date" class="pj-input"
+            value="{% if form_post %}{{ form_post.revised_end_date }}{% elif project and project.revised_end_date %}{{ project.revised_end_date|date:'Y-m-d' }}{% endif %}" />
+        </div>
+      </div>
+    </div>
+
+    <div class="pj-section">
+      <h2 class="pj-section-title"></h2>
+      <div id="pj-modality-summary" class="text-[12px] text-[#323130] space-y-1">
+        <div class="pj-hint"></div>
+      </div>
+    </div>
+
+    <div class="px-4 py-3 flex flex-wrap gap-2 border-t" style="border-color:#edebe9;background:#faf9f8;">
+      <button type="submit" class="px-4 py-2 rounded text-xs font-semibold text-white" style="background:#0078d4;">{% if project %}Save changes{% else %}Create project{% endif %}</button>
+      <a href="{{ projects_list_url }}" class="px-4 py-2 rounded text-xs font-semibold border inline-block" style="border-color:#edebe9; color:#323130;">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<div
+  x-show="createModalityOpen"
+  x-cloak
+  class="fixed inset-0 z-50 flex items-center justify-center p-4"
+  style="background: rgba(0,0,0,0.4);"
+  x-transition:enter="transition ease-out duration-200"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  x-transition:leave="transition ease-in duration-150"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0"
+>
+  <div @click.self="createModalityOpen = false" class="absolute inset-0"></div>
+  <div class="relative bg-white rounded-lg border shadow-xl w-full max-w-[700px] max-h-[90vh] overflow-y-auto" style="border-color:#edebe9;">
+    <div class="sticky top-0 bg-white px-5 py-4 border-b flex items-center justify-between z-10" style="border-color:#edebe9;">
+      <h2 class="text-lg font-semibold text-[#323130]">Create funding modality template</h2>
+      <button type="button" @click="createModalityOpen = false" class="p-1 rounded hover:bg-[#f3f2f1] text-[#605e5c]">×</button>
+    </div>
+    <form method="post" class="p-5 space-y-4" id="pj-create-modality-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_modality" />
+
+      {# preserve current project form values so user doesn't lose draft #}
+      <input type="hidden" name="code" value="{% if form_post %}{{ form_post.code }}{% elif project %}{{ project.code }}{% endif %}" />
+      <input type="hidden" name="name" value="{% if form_post %}{{ form_post.name }}{% elif project %}{{ project.name }}{% endif %}" />
+      <input type="hidden" name="status" value="{% if form_post %}{{ form_post.status }}{% elif project %}{{ project.status }}{% else %}planning{% endif %}" />
+      <input type="hidden" name="donor_id" value="{% if form_post %}{{ form_post.donor_id }}{% elif project and project.donor_id %}{{ project.donor_id }}{% endif %}" />
+      <input type="hidden" name="project_manager_id" value="{% if form_post %}{{ form_post.project_manager_id }}{% elif project and project.project_manager_id %}{{ project.project_manager_id }}{% endif %}" />
+      <input type="hidden" name="currency_id" value="{% if form_post %}{{ form_post.currency_id }}{% elif project and project.currency_id %}{{ project.currency_id }}{% endif %}" />
+      <input type="hidden" name="funding_modality_id" value="{% if form_post %}{{ form_post.funding_modality_id }}{% elif project and project.funding_modality_id %}{{ project.funding_modality_id }}{% endif %}" />
+      <input type="hidden" name="location" value="{% if form_post %}{{ form_post.location }}{% elif project %}{{ project.location }}{% endif %}" />
+      <input type="hidden" name="program_sector" value="{% if form_post %}{{ form_post.program_sector }}{% elif project %}{{ project.program_sector }}{% endif %}" />
+      <input type="hidden" name="funding_type" value="{% if form_post %}{{ form_post.funding_type }}{% elif project %}{{ project.funding_type }}{% endif %}" />
+      <input type="hidden" name="start_date" value="{% if form_post %}{{ form_post.start_date }}{% elif project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" />
+      <input type="hidden" name="end_date" value="{% if form_post %}{{ form_post.end_date }}{% elif project and project.end_date %}{{ project.end_date|date:'Y-m-d' }}{% endif %}" />
+      <input type="hidden" name="original_end_date" value="{% if form_post %}{{ form_post.original_end_date }}{% elif project and project.original_end_date %}{{ project.original_end_date|date:'Y-m-d' }}{% endif %}" />
+      <input type="hidden" name="revised_end_date" value="{% if form_post %}{{ form_post.revised_end_date }}{% elif project and project.revised_end_date %}{{ project.revised_end_date|date:'Y-m-d' }}{% endif %}" />
+      <input type="hidden" name="total_beneficiaries" value="{% if form_post %}{{ form_post.total_beneficiaries }}{% elif project %}{{ project.total_beneficiaries }}{% endif %}" />
+
       <div>
-        <label class="block text-xs font-semibold mb-1" style="color:#323130;">Total beneficiaries (planning / summary)</label>
-        <input type="number" name="total_beneficiaries" min="0" step="1" value="{% if project %}{{ project.total_beneficiaries }}{% else %}0{% endif %}" class="w-full max-w-xs px-3 py-2 rounded border" style="border-color:#edebe9;" />
+        <label class="pj-label">Name <span style="color:#a4262c;">*</span></label>
+        <input type="text" name="modality_name" required maxlength="120" class="pj-input" placeholder="Template name" />
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="pj-label">Modality type <span style="color:#a4262c;">*</span></label>
+        <select name="modality_type" id="pj-modality-type" required class="pj-input bg-white">
+          {% for value, label in modality_types %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="pj-mixed-structure" class="hidden border rounded p-3" style="border-color:#edebe9;background:#faf9f8;">
+        <div class="text-xs font-semibold mb-2" style="color:#323130;">Payment structure</div>
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr style="border-bottom:1px solid #edebe9;">
+              <th class="text-left py-1">Component type</th>
+              <th class="text-left py-1">Percentage (%)</th>
+              <th class="text-left py-1">Payment trigger</th>
+              <th class="text-left py-1"></th>
+            </tr>
+          </thead>
+          <tbody id="pj-ps-tbody"></tbody>
+        </table>
+        <div class="mt-2 flex items-center justify-between gap-2">
+          <button type="button" id="pj-ps-add" class="px-2 py-1 border rounded text-xs" style="border-color:#edebe9;">Add component</button>
+          <span id="pj-ps-total" class="text-xs font-semibold" style="color:#323130;">Total = 0%</span>
+        </div>
+        <template id="pj-ps-row-tpl">
+          <tr>
+            <td class="py-1 pr-1">
+              <input type="hidden" name="ps_sort_order" value="0" class="pj-ps-so" />
+              <select name="ps_component_type" class="pj-input bg-white">
+                <option value="advance">Advance</option>
+                <option value="reimbursement">Reimbursement</option>
+                <option value="retention">Retention</option>
+                <option value="instalment">Instalment</option>
+                <option value="milestone_based">Milestone based</option>
+              </select>
+            </td>
+            <td class="py-1 pr-1"><input type="number" name="ps_percentage" step="0.01" min="0" max="100" class="pj-input" /></td>
+            <td class="py-1 pr-1">
+              <select name="ps_payment_trigger" class="pj-input bg-white">
+                <option value="agreement_signed">Agreement signed</option>
+                <option value="expense_report_approved">Expense report approved</option>
+                <option value="milestone_completed">Milestone completed</option>
+                <option value="final_audit_approved">Final audit approved</option>
+              </select>
+            </td>
+            <td class="py-1"><button type="button" class="pj-ps-remove text-[#a4262c]">×</button></td>
+          </tr>
+        </template>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Start date</label>
-          <input type="date" name="start_date" value="{% if project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <label class="pj-label">Retention %</label>
+          <input type="number" name="modality_retention_percentage" min="0" max="100" step="0.01" class="pj-input" />
         </div>
         <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">End date (current / operational)</label>
-          <input type="date" name="end_date" value="{% if project and project.end_date %}{{ project.end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
+          <label class="pj-label">Description</label>
+          <input type="text" name="modality_description" maxlength="255" class="pj-input" />
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Original end date (baseline)</label>
-          <input type="date" name="original_end_date" value="{% if project and project.original_end_date %}{{ project.original_end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-          <p class="text-xs mt-1" style="color:#605e5c;">Leave blank to default from end date on save.</p>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold mb-1" style="color:#323130;">Revised end date (extension)</label>
-          <input type="date" name="revised_end_date" value="{% if project and project.revised_end_date %}{{ project.revised_end_date|date:'Y-m-d' }}{% endif %}" class="w-full px-3 py-2 rounded border" style="border-color:#edebe9;" />
-        </div>
+      <div class="flex flex-wrap gap-3">
+        <label class="text-xs"><input type="checkbox" name="modality_allow_instalments" /> Allow instalments</label>
+        <label class="text-xs"><input type="checkbox" name="modality_requires_reporting_before_next_payment" /> Requires reporting before next payment</label>
+        <label class="text-xs"><input type="checkbox" name="modality_is_active" checked /> Active</label>
       </div>
-      <div class="flex gap-3 pt-2">
-        <button type="submit" class="px-4 py-2 rounded text-sm font-medium text-white" style="background:#0078d4;">{% if project %}Save changes{% else %}Create project{% endif %}</button>
-        <a href="{{ projects_list_url }}" class="px-4 py-2 rounded text-sm font-medium border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+      <div class="pt-2 border-t" style="border-color:#edebe9;">
+        <button type="button" @click="createModalityOpen = false" class="px-3 py-1.5 rounded border text-xs font-semibold" style="border-color:#edebe9;">Cancel</button>
+        <button type="submit" class="px-3 py-1.5 rounded text-xs font-semibold text-white" style="background:#0078d4;">Save</button>
       </div>
     </form>
   </div>
+</div>
+
+<script>
+(function () {
+  var sel = document.getElementById("pj-modality-type");
+  var mixedWrap = document.getElementById("pj-mixed-structure");
+  var tbody = document.getElementById("pj-ps-tbody");
+  var tpl = document.getElementById("pj-ps-row-tpl");
+  var addBtn = document.getElementById("pj-ps-add");
+  var totalEl = document.getElementById("pj-ps-total");
+  var mixedVal = "{{ mixed_modality_value|escapejs }}";
+  if (!sel || !mixedWrap || !tbody || !tpl || !addBtn || !totalEl) return;
+  var sortIx = 0;
+  function recalc() {
+    var t = 0;
+    tbody.querySelectorAll('input[name="ps_percentage"]').forEach(function (i) {
+      var v = parseFloat(i.value || "0");
+      if (!isNaN(v)) t += v;
+    });
+    totalEl.textContent = "Total = " + (Math.round(t * 100) / 100) + "%";
+    totalEl.style.color = Math.abs(t - 100) > 0.02 ? "#a4262c" : "#0b5a0b";
+  }
+  function bindRow(tr) {
+    tr.querySelectorAll('input[name="ps_percentage"]').forEach(function (i) {
+      i.addEventListener("input", recalc);
+    });
+    tr.querySelectorAll(".pj-ps-remove").forEach(function (b) {
+      b.onclick = function () { tr.remove(); recalc(); };
+    });
+  }
+  function addRow() {
+    var n = tpl.content.cloneNode(true);
+    var tr = n.querySelector("tr");
+    var so = tr && tr.querySelector(".pj-ps-so");
+    if (so) so.value = String(sortIx++);
+    tbody.appendChild(n);
+    bindRow(tbody.lastElementChild);
+    recalc();
+  }
+  function toggleMixed() {
+    if (sel.value === mixedVal) {
+      mixedWrap.classList.remove("hidden");
+      if (!tbody.children.length) { addRow(); addRow(); }
+    } else {
+      mixedWrap.classList.add("hidden");
+      tbody.innerHTML = "";
+      sortIx = 0;
+      recalc();
+    }
+  }
+  sel.addEventListener("change", toggleMixed);
+  addBtn.addEventListener("click", addRow);
+  toggleMixed();
+})();
+
+(function () {
+  var select = document.querySelector('select[name="funding_modality_id"]');
+  var target = document.getElementById("pj-modality-summary");
+  if (!select || !target) return;
+  var details = {{ funding_modality_details_json|safe }};
+  function renderSummary() {
+    var id = select.value || "";
+    var d = details[id];
+    if (!d) {
+      target.innerHTML = '<div class="pj-hint"></div>';
+      return;
+    }
+    var lines = [];
+    lines.push('<div><strong>Type:</strong> ' + (d.modality_type_display || "—") + "</div>");
+    lines.push('<div><strong>Receivable logic:</strong> Controlled by modality payment structure and trigger rules.</div>');
+    lines.push('<div><strong>GL posting mapping:</strong> ' + (d.gl_mapping_complete ? "Complete" : "Missing GL account mapping") + "</div>");
+    lines.push('<div><strong>Allow instalments:</strong> ' + (d.allow_instalments ? "Yes" : "No") + "</div>");
+    lines.push('<div><strong>Requires reporting gate:</strong> ' + (d.requires_reporting_before_next_payment ? "Yes" : "No") + "</div>");
+    if (d.retention_percentage) {
+      lines.push('<div><strong>Retention %:</strong> ' + d.retention_percentage + "</div>");
+    }
+    if (d.structure && d.structure.length) {
+      lines.push('<div><strong>Payment structure:</strong> ' + d.structure.join("; ") + "</div>");
+    }
+    target.innerHTML = lines.join("");
+  }
+  select.addEventListener("change", renderSummary);
+  renderSummary();
+})();
+</script>
 </div>
 {% endblock %}

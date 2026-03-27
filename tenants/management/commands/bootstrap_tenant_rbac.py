@@ -109,6 +109,10 @@ class Command(BaseCommand):
             ("finance:attachments.view", "View document attachments"),
             ("finance:attachments.upload", "Upload document attachments"),
             ("finance:attachments.delete", "Delete document attachments"),
+            # Document Management (central repository)
+            ("documents:workspace.view", "View Document Management workspace"),
+            ("documents:document.upload", "Upload documents from Document Management"),
+            ("documents:document.manage", "Manage document categories and storage settings"),
 
             # Dashboards, notifications, alerts
             ("dashboard:view", "View dashboards"),
@@ -143,16 +147,16 @@ class Command(BaseCommand):
             ("module:funds_donors.manage", "Manage Funds & Donors"),
             ("module:budgeting.view", "View Budgeting"),
             ("module:budgeting.manage", "Manage Budgeting"),
-            ("module:incoming_fund.view", "View Incoming Fund"),
-            ("module:incoming_fund.manage", "Manage Incoming Fund"),
-            ("module:outgoing_fund.view", "View Outgoing Fund"),
-            ("module:outgoing_fund.manage", "Manage Outgoing Fund"),
-            ("module:multi_donor_sharing.view", "View Multi-donor Sharing"),
-            ("module:multi_donor_sharing.manage", "Manage Multi-donor Sharing"),
-            ("module:governance.view", "View Governance"),
-            ("module:governance.manage", "Manage Governance"),
-            ("module:reporting.view", "View Reporting"),
-            ("module:reporting.manage", "Manage Reporting configuration"),
+            ("module:incoming_fund.view", "View Receivables"),
+            ("module:incoming_fund.manage", "Manage Receivables"),
+            ("module:outgoing_fund.view", "View Payables"),
+            ("module:outgoing_fund.manage", "Manage Payables"),
+            ("module:multi_donor_sharing.view", "View Cost Allocation"),
+            ("module:multi_donor_sharing.manage", "Manage Cost Allocation"),
+            ("module:governance.view", "View Internal Control"),
+            ("module:governance.manage", "Manage Internal Control"),
+            ("module:reporting.view", "View Reports"),
+            ("module:reporting.manage", "Manage Reports configuration"),
             ("module:financial_setup.view", "View Financial Setup"),
             ("module:financial_setup.manage", "Administer Financial Setup"),
 
@@ -195,7 +199,7 @@ class Command(BaseCommand):
             ("core_accounting:journals.post", "Post journal entries (maker-checker enforced)"),
             ("core_accounting:journals.reverse", "Reverse posted journal entries"),
 
-            # Receipts (Incoming Fund)
+            # Receipts (Receivables)
             ("incoming_fund:receipts.view", "View receipts"),
             ("incoming_fund:receipts.create", "Create receipts"),
             ("incoming_fund:receipts.edit", "Edit draft/pending receipts"),
@@ -204,7 +208,7 @@ class Command(BaseCommand):
             ("incoming_fund:receipts.post", "Post receipts (maker-checker enforced)"),
             ("incoming_fund:receipts.reverse", "Reverse posted receipts"),
 
-            # Payments (Outgoing Fund)
+            # Payments (Payables)
             ("outgoing_fund:payments.view", "View payments"),
             ("outgoing_fund:payments.create", "Create payments"),
             ("outgoing_fund:payments.edit", "Edit draft/pending payments"),
@@ -232,7 +236,7 @@ class Command(BaseCommand):
             ("budgeting:budget_override.approve", "Approve budget override requests"),
             ("budgeting:budget_override.override", "Override budget blocks (restricted)"),
 
-            # Multi-donor Sharing (cost allocation)
+            # Cost allocation (shared funding)
             ("cost_sharing:allocations.view", "View cost allocations"),
             ("cost_sharing:allocations.create", "Create cost allocations"),
             ("cost_sharing:allocations.edit", "Edit draft/pending allocations"),
@@ -240,16 +244,16 @@ class Command(BaseCommand):
             ("cost_sharing:allocations.post", "Post allocations (maker-checker enforced)"),
             ("cost_sharing:allocations.reverse", "Reverse posted allocations"),
 
-            # Governance
+            # Internal control (approval workflows & policies)
             ("governance:workflows.view", "View approval workflows"),
             ("governance:workflows.manage", "Manage approval workflows"),
             ("governance:controls.view", "View controls and policies"),
             ("governance:controls.manage", "Manage controls and policies"),
 
-            # Reporting
-            ("reporting:view", "View reports"),
-            ("reporting:export", "Export reports"),
-            ("reporting:advanced", "Advanced reporting"),
+            # Reports
+            ("reporting:view", "View report catalog"),
+            ("reporting:export", "Export from reports"),
+            ("reporting:advanced", "Advanced reports"),
 
             # Financial setup administration
             ("setup:view", "View setup pages"),
@@ -358,6 +362,10 @@ class Command(BaseCommand):
             "finance:attachments.view",
             "finance:attachments.upload",
             "finance:attachments.delete",
+            # Document Management
+            "documents:workspace.view",
+            "documents:document.upload",
+            "documents:document.manage",
             # Dashboards/notifications/alerts
             "dashboard:view",
             "notifications:view",
@@ -406,6 +414,8 @@ class Command(BaseCommand):
             "finance:reporting.export",
             "finance:attachments.view",
             "finance:attachments.upload",
+            "documents:workspace.view",
+            "documents:document.upload",
             "dashboard:view",
         ):
             if code in perms:

@@ -1,9 +1,10 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
+{% load erp_format %}
 {% block title %}{% trans "Donor Register" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div x-data="{}" class="contents">
+<div x-data="{ filtersOpen: {% if filters.q or filters.donor_type or filters.donor_category or filters.country or filters.currency_id or filters.status or filters.has_grants %}true{% else %}false{% endif %} }" class="contents">
 <div class="dynamics-financial-report dr-root max-w-[1400px] mx-auto w-full pb-8">
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
 <style>
@@ -54,11 +55,14 @@
   }
   .dr-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
   }
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
+    .dr-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 560px) {
     .dr-kpi-grid { grid-template-columns: 1fr; }
   }
   .dr-kpi-card {
@@ -161,9 +165,10 @@
     border-bottom: 2px solid #e1dfdd;
   }
   .dr-table tbody td {
-    padding: 0.65rem 1rem;
+    padding: 0.7rem 1rem;
     border-bottom: 1px solid #edebe9;
     vertical-align: middle;
+    line-height: 1.45;
   }
   .dr-table tbody tr:hover td { background: #f3f9fd; }
   .dr-table tbody tr:last-child td { border-bottom: none; }
@@ -185,14 +190,106 @@
     font-weight: 600;
     background: #faf9f8;
   }
-  .dynamics-filter-pane .dr-toolbar-actions {
-    margin-top: 0.85rem;
-    padding-top: 0.85rem;
+  .dr-filter-pane {
+    background: #faf9f8;
+    border: 1px solid #edebe9;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    margin-bottom: 1.25rem;
+  }
+  .dr-filter-pane.dr-filter-pane--collapsed {
+    padding: 0.5rem 1rem;
+  }
+  .dr-filter-pane:not(.dr-filter-pane--collapsed) {
+    padding: 0.75rem 1rem 1rem;
+  }
+  .dr-filter-bar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.65rem 1rem;
+    flex-wrap: wrap;
+    min-height: 36px;
+  }
+  @media (min-width: 900px) {
+    .dr-filter-bar { align-items: center; }
+  }
+  .dr-filter-bar-left {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .dr-filter-bar-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #323130;
+    margin: 0;
+  }
+  .dr-filter-bar-hint {
+    font-size: 12px;
+    color: #8a8886;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .dr-filter-toggle {
+    flex-shrink: 0;
+  }
+  .dr-filter-body {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
     border-top: 1px solid #e1dfdd;
+  }
+  .dr-filter-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .dr-filter-row {
+    display: grid;
+    gap: 0.65rem 1rem;
+    align-items: end;
+  }
+  .dr-filter-row--r1 {
+    grid-template-columns: minmax(180px, 1.2fr) repeat(3, minmax(0, 1fr));
+  }
+  .dr-filter-row--r2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 100%;
+  }
+  @media (max-width: 1100px) {
+    .dr-filter-row--r1 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dr-filter-row--r2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .dr-filter-row--r1,
+    .dr-filter-row--r2 { grid-template-columns: 1fr; }
+  }
+  .dr-filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e1dfdd;
+  }
+  .dr-filter-bar-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
+    gap: 0.5rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .dr-filter-bar-actions .dr-export-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.5rem;
   }
   .dr-modal-accent {
@@ -219,57 +316,14 @@
     {% endif %}
   </div>
 
-  <div class="dynamics-filter-pane hidden-print">
-    <div class="dynamics-filter-head">
-      <span class="dynamics-filter-head-title">{% trans "Filters" %}</span>
-      <span class="dynamics-filter-head-hint">{% trans "Search and refine the donor list" %}</span>
-    </div>
-    <form method="get" action="" id="dr-filter-form">
-      <div class="dr-filter-grid">
-        <div class="dynamics-filter-field dr-field-grow">
-          <label for="donor-search">{% trans "Search" %}</label>
-          <div class="dr-search-wrap">
-            <span class="dr-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
-            <input id="donor-search" name="q" type="search" value="{{ filters.q|default:'' }}"
-                   placeholder="{% trans 'Code, name, contact, country…' %}"
-                   class="dynamics-input" autocomplete="off" />
-          </div>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="dr-donor-type">{% trans "Type" %}</label>
-          <select id="dr-donor-type" name="donor_type" class="dynamics-select min-w-[140px]">
-            <option value="">{% trans "All" %}</option>
-            {% for value, label in donor_types.choices %}
-            <option value="{{ value }}" {% if filters.donor_type == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="dr-donor-category">{% trans "Category" %}</label>
-          <select id="dr-donor-category" name="donor_category" class="dynamics-select min-w-[140px]">
-            <option value="">{% trans "All" %}</option>
-            {% for value, label in donor_categories.choices %}
-            <option value="{{ value }}" {% if filters.donor_category == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="dr-status">{% trans "Status" %}</label>
-          <select id="dr-status" name="status" class="dynamics-select min-w-[120px]">
-            <option value="">{% trans "All" %}</option>
-            {% for value, label in donor_statuses.choices %}
-            <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
+  <div class="dr-filter-pane hidden-print mb-5" :class="{ 'dr-filter-pane--collapsed': !filtersOpen }">
+    <div class="dr-filter-bar">
+      <div class="dr-filter-bar-left">
+        <p class="dr-filter-bar-title">{% trans "Filters" %}</p>
+        <span class="dr-filter-bar-hint" x-show="filtersOpen" x-cloak>{% trans "Refine the donor list and summary" %}</span>
       </div>
-      <div class="dr-toolbar-actions">
-        <div class="dynamics-filter-inline-actions" style="flex-wrap:wrap;">
-          <button type="submit" class="dynamics-btn-primary">
-            <i data-feather="filter" class="w-4 h-4"></i>
-            {% trans "Apply filters" %}
-          </button>
-          <a href="{% url 'tenant_portal:grants_donor_register' %}" class="text-sm font-semibold text-[#0078d4] hover:underline px-1 py-1 self-center no-underline">{% trans "Clear" %}</a>
+      <div class="dr-filter-bar-actions">
+        <div class="dr-export-group hidden-print">
           <a href="{{ export_csv_url }}" class="dynamics-btn-secondary no-underline">
             <i data-feather="file-text" class="w-4 h-4"></i>
             {% trans "Export CSV" %}
@@ -287,25 +341,120 @@
             {% trans "Print" %}
           </button>
         </div>
+        <button
+          type="button"
+          class="dynamics-btn-secondary dr-filter-toggle"
+          :aria-expanded="filtersOpen"
+          aria-controls="dr-filter-panel-body"
+          @click="filtersOpen = !filtersOpen; $nextTick(() => { if (window.feather) feather.replace(); })"
+        >
+          <span x-text="filtersOpen ? '{% trans "Hide filters" %}' : '{% trans "Show filters" %}'"></span>
+        </button>
       </div>
-    </form>
+    </div>
+
+    <div id="dr-filter-panel-body" class="dr-filter-body" x-show="filtersOpen" x-cloak>
+      <form method="get" action="">
+        <div class="dr-filter-rows">
+          <div class="dr-filter-row dr-filter-row--r1">
+            <div class="dynamics-filter-field">
+              <label for="donor-search">{% trans "Search donor name" %}</label>
+              <div class="dr-search-wrap">
+                <span class="dr-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
+                <input id="donor-search" name="q" type="search" value="{{ filters.q|default:'' }}"
+                       placeholder="{% trans 'Name or code…' %}"
+                       class="dynamics-input" autocomplete="off" />
+              </div>
+            </div>
+            <div class="dynamics-filter-field">
+              <label for="dr-donor-type">{% trans "Donor type" %}</label>
+              <select id="dr-donor-type" name="donor_type" class="dynamics-select w-full min-w-0">
+                <option value="">{% trans "All" %}</option>
+                {% for value, label in donor_types.choices %}
+                <option value="{{ value }}" {% if filters.donor_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="dynamics-filter-field">
+              <label for="dr-donor-category">{% trans "Category" %}</label>
+              <select id="dr-donor-category" name="donor_category" class="dynamics-select w-full min-w-0">
+                <option value="">{% trans "All" %}</option>
+                {% for value, label in donor_categories.choices %}
+                <option value="{{ value }}" {% if filters.donor_category == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="dynamics-filter-field">
+              <label for="dr-country">{% trans "Country" %}</label>
+              <select id="dr-country" name="country" class="dynamics-select w-full min-w-0">
+                <option value="">{% trans "All" %}</option>
+                {% for code, cname in country_choices %}
+                <option value="{{ code }}" {% if filters.country == code %}selected{% endif %}>{{ cname }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="dr-filter-row dr-filter-row--r2">
+            <div class="dynamics-filter-field">
+              <label for="dr-currency">{% trans "Currency" %}</label>
+              <select id="dr-currency" name="currency_id" class="dynamics-select w-full min-w-0">
+                <option value="">{% trans "All" %}</option>
+                {% for c in currencies %}
+                <option value="{{ c.pk }}" {% if filter_currency_pk == c.pk %}selected{% endif %}>{{ c.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="dynamics-filter-field">
+              <label for="dr-status">{% trans "Status" %}</label>
+              <select id="dr-status" name="status" class="dynamics-select w-full min-w-0">
+                <option value="">{% trans "All" %}</option>
+                <option value="active" {% if filters.status == "active" %}selected{% endif %}>{% trans "Active" %}</option>
+                <option value="inactive" {% if filters.status == "inactive" %}selected{% endif %}>{% trans "Inactive" %}</option>
+                {% if filters.status == "archived" %}
+                <option value="archived" selected>{% trans "Archived" %}</option>
+                {% endif %}
+              </select>
+            </div>
+            <div class="dynamics-filter-field">
+              <label for="dr-has-grants">{% trans "Has grants" %}</label>
+              <select id="dr-has-grants" name="has_grants" class="dynamics-select w-full min-w-0">
+                <option value="">{% trans "All" %}</option>
+                <option value="yes" {% if filters.has_grants == "yes" %}selected{% endif %}>{% trans "Yes" %}</option>
+                <option value="no" {% if filters.has_grants == "no" %}selected{% endif %}>{% trans "No" %}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="dr-filter-actions">
+          <button type="submit" class="dynamics-btn-primary">
+            {% trans "Apply filters" %}
+          </button>
+          <a href="{% url 'tenant_portal:grants_donor_register' %}" class="dynamics-btn-secondary no-underline">{% trans "Reset filters" %}</a>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="dr-kpi-grid hidden-print">
     <div class="dr-kpi-card">
-      <div class="dr-kpi-label">{% trans "Donors (this view)" %}</div>
-      <div class="dr-kpi-value">{{ donor_register_kpi.total_shown }}</div>
-      <div class="dr-kpi-hint">{% trans "Rows matching current filters" %}</div>
+      <div class="dr-kpi-label">{% trans "Total donors" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.total_donors|erp_int }}</div>
+      <div class="dr-kpi-hint">{% trans "Matching current filters" %}</div>
     </div>
     <div class="dr-kpi-card">
-      <div class="dr-kpi-label">{% trans "Active (this view)" %}</div>
-      <div class="dr-kpi-value">{{ donor_register_kpi.active_shown }}</div>
-      <div class="dr-kpi-hint">{% trans "Status = active in the grid below" %}</div>
+      <div class="dr-kpi-label">{% trans "Active donors" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.active_donors|erp_int }}</div>
+      <div class="dr-kpi-hint">{% trans "Status = Active in filtered set" %}</div>
     </div>
     <div class="dr-kpi-card">
-      <div class="dr-kpi-label">{% trans "Grants linked" %}</div>
-      <div class="dr-kpi-value">{{ donor_register_kpi.grants_linked }}</div>
-      <div class="dr-kpi-hint">{% trans "Sum of grant counts in this view" %}</div>
+      <div class="dr-kpi-label">{% trans "Total grants linked" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.total_grants_linked|erp_int }}</div>
+      <div class="dr-kpi-hint">{% trans "Project grants for filtered donors" %}</div>
+    </div>
+    <div class="dr-kpi-card">
+      <div class="dr-kpi-label">{% trans "Committed grant amount" %}</div>
+      <div class="dr-kpi-value">{{ donor_register_kpi.total_committed|erp_amount }}</div>
+      <div class="dr-kpi-hint">{% trans "Sum of grant ceilings (filtered donors)" %}</div>
     </div>
   </div>
 
@@ -315,7 +464,7 @@
         <i data-feather="list" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
         {% trans "Donors" %}
       </span>
-      <span class="dr-panel-meta">{{ donor_register_kpi.total_shown }} {% trans "rows" %}</span>
+      <span class="dr-panel-meta">{{ donor_register_kpi.total_shown }} / {{ donor_register_kpi.total_donors }} {% trans "rows" %}</span>
     </div>
     <div class="dr-table-wrap">
       <table class="dr-table">
@@ -323,44 +472,44 @@
           <tr>
             <th scope="col">{% trans "Code" %}</th>
             <th scope="col">{% trans "Donor name" %}</th>
-            <th scope="col">{% trans "Short name" %}</th>
             <th scope="col">{% trans "Type" %}</th>
             <th scope="col">{% trans "Category" %}</th>
-            <th scope="col">{% trans "Contact" %}</th>
             <th scope="col">{% trans "Country" %}</th>
             <th scope="col">{% trans "Currency" %}</th>
+            <th scope="col" class="text-right">{% trans "Grants linked" %}</th>
             <th scope="col">{% trans "Status" %}</th>
-            <th scope="col">{% trans "Grants" %}</th>
+            {% if can_manage %}<th scope="col" class="text-right">{% trans "Actions" %}</th>{% endif %}
           </tr>
         </thead>
         <tbody>
           {% for d in donors %}
           <tr class="dynamics-data-row">
             <td class="dr-code">{{ d.code }}</td>
-            <td class="font-semibold text-[#201f1e]">{{ d.name }}</td>
-            <td class="text-[#605e5c]">{{ d.short_name|default:"—" }}</td>
-            <td class="text-[#605e5c]">{{ d.get_donor_type_display|default:"—" }}</td>
-            <td class="text-[#605e5c]">{{ d.get_donor_category_display|default:"—" }}</td>
-            <td class="text-[#605e5c]">{{ d.contact_person|default:d.email|default:"—" }}</td>
-            <td class="text-[#605e5c]">{{ d.country|default:"—" }}</td>
-            <td class="text-[#605e5c]">{{ d.preferred_currency|default:"—" }}</td>
+            <td class="font-semibold text-[#201f1e]">
+              <a class="dr-grant-link" href="{% url 'tenant_portal:grants_donor_edit' d.pk %}?next={{ request.get_full_path|urlencode }}">{{ d.name }}</a>
+            </td>
+            <td class="text-[#323130]">{{ d.get_donor_type_display }}</td>
+            <td class="text-[#323130]">{{ d.get_donor_category_display }}</td>
+            <td class="text-[#323130]">{% if d.country %}{{ d.get_country_display }}{% endif %}</td>
+            <td class="text-[#323130] font-mono text-[12px]">{% if d.preferred_currency %}{{ d.preferred_currency.code }}{% endif %}</td>
+            <td class="dr-num text-right">
+              <a class="dr-grant-link" href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ d.pk }}">{{ d.grants_count }}</a>
+            </td>
             <td>
               <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold"
                     style="{% if d.status == 'active' %}background:#dff6dd;color:#0b5a0b;{% elif d.status == 'archived' %}background:#fde7e9;color:#a4262c;{% else %}background:#fff4ce;color:#7a5c00;{% endif %}">
                 {{ d.get_status_display }}
               </span>
             </td>
-            <td class="dr-num">
-              {% if d.grants_count %}
-              <a class="dr-grant-link" href="{% url 'tenant_portal:grants_grants' %}?donor_id={{ d.pk }}">{{ d.grants_count }}</a>
-              {% else %}
-              0
-              {% endif %}
+            {% if can_manage %}
+            <td class="text-right whitespace-nowrap">
+              <a class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold border border-[#c8c6c4] text-[#323130] hover:bg-[#f3f2f1] no-underline" href="{% url 'tenant_portal:grants_donor_edit' d.pk %}?next={{ request.get_full_path|urlencode }}">{% trans "Edit" %}</a>
             </td>
+            {% endif %}
           </tr>
           {% empty %}
           <tr>
-            <td class="dr-empty" colspan="10">
+            <td class="dr-empty" colspan="{% if can_manage %}9{% else %}8{% endif %}">
               {% trans "No donors match the filters." %}
               {% if can_manage %} {% trans "Create one to get started." %}{% endif %}
             </td>
@@ -386,8 +535,12 @@
         <tr style="background:#f3f2f1;">
           <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Code" %}</th>
           <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Donor name" %}</th>
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Type" %}</th>
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Category" %}</th>
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Country" %}</th>
+          <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Currency" %}</th>
+          <th class="text-right p-2 border-b" style="border-color:#e1dfdd;">{% trans "Grants linked" %}</th>
           <th class="text-left p-2 border-b" style="border-color:#e1dfdd;">{% trans "Status" %}</th>
-          <th class="text-right p-2 border-b" style="border-color:#e1dfdd;">{% trans "Grants" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -395,8 +548,12 @@
         <tr>
           <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.code }}</td>
           <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.name }}</td>
-          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.get_status_display }}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.get_donor_type_display }}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.get_donor_category_display }}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{% if d.country %}{{ d.get_country_display }}{% endif %}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{% if d.preferred_currency %}{{ d.preferred_currency.code }}{% endif %}</td>
           <td class="p-2 border-b text-right" style="border-color:#edebe9;">{{ d.grants_count|default:0 }}</td>
+          <td class="p-2 border-b" style="border-color:#edebe9;">{{ d.get_status_display }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -478,7 +635,12 @@
           </div>
           <div>
             <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Country" %}</label>
-            <input name="country" class="dynamics-input w-full" maxlength="100" />
+            <select name="country" class="dynamics-select w-full bg-white">
+              <option value="">—</option>
+              {% for code, cname in country_choices %}
+              <option value="{{ code }}">{{ cname }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div>
@@ -492,7 +654,12 @@
           </div>
           <div>
             <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Preferred currency" %}</label>
-            <input name="preferred_currency" class="dynamics-input w-full" placeholder="USD" maxlength="10" />
+            <select name="preferred_currency_id" class="dynamics-select w-full bg-white">
+              <option value="">—</option>
+              {% for c in currencies %}
+              <option value="{{ c.pk }}">{{ c.code }}{% if c.name %} — {{ c.name }}{% endif %}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

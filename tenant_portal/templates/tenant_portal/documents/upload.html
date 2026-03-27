@@ -1,0 +1,54 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Upload document" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[720px] mx-auto">
+  <div class="erp-section">
+    <div class="erp-section-header px-4 py-3">
+      <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Upload document" %}</h1>
+      <p class="text-[13px] text-[#6b7280] m-0 mt-1">{% trans "Files attached on vouchers or journals should be uploaded on those transactions so they register once in Document Management." %}</p>
+    </div>
+    <div class="erp-section-body px-4 py-4">
+      <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "File" %}</label>
+          <input type="file" name="file" required class="text-[13px]" />
+        </div>
+        <div>
+          <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Document type" %}</label>
+          <select name="document_type" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]">
+            {% for v, lbl in document_type_choices %}
+            <option value="{{ v }}">{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Category" %}</label>
+          <select name="category" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]">
+            <option value="">—</option>
+            {% for c in categories %}
+            <option value="{{ c.pk }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Tags" %}</label>
+          <input name="tags" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]" placeholder="{% trans 'Comma-separated' %}" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Module label" %}</label>
+            <input name="module" value="document_management" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]" />
+          </div>
+          <div>
+            <label class="block text-[12px] font-medium text-[#6b7280] mb-1">{% trans "Submodule" %}</label>
+            <input name="submodule" value="library" class="w-full border border-[#edebe9] rounded px-2 py-2 text-[13px]" />
+          </div>
+        </div>
+        <button type="submit" class="px-4 py-2 rounded text-[13px] font-medium bg-[#0f5ba7] text-white border-0">{% trans "Upload" %}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

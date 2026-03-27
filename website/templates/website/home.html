@@ -21,6 +21,7 @@
           <p class="home-hero-desc">A modern cloud ERP for NGOs, humanitarian organizations, hospitals, and donor-funded projects — financial &amp; grant management, HR, procurement &amp; logistics, fleet, AI Auditor, hospital, and corporate governance in one secure system.</p>
           <div class="home-hero-ctas home-hero-ctas--slider">
             <a class="btn btn-home-primary" href="{% url 'website:demo_request' %}">Request demo</a>
+            <a class="btn btn-home-outline" href="{% url 'website:platform' %}">Explore platform</a>
           </div>
           <div class="home-hero-badges">
             <span class="home-badge">Multi-tenant</span>
@@ -29,7 +30,7 @@
             <span class="home-badge">Role-based security</span>
           </div>
         </div>
-        <div class="home-hero-shot">
+        <div class="home-hero-shot home-hero-shot--premium">
           <div class="home-hero-shot-bg">
             <figure class="home-laptop">
               <div class="home-laptop-lid">
@@ -57,7 +58,7 @@
             <a class="btn btn-home-primary" href="{% url 'website:modules' %}">Explore modules</a>
           </div>
         </div>
-        <div class="home-hero-shot">
+        <div class="home-hero-shot home-hero-shot--premium">
           <div class="home-hero-shot-bg">
             <figure class="home-laptop">
               <div class="home-laptop-lid">
@@ -85,7 +86,7 @@
             <a class="btn btn-home-primary" href="{% url 'website:solutions' %}">View solutions</a>
           </div>
         </div>
-        <div class="home-hero-shot">
+        <div class="home-hero-shot home-hero-shot--premium">
           <div class="home-hero-shot-bg">
             <figure class="home-laptop">
               <div class="home-laptop-lid">
@@ -113,7 +114,7 @@
             <a class="btn btn-home-primary" href="{% url 'website:features' %}">Explore features</a>
           </div>
         </div>
-        <div class="home-hero-shot">
+        <div class="home-hero-shot home-hero-shot--premium">
           <div class="home-hero-shot-bg">
             <figure class="home-laptop">
               <div class="home-laptop-lid">
@@ -152,7 +153,9 @@
 <section class="home-section home-trusted" aria-labelledby="home-trusted-heading">
   <div class="container home-trusted-inner">
     <header class="home-trusted-header">
+      <p class="home-trusted-eyebrow">Trusted worldwide</p>
       <h2 id="home-trusted-heading" class="home-trusted-title">Trusted by mission-driven teams</h2>
+      <p class="home-trusted-sub">From humanitarian NGOs to hospital networks and donor-funded programs, teams rely on Sugna for control, visibility, and accountability.</p>
     </header>
     <div class="home-trusted-logos" role="list">
       <div class="home-trusted-item" role="listitem">
@@ -163,7 +166,7 @@
             <path d="M12 24c5-4 8-10 12-14 4 4 7 10 12 14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
           </svg>
         </div>
-        <span class="home-trusted-name">Aurora Foundation</span>
+        <span class="home-trusted-name">Global Relief Foundation</span>
       </div>
       <div class="home-trusted-item" role="listitem">
         <div class="home-trusted-logo" aria-hidden="true">
@@ -173,7 +176,7 @@
             <path d="M10 24c4-3 8-4 14-4s10 1 14 4M10 24c4 3 8 4 14 4s10-1 14-4" stroke="currentColor" stroke-width="2"/>
           </svg>
         </div>
-        <span class="home-trusted-name">Helix Health Network</span>
+        <span class="home-trusted-name">Starlight Health Alliance</span>
       </div>
       <div class="home-trusted-item" role="listitem">
         <div class="home-trusted-logo" aria-hidden="true">
@@ -183,7 +186,7 @@
             <circle cx="24" cy="24" r="3" fill="currentColor" opacity="0.85"/>
           </svg>
         </div>
-        <span class="home-trusted-name">Meridian NGO</span>
+        <span class="home-trusted-name">Meridian Aid Network</span>
       </div>
       <div class="home-trusted-item" role="listitem">
         <div class="home-trusted-logo" aria-hidden="true">
@@ -193,7 +196,7 @@
             <path d="M20 26l4-8 4 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.45"/>
           </svg>
         </div>
-        <span class="home-trusted-name">Summit Education Trust</span>
+        <span class="home-trusted-name">Summit Learning Trust</span>
       </div>
       <div class="home-trusted-item" role="listitem">
         <div class="home-trusted-logo" aria-hidden="true">
@@ -203,9 +206,71 @@
             <path d="M24 20v8M21 24h6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" opacity="0.7"/>
           </svg>
         </div>
-        <span class="home-trusted-name">Vanguard Humanitarian</span>
+        <span class="home-trusted-name">Vanguard Humanitarian Initiative</span>
       </div>
     </div>
+    <div class="home-trusted-meta" aria-label="Trust indicators">
+      <span>Enterprise controls</span>
+      <span>Audit-ready reporting</span>
+      <span>Multi-entity deployments</span>
+    </div>
+  </div>
+</section>
+
+{# Why Sugna — key advantages (Dynamics-style value props) #}
+<section class="home-section home-why" id="why-sugna" aria-labelledby="home-why-title">
+  <div class="container home-why-inner">
+    <header class="home-why-head">
+      <p class="home-why-eyebrow">Why Sugna</p>
+      <h2 id="home-why-title" class="home-why-title">Built for regulated, mission-driven operations</h2>
+      <p class="home-why-sub">One cloud ERP for finance, grants, HR, procurement, fleet, and governance — with the security and traceability your stakeholders expect.</p>
+    </header>
+    <div class="home-why-grid">
+      <article class="home-why-card">
+        <span class="home-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-grid"/></svg></span>
+        <h3 class="home-why-card-title">Unified suite</h3>
+        <p class="home-why-card-desc">Connect finance, programs, and operations on one data model — fewer handoffs, fewer spreadsheets.</p>
+      </article>
+      <article class="home-why-card">
+        <span class="home-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></span>
+        <h3 class="home-why-card-title">Enterprise controls</h3>
+        <p class="home-why-card-desc">Role-based access, segregation of duties, and tenant isolation designed for audits and peak periods.</p>
+      </article>
+      <article class="home-why-card">
+        <span class="home-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-cloud"/></svg></span>
+        <h3 class="home-why-card-title">Cloud-native scale</h3>
+        <p class="home-why-card-desc">Deploy consistently across HQ and field offices — multi-entity, multi-currency, and ready for growth.</p>
+      </article>
+      <article class="home-why-card">
+        <span class="home-why-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-clipboard-check"/></svg></span>
+        <h3 class="home-why-card-title">Evidence you can defend</h3>
+        <p class="home-why-card-desc">Immutable audit trails, approvals, and reporting that donors, boards, and auditors can rely on.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+{# Trust pillars — security, compliance, audit #}
+<section class="home-section home-section--alt home-trust-pillars" aria-labelledby="home-trust-pillars-title">
+  <div class="container home-trust-pillars-inner">
+    <h2 id="home-trust-pillars-title" class="visually-hidden">Security, compliance, and audit</h2>
+    <ul class="home-trust-pillars-grid">
+      <li class="home-trust-pillar">
+        <span class="home-trust-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-lock"/></svg></span>
+        <span class="home-trust-pillar-title">Security</span>
+        <span class="home-trust-pillar-desc">Encryption, tenant isolation, and identity-aware access.</span>
+      </li>
+      <li class="home-trust-pillar">
+        <span class="home-trust-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-shield"/></svg></span>
+        <span class="home-trust-pillar-title">Compliance</span>
+        <span class="home-trust-pillar-desc">Policies, controls, and donor-aligned checkpoints.</span>
+      </li>
+      <li class="home-trust-pillar">
+        <span class="home-trust-pillar-icon" aria-hidden="true"><svg class="m-icon m-icon--md"><use href="#mi-clipboard-check"/></svg></span>
+        <span class="home-trust-pillar-title">Audit trail</span>
+        <span class="home-trust-pillar-desc">End-to-end traceability from transaction to report.</span>
+      </li>
+    </ul>
   </div>
 </section>
 
@@ -218,6 +283,7 @@
     </header>
     <div class="home-modules-grid home-modules-grid--seven">
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-coins"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/finance-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -226,6 +292,7 @@
         <a class="home-module-link" href="{% url 'website:module_detail' slug='financial-grant-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-users"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/hr-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -234,6 +301,7 @@
         <a class="home-module-link" href="{% url 'website:module_detail' slug='human-resource-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-package"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/procurement-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -242,6 +310,7 @@
         <a class="home-module-link" href="{% url 'website:module_detail' slug='procurement-logistics' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-truck"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/dashboard-preview.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -250,6 +319,7 @@
         <a class="home-module-link" href="{% url 'website:module_detail' slug='fleet-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-sparkles"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/ai-auditor.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -258,6 +328,7 @@
         <a class="home-module-link" href="{% url 'website:module_detail' slug='ai-auditor' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-hospital"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/hospital-module.png' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -266,6 +337,7 @@
         <a class="home-module-link" href="{% url 'website:module_detail' slug='hospital-management' %}">Learn more <svg class="m-icon m-icon--xs" aria-hidden="true"><use href="#mi-arrow-right"/></svg></a>
       </article>
       <article class="home-module-card">
+        <div class="home-module-icon" aria-hidden="true"><svg class="m-icon"><use href="#mi-building"/></svg></div>
         <div class="home-module-thumb">
           <img src="{% static 'assets/images/hero-dashboard.svg' %}" alt="" width="400" height="240" loading="lazy" decoding="async" />
         </div>
@@ -278,7 +350,7 @@
 </section>
 
 {# 4. Industry solutions (Sway: feature columns / use cases) #}
-<section class="home-section home-industries" id="industries" aria-labelledby="home-industries-title">
+<section class="home-section home-section--alt home-industries" id="industries" aria-labelledby="home-industries-title">
   <div class="container home-industries-inner">
     <header class="home-industries-head">
       <h2 id="home-industries-title" class="home-industries-title">Industry solutions</h2>
@@ -382,12 +454,12 @@
   </div>
 </section>
 
-{# 6. System dashboard screenshots (Sway: portfolio / gallery) #}
-<section class="home-section home-shots" id="preview">
+{# 6. Software screenshots — product UI gallery #}
+<section class="home-section home-section--alt home-shots" id="preview">
   <div class="container">
-    <h2 class="home-section-title">Dashboard preview</h2>
-    <p class="home-section-sub">Real-time views for finance, grants, and operations — the same experience your teams use every day.</p>
-    <div class="home-shots-grid">
+    <h2 class="home-section-title">Software screenshots</h2>
+    <p class="home-section-sub">Dashboard and workspace views your teams use for finance, grants, and operations — consistent, role-aware, and audit-friendly.</p>
+    <div class="home-shots-grid home-shots-grid--quad">
       <figure class="home-shot">
         <img src="{% static 'assets/images/dashboard-preview.png' %}" alt="Financial dashboard overview" width="1200" height="750" loading="lazy" decoding="async" />
         <figcaption class="home-shot-cap">Finance &amp; reporting</figcaption>
@@ -400,12 +472,39 @@
         <img src="{% static 'assets/images/dashboard-preview.png' %}" alt="Operations and reporting" width="1200" height="750" loading="lazy" decoding="async" />
         <figcaption class="home-shot-cap">Operations overview</figcaption>
       </figure>
+      <figure class="home-shot">
+        <img src="{% static 'assets/images/hospital-module.png' %}" alt="Hospital operations workspace" width="400" height="240" loading="lazy" decoding="async" />
+        <figcaption class="home-shot-cap">Hospital &amp; clinical ops</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+{# Sugna Academy preview #}
+<section class="home-section home-academy-preview" id="academy" aria-labelledby="home-academy-title">
+  <div class="container">
+    <div class="home-academy-preview-inner">
+      <div class="home-academy-preview-copy">
+        <p class="home-academy-eyebrow">Learning &amp; enablement</p>
+        <h2 id="home-academy-title" class="home-academy-preview-title">Sugna Academy</h2>
+        <p class="home-academy-preview-lead">Courses, learning paths, certifications, and documentation — the official training umbrella for Sugna Enterprise Suite and NGO capacity building.</p>
+        <div class="home-academy-preview-actions">
+          <a class="btn btn-home-primary" href="{% url 'website:academy_home' %}">Explore Academy</a>
+          <a class="btn btn-home-outline" href="{% url 'website:academy_courses' %}">View courses</a>
+        </div>
+      </div>
+      <div class="home-academy-preview-visual" aria-hidden="true">
+        <div class="home-academy-preview-frame">
+          <img src="{% static 'assets/images/hero-dashboard.svg' %}" alt="" width="640" height="384" loading="lazy" decoding="async" />
+        </div>
+        <p class="home-academy-preview-caption">Structured learning for finance, compliance, and operations teams.</p>
+      </div>
     </div>
   </div>
 </section>
 
 {# 7. Pricing — plans + comparison table (Sway: pricing tables) #}
-<section class="home-section home-pricing" id="pricing">
+<section class="home-section home-section--alt home-pricing" id="pricing">
   <div class="container">
     <h2 class="home-section-title">Pricing</h2>
     <p class="home-section-sub">Flexible plans that scale with your organization from core financial management to full enterprise operations across multiple entities and countries.</p>

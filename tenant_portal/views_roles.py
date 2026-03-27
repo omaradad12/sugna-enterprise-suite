@@ -201,15 +201,30 @@ def _role_templates() -> list[dict]:
 
 def _tab_for_module_title(title: str) -> str:
     t = (title or "").strip().lower()
-    # Financial
-    if t in {"finance", "cashbank", "cashbook", "core accounting", "incoming fund", "outgoing fund", "funds donors", "budgeting", "reporting"}:
+    # Financial (includes internal control / former governance namespace)
+    if t in {
+        "finance",
+        "cashbank",
+        "cashbook",
+        "core accounting",
+        "incoming fund",
+        "outgoing fund",
+        "funds donors",
+        "budgeting",
+        "reporting",
+        "receivables",
+        "payables",
+        "reports",
+        "multi donor sharing",
+        "cost allocation",
+        "cost sharing",
+        "governance",
+        "internal control",
+    }:
         return "financial"
     # Procurement (in this suite, procurement lives under grants/procurement flows)
     if t in {"grants", "procurement"}:
         return "procurement"
-    # Approvals / governance
-    if t in {"governance"}:
-        return "approvals"
     # System / access control
     if t in {"users", "rbac", "dashboard", "notifications", "alerts", "api", "integrations", "auditor"}:
         return "system"
@@ -222,20 +237,22 @@ def _section_for_module_title(title: str) -> str:
         return "Cash & Bank"
     if t in {"core accounting", "finance"}:
         return "Core Accounting"
-    if t in {"incoming fund"}:
-        return "Incoming Fund"
-    if t in {"outgoing fund"}:
-        return "Outgoing Fund"
+    if t in {"incoming fund", "receivables"}:
+        return "Receivables"
+    if t in {"outgoing fund", "payables"}:
+        return "Payables"
     if t in {"funds donors"}:
         return "Funds & Donors"
     if t in {"budgeting"}:
         return "Budgeting"
-    if t in {"reporting"}:
-        return "Reporting"
+    if t in {"reporting", "reports"}:
+        return "Reports"
+    if t in {"multi donor sharing", "cost allocation", "cost sharing"}:
+        return "Cost Allocation"
     if t in {"grants"}:
         return "Procurement & Grants"
-    if t in {"governance"}:
-        return "Approvals & Governance"
+    if t in {"governance", "internal control"}:
+        return "Internal Control"
     if t in {"users", "rbac"}:
         return "Security"
     return _titleize(title) or "General"
@@ -314,6 +331,31 @@ def _titleize(s: str) -> str:
     return " ".join([w[:1].upper() + w[1:] for w in v.split() if w])
 
 
+def _matrix_module_display_title(raw: str) -> str:
+    """Map legacy permission namespace labels to current product names in the security matrix."""
+    t = (raw or "").strip().lower()
+    return {
+        "incoming fund": "Receivables",
+        "outgoing fund": "Payables",
+        "reporting": "Reports",
+        "governance": "Internal Control",
+        "multi donor sharing": "Cost Allocation",
+        "cost sharing": "Cost Allocation",
+    }.get(t, raw)
+
+
+def _matrix_resource_display_title(raw: str) -> str:
+    """Same mapping for matrix resources (e.g. module entitlements under Module access)."""
+    t = (raw or "").strip().lower()
+    return {
+        "incoming fund": "Receivables",
+        "outgoing fund": "Payables",
+        "multi donor sharing": "Cost Allocation",
+        "governance": "Internal Control",
+        "reporting": "Reports",
+    }.get(t, raw)
+
+
 def _parse_perm(code: str) -> tuple[str, str, str]:
     """
     Convert permission codes into (module, resource, action) for matrix display.
@@ -321,7 +363,7 @@ def _parse_perm(code: str) -> tuple[str, str, str]:
     Examples:
     - finance:journals.post -> ("Finance", "Journals", "post")
     - cashbank:reconciliation.post -> ("Cashbank", "Reconciliation", "post")
-    - reporting:export -> ("Reporting", "General", "export")  (non-matrix action)
+    - reporting:export -> ("Reporting", "General", "export")  (non-matrix; UI section: Reports)
     - module:cash_bank.manage -> ("Module", "Cash Bank", "manage") (non-matrix action)
     """
     c = (code or "").strip()
@@ -383,13 +425,19 @@ def _build_permission_matrix(perms: List[Permission]):
                 dedup[getattr(op, "code", str(op))] = op
             rows.append(
                 {
-                    "resource": res,
+                    "resource": _matrix_resource_display_title(res),
                     "cells": cells,
                     "cells_pairs": [{"action": a, "perm": cells.get(a)} for a in _MATRIX_ACTIONS],
                     "other": sorted(dedup.values(), key=lambda x: x.code),
                 }
             )
-        out_modules.append({"key": mod.lower().replace(" ", "_"), "title": mod, "rows": rows})
+        out_modules.append(
+            {
+                "key": mod.lower().replace(" ", "_"),
+                "title": _matrix_module_display_title(mod),
+                "rows": rows,
+            }
+        )
 
     return {"modules": out_modules, "matrix_actions": _MATRIX_ACTIONS, "other_actions": sorted(other_actions)}
 

@@ -1,0 +1,68 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Version history" %} — {% trans "Document Management" %}{% endblock %}
+{% block content %}
+<div class="px-4 md:px-6 py-5 max-w-[960px] mx-auto">
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-3 flex flex-wrap justify-between gap-2">
+      <div>
+        <h1 class="text-[18px] font-semibold text-[#111827] m-0">{% trans "Version history" %}</h1>
+        <p class="text-[13px] text-[#6b7280] m-0 mt-1">{{ document.original_filename|default:document.file.name }}</p>
+      </div>
+      <a href="{% url 'tenant_portal:documents_detail' document.pk %}" class="text-[13px] text-[#0f5ba7] self-center">{% trans "Back to document" %}</a>
+    </div>
+  </div>
+  <div class="erp-section mb-4">
+    <div class="erp-section-header px-4 py-2"><span class="text-[13px] font-semibold">{% trans "Versions" %}</span></div>
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "Version" %}</th>
+            <th>{% trans "Created" %}</th>
+            <th>{% trans "Note" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in versions %}
+          <tr>
+            <td class="text-[13px]">{{ v.version }}</td>
+            <td class="text-[13px]">{{ v.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-[13px]">{{ v.note|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-[13px] text-[#6b7280]">{% trans "No extra versions yet (current file is version 1)." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="erp-section">
+    <div class="erp-section-header px-4 py-2"><span class="text-[13px] font-semibold">{% trans "Audit trail" %}</span></div>
+    <div class="erp-section-body p-0 overflow-x-auto">
+      <table class="erp-table">
+        <thead>
+          <tr>
+            <th>{% trans "When" %}</th>
+            <th>{% trans "Action" %}</th>
+            <th>{% trans "Message" %}</th>
+            <th>{% trans "Actor" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td class="text-[13px]">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="text-[13px]">{{ e.get_action_display }}</td>
+            <td class="text-[13px]">{{ e.message|default:"—" }}</td>
+            <td class="text-[13px]">{{ e.actor.email|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-[13px] text-[#6b7280]">{% trans "No events." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

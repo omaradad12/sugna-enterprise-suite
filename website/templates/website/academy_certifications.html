@@ -1,0 +1,35 @@
+{% extends "website/academy_page_base.html" %}
+{% block title %}Certifications{% endblock %}
+{% block meta_description %}Professional certifications for NGO finance, grant management, procurement, and compliance — aligned to Sugna Academy.{% endblock %}
+{% block marketing_content %}
+<div class="academy-page-hero">
+  <div class="container">
+    <p class="academy-eyebrow">Credentials</p>
+    <h1 class="academy-page-title">Certifications</h1>
+    <p class="academy-page-lead">Structured assessments and completion criteria designed for boards, donors, and audit partners who need defensible evidence of skills.</p>
+  </div>
+</div>
+<section class="academy-section">
+  <div class="container">
+    <div class="academy-cert-detail-grid">
+      {% for cert in certifications %}
+      <article class="academy-cert-detail-card" id="cert-{{ cert.slug }}">
+        <h2 class="academy-cert-detail-card__title">{{ cert.title }}</h2>
+        <p class="academy-cert-detail-card__desc">{{ cert.description }}</p>
+        <p class="academy-cert-detail-card__audience"><strong>Audience:</strong> {{ cert.audience }}</p>
+        <a class="btn btn-outline" href="{% url 'website:contact' %}?topic=certification">Express interest</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<section class="academy-cta academy-cta--compact">
+  <div class="container academy-cta__inner">
+    <div>
+      <h2 class="academy-cta__title">Enterprise cohorts</h2>
+      <p class="academy-cta__text">Schedule certification prep for your tenant with instructor-led review and sandbox validation.</p>
+    </div>
+    <a class="btn btn-primary btn-lg" href="{% url 'website:contact' %}?topic=academy-cert">Contact us</a>
+  </div>
+</section>
+{% endblock %}

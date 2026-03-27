@@ -58,7 +58,7 @@ PORTAL_SECTIONS: tuple[PortalSectionDef, ...] = (
             PortalPageDef(
                 id="kpis",
                 label="Executive KPIs",
-                description="Financial overview, liquidity, grants, and budget signals in one operational dashboard.",
+                description="Dashboard with liquidity, grants, and budget signals in one operational workspace.",
                 redirect_url_name="tenant_portal:finance_home",
             ),
             PortalPageDef(
@@ -105,6 +105,7 @@ PORTAL_SECTIONS: tuple[PortalSectionDef, ...] = (
                 id="documents",
                 label="Document vault",
                 description="Registration certificates, MOUs, bank mandates, and policy documents (centralized repository).",
+                redirect_url_name="tenant_portal:documents_dashboard",
             ),
         ),
     ),

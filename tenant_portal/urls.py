@@ -6,6 +6,7 @@ from . import views_audit_risk as ar
 from . import views_customer_portal as vcp
 from . import views_users as vu
 from . import views_roles as vr
+from . import views_documents as vdm
 
 app_name = "tenant_portal"
 
@@ -66,6 +67,46 @@ urlpatterns = [
     path("finance/setup/dimensions/add/", views.setup_dimensions_add_view, name="setup_dimensions_add"),
     path("finance/setup/dimensions/<int:pk>/edit/", views.setup_dimensions_edit_view, name="setup_dimensions_edit"),
     path("finance/setup/dimensions/<int:pk>/delete/", views.setup_dimensions_delete_view, name="setup_dimensions_delete"),
+    path(
+        "finance/setup/dimensions/program/values/",
+        views.setup_program_dimension_values_list_view,
+        name="setup_program_dimension_values_list",
+    ),
+    path(
+        "finance/setup/dimensions/program/values/add/",
+        views.setup_program_dimension_values_add_view,
+        name="setup_program_dimension_values_add",
+    ),
+    path(
+        "finance/setup/dimensions/program/values/<int:pk>/edit/",
+        views.setup_program_dimension_values_edit_view,
+        name="setup_program_dimension_values_edit",
+    ),
+    path(
+        "finance/setup/dimensions/program/values/<int:pk>/delete/",
+        views.setup_program_dimension_values_delete_view,
+        name="setup_program_dimension_values_delete",
+    ),
+    path(
+        "finance/setup/dimensions/program-sector/",
+        views.setup_sector_dimension_values_list_view,
+        name="setup_sector_dimension_values_list",
+    ),
+    path(
+        "finance/setup/dimensions/program-sector/add/",
+        views.setup_sector_dimension_values_add_view,
+        name="setup_sector_dimension_values_add",
+    ),
+    path(
+        "finance/setup/dimensions/program-sector/<int:pk>/edit/",
+        views.setup_sector_dimension_values_edit_view,
+        name="setup_sector_dimension_values_edit",
+    ),
+    path(
+        "finance/setup/dimensions/program-sector/<int:pk>/delete/",
+        views.setup_sector_dimension_values_delete_view,
+        name="setup_sector_dimension_values_delete",
+    ),
     path("finance/setup/dimensions/cost-centers/", views.setup_cost_centers_list_view, name="setup_cost_centers_list"),
     path("finance/setup/dimensions/cost-centers/add/", views.setup_cost_centers_add_view, name="setup_cost_centers_add"),
     path("finance/setup/dimensions/cost-centers/<int:pk>/edit/", views.setup_cost_centers_edit_view, name="setup_cost_centers_edit"),
@@ -155,9 +196,23 @@ urlpatterns = [
     path("finance/financial-alerts/", views.finance_financial_alerts_view, name="finance_financial_alerts"),
     path("finance/post-transaction/", views.finance_post_transaction_view, name="finance_post_transaction"),
     path("reporting/", views.reporting_center_view, name="reporting_center"),
+    # Document Management (central repository)
+    path("documents/", vdm.documents_dashboard_view, name="documents_dashboard"),
+    path("documents/all/", vdm.documents_all_view, name="documents_all"),
+    path("documents/upload/", vdm.documents_upload_view, name="documents_upload"),
+    path("documents/categories/", vdm.documents_categories_view, name="documents_categories"),
+    path("documents/linked/", vdm.documents_linked_view, name="documents_linked"),
+    path("documents/expiring/", vdm.documents_expiring_view, name="documents_expiring"),
+    path("documents/approvals/", vdm.documents_approvals_view, name="documents_approvals"),
+    path("documents/audit-files/", vdm.documents_audit_files_view, name="documents_audit_files"),
+    path("documents/templates/", vdm.documents_templates_view, name="documents_templates"),
+    path("documents/storage/", vdm.documents_storage_settings_view, name="documents_storage_settings"),
+    path("documents/<int:doc_id>/", vdm.documents_detail_view, name="documents_detail"),
+    path("documents/<int:doc_id>/versions/", vdm.documents_version_history_view, name="documents_version_history"),
     # Grant Management / Funds & Donors
     path("grants/", views.grants_home_view, name="grants_home"),
     path("grants/donors/", views.grants_donors_view, name="grants_donors"),
+    path("grants/donors/<int:donor_id>/edit/", views.grants_donor_edit_view, name="grants_donor_edit"),
     path("grants/donor-register/", views.grants_donor_register_view, name="grants_donor_register"),
     path("grants/funding-sources/", views.grants_funding_sources_view, name="grants_funding_sources"),
     path("grants/donor-agreements/", views.grants_donor_agreements_view, name="grants_donor_agreements"),
@@ -265,8 +320,9 @@ urlpatterns = [
     path("cash/bank-reconciliation/", views.cash_bank_recon_view, name="cash_bank_recon"),
     path("cash/cash-count/", views.cash_cash_count_view, name="cash_cash_count"),
     path("cash/cash-reconciliation/", views.cash_cash_recon_view, name="cash_cash_recon"),
-    # Incoming fund (receivables)
+    # Receivables (incoming_fund URLs)
     path("recv/receipt-vouchers/", views.recv_receipt_vouchers_view, name="recv_receipt_vouchers"),
+    path("recv/receipt-entry/", views.recv_receipt_entry_view, name="recv_receipt_entry"),
     path("recv/donor-receipts/", views.recv_donor_receipts_view, name="recv_donor_receipts"),
     path("recv/bank-cash-receipts/", views.recv_bank_cash_receipts_view, name="recv_bank_cash_receipts"),
     path("recv/income-register/", views.recv_income_register_view, name="recv_income_register"),
@@ -275,7 +331,7 @@ urlpatterns = [
     path("recv/receivable-ledger/", views.recv_receivable_ledger_view, name="recv_receivable_ledger"),
     path("recv/outstanding-receivables/", views.recv_outstanding_receivables_view, name="recv_outstanding_receivables"),
     path("recv/", views.incoming_fund_center_view, name="incoming_fund_center"),
-    # Outgoing fund (payables)
+    # Payables (outgoing_fund URLs)
     path("pay/payment-vouchers/", views.pay_payment_vouchers_view, name="pay_payment_vouchers"),
     path("pay/payment-vouchers/<int:entry_id>/", views.pay_payment_voucher_detail_view, name="pay_payment_voucher_detail"),
     path("pay/payment-vouchers/<int:entry_id>/approve/", views.pay_payment_voucher_approve_view, name="pay_payment_voucher_approve"),
@@ -289,8 +345,12 @@ urlpatterns = [
     path("pay/budget-checks/", views.pay_budget_checks_view, name="pay_budget_checks"),
     path("pay/ledger/", views.pay_ledger_view, name="pay_ledger"),
     path("pay/outstanding/", views.pay_outstanding_view, name="pay_outstanding"),
+    path("pay/advances-prepayments/", views.pay_advances_prepayments_view, name="pay_advances_prepayments"),
+    path("pay/payment-batches/", views.pay_payment_batches_view, name="pay_payment_batches"),
+    path("pay/supporting-documents/", views.pay_supporting_documents_view, name="pay_supporting_documents"),
+    path("pay/payables-aging/", views.pay_payables_aging_view, name="pay_payables_aging"),
     path("pay/", views.outgoing_fund_center_view, name="outgoing_fund_center"),
-    # Multi-donor sharing (cost) and Governance (controls) module landings
+    # Cost allocation and Internal Control module landings
     path("cost/", views.cost_home_view, name="cost_home"),
     path("governance/", views.controls_home_view, name="controls_home"),
     # Integrations

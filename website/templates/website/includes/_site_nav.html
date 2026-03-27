@@ -12,8 +12,44 @@
   <div class="nav-item">
     <a href="{% url 'website:pricing_subscriptions' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'pricing_subscriptions' or request.resolver_match.url_name == 'pricing_onboarding' %} nav-item__link--section-active{% endif %}{% endif %}">Pricing</a>
   </div>
-  <div class="nav-item">
-    <a href="{% url 'website:training' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'training' or request.resolver_match.url_name == 'training_role_based' or request.resolver_match.url_name == 'training_webinars' or request.resolver_match.url_name == 'training_certification' or request.resolver_match.url_name == 'training_support' %} nav-item__link--section-active{% endif %}{% endif %}">Training</a>
+  <div class="nav-item nav-item--has-mega">
+    {% with u=request.resolver_match.url_name %}
+    <a
+      href="{% url 'website:academy_home' %}"
+      class="nav-item__trigger{% if u == 'academy_home' or u == 'academy_courses' or u == 'academy_learning_paths' or u == 'academy_certifications' or u == 'academy_tutorials' or u == 'academy_webinars' or u == 'academy_documentation' or u == 'academy_help' %} nav-item__trigger--active{% endif %}"
+    >Academy</a>
+    <div class="nav-mega nav-mega--narrow nav-mega--academy" id="nav-mega-academy">
+      <div class="nav-mega__inner">
+        <p class="nav-mega__eyebrow">Sugna Academy</p>
+        <div class="nav-mega__grid nav-mega__grid--1">
+          <a href="{% url 'website:academy_home' %}" class="nav-mega__link">
+            <span class="nav-mega__link-title">Overview</span>
+            <span class="nav-mega__link-desc">Learning hub, onboarding, and program umbrella</span>
+          </a>
+          <a href="{% url 'website:academy_courses' %}" class="nav-mega__link">
+            <span class="nav-mega__link-title">Courses</span>
+            <span class="nav-mega__link-desc">Catalog by module, level, and duration</span>
+          </a>
+          <a href="{% url 'website:academy_learning_paths' %}" class="nav-mega__link">
+            <span class="nav-mega__link-title">Learning paths</span>
+            <span class="nav-mega__link-desc">Role-based curricula for key functions</span>
+          </a>
+          <a href="{% url 'website:academy_certifications' %}" class="nav-mega__link">
+            <span class="nav-mega__link-title">Certifications</span>
+            <span class="nav-mega__link-desc">Professional credentials for regulated sectors</span>
+          </a>
+          <a href="{% url 'website:academy_tutorials' %}" class="nav-mega__link">
+            <span class="nav-mega__link-title">Tutorials</span>
+            <span class="nav-mega__link-desc">Short videos and quick guides</span>
+          </a>
+          <a href="{% url 'website:academy_documentation' %}" class="nav-mega__link">
+            <span class="nav-mega__link-title">Documentation</span>
+            <span class="nav-mega__link-desc">Guides, knowledge base, and references</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endwith %}
   </div>
   <div class="nav-item">
     <a href="{% url 'website:resources' %}" class="nav-item__link{% if request.resolver_match %}{% if request.resolver_match.url_name == 'resources' or request.resolver_match.url_name == 'blog' or request.resolver_match.url_name == 'about' or request.resolver_match.url_name == 'privacy' or request.resolver_match.url_name == 'terms' %} nav-item__link--section-active{% endif %}{% endif %}">Resources</a>
