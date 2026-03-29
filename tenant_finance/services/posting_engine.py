@@ -93,9 +93,9 @@ def resolve_posting(
             raise ValueError("Posting rule is missing debit/credit accounts.")
         if debit.id == credit.id:
             raise ValueError("Posting rule debit and credit accounts cannot be the same.")
-        if not debit.is_active or not debit.is_leaf():
+        if not debit.is_active or not debit.allow_posting:
             raise ValueError("Posting rule debit account must be an active posting (leaf) account.")
-        if not credit.is_active or not credit.is_leaf():
+        if not credit.is_active or not credit.allow_posting:
             raise ValueError("Posting rule credit account must be an active posting (leaf) account.")
         return PostingResolution(
             rule_id=chosen.id,
@@ -119,9 +119,9 @@ def resolve_posting(
     credit = ChartAccount.objects.using(using).get(pk=mapping.default_credit_account_id)
     if debit.id == credit.id:
         raise ValueError("Default mapping debit and credit accounts cannot be the same.")
-    if not debit.is_active or not debit.is_leaf():
+    if not debit.is_active or not debit.allow_posting:
         raise ValueError("Default mapping debit account must be an active posting (leaf) account.")
-    if not credit.is_active or not credit.is_leaf():
+    if not credit.is_active or not credit.allow_posting:
         raise ValueError("Default mapping credit account must be an active posting (leaf) account.")
 
     return PostingResolution(

@@ -9,6 +9,7 @@ from django.db import connections
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -47,6 +48,23 @@ def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict
 # endregion
 
 PAGE_SIZE = 15
+
+
+def _flatten_validation_error_messages(exc: ValidationError) -> list[str]:
+    """Normalize Django ValidationError (dict or list form) to plain strings."""
+    out: list[str] = []
+    error_dict = getattr(exc, "error_dict", None)
+    if error_dict:
+        for _fn, msg_list in error_dict.items():
+            for err in msg_list:
+                out.append(str(err))
+        return out
+    msgs = getattr(exc, "messages", None)
+    if msgs is not None:
+        out.extend(str(m) for m in msgs)
+        return out
+    out.append(str(exc))
+    return out
 
 
 def _ensure_documentseries_schema(tenant_db: str) -> None:
@@ -295,6 +313,61 @@ def _setup_context(request: HttpRequest) -> dict:
         "can_manage": can_manage,
         "active_submenu": "setup",
     }
+
+
+def _ensure_chartaccount_allow_posting_or_503(request: HttpRequest, tenant_db: str) -> HttpResponse | None:
+    """
+    ChartAccount queries require tenant_finance.0055 (allow_posting). Tenant DBs are migrated separately from default.
+    """
+    from tenant_portal.migration_checks import ensure_chartaccount_allow_posting_schema
+
+    if ensure_chartaccount_allow_posting_schema(
+        tenant_db, auto_migrate=getattr(settings, "TENANT_AUTO_MIGRATE", False)
+    ):
+        return None
+    return render(
+        request,
+        "tenant_portal/finance/tenant_migration_required.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": getattr(request, "tenant_user", None),
+            "tenant_db": tenant_db,
+            "migration_label": "tenant_finance.0055_chartaccount_allow_posting",
+            "active_submenu": "setup",
+            "active_item": "setup_project_grant_dims",
+            "show_account_category_seed": False,
+        },
+        status=503,
+    )
+
+
+def _ensure_project_grant_dimension_migrations_or_503(request: HttpRequest, tenant_db: str) -> HttpResponse | None:
+    """
+    Project / grant setup needs tenant_finance.0055 (ChartAccount) and tenant_grants.0039 (Project.program_category_code).
+    """
+    chart = _ensure_chartaccount_allow_posting_or_503(request, tenant_db)
+    if chart:
+        return chart
+    from tenant_portal.migration_checks import ensure_tenant_grants_project_program_category_schema
+
+    if ensure_tenant_grants_project_program_category_schema(
+        tenant_db, auto_migrate=getattr(settings, "TENANT_AUTO_MIGRATE", False)
+    ):
+        return None
+    return render(
+        request,
+        "tenant_portal/finance/tenant_migration_required.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": getattr(request, "tenant_user", None),
+            "tenant_db": tenant_db,
+            "migration_label": "tenant_grants.0039_project_program_category_code",
+            "active_submenu": "setup",
+            "active_item": "setup_project_grant_dims",
+            "show_account_category_seed": False,
+        },
+        status=503,
+    )
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -1682,7 +1755,7 @@ def _save_project_from_post(
     funding_modality_id = (post.get("funding_modality_id") or "").strip()
     location = (post.get("location") or "").strip()
     program_sector = (post.get("program_sector") or "").strip()
-    funding_type = (post.get("funding_type") or "").strip()
+    program_category_code_raw = (post.get("program_category_code") or post.get("funding_type") or "").strip()
     status = (post.get("status") or "").strip() or Project.Status.PLANNING
     start_date = (post.get("start_date") or "").strip() or None
     end_date = (post.get("end_date") or "").strip() or None
@@ -1706,7 +1779,7 @@ def _save_project_from_post(
             .filter(dimension_id=prog_dim.pk, status=FinancialDimensionValue.Status.ACTIVE)
             .values_list("code", flat=True)
         )
-    if funding_type and funding_type not in valid_program_codes:
+    if prog_dim and valid_program_codes and program_category_code_raw and program_category_code_raw not in valid_program_codes:
         errors.append("Program category must be selected from Program dimension values.")
 
     sector_dim = _ensure_sector_dimension_defaults(tenant_db, tenant_user)
@@ -1792,8 +1865,10 @@ def _save_project_from_post(
             if not _fm:
                 errors.append("Funding modality must be an active entry in the catalog.")
             else:
+                from tenant_grants.services.funding_modality_gl import ensure_funding_modality_gl_mapping_autofill
                 from tenant_grants.services.payment_modality import has_complete_gl_mapping
 
+                ensure_funding_modality_gl_mapping_autofill(tenant_db, _fm)
                 if not has_complete_gl_mapping(
                     using=tenant_db,
                     funding_source=_fm,
@@ -1805,7 +1880,7 @@ def _save_project_from_post(
             errors.append("Donor is required before project status can be set to Active.")
         if not currency_id:
             errors.append("Reporting currency is required before project status can be set to Active.")
-        if not funding_type:
+        if prog_dim and valid_program_codes and not program_category_code_raw:
             errors.append("Program category is required before project status can be set to Active.")
         if not funding_modality_id:
             errors.append("Funding modality is required before project status can be set to Active.")
@@ -1869,7 +1944,15 @@ def _save_project_from_post(
     obj.currency = currency
     obj.location = location
     obj.program_sector = program_sector
-    obj.funding_type = funding_type
+    obj.program_category_code = ""
+    ft_allowed = {c[0] for c in Project.FundingType.choices}
+    if program_category_code_raw in valid_program_codes:
+        obj.program_category_code = program_category_code_raw
+        obj.funding_type = Project.FundingType.PROJECT
+    elif program_category_code_raw in ft_allowed:
+        obj.funding_type = program_category_code_raw
+    else:
+        obj.funding_type = ""
     obj.funding_modality = funding_modality
     obj.status = status
     obj.is_active = status == Project.Status.ACTIVE
@@ -1885,10 +1968,7 @@ def _save_project_from_post(
     try:
         obj.full_clean()
     except ValidationError as exc:
-        for _f, msgs in exc.error_dict.items():
-            errors.extend(str(m) for m in msgs)
-        if exc.error_list:
-            errors.extend(str(m) for m in exc.error_list)
+        errors.extend(_flatten_validation_error_messages(exc))
         return errors, None
 
     obj.save(using=tenant_db)
@@ -2048,6 +2128,9 @@ def _project_dimension_form_context(tenant_db: str, ctx: dict, project=None) -> 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_project_dimension_add_view(request: HttpRequest) -> HttpResponse:
     tenant_db = request.tenant_db
+    mig = _ensure_project_grant_dimension_migrations_or_503(request, tenant_db)
+    if mig:
+        return mig
     ctx = _setup_context(request)
     ctx["active_item"] = "setup_project_grant_dims"
     if not ctx["can_manage"]:
@@ -2094,6 +2177,9 @@ def setup_project_dimension_add_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_project_dimension_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
     tenant_db = request.tenant_db
+    mig = _ensure_project_grant_dimension_migrations_or_503(request, tenant_db)
+    if mig:
+        return mig
     ctx = _setup_context(request)
     ctx["active_item"] = "setup_project_grant_dims"
     if not ctx["can_manage"]:
@@ -2144,6 +2230,9 @@ def setup_project_dimension_edit_view(request: HttpRequest, pk: int) -> HttpResp
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def setup_project_dimension_delete_view(request: HttpRequest, pk: int) -> HttpResponse:
     tenant_db = request.tenant_db
+    mig = _ensure_project_grant_dimension_migrations_or_503(request, tenant_db)
+    if mig:
+        return mig
     ctx = _setup_context(request)
     if not ctx["can_manage"]:
         messages.error(request, "You do not have permission to delete projects.")
@@ -2262,8 +2351,10 @@ def setup_grant_dimension_add_view(request: HttpRequest) -> HttpResponse:
                 messages.error(request, "Funding modality is required.")
                 return redirect(reverse("tenant_portal:setup_grant_dimension_add"))
             if funding_modality is not None:
+                from tenant_grants.services.funding_modality_gl import ensure_funding_modality_gl_mapping_autofill
                 from tenant_grants.services.payment_modality import has_complete_gl_mapping
 
+                ensure_funding_modality_gl_mapping_autofill(tenant_db, funding_modality)
                 if not has_complete_gl_mapping(
                     using=tenant_db,
                     funding_source=funding_modality,
@@ -2346,7 +2437,12 @@ def setup_grant_dimension_edit_view(request: HttpRequest, pk: int) -> HttpRespon
     tenant_db = request.tenant_db
     ctx = _setup_context(request)
     ctx["active_item"] = "setup_project_grant_dims"
-    if not ctx["can_manage"]:
+    can_edit_grant = ctx["can_manage"] or (
+        tenant_db
+        and getattr(request, "tenant_user", None)
+        and user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
+    )
+    if not can_edit_grant:
         messages.error(request, "You do not have permission to edit grants.")
         return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
@@ -2442,8 +2538,10 @@ def setup_grant_dimension_edit_view(request: HttpRequest, pk: int) -> HttpRespon
                 messages.error(request, "Funding modality is required.")
                 return redirect(reverse("tenant_portal:setup_grant_dimension_edit", args=[pk]))
             if funding_modality is not None:
+                from tenant_grants.services.funding_modality_gl import ensure_funding_modality_gl_mapping_autofill
                 from tenant_grants.services.payment_modality import has_complete_gl_mapping
 
+                ensure_funding_modality_gl_mapping_autofill(tenant_db, funding_modality)
                 if not has_complete_gl_mapping(
                     using=tenant_db,
                     funding_source=funding_modality,
@@ -2625,7 +2723,9 @@ def setup_project_mapping_add_view(request: HttpRequest) -> HttpResponse:
         if p.pk not in mapped_project_ids
     ]
     cost_centers = list(CostCenter.objects.using(tenant_db).filter(status="active").order_by("code"))
-    bank_accounts = list(BankAccount.objects.using(tenant_db).filter(is_active=True).order_by("bank_name"))
+    from tenant_finance.services.bank_account_dropdowns import valid_bank_account_books_under_1200
+
+    bank_accounts = valid_bank_account_books_under_1200(tenant_db)
     donors = list(Donor.objects.using(tenant_db).filter(status="active").order_by("name"))
     currencies = list(Currency.objects.using(tenant_db).filter(is_active=True).order_by("code"))
     budget_lines = list(BudgetLine.objects.using(tenant_db).order_by("id")[:200])
@@ -2692,8 +2792,10 @@ def setup_project_mapping_edit_view(request: HttpRequest, pk: int) -> HttpRespon
         messages.success(request, "Project dimension mapping updated.")
         return redirect(reverse("tenant_portal:setup_grant_dimensions_list"))
 
+    from tenant_finance.services.bank_account_dropdowns import valid_bank_account_books_under_1200
+
     cost_centers = list(CostCenter.objects.using(tenant_db).filter(status="active").order_by("code"))
-    bank_accounts = list(BankAccount.objects.using(tenant_db).filter(is_active=True).order_by("bank_name"))
+    bank_accounts = valid_bank_account_books_under_1200(tenant_db)
     donors = list(Donor.objects.using(tenant_db).filter(status="active").order_by("name"))
     currencies = list(Currency.objects.using(tenant_db).filter(is_active=True).order_by("code"))
     budget_lines = list(BudgetLine.objects.using(tenant_db).order_by("id")[:200])
@@ -5714,7 +5816,8 @@ def setup_fiscal_years_list_view(request: HttpRequest) -> HttpResponse:
 def setup_fiscal_years_add_view(request: HttpRequest) -> HttpResponse:
     from datetime import date
 
-    from tenant_finance.models import FiscalYear, FiscalPeriod
+    from tenant_finance.models import FiscalYear
+    from tenant_finance.services.accounting_periods import create_fiscal_year_with_monthly_periods
 
     tenant_db = request.tenant_db
     ctx = _setup_context(request)
@@ -5758,41 +5861,13 @@ def setup_fiscal_years_add_view(request: HttpRequest) -> HttpResponse:
             for e in errors:
                 messages.error(request, e)
         else:
-            fy = FiscalYear.objects.using(tenant_db).create(
+            create_fiscal_year_with_monthly_periods(
+                using=tenant_db,
                 name=name,
                 start_date=start_date,
                 end_date=end_date,
-                status=FiscalYear.Status.OPEN,
                 created_by=request.tenant_user,
             )
-            # Auto-generate 12 monthly periods
-            current = start_date
-            period_no = 1
-            while current <= end_date and period_no <= 12:
-                # month end is either end of month or fiscal year end
-                if current.month == 12:
-                    month_end = current.replace(day=31)
-                else:
-                    from calendar import monthrange
-
-                    last_day = monthrange(current.year, current.month)[1]
-                    month_end = current.replace(day=last_day)
-                period_end = min(month_end, end_date)
-                FiscalPeriod.objects.using(tenant_db).create(
-                    fiscal_year=fy,
-                    period_number=period_no,
-                    name=current.strftime("%b %Y"),
-                    period_name=current.strftime("%B %Y"),
-                    start_date=current,
-                    end_date=period_end,
-                    status=FiscalPeriod.Status.OPEN,
-                )
-                current = period_end.replace(day=1)
-                current = date(current.year + (1 if current.month == 12 else 0),
-                               1 if current.month == 12 else current.month + 1,
-                               1)
-                period_no += 1
-
             messages.success(request, "Fiscal year created with monthly periods.")
             return redirect(reverse("tenant_portal:setup_fiscal_years_list"))
 
@@ -5963,6 +6038,8 @@ def setup_accounting_periods_list_view(request: HttpRequest) -> HttpResponse:
     ctx["fiscal_years"] = FiscalYear.objects.using(tenant_db).all().order_by("-start_date")
     ctx["filter_fiscal_year"] = fy_id
     ctx["filter_status"] = status
+    ctx["create_fiscal_year_url"] = reverse("tenant_portal:setup_accounting_periods_create_fiscal_year")
+    ctx["return_query"] = request.GET.urlencode()
 
     get = request.GET.copy()
     if "page" in get:
@@ -5970,6 +6047,79 @@ def setup_accounting_periods_list_view(request: HttpRequest) -> HttpResponse:
     ctx["base_query"] = get.urlencode()
 
     return render(request, "tenant_portal/setup/accounting_periods_list.html", ctx)
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def setup_accounting_periods_create_fiscal_year_view(request: HttpRequest) -> HttpResponse:
+    """
+    POST: create fiscal year + monthly periods (same as Financial Setup → Fiscal years → Add).
+    """
+    from datetime import date
+
+    from django.urls import reverse
+
+    from tenant_finance.models import FiscalYear
+    from tenant_finance.services.accounting_periods import create_fiscal_year_with_monthly_periods
+
+    tenant_db = request.tenant_db
+    ctx = _setup_context(request)
+    if not ctx["can_manage"]:
+        messages.error(request, "You do not have permission to create fiscal years.")
+        return redirect(reverse("tenant_portal:setup_accounting_periods_list"))
+
+    if request.method != "POST":
+        return redirect(reverse("tenant_portal:setup_accounting_periods_list"))
+
+    name = (request.POST.get("fiscal_year") or request.POST.get("name") or "").strip()
+    start = request.POST.get("start_date") or ""
+    end = request.POST.get("end_date") or ""
+    period_type = (request.POST.get("period_type") or "monthly").strip().lower()
+    return_query = (request.POST.get("return_query") or "").strip()
+
+    errors: list[str] = []
+    if period_type != "monthly":
+        errors.append("Only monthly period type is supported.")
+
+    try:
+        start_date = date.fromisoformat(start)
+    except ValueError:
+        start_date = None
+        errors.append("Start date is required and must be a valid date.")
+    try:
+        end_date = date.fromisoformat(end)
+    except ValueError:
+        end_date = None
+        errors.append("End date is required and must be a valid date.")
+
+    if not name:
+        errors.append("Fiscal year name is required.")
+    if start_date and end_date and end_date <= start_date:
+        errors.append("End date must be after start date.")
+
+    if start_date and end_date:
+        overlap = FiscalYear.objects.using(tenant_db).filter(
+            start_date__lte=end_date, end_date__gte=start_date
+        ).exists()
+        if overlap:
+            errors.append("Fiscal year dates overlap with an existing fiscal year.")
+
+    if errors:
+        for e in errors:
+            messages.error(request, e)
+    else:
+        create_fiscal_year_with_monthly_periods(
+            using=tenant_db,
+            name=name,
+            start_date=start_date,
+            end_date=end_date,
+            created_by=request.tenant_user,
+        )
+        messages.success(request, "Fiscal year created with 12 monthly periods (status Open).")
+
+    redir = reverse("tenant_portal:setup_accounting_periods_list")
+    if return_query:
+        redir = f"{redir}?{return_query}"
+    return redirect(redir)
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")

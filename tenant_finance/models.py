@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 
@@ -41,6 +41,43 @@ def ensure_default_currencies(using: str | None = None) -> None:
                 "status": Currency.Status.ACTIVE,
             },
         )
+
+
+# Stored values for ChartAccount.type and AccountCategory.category_type (uppercase enum tokens).
+CANONICAL_FINANCE_ACCOUNT_CLASSES = frozenset({"ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"})
+
+
+def normalize_finance_account_class(value: str | None) -> str | None:
+    """
+    Map legacy lowercase or mixed-case account class strings to canonical uppercase DB values.
+    Unknown values are returned unchanged so validation can reject them.
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    legacy = {
+        "asset": "ASSET",
+        "liability": "LIABILITY",
+        "equity": "EQUITY",
+        "income": "INCOME",
+        "expense": "EXPENSE",
+    }
+    key = s.lower()
+    if key in legacy:
+        return legacy[key]
+    # Common truncation/typo (e.g. missing leading "A" from "ASSET")
+    typo_fix = {
+        "sset": "ASSET",
+        "sset.": "ASSET",
+    }
+    if key in typo_fix:
+        return typo_fix[key]
+    upper = s.upper()
+    if upper in CANONICAL_FINANCE_ACCOUNT_CLASSES:
+        return upper
+    return s
 
 
 class Currency(models.Model):
@@ -92,11 +129,11 @@ class AccountCategory(models.Model):
         CASH_FLOW = "cash_flow", "Cash Flow"
 
     class CategoryType(models.TextChoices):
-        ASSET = "asset", _("Asset")
-        LIABILITY = "liability", _("Liability")
-        EQUITY = "equity", _("Equity")
-        INCOME = "income", _("Income")
-        EXPENSE = "expense", _("Expense")
+        ASSET = "ASSET", _("Asset")
+        LIABILITY = "LIABILITY", _("Liability")
+        EQUITY = "EQUITY", _("Equity")
+        INCOME = "INCOME", _("Income")
+        EXPENSE = "EXPENSE", _("Expense")
 
     class NormalBalance(models.TextChoices):
         DEBIT = "debit", _("Debit")
@@ -144,7 +181,8 @@ class AccountCategory(models.Model):
         return f"{self.code} — {self.name}"
 
     def _default_normal_balance_for_type(self) -> str:
-        if self.category_type in (self.CategoryType.ASSET, self.CategoryType.EXPENSE):
+        ct = normalize_finance_account_class(self.category_type) or ""
+        if ct in (self.CategoryType.ASSET, self.CategoryType.EXPENSE):
             return self.NormalBalance.DEBIT
         return self.NormalBalance.CREDIT
 
@@ -155,6 +193,11 @@ class AccountCategory(models.Model):
     def clean(self) -> None:
         errors: dict = {}
         db = getattr(self._state, "db", None) or "default"
+
+        if self.category_type:
+            nct = normalize_finance_account_class(self.category_type)
+            if nct:
+                self.category_type = nct
 
         if not (self.code or "").strip():
             errors["code"] = _("Code is required.")
@@ -278,11 +321,11 @@ class ChartAccount(models.Model):
     """
 
     class Type(models.TextChoices):
-        ASSET = "asset", "Asset"
-        LIABILITY = "liability", "Liability"
-        EQUITY = "equity", "Equity"
-        INCOME = "income", "Income"
-        EXPENSE = "expense", "Expense"
+        ASSET = "ASSET", "Asset"
+        LIABILITY = "LIABILITY", "Liability"
+        EQUITY = "EQUITY", "Equity"
+        INCOME = "INCOME", "Income"
+        EXPENSE = "EXPENSE", "Expense"
 
     class StatementType(models.TextChoices):
         BALANCE_SHEET = "balance_sheet", "Balance Sheet"
@@ -299,6 +342,14 @@ class ChartAccount(models.Model):
         help_text="Must match account type: Asset/Liability/Equity → Balance Sheet; Income/Expense → Income & Expenditure.",
     )
     is_active = models.BooleanField(default=True)
+    allow_posting = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text=_(
+            "False for control or summary accounts (accounts with sub-accounts). "
+            "True for leaf accounts that may receive journal postings."
+        ),
+    )
     parent = models.ForeignKey(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="children"
     )
@@ -475,9 +526,10 @@ class ChartAccount(models.Model):
         return reasons
 
     def _statement_type_for_type(self) -> str:
-        if self.type in (self.Type.ASSET, self.Type.LIABILITY, self.Type.EQUITY):
+        t = normalize_finance_account_class(self.type) or ""
+        if t in (self.Type.ASSET, self.Type.LIABILITY, self.Type.EQUITY):
             return self.StatementType.BALANCE_SHEET
-        if self.type in (self.Type.INCOME, self.Type.EXPENSE):
+        if t in (self.Type.INCOME, self.Type.EXPENSE):
             return self.StatementType.INCOME_EXPENDITURE
         return ""
 
@@ -490,6 +542,14 @@ class ChartAccount(models.Model):
             errors["name"] = _("Account name is required.")
         if not self.type:
             errors["type"] = _("Account type must be selected.")
+        elif self.type:
+            nt = normalize_finance_account_class(self.type)
+            if nt:
+                self.type = nt
+            if self.type not in CANONICAL_FINANCE_ACCOUNT_CLASSES:
+                errors["type"] = _(
+                    "Account type must be one of: Asset, Liability, Equity, Income, or Expense (stored as ASSET, LIABILITY, …)."
+                )
 
         # Statement type must match account type
         expected_st = self._statement_type_for_type()
@@ -503,11 +563,12 @@ class ChartAccount(models.Model):
                 self.statement_type = expected_st
 
         if self.category and self.category.statement_type:
+            acct_cls = normalize_finance_account_class(self.type) or ""
             cat_ok = (
-                self.type in (self.Type.ASSET, self.Type.LIABILITY, self.Type.EQUITY)
+                acct_cls in (self.Type.ASSET, self.Type.LIABILITY, self.Type.EQUITY)
                 and self.category.statement_type == AccountCategory.StatementType.BALANCE_SHEET
             ) or (
-                self.type in (self.Type.INCOME, self.Type.EXPENSE)
+                acct_cls in (self.Type.INCOME, self.Type.EXPENSE)
                 and self.category.statement_type == AccountCategory.StatementType.INCOME_EXPENDITURE
             )
             if not cat_ok:
@@ -516,7 +577,9 @@ class ChartAccount(models.Model):
                 )
 
         if self.category and getattr(self.category, "category_type", None):
-            if self.type != self.category.category_type:
+            if normalize_finance_account_class(self.type) != normalize_finance_account_class(
+                self.category.category_type
+            ):
                 errors["category"] = _("Account type must match the category's account class (Asset, Liability, Equity, Income, or Expense).")
 
         if self.category and self.category.status == AccountCategory.Status.INACTIVE:
@@ -525,7 +588,9 @@ class ChartAccount(models.Model):
         if self.parent_id and self.pk and self.parent_id == self.pk:
             errors["parent"] = _("An account cannot be its own parent.")
 
-        if self.parent and self.parent.type != self.type:
+        if self.parent and normalize_finance_account_class(self.parent.type) != normalize_finance_account_class(
+            self.type
+        ):
             errors["parent"] = _(
                 "Parent account must have the same type as the child (e.g. Asset with Asset)."
             )
@@ -560,6 +625,43 @@ class ChartAccount(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        using = kwargs.get("using")
+        db = using or getattr(self._state, "db", None) or "default"
+        if self.pk:
+            has_children = ChartAccount.objects.using(db).filter(parent_id=self.pk).exists()
+        else:
+            has_children = False
+        self.allow_posting = not has_children
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def sync_allow_posting_for_account_ids(cls, using: str, account_ids: list):
+        """Set allow_posting from child presence (used by signals after child save/delete)."""
+        if not account_ids:
+            return
+        qs = cls.objects.using(using).filter(pk__in=account_ids)
+        for acc in qs.iterator():
+            has_ch = cls.objects.using(using).filter(parent_id=acc.pk).exists()
+            cls.objects.using(using).filter(pk=acc.pk).update(allow_posting=not has_ch)
+
+
+@receiver(post_save, sender=ChartAccount)
+def _chart_account_after_child_save_update_parents(sender, instance: ChartAccount, **kwargs):
+    """When a child is saved, its parent must be non-posting if it has children."""
+    db = getattr(instance._state, "db", None) or "default"
+    ids = [instance.pk]
+    if instance.parent_id:
+        ids.append(instance.parent_id)
+    ChartAccount.sync_allow_posting_for_account_ids(db, ids)
+
+
+@receiver(post_delete, sender=ChartAccount)
+def _chart_account_after_delete_update_parent(sender, instance: ChartAccount, **kwargs):
+    db = getattr(instance._state, "db", None) or "default"
+    if instance.parent_id:
+        ChartAccount.sync_allow_posting_for_account_ids(db, [instance.parent_id])
 
 
 class JournalEntry(models.Model):
@@ -627,6 +729,29 @@ class JournalEntry(models.Model):
         blank=True,
     )
     payee_name = models.CharField(max_length=255, blank=True)
+
+    class PayeeReferenceType(models.TextChoices):
+        """Resolved payee link for payment vouchers (autocomplete / master data)."""
+
+        SUPPLIER = "supplier", _("Supplier / vendor")
+        EMPLOYEE = "employee", _("Staff / employee")
+        DONOR = "donor", _("Donor (master)")
+        HISTORY = "history", _("Previously used payee")
+        MANUAL = "manual", _("Manual / new")
+
+    payee_ref_type = models.CharField(
+        max_length=20,
+        choices=PayeeReferenceType.choices,
+        blank=True,
+        default="",
+        help_text=_("When set with payee_ref_id (where applicable), payee_name matches master data."),
+    )
+    payee_ref_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=_("PK of Supplier, TenantUser, or Donor when payee_ref_type references master data."),
+    )
+
     payment_method = models.CharField(
         max_length=40,
         blank=True,
@@ -691,8 +816,8 @@ class JournalEntry(models.Model):
         """Master document / posting origin for GL journals (ERP register)."""
 
         MANUAL = "manual", _("Manual journal")
-        PAYMENT_VOUCHER = "payment_voucher", _("Payment voucher")
-        RECEIPT_VOUCHER = "receipt_voucher", _("Receipt voucher")
+        PAYMENT_VOUCHER = "payment_voucher", _("Payments")
+        RECEIPT_VOUCHER = "receipt_voucher", _("Receipts")
         CASH_TRANSFER = "cash_transfer", _("Cash transfer")
         BANK_TRANSFER = "bank_transfer", _("Bank transfer")
         FUND_TRANSFER = "fund_transfer", _("Fund transfer")
@@ -898,6 +1023,12 @@ class JournalEntry(models.Model):
                             )
                 # Enforce posting controls on POSTED transition
                 if original.status != self.Status.POSTED and self.status == self.Status.POSTED:
+                    from tenant_finance.services.bank_posting_orientation import (
+                        assert_bank_line_orientation_on_post_to_gl,
+                    )
+
+                    assert_bank_line_orientation_on_post_to_gl(self, db)
+
                     from tenant_finance.services.period_control import assert_can_post_journal
 
                     gl_date = self.posting_date or self.entry_date
@@ -920,8 +1051,9 @@ class JournalEntry(models.Model):
                                 user=getattr(self, "created_by", None),
                             )
                         if result.status == "block":
-                            # Allow posting only if there's an approved override request
-                            if not engine.get_approved_override_for_entry(self):
+                            approved_ov = engine.get_approved_override_for_entry(self)
+                            admin_bypass = _posting_user_can_bypass_budget_control(db, self)
+                            if not approved_ov and not admin_bypass:
                                 engine.log_event(
                                     entry=self,
                                     result=result,
@@ -929,6 +1061,23 @@ class JournalEntry(models.Model):
                                     user=getattr(self, "created_by", None),
                                 )
                                 raise ValidationError({"status": _(result.message or "Budget control blocked posting.")})
+                            if admin_bypass and not approved_ov:
+                                try:
+                                    from tenant_users.models import TenantUser as _TU
+
+                                    _uid = self.posted_by_id or self.approved_by_id
+                                    _actor = _TU.objects.using(db).filter(pk=_uid).first() if _uid else None
+                                    engine.log_event(
+                                        entry=self,
+                                        result=result,
+                                        event_type=BudgetEvent.EventType.OVERRIDE,
+                                        user=_actor,
+                                        override_reason=_(
+                                            "Posted under tenant admin or budget override permission (budget check waived)."
+                                        ),
+                                    )
+                                except Exception:
+                                    pass
         else:
             # New record posted directly (common in posting window) must also pass posting controls.
             if self.status == self.Status.POSTED:
@@ -953,7 +1102,9 @@ class JournalEntry(models.Model):
                             user=getattr(self, "created_by", None),
                         )
                     if result.status == "block":
-                        if not engine.get_approved_override_for_entry(self):
+                        approved_ov = engine.get_approved_override_for_entry(self)
+                        admin_bypass = _posting_user_can_bypass_budget_control(db, self)
+                        if not approved_ov and not admin_bypass:
                             engine.log_event(
                                 entry=self,
                                 result=result,
@@ -961,6 +1112,23 @@ class JournalEntry(models.Model):
                                 user=getattr(self, "created_by", None),
                             )
                             raise ValidationError({"status": _(result.message or "Budget control blocked posting.")})
+                        if admin_bypass and not approved_ov:
+                            try:
+                                from tenant_users.models import TenantUser as _TU
+
+                                _uid = self.posted_by_id or self.approved_by_id
+                                _actor = _TU.objects.using(db).filter(pk=_uid).first() if _uid else None
+                                engine.log_event(
+                                    entry=self,
+                                    result=result,
+                                    event_type=BudgetEvent.EventType.OVERRIDE,
+                                    user=_actor,
+                                    override_reason=_(
+                                        "Posted under tenant admin or budget override permission (budget check waived)."
+                                    ),
+                                )
+                            except Exception:
+                                pass
         return super().save(*args, **kwargs)
 
     def clean(self) -> None:
@@ -1038,6 +1206,29 @@ def get_grant_posted_expense_total(grant_id, using: str):
         .get("t")
         or Decimal("0")
     )
+
+
+def _posting_user_can_bypass_budget_control(using: str, entry: "JournalEntry") -> bool:
+    """
+    Tenant admins and users with budget-override permissions may post grant-linked journals when
+    budget control would otherwise block (e.g. legacy vouchers without BudgetOverrideRequest).
+    Uses posted_by / approved_by on the posting transition (not created_by).
+    """
+    uid = entry.posted_by_id or entry.approved_by_id
+    if not uid:
+        return False
+    from rbac.models import user_has_permission
+    from tenant_users.models import TenantUser
+
+    user = TenantUser.objects.using(using).filter(pk=uid).only("id", "is_tenant_admin").first()
+    if not user:
+        return False
+    if getattr(user, "is_tenant_admin", False):
+        return True
+    if user_has_permission(user, "module:finance.override_budget", using=using):
+        return True
+    # Finance Manager and similar roles (see bootstrap_tenant_rbac)
+    return user_has_permission(user, "finance:budget.override", using=using)
 
 
 class JournalEntryAttachment(models.Model):
@@ -1233,7 +1424,7 @@ class JournalLine(models.Model):
             # Control account 1200 is a parent/summary account and must not be posted to directly.
             if (self.account.code or "").strip() == "1200":
                 errors["account"] = _("Transactions cannot be posted directly to 1200 — Bank Accounts.")
-            elif not self.account.is_leaf(getattr(self._state, "db", None) or "default"):
+            elif not self.account.allow_posting:
                 errors["account"] = _("Transactions must post to a leaf/sub-account, not a parent account.")
         if errors:
             raise ValidationError(errors)
@@ -1263,7 +1454,7 @@ class PaymentRegister(models.Model):
     """
 
     class TransactionType(models.TextChoices):
-        PAYMENT_VOUCHER = "payment_voucher", "Payment Voucher"
+        PAYMENT_VOUCHER = "payment_voucher", "Payments"
         BANK_TRANSFER = "bank_transfer", "Bank Transfer"
         CHEQUE = "cheque", "Cheque"
         CASH = "cash", "Cash"
@@ -1473,21 +1664,17 @@ class FiscalPeriod(models.Model):
     def is_posting_allowed(self, *, user=None) -> bool:
         """
         Posting rules:
-        - OPEN: allowed
-        - HARD_CLOSED: never allowed
-        - SOFT_CLOSED: allowed only for authorized roles
+        - OPEN: allowed (including dates in past fiscal years if the period is still open).
+        - SOFT_CLOSED: not allowed — reopen to OPEN first (admin).
+        - HARD_CLOSED: never allowed; cannot be reopened.
         """
-        if self.status == self.Status.OPEN and not self.is_closed:
-            return True
-        if self.status == self.Status.HARD_CLOSED or self.is_closed:
-            # Treat legacy is_closed as hard close
-            if self.status != self.Status.SOFT_CLOSED:
-                return False
-        if self.status != self.Status.SOFT_CLOSED:
+        if self.status == self.Status.HARD_CLOSED:
             return False
-        # soft-closed exception check
-        setting = PeriodControlSetting.get_solo(using=getattr(self._state, "db", None) or "default")
-        return setting.user_can_post_in_soft_closed(user)
+        if self.status == self.Status.SOFT_CLOSED:
+            return False
+        if self.is_closed:
+            return False
+        return self.status == self.Status.OPEN
 
 
 class PeriodControlSetting(models.Model):
@@ -1643,7 +1830,12 @@ class BankAccount(models.Model):
     description = models.CharField(max_length=255, blank=True)
     office = models.CharField(max_length=120, blank=True)
     account_type = models.CharField(
-        max_length=20, choices=AccountType.choices, default=AccountType.OPERATING, db_index=True
+        max_length=20,
+        choices=AccountType.choices,
+        default=AccountType.OPERATING,
+        db_index=True,
+        help_text="Operating/Petty Cash: org-wide (multi-project) books; leave project blank unless tagging. "
+        "Project: dedicated to one project (requires project). Restricted: grant-specific (requires grant).",
     )
     linked_project = models.ForeignKey(
         "tenant_grants.Project",
@@ -1652,6 +1844,7 @@ class BankAccount(models.Model):
         blank=True,
         related_name="linked_bank_accounts",
         related_query_name="linked_bank_account",
+        help_text="Optional for operating accounts (shared across projects). Required when account type is Project.",
     )
     linked_grant = models.ForeignKey(
         "tenant_grants.Grant",
@@ -1664,7 +1857,11 @@ class BankAccount(models.Model):
     is_default_operating = models.BooleanField(default=False, db_index=True)
     opening_balance = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     opening_balance_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True, db_index=True)
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Manual status only. Not driven by linked project or grant. Inactive accounts cannot be used for new transactions.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1698,7 +1895,7 @@ class BankAccount(models.Model):
                 parent_ok = (parent_code or "").strip() == "1200"
             if not parent_ok:
                 errs["account"] = _("Bank account GL must be a child account under 1200 — Bank Accounts.")
-            if not self.account.is_leaf(db):
+            if not self.account.allow_posting:
                 errs["account"] = _("Bank account GL must be a posting leaf account (not a parent).")
             duplicate_gl = (
                 BankAccount.objects.using(db)
@@ -2122,8 +2319,8 @@ class DocumentSeries(models.Model):
     """Numbering and document series for financial documents (e.g. PV-2026-00001)."""
 
     class DocumentType(models.TextChoices):
-        PAYMENT_VOUCHER = "payment_voucher", "Payment Voucher"
-        RECEIPT_VOUCHER = "receipt_voucher", "Receipt Voucher"
+        PAYMENT_VOUCHER = "payment_voucher", "Payments"
+        RECEIPT_VOUCHER = "receipt_voucher", "Receipts"
         JOURNAL = "journal", "Journal Entry"
         DISBURSEMENT = "disbursement", "Disbursement"
         VENDOR_PAYMENT = "vendor_payment", "Vendor Payment"
@@ -2470,9 +2667,9 @@ class PostingRule(models.Model):
             errors["debit_account"] = msg
             errors["credit_account"] = msg
         # Enforce active + posting (leaf) accounts
-        if self.debit_account and (not self.debit_account.is_active or not self.debit_account.is_leaf()):
+        if self.debit_account and (not self.debit_account.is_active or not self.debit_account.allow_posting):
             errors["debit_account"] = _("Debit account must be active and a posting (leaf) account.")
-        if self.credit_account and (not self.credit_account.is_active or not self.credit_account.is_leaf()):
+        if self.credit_account and (not self.credit_account.is_active or not self.credit_account.allow_posting):
             errors["credit_account"] = _("Credit account must be active and a posting (leaf) account.")
         if self.priority < 1 or self.priority > 1000:
             errors["priority"] = _("Priority must be between 1 and 1000.")
@@ -2615,8 +2812,8 @@ class ApprovalWorkflow(models.Model):
     """Approval workflow configuration (e.g. Finance Officer -> Manager -> ED)."""
 
     class TransactionType(models.TextChoices):
-        PAYMENT_VOUCHER = "payment_voucher", "Payment Voucher"
-        RECEIPT_VOUCHER = "receipt_voucher", "Receipt Voucher"
+        PAYMENT_VOUCHER = "payment_voucher", "Payments"
+        RECEIPT_VOUCHER = "receipt_voucher", "Receipts"
         STAFF_ADVANCE = "staff_advance", "Staff Advance"
         BANK_TRANSFER = "bank_transfer", "Bank Transfer"
         JOURNAL_ENTRY = "journal_entry", "Journal Entry"

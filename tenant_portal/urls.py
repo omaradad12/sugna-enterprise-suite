@@ -260,6 +260,7 @@ urlpatterns = [
     path("grants/projects/", views.projects_list_view, name="grants_projects_list"),
     path("grants/project-budget/", views.grants_project_budget_view, name="grants_project_budget"),
     path("grants/grants/", views.grants_grants_view, name="grants_grants"),
+    path("grants/project-setup-wizard/", views.grants_project_setup_wizard_view, name="grants_project_setup_wizard"),
     path("grants/grant-allocation/", views.grants_grant_allocation_view, name="grants_grant_allocation"),
     path("grants/grant-tracking/", views.grants_grant_tracking_view, name="grants_grant_tracking"),
     path("grants/grant-tracking/create/", views.grants_grant_tracking_create_view, name="grants_grant_tracking_create"),
@@ -292,7 +293,7 @@ urlpatterns = [
     path("grants/reports/", views.grants_reports_view, name="grants_reports"),
     path("grants/reports/export/", views.reporting_export_tools_view, name="reporting_export_tools"),
     # Budgeting module
-    path("budget/creation/", views.budget_creation_view, name="budget_creation"),
+    path("budget/creation/", views.grants_project_budget_view, name="budget_creation"),
     path("budget/templates/", views.budget_templates_view, name="budget_templates"),
     path("budget/versions/", views.budget_versions_view, name="budget_versions"),
     path("budget/structures/", views.budget_structures_view, name="budget_structures"),
@@ -309,6 +310,11 @@ urlpatterns = [
     # Fund management (cash & banking)
     path("cash/", views.cash_dashboard_view, name="cash_dashboard"),
     path("cash/bank-accounts/", views.cash_bank_accounts_view, name="cash_bank_accounts"),
+    path(
+        "cash/bank-accounts/<int:bank_account_id>/edit/",
+        views.cash_bank_account_edit_view,
+        name="cash_bank_account_edit",
+    ),
     path("cash/cash-accounts/", views.cash_cash_accounts_view, name="cash_cash_accounts"),
     path("cash/petty-accounts/", views.cash_petty_accounts_view, name="cash_petty_accounts"),
     path("cash/main-cashbook/", views.cash_main_cashbook_view, name="cash_main_cashbook"),
@@ -332,7 +338,19 @@ urlpatterns = [
     path("recv/outstanding-receivables/", views.recv_outstanding_receivables_view, name="recv_outstanding_receivables"),
     path("recv/", views.incoming_fund_center_view, name="incoming_fund_center"),
     # Payables (outgoing_fund URLs)
+    path("pay/payment-entry/", views.pay_payment_entry_view, name="pay_payment_entry"),
+    path("pay/payee-autocomplete/", views.pay_payee_autocomplete_view, name="pay_payee_autocomplete"),
     path("pay/payment-vouchers/", views.pay_payment_vouchers_view, name="pay_payment_vouchers"),
+    path(
+        "pay/payment-vouchers/grants.json",
+        views.pay_pv_grants_for_project_json,
+        name="pay_pv_grants_json",
+    ),
+    path(
+        "pay/payment-vouchers/budget-lines.json",
+        views.pay_pv_budget_lines_for_grant_json,
+        name="pay_pv_budget_lines_json",
+    ),
     path("pay/payment-vouchers/<int:entry_id>/", views.pay_payment_voucher_detail_view, name="pay_payment_voucher_detail"),
     path("pay/payment-vouchers/<int:entry_id>/approve/", views.pay_payment_voucher_approve_view, name="pay_payment_voucher_approve"),
     path("pay/payment-vouchers/approvals/bulk/", views.pay_payment_voucher_bulk_approval_view, name="pay_payment_voucher_bulk_approval"),

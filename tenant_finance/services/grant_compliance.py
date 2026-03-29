@@ -151,12 +151,11 @@ class GrantComplianceEngine:
                         ),
                     )
 
-        # 4. Attachments / procurement flags are advisory; enforced by callers or future extensions.
+        # 4. Supporting documents are optional for posting; never block on missing attachments.
         if rule.require_attachments and not has_attachments:
-            status = "warn" if rule.mode == GrantComplianceRule.Mode.WARN else "block"
             return GrantComplianceResult(
-                status=status,
-                message="Grant compliance: required supporting documents are missing.",
+                status="warn",
+                message="Grant compliance: supporting documents are recommended for this grant/donor.",
             )
         if rule.require_procurement_compliance and not passes_procurement:
             status = "warn" if rule.mode == GrantComplianceRule.Mode.WARN else "block"

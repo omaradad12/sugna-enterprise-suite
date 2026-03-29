@@ -1,5 +1,9 @@
 """
-Seed standard NGO account categories with statement type for all tenant databases.
+Seed standard NGO account categories (balance sheet, income & expenditure, cash flow) for tenant DBs.
+
+Creates system roots (including Cash Flow), then detailed categories: e.g. donor grants income,
+restricted/unrestricted net assets, deferred income / grants in advance, program vs indirect vs admin
+vs fundraising expenses, investments, prepayments, loans, etc.
 
 Run with:
     python manage.py seed_account_categories
@@ -13,34 +17,63 @@ from django.core.management.base import BaseCommand
 # Top-level NGO system categories (enterprise standard)
 SYSTEM_ROOT_CATEGORIES = [
     # name, code, statement_type, category_type, normal_balance, display_order, status
-    ("Assets", "ASSETS", "balance_sheet", "asset", "debit", 5, "active"),
-    ("Liabilities", "LIABILITIES", "balance_sheet", "liability", "credit", 6, "active"),
-    ("Equity", "EQUITY", "balance_sheet", "equity", "credit", 7, "active"),
-    ("Income", "INCOME", "income_expenditure", "income", "credit", 8, "active"),
-    ("Expenses", "EXPENSES", "income_expenditure", "expense", "debit", 9, "active"),
+    (
+        "Cash Flow",
+        "CASHFLOW",
+        "cash_flow",
+        "ASSET",
+        "debit",
+        4,
+        "active",
+    ),
+    ("Assets", "ASSETS", "balance_sheet", "ASSET", "debit", 5, "active"),
+    ("Liabilities", "LIABILITIES", "balance_sheet", "LIABILITY", "credit", 6, "active"),
+    ("Equity", "EQUITY", "balance_sheet", "EQUITY", "credit", 7, "active"),
+    ("Income", "INCOME", "income_expenditure", "INCOME", "credit", 8, "active"),
+    ("Expenses", "EXPENSES", "income_expenditure", "EXPENSE", "debit", 9, "active"),
 ]
 
 # Detailed categories: name, code, statement_type, display_order, status, category_type, normal_balance, parent_code
+# NGO-aligned: grant-funded programs, restricted/unrestricted net assets, deferred donor revenue, typical expense buckets.
 STANDARD_CATEGORIES = [
-    ("Cash", "CASH", "balance_sheet", 10, "active", "asset", "debit", "ASSETS"),
-    ("Bank", "BANK", "balance_sheet", 20, "active", "asset", "debit", "ASSETS"),
-    ("Receivable", "RECEIVABLE", "balance_sheet", 30, "active", "asset", "debit", "ASSETS"),
-    ("Advance", "ADVANCE", "balance_sheet", 40, "active", "asset", "debit", "ASSETS"),
-    ("Inventory", "INVENTORY", "balance_sheet", 50, "active", "asset", "debit", "ASSETS"),
-    ("Fixed Assets", "FIXED_ASSETS", "balance_sheet", 60, "active", "asset", "debit", "ASSETS"),
-    ("Payable", "PAYABLE", "balance_sheet", 70, "active", "liability", "credit", "LIABILITIES"),
-    ("Accrued Liabilities", "ACCRUED_LIAB", "balance_sheet", 80, "active", "liability", "credit", "LIABILITIES"),
-    ("Fund Balance", "FUND_BAL", "balance_sheet", 90, "active", "equity", "credit", "EQUITY"),
-    ("Revenue", "REVENUE", "income_expenditure", 110, "active", "income", "credit", "INCOME"),
-    ("Program Expenses", "PROGRAM_EXP", "income_expenditure", 120, "active", "expense", "debit", "EXPENSES"),
-    ("Staff Costs", "STAFF_COSTS", "income_expenditure", 130, "active", "expense", "debit", "EXPENSES"),
-    ("Operating Expenses", "OPER_EXP", "income_expenditure", 140, "active", "expense", "debit", "EXPENSES"),
-    ("Finance Costs", "FINANCE_COSTS", "income_expenditure", 150, "active", "expense", "debit", "EXPENSES"),
+    # Cash flow statement (parent CASHFLOW — category_type must be ASSET per model rules)
+    ("Cash & Cash Equivalents", "CF_CASH_EQ", "cash_flow", 10, "active", "ASSET", "debit", "CASHFLOW"),
+    # Balance sheet — assets
+    ("Cash", "CASH", "balance_sheet", 10, "active", "ASSET", "debit", "ASSETS"),
+    ("Bank", "BANK", "balance_sheet", 20, "active", "ASSET", "debit", "ASSETS"),
+    ("Receivable", "RECEIVABLE", "balance_sheet", 30, "active", "ASSET", "debit", "ASSETS"),
+    ("Advance", "ADVANCE", "balance_sheet", 40, "active", "ASSET", "debit", "ASSETS"),
+    ("Prepayments", "PREPAYMENT", "balance_sheet", 45, "active", "ASSET", "debit", "ASSETS"),
+    ("Inventory", "INVENTORY", "balance_sheet", 50, "active", "ASSET", "debit", "ASSETS"),
+    ("Investments & Deposits", "INVESTMENTS", "balance_sheet", 55, "active", "ASSET", "debit", "ASSETS"),
+    ("Fixed Assets", "FIXED_ASSETS", "balance_sheet", 60, "active", "ASSET", "debit", "ASSETS"),
+    # Balance sheet — liabilities
+    ("Payable", "PAYABLE", "balance_sheet", 70, "active", "LIABILITY", "credit", "LIABILITIES"),
+    ("Accrued Liabilities", "ACCRUED_LIAB", "balance_sheet", 80, "active", "LIABILITY", "credit", "LIABILITIES"),
+    ("Employee Benefits & Payroll Liabilities", "EMP_BEN_LIAB", "balance_sheet", 88, "active", "LIABILITY", "credit", "LIABILITIES"),
+    ("Deferred Income / Grants in Advance", "DEFERRED_INC", "balance_sheet", 95, "active", "LIABILITY", "credit", "LIABILITIES"),
+    ("Loans & Borrowings", "LOANS", "balance_sheet", 100, "active", "LIABILITY", "credit", "LIABILITIES"),
+    # Balance sheet — equity / net assets
+    ("Fund Balance", "FUND_BAL", "balance_sheet", 90, "active", "EQUITY", "credit", "EQUITY"),
+    ("Net Assets — Unrestricted", "NA_UNRESTRICTED", "balance_sheet", 91, "active", "EQUITY", "credit", "EQUITY"),
+    ("Net Assets — Restricted", "NA_RESTRICTED", "balance_sheet", 92, "active", "EQUITY", "credit", "EQUITY"),
+    # Income & expenditure — income
+    ("Donor Grants & Contributions", "GRANT_INCOME", "income_expenditure", 105, "active", "INCOME", "credit", "INCOME"),
+    ("In-Kind & Other Income", "OTHER_INCOME", "income_expenditure", 108, "active", "INCOME", "credit", "INCOME"),
+    ("Revenue", "REVENUE", "income_expenditure", 110, "active", "INCOME", "credit", "INCOME"),
+    # Income & expenditure — expenses
+    ("Program Expenses", "PROGRAM_EXP", "income_expenditure", 120, "active", "EXPENSE", "debit", "EXPENSES"),
+    ("Indirect & Support Costs", "INDIRECT_EXP", "income_expenditure", 135, "active", "EXPENSE", "debit", "EXPENSES"),
+    ("Staff Costs", "STAFF_COSTS", "income_expenditure", 130, "active", "EXPENSE", "debit", "EXPENSES"),
+    ("Operating Expenses", "OPER_EXP", "income_expenditure", 140, "active", "EXPENSE", "debit", "EXPENSES"),
+    ("Administration (Overheads)", "ADMIN_EXP", "income_expenditure", 145, "active", "EXPENSE", "debit", "EXPENSES"),
+    ("Finance Costs", "FINANCE_COSTS", "income_expenditure", 150, "active", "EXPENSE", "debit", "EXPENSES"),
+    ("Fundraising & Development", "FUNDRAISING_EXP", "income_expenditure", 155, "active", "EXPENSE", "debit", "EXPENSES"),
 ]
 
 
 class Command(BaseCommand):
-    help = "Seed standard NGO account categories with statement type for all tenant DBs or --database."
+    help = "Seed standard NGO account categories (BS / I&E / cash flow) for all tenant DBs or --database."
 
     def add_arguments(self, parser):
         parser.add_argument(

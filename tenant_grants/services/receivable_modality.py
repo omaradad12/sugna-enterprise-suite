@@ -100,7 +100,12 @@ def tranche_unlocked_cap(grant: Grant, today: date | None = None) -> Decimal | N
 def effective_eligible_for_claimable(grant: Grant, today: date | None = None) -> Decimal:
     """
     Eligible amount used for remaining claimable and outstanding receivable caps.
-    Applies min(manual eligible, tranche cap) when tranche_unlocked_cap returns a value.
+
+    When tranche rules apply, uses min(manual eligible, unlocked tranche cap). If the
+    unlocked tranche sum is zero (e.g. due dates not reached or triggers not met) but the
+    grant has a positive budget ceiling, eligibility is not forced to zero: we use
+    min(manual, ceiling) so posting is not blocked by min(manual, 0). When tranches do
+    unlock, the unlocked cap tightens as before.
     """
     from decimal import Decimal
 
@@ -111,7 +116,13 @@ def effective_eligible_for_claimable(grant: Grant, today: date | None = None) ->
     manual = grant.eligible_receivable_amount
     if manual is None or manual < 0:
         manual = Decimal("0")
+    ceiling = grant.grant_ceiling or grant.award_amount or Decimal("0")
+    if manual <= 0 < ceiling:
+        manual = ceiling
+
     cap = tranche_unlocked_cap(grant, today)
     if cap is None:
         return manual
+    if cap <= 0 < ceiling:
+        return min(manual, ceiling)
     return min(manual, cap)

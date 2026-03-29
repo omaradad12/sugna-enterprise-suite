@@ -371,6 +371,7 @@
             <th scope="col">{% trans "Retention %" %}</th>
             <th scope="col">{% trans "Instalments allowed" %}</th>
             <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "GL mapping" %}</th>
             <th scope="col">{% trans "Actions" %}</th>
           </tr>
         </thead>
@@ -416,6 +417,18 @@
               <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#edebe9;color:#605e5c;">{% trans "Inactive" %}</span>
               {% endif %}
             </td>
+            <td class="fs-muted text-xs align-top">
+              {% if s.gl_mapping_ready %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#dff6dd;color:#0b5a0b;">{% trans "Ready" %}</span>
+              {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold" style="background:#fff4ce;color:#8a6116;">{% trans "Incomplete" %}</span>
+              {% endif %}
+              {% if not s.gl_mapping_ready %}
+              <div class="mt-1">
+                <a href="{% url 'tenant_portal:grants_funding_sources' %}?configure={{ s.pk }}" class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold no-underline" style="background:#0078d4;color:#fff;">{% trans "Configure GL mapping" %}</a>
+              </div>
+              {% endif %}
+            </td>
             <td>
               <button
                 type="button"
@@ -450,7 +463,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td class="fs-empty" colspan="7">{% trans "No funding modalities match these filters." %}</td>
+            <td class="fs-empty" colspan="8">{% trans "No funding modalities match these filters." %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -663,6 +676,17 @@
           </button>
         </div>
       </form>
+      {% if can_manage %}
+      <div class="px-5 pb-4 border-t" style="border-color:#edebe9;">
+        <form method="post" id="fs-apply-ngo-form" class="flex flex-wrap items-center gap-2" onsubmit="return confirm('{% trans "Apply standard NGO GL codes to this modality?" %}');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="apply_ngo_template" />
+          <input type="hidden" name="source_id" id="fs-apply-source-id" value="" />
+          <button type="submit" class="dynamics-btn-secondary text-xs" id="fs-apply-ngo-btn" disabled>{% trans "Apply NGO default GL template" %}</button>
+          <span class="text-xs" style="color:#605e5c;">{% trans "Advance, Reimbursement, and Mixed: maps receivable, grant income, advance liability, bank type; retention line when applicable." %}</span>
+        </form>
+      </div>
+      {% endif %}
     </div>
   </div>
   {% endif %}
@@ -682,6 +706,10 @@
     byId("fs-modal-action").value = "create";
     byId("fs-modal-source-id").value = "";
     byId("fs-modal-status").value = "active";
+    var applyId = byId("fs-apply-source-id");
+    var applyBtn = byId("fs-apply-ngo-btn");
+    if (applyId) applyId.value = "";
+    if (applyBtn) applyBtn.disabled = true;
     if (window.fillFundingModalAccountMaps) window.fillFundingModalAccountMaps([]);
     if (typeof window.initFundingModalPs === "function") window.initFundingModalPs();
     if (typeof feather !== "undefined") feather.replace();
@@ -694,6 +722,10 @@
     if (t) t.textContent = "{% trans 'Edit funding modality' %}";
     byId("fs-modal-action").value = "edit";
     byId("fs-modal-source-id").value = String(sourceId);
+    var applyId2 = byId("fs-apply-source-id");
+    var applyBtn2 = byId("fs-apply-ngo-btn");
+    if (applyId2) applyId2.value = String(sourceId);
+    if (applyBtn2) applyBtn2.disabled = false;
     byId("fs-modal-name").value = row.dataset.name || "";
     byId("fs-modal-type").value = row.dataset.modalityType || "";
     byId("fs-modal-retention").value = row.dataset.retention || "";

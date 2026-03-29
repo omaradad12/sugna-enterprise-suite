@@ -145,46 +145,25 @@ def has_complete_gl_mapping(
     component_type: str = "",
 ) -> bool:
     """
-    True when modality mapping has all required GL accounts.
-
-    Required mapping keys:
-    - receivable_account
-    - income_account
-    - deferred_income_account
-    - retention_account
+    True when modality mapping has all required GL accounts and bank account type
+    for each required payment component (see funding_modality_gl.funding_modality_is_ready_for_use).
     """
+    from tenant_grants.services.funding_modality_gl import funding_modality_is_ready_for_use
+
+    ensure_component_account_map_schema(using)
+    if grant is None and funding_source is not None and not (component_type or "").strip():
+        return funding_modality_is_ready_for_use(using, funding_source)
+
     required_keys = (
         "receivable_account",
         "income_account",
         "deferred_income_account",
         "retention_account",
     )
-    ensure_component_account_map_schema(using)
-    if grant is None and funding_source is not None and not (component_type or "").strip():
-        from tenant_grants.models import FundingSourceComponentAccountMap
-
-        rows = list(
-            FundingSourceComponentAccountMap.objects.using(using)
-            .filter(funding_source_id=funding_source.pk)
-            .only(
-                "receivable_account_id",
-                "income_account_id",
-                "deferred_income_account_id",
-                "retention_account_id",
-            )
-        )
-        if not rows:
-            return False
-        return all(
-            bool(r.receivable_account_id and r.income_account_id and r.deferred_income_account_id and r.retention_account_id)
-            for r in rows
-        )
-
     from tenant_grants.models import Grant as GrantModel
 
     target_grant = grant
     if target_grant is None and funding_source is not None:
-        # Minimal grant-like object so resolve_component_account_mapping can reuse one path.
         target_grant = GrantModel(funding_modality=funding_source)
     mapping = resolve_component_account_mapping(
         using=using,
@@ -193,4 +172,12 @@ def has_complete_gl_mapping(
     )
     if not mapping:
         return False
-    return all(mapping.get(k) is not None for k in required_keys)
+    if not (mapping.get("receivable_account") and mapping.get("income_account") and mapping.get("deferred_income_account")):
+        return False
+    if not (mapping.get("bank_account_type") or "").strip():
+        return False
+    from tenant_grants.models import FundingSourcePaymentStructure
+
+    if (component_type or "").strip() == FundingSourcePaymentStructure.ComponentType.RETENTION:
+        return mapping.get("retention_account") is not None
+    return True

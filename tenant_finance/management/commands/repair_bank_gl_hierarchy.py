@@ -104,7 +104,12 @@ class Command(BaseCommand):
         with transaction.atomic(using=db):
             for ba in bank_accounts:
                 acc = ba.account
-                valid = bool(acc and acc.code != "1200" and acc.parent_id == parent.pk and acc.is_leaf(db))
+                valid = bool(
+                    acc
+                    and acc.code != "1200"
+                    and acc.parent_id == parent.pk
+                    and getattr(acc, "allow_posting", True)
+                )
                 duplicate = bool(acc and acc.pk in used_account_ids)
 
                 if valid and not duplicate:

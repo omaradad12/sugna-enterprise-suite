@@ -16,7 +16,14 @@
       </div>
       <div>
         <p class="text-xs font-semibold text-[#605e5c]">Status</p>
-        <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.get_status_display }}</p>
+        <p class="border-b pb-1" style="border-color:#edebe9;">
+          {% if pending_budget_override %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">Pending budget override approval</span>
+            <span class="text-[#605e5c] text-xs">({{ entry.get_status_display }})</span>
+          {% else %}
+            {{ entry.get_status_display }}
+          {% endif %}
+        </p>
       </div>
       <div>
         <p class="text-xs font-semibold text-[#605e5c]">Date</p>
@@ -36,11 +43,36 @@
       </div>
       <div>
         <p class="text-xs font-semibold text-[#605e5c]">Amount</p>
-        <p class="border-b pb-1 font-semibold" style="border-color:#edebe9;">{{ amount }}</p>
+        <p class="border-b pb-1 font-semibold tabular-nums" style="border-color:#edebe9;">
+          {% if grant_currency %}{{ grant_currency.symbol|default:"" }} {% endif %}{{ amount|floatformat:2 }}{% if grant_currency %} <span class="font-normal text-[#605e5c]">{{ grant_currency.code }}</span>{% endif %}
+        </p>
       </div>
     </div>
   </div>
 </div>
+
+{% if pending_budget_override %}
+<div class="erp-section mb-4 border-amber-300 bg-amber-50/80">
+  <div class="erp-section-header" style="background:#b45309;color:#ffffff;">Budget override request</div>
+  <div class="erp-section-body text-sm">
+    <p class="text-[#78350f] mb-3">This payment triggered budget control. Review the comparison below, then approve to authorize posting or return for correction.</p>
+    <dl class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+      <div>
+        <dt class="font-semibold text-[#605e5c]">Requested by</dt>
+        <dd>{{ pending_budget_override.requested_by.get_full_name|default:pending_budget_override.requested_by.email|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="font-semibold text-[#605e5c]">Requested at</dt>
+        <dd>{{ pending_budget_override.requested_at|date:"Y-m-d H:i" }}</dd>
+      </div>
+      <div class="sm:col-span-3">
+        <dt class="font-semibold text-[#605e5c]">Maker comment</dt>
+        <dd class="whitespace-pre-wrap text-[#323130]">{{ pending_budget_override.reason|default:"—" }}</dd>
+      </div>
+    </dl>
+  </div>
+</div>
+{% endif %}
 
 <div class="erp-section mb-4">
   <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Lines</div>
@@ -61,8 +93,8 @@
           <td>{{ line.account.code }}</td>
           <td>{{ line.account.name }}</td>
           <td>{{ line.description|default:"—" }}</td>
-          <td>{{ line.debit }}</td>
-          <td>{{ line.credit }}</td>
+          <td class="tabular-nums">{{ line.debit|floatformat:2 }}</td>
+          <td class="tabular-nums">{{ line.credit|floatformat:2 }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -70,15 +102,77 @@
   </div>
 </div>
 
+{% if entry.grant_id %}
+<div class="erp-section mb-4 border border-[#e2e8f0] shadow-sm">
+  <div class="erp-section-header" style="background:#0f172a;color:#ffffff;">Budget control comparison</div>
+  <div class="erp-section-body p-0">
+    {% if grant_currency %}
+    <p class="text-[11px] text-[#64748b] px-4 py-2 border-b border-[#f1f5f9] bg-[#fafafa]">
+      All amounts are in <strong>{{ grant_currency.code }}</strong>{% if grant_currency.symbol %} ({{ grant_currency.symbol }}){% endif %}.
+    </p>
+    {% endif %}
+    {% if budget_comparison_rows %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs border-collapse min-w-[52rem]">
+        <thead>
+          <tr class="text-left bg-[#f8fafc] border-b border-[#e2e8f0] text-[11px] font-semibold uppercase tracking-wide text-[#64748b]">
+            <th class="pl-4 pr-2 py-2.5 min-w-[14rem]">Budget line</th>
+            <th class="px-2 py-2.5 text-right tabular-nums">Budget</th>
+            <th class="px-2 py-2.5 text-right tabular-nums">Used</th>
+            <th class="px-2 py-2.5 text-right tabular-nums">This voucher</th>
+            <th class="px-2 py-2.5 text-right tabular-nums">Total</th>
+            <th class="px-2 py-2.5 text-right tabular-nums">Available</th>
+            <th class="pr-4 pl-2 py-2.5 text-left min-w-[11rem]">Variance</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#f1f5f9]">
+          {% for row in budget_comparison_rows %}
+          <tr class="hover:bg-[#fafafa]">
+            <td class="pl-4 pr-2 py-2.5 align-top">
+              <span class="font-mono font-semibold text-[#0f172a]">{{ row.budget_code }}</span>
+              {% if row.line_name and row.line_name != "—" %}
+              <span class="block text-[11px] text-[#475569] mt-0.5">{{ row.line_name }}</span>
+              {% endif %}
+            </td>
+            <td class="px-2 py-2.5 text-right tabular-nums text-[#0f172a]">{{ row.approved_budget|floatformat:2 }}</td>
+            <td class="px-2 py-2.5 text-right tabular-nums text-[#334155]">{{ row.used_before|floatformat:2 }}</td>
+            <td class="px-2 py-2.5 text-right tabular-nums font-medium text-[#0f172a]">{{ row.this_voucher|floatformat:2 }}</td>
+            <td class="px-2 py-2.5 text-right tabular-nums font-semibold text-[#0f172a]">{{ row.total_after_posting|floatformat:2 }}</td>
+            <td class="px-2 py-2.5 text-right tabular-nums {% if row.remaining_balance < 0 %}text-red-700 font-medium{% else %}text-[#334155]{% endif %}">{{ row.remaining_balance|floatformat:2 }}</td>
+            <td class="pr-4 pl-2 py-2.5 align-top">
+              {% if row.over_budget %}
+              <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-red-50 text-red-800 border border-red-200">Over budget by {{ row.variance|floatformat:2 }}</span>
+              {% else %}
+              <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Within budget</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-[11px] text-[#64748b] px-4 py-2 border-t border-[#f1f5f9] bg-[#fafafa]">
+      <strong>Variance</strong> = Total − Budget. <strong>Available</strong> = Budget − Total (remaining after this voucher posts).
+    </p>
+    {% elif budget_check_result and budget_check_result.status == "no_budget" %}
+    <p class="text-sm text-amber-900 px-4 py-4">{{ budget_check_result.message|default:"No budget lines are defined for this grant." }}</p>
+    {% else %}
+    <p class="text-sm text-[#64748b] px-4 py-4">No budget line comparison could be built for this voucher.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <form method="post" class="erp-section max-w-2xl">
   {% csrf_token %}
   <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Approval decision</div>
   <div class="erp-section-body space-y-3">
     <p class="text-xs text-[#605e5c]">
-      To **return for correction** or **reject**, you must enter a comment. Approved vouchers will be posted and locked.
+      To return for correction or reject, you must enter a comment. Approved vouchers will be posted and locked.
+      {% if pending_budget_override %}If this voucher is over budget, your approval records the authorization to post.{% endif %}
     </p>
     <div>
-      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Comment (required for rejection / correction)</label>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Approver comment (optional for approve; required for rejection / correction)</label>
       <textarea name="comment"
                 rows="3"
                 class="w-full text-xs border rounded px-2 py-1"
@@ -107,4 +201,3 @@
   </div>
 </form>
 {% endblock %}
-

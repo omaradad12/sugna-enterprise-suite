@@ -200,6 +200,101 @@
     margin-left: -1px;
     background: linear-gradient(180deg, #faf9f8 0%, #ffffff 100%);
   }
+  .dynamics-gfr-page .gw-create-modal {
+    width: min(1100px, 96vw);
+    max-height: min(92vh, 980px);
+    overflow: hidden;
+    border-radius: 10px;
+  }
+  .dynamics-gfr-page .gw-create-modal .gw-modal-h {
+    padding: 0.95rem 1.25rem;
+    border-left-width: 4px;
+  }
+  .dynamics-gfr-page .gw-create-form-scroll {
+    max-height: calc(min(92vh, 980px) - 64px);
+    overflow-y: auto;
+    padding: 1rem 1.25rem 1.1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfb 100%);
+  }
+  .dynamics-gfr-page .gw-form-intro {
+    font-size: 12px;
+    color: #605e5c;
+    margin: 0 0 0.85rem;
+  }
+  .dynamics-gfr-page .gw-form-section {
+    border: 1px solid #edebe9;
+    border-radius: 8px;
+    background: #ffffff;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.03);
+  }
+  .dynamics-gfr-page .gw-form-section-h {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid #f3f2f1;
+    background: linear-gradient(180deg, #faf9f8 0%, #ffffff 100%);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .gw-form-section-b {
+    padding: 0.85rem;
+    display: grid;
+    gap: 0.75rem;
+  }
+  .dynamics-gfr-page .gw-form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 0.85rem;
+  }
+  .dynamics-gfr-page .gw-form-grid-1 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .dynamics-gfr-page .gw-form-field label {
+    display: block;
+    margin-bottom: 0.28rem;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .gw-form-field .dynamics-input,
+  .dynamics-gfr-page .gw-form-field .dynamics-select {
+    min-height: 38px;
+    border-color: #d2d0ce !important;
+    border-radius: 6px;
+  }
+  .dynamics-gfr-page .gw-form-field textarea.dynamics-input {
+    min-height: 86px !important;
+  }
+  .dynamics-gfr-page .gw-form-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0 -1.25rem -1.1rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #edebe9;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+  .dynamics-gfr-page .gw-form-foot small {
+    color: #8a8886;
+    font-size: 11px;
+  }
+  @media (max-width: 900px) {
+    .dynamics-gfr-page .gw-create-modal {
+      width: min(96vw, 760px);
+    }
+    .dynamics-gfr-page .gw-form-grid-2 {
+      grid-template-columns: 1fr;
+    }
+  }
   @media print {
     .dynamics-gfr-page .hidden-print,
     .dynamics-gfr-page .dynamics-gfr-toolbar,
@@ -464,88 +559,107 @@
 <div x-show="createWorkplanOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto hidden-print dynamics-financial-report" aria-modal="true">
   <div class="flex min-h-full items-center justify-center p-4">
     <div class="fixed inset-0 bg-black/30" @click="createWorkplanOpen = false"></div>
-    <div class="relative gw-modal-shell dynamics-gfr-page max-w-lg w-full max-h-[90vh] overflow-y-auto p-0">
+    <div class="relative gw-modal-shell dynamics-gfr-page gw-create-modal p-0">
       <div class="gw-modal-h rounded-t sticky top-0 z-[1]">
         <h3 class="text-base font-bold m-0" style="color:#201f1e;">{% trans "Create workplan" %}</h3>
         <button type="button" @click="createWorkplanOpen = false" class="p-1 rounded hover:bg-[#edebe9]" style="color:#605e5c;" aria-label="{% trans 'Close' %}"><i data-feather="x" class="w-5 h-5"></i></button>
       </div>
-      <form method="post" action="" class="p-5 space-y-3">
+      <form method="post" action="" class="gw-create-form-scroll">
         {% csrf_token %}
         <input type="hidden" name="form_type" value="create_workplan" />
-        <div class="dynamics-filter-field">
-          <label for="gw-c-grant">{% trans "Grant" %} <span style="color:#A4262C;">*</span></label>
-          <select id="gw-c-grant" name="grant_id" required class="dynamics-select w-full bg-white">
-            <option value="">{% trans "Select grant" %}</option>
-            {% for g in grants %}
-            <option value="{{ g.pk }}">{{ g.code }} — {{ g.title }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-title">{% trans "Activity name" %} <span style="color:#A4262C;">*</span></label>
-          <input id="gw-c-title" name="workplan_title" required class="dynamics-input w-full" placeholder="{% trans 'e.g. Q1 field activities' %}" />
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-donor">{% trans "Donor" %}</label>
-          <select id="gw-c-donor" name="donor_id" class="dynamics-select w-full bg-white">
-            <option value="">{% trans "Same as grant" %}</option>
-            {% for d in donors %}
-            <option value="{{ d.pk }}">{{ d.code }} — {{ d.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-comp">{% trans "Component / output" %}</label>
-          <input id="gw-c-comp" name="workplan_component" class="dynamics-input w-full" placeholder="{% trans 'Grant output' %}" />
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-pbl">{% trans "Project budget line" %}</label>
-          <select id="gw-c-pbl" name="workplan_project_budget_line" class="dynamics-select w-full bg-white">
-            <option value="">{% trans "— (required if project has budget structure)" %}</option>
-            {% for bl in project_budget_lines %}
-            <option value="{{ bl.pk }}">{{ bl.project_budget.project.code }} · {{ bl.category }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-bl">{% trans "Budget line (text)" %}</label>
-          <input id="gw-c-bl" name="workplan_budget_line" class="dynamics-input w-full" placeholder="{% trans 'Optional label / memo' %}" />
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-proc">{% trans "Procurement requirement" %}</label>
-          <textarea id="gw-c-proc" name="workplan_procurement" rows="2" class="dynamics-input w-full resize-y" style="min-height:3rem;" placeholder="{% trans 'Description of procurement need' %}"></textarea>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="dynamics-filter-field">
-            <label for="gw-c-dept">{% trans "Responsible department" %}</label>
-            <input id="gw-c-dept" name="workplan_department" class="dynamics-input w-full" />
+        <p class="gw-form-intro">{% trans "Capture the activity details, ownership, schedule, and budget in one entry. Required fields are marked with *." %}</p>
+
+        <section class="gw-form-section">
+          <div class="gw-form-section-h">{% trans "Core activity details" %}</div>
+          <div class="gw-form-section-b gw-form-grid-2">
+            <div class="gw-form-field">
+              <label for="gw-c-grant">{% trans "Grant" %} <span style="color:#A4262C;">*</span></label>
+              <select id="gw-c-grant" name="grant_id" required class="dynamics-select w-full bg-white">
+                <option value="">{% trans "Select grant" %}</option>
+                {% for g in grants %}
+                <option value="{{ g.pk }}">{{ g.code }} — {{ g.title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-donor">{% trans "Donor" %}</label>
+              <select id="gw-c-donor" name="donor_id" class="dynamics-select w-full bg-white">
+                <option value="">{% trans "Same as grant" %}</option>
+                {% for d in donors %}
+                <option value="{{ d.pk }}">{{ d.code }} — {{ d.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-title">{% trans "Activity name" %} <span style="color:#A4262C;">*</span></label>
+              <input id="gw-c-title" name="workplan_title" required class="dynamics-input w-full" placeholder="{% trans 'e.g. Q1 field activities' %}" />
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-comp">{% trans "Component / output" %}</label>
+              <input id="gw-c-comp" name="workplan_component" class="dynamics-input w-full" placeholder="{% trans 'Grant output' %}" />
+            </div>
           </div>
-          <div class="dynamics-filter-field">
-            <label for="gw-c-staff">{% trans "Responsible staff" %}</label>
-            <input id="gw-c-staff" name="workplan_staff" class="dynamics-input w-full" placeholder="{% trans 'Activity owner' %}" />
+        </section>
+
+        <section class="gw-form-section">
+          <div class="gw-form-section-h">{% trans "Budget mapping and procurement" %}</div>
+          <div class="gw-form-section-b gw-form-grid-2">
+            <div class="gw-form-field">
+              <label for="gw-c-pbl">{% trans "Project budget line" %}</label>
+              <select id="gw-c-pbl" name="workplan_project_budget_line" class="dynamics-select w-full bg-white">
+                <option value="">{% trans "— (required if project has budget structure)" %}</option>
+                {% for bl in project_budget_lines %}
+                <option value="{{ bl.pk }}">{{ bl.project_budget.project.code }} · {{ bl.category }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-bl">{% trans "Budget line (text)" %}</label>
+              <input id="gw-c-bl" name="workplan_budget_line" class="dynamics-input w-full" placeholder="{% trans 'Optional label / memo' %}" />
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-bud">{% trans "Budget amount" %}</label>
+              <input id="gw-c-bud" name="workplan_budget" type="number" step="0.01" min="0" class="dynamics-input w-full" placeholder="0.00" />
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-proc">{% trans "Procurement requirement" %}</label>
+              <textarea id="gw-c-proc" name="workplan_procurement" rows="3" class="dynamics-input w-full resize-y" placeholder="{% trans 'Description of procurement need' %}"></textarea>
+            </div>
           </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="dynamics-filter-field">
-            <label for="gw-c-sd">{% trans "Start date" %}</label>
-            <input id="gw-c-sd" name="workplan_start_date" type="date" class="dynamics-input w-full" />
+        </section>
+
+        <section class="gw-form-section">
+          <div class="gw-form-section-h">{% trans "Ownership, schedule, and notes" %}</div>
+          <div class="gw-form-section-b gw-form-grid-2">
+            <div class="gw-form-field">
+              <label for="gw-c-dept">{% trans "Responsible department" %}</label>
+              <input id="gw-c-dept" name="workplan_department" class="dynamics-input w-full" />
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-staff">{% trans "Responsible staff" %}</label>
+              <input id="gw-c-staff" name="workplan_staff" class="dynamics-input w-full" placeholder="{% trans 'Activity owner' %}" />
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-sd">{% trans "Start date" %}</label>
+              <input id="gw-c-sd" name="workplan_start_date" type="date" class="dynamics-input w-full" />
+            </div>
+            <div class="gw-form-field">
+              <label for="gw-c-ed">{% trans "End date" %}</label>
+              <input id="gw-c-ed" name="workplan_end_date" type="date" class="dynamics-input w-full" />
+            </div>
+            <div class="gw-form-field" style="grid-column: 1 / -1;">
+              <label for="gw-c-notes">{% trans "Notes" %}</label>
+              <textarea id="gw-c-notes" name="workplan_description" rows="3" class="dynamics-input w-full resize-y"></textarea>
+            </div>
           </div>
-          <div class="dynamics-filter-field">
-            <label for="gw-c-ed">{% trans "End date" %}</label>
-            <input id="gw-c-ed" name="workplan_end_date" type="date" class="dynamics-input w-full" />
+        </section>
+
+        <div class="gw-form-foot">
+          <small>{% trans "Tip: select project budget line where available to improve budget control and PR linkage." %}</small>
+          <div class="flex gap-2">
+            <button type="submit" class="dynamics-btn-primary"><i data-feather="save" class="w-4 h-4"></i> {% trans "Save workplan" %}</button>
+            <button type="button" @click="createWorkplanOpen = false" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
           </div>
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-bud">{% trans "Budget amount" %}</label>
-          <input id="gw-c-bud" name="workplan_budget" type="number" step="0.01" min="0" class="dynamics-input w-full" placeholder="0.00" />
-        </div>
-        <div class="dynamics-filter-field">
-          <label for="gw-c-notes">{% trans "Notes" %}</label>
-          <textarea id="gw-c-notes" name="workplan_description" rows="2" class="dynamics-input w-full resize-y" style="min-height:3rem;"></textarea>
-        </div>
-        <div class="flex gap-2 pt-2 border-t" style="border-color:#edebe9;">
-          <button type="submit" class="dynamics-btn-primary"><i data-feather="save" class="w-4 h-4"></i> {% trans "Save workplan" %}</button>
-          <button type="button" @click="createWorkplanOpen = false" class="dynamics-btn-secondary">{% trans "Cancel" %}</button>
         </div>
       </form>
     </div>

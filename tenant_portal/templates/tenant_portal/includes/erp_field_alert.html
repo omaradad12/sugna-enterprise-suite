@@ -1,0 +1,9 @@
+{% if issues %}
+<div class="erp-field-alerts mt-1 space-y-1" data-field="{{ field_name }}">
+  {% for it in issues %}
+  <p class="text-[12px] leading-snug {% if it.severity == 'critical' %}text-[#a4262c] font-medium{% elif it.severity == 'warning' %}text-[#ca5010]{% else %}text-[#605e5c]{% endif %}">
+    {{ it.message }}
+  </p>
+  {% endfor %}
+</div>
+{% endif %}

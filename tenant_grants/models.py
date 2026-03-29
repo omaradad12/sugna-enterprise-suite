@@ -1129,11 +1129,17 @@ class Project(models.Model):
         blank=True,
         help_text="Program, sector, or thematic area.",
     )
+    program_category_code = models.CharField(
+        max_length=60,
+        blank=True,
+        db_index=True,
+        help_text="Financial dimension value code for program category (e.g. PRG-01), when Program dimension is used.",
+    )
     funding_type = models.CharField(
         max_length=30,
         choices=FundingType.choices,
         blank=True,
-        help_text="Program / category label (optional).",
+        help_text="High-level funding category (project / core / …). Kept for reporting; program pick from dimensions is stored in program_category_code.",
     )
     funding_modality = models.ForeignKey(
         "FundingSource",
@@ -1388,8 +1394,6 @@ class Grant(models.Model):
     project = models.ForeignKey(
         Project,
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="grants",
         help_text="Grant must belong to a project for transaction posting.",
     )
@@ -2480,53 +2484,88 @@ class GrantDocument(models.Model):
 
 
 class BudgetLine(models.Model):
+    """
+    Grant budget code: flat code per grant/project with expense account mapping (no hierarchy).
+    """
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", _("Active")
+        INACTIVE = "inactive", _("Inactive")
+
     grant = models.ForeignKey(Grant, on_delete=models.CASCADE, related_name="budget_lines")
-    budget_line_code = models.CharField(
-        max_length=50,
-        help_text="Budget line code mapped to COA account code (unique per grant/project).",
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.PROTECT,
+        related_name="budget_lines",
+        help_text="Must match grant.project.",
     )
-    # Link to chart of accounts for proper coding of the budget line.
+    budget_code = models.CharField(
+        max_length=50,
+        help_text="Budget code (unique per grant); may differ from COA code.",
+    )
+    # Expense chart account (API/UI: expense_account_id).
     account = models.ForeignKey(
         "tenant_finance.ChartAccount",
         on_delete=models.PROTECT,
         related_name="budget_lines",
-        null=True,
-        blank=True,
     )
-    category = models.CharField(max_length=120)
+    category = models.CharField(max_length=120, blank=True, default="")
     description = models.CharField(max_length=255, blank=True)
     amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     notes = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
 
     class Meta:
         ordering = ["id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["grant", "budget_line_code"],
-                name="uniq_budgetline_grant_code",
+                fields=["grant", "budget_code"],
+                name="uniq_budgetline_grant_budget_code",
             )
         ]
+        verbose_name = _("Budget code")
+        verbose_name_plural = _("Budget codes")
+
+    @property
+    def expense_account_id(self):
+        """Alias for account_id (payment voucher / API naming)."""
+        return self.account_id
+
+    def save(self, *args, **kwargs):
+        if self.grant_id and not self.project_id:
+            proj_id = getattr(self.grant, "project_id", None)
+            if proj_id:
+                self.project_id = proj_id
+        super().save(*args, **kwargs)
 
     def clean(self) -> None:
-        from decimal import Decimal
-
         errors = {}
-        if self.amount is not None and self.amount < Decimal("0"):
-            errors["amount"] = _("Budget line amount cannot be negative.")
-        code = (self.budget_line_code or "").strip()
+        code = (self.budget_code or "").strip()
         if not code:
-            errors["budget_line_code"] = _("Budget line code is required.")
+            errors["budget_code"] = _("Budget code is required.")
         else:
-            self.budget_line_code = code
-            if self.account_id and (self.account.code or "").strip() != code:
-                errors["budget_line_code"] = _(
-                    "Budget line code must match the selected COA account code."
-                )
+            self.budget_code = code
+        if not self.account_id:
+            errors["account"] = _("Expense (chart) account is required.")
+        else:
+            from tenant_finance.models import ChartAccount
+
+            acc = self.account
+            if acc and getattr(acc, "type", None) != ChartAccount.Type.EXPENSE:
+                errors["account"] = _("Budget codes must use an expense chart account.")
+        if self.grant_id and getattr(self.grant, "project_id", None) and self.project_id:
+            if self.project_id != self.grant.project_id:
+                errors["project"] = _("Budget code project must match the grant's project.")
         if errors:
             raise ValidationError(errors)
 
     def __str__(self) -> str:
-        return f"{self.grant.code}: {self.budget_line_code} — {self.category}"
+        return f"{self.grant.code}: {self.budget_code} — {self.category}"
 
 
 class GrantApproval(models.Model):
@@ -2638,9 +2677,9 @@ class GrantBudget(Grant):
 
 
 class GrantBudgetLine(BudgetLine):
-    """Proxy for grant budget line rows (same table as BudgetLine)."""
+    """Proxy for grant budget code rows (same table as BudgetLine)."""
 
     class Meta:
         proxy = True
-        verbose_name = _("Grant budget line")
-        verbose_name_plural = _("Grant budget lines")
+        verbose_name = _("Grant budget code")
+        verbose_name_plural = _("Grant budget codes")

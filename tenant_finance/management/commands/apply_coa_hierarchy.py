@@ -18,7 +18,7 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true", help="Preview without saving.")
 
     def handle(self, *args, **options):
-        from tenant_finance.models import ChartAccount
+        from tenant_finance.models import ChartAccount, normalize_finance_account_class
 
         tenant_arg = options["tenant"]
         dry_run = bool(options.get("dry_run"))
@@ -57,7 +57,7 @@ class Command(BaseCommand):
                     continue
                 if a.parent_id == parent.pk:
                     continue
-                if a.type != parent.type:
+                if normalize_finance_account_class(a.type) != normalize_finance_account_class(parent.type):
                     continue
 
                 self.stdout.write(f"[{db}] {a.code} {a.name} -> parent {parent.code} {parent.name}")

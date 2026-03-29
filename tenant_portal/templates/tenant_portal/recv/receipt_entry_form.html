@@ -3,7 +3,32 @@
 {% block title %}Receipt entry | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto pb-8" x-data="{ receiptType: '{{ receipt_type }}' }">
+{{ grant_meta|json_script:"recv-grant-meta" }}
+{{ grant_tranches|json_script:"recv-grant-tranches" }}
+<div class="max-w-5xl mx-auto pb-8" x-data="{
+    receiptType: '{{ receipt_type }}',
+    grantMeta: {},
+    grantTranches: {},
+    selectedGrant: '',
+    receivedFrom: '',
+    initGrantMeta() {
+      try {
+        this.grantMeta = JSON.parse(document.getElementById('recv-grant-meta').textContent || '{}');
+      } catch (e) { this.grantMeta = {}; }
+    },
+    initGrantTranches() {
+      try {
+        const el = document.getElementById('recv-grant-tranches');
+        this.grantTranches = el ? JSON.parse(el.textContent || '{}') : {};
+      } catch (e) { this.grantTranches = {}; }
+    },
+    syncDonorFromGrant() {
+      if (this.receiptType === 'grant_funding' && this.selectedGrant && this.grantMeta[this.selectedGrant]) {
+        this.receivedFrom = this.grantMeta[this.selectedGrant].donor || '';
+      }
+    }
+  }"
+  x-init="initGrantMeta(); initGrantTranches(); syncDonorFromGrant()">
   <style>
     .recv-entry-hero {
       border: 1px solid #e5e7eb;
@@ -39,125 +64,173 @@
   </style>
 
   <div class="recv-entry-hero">
-    <h1 class="text-2xl font-semibold text-[#323130]">Receipt entry</h1>
+    <h1 class="text-2xl font-semibold text-[#323130]">{% trans "Receipt entry" %}</h1>
   </div>
 
   <form method="post" enctype="multipart/form-data" class="recv-entry-shell space-y-4">
     {% csrf_token %}
+    <datalist id="received-from-list">
+      {% for name in received_from_suggestions %}
+      <option value="{{ name }}"></option>
+      {% endfor %}
+    </datalist>
+
+    {# —— Common: receipt type, date, method —— #}
     <div class="recv-entry-section grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Receipt type</label>
-        <select name="receipt_type" x-model="receiptType" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]">
-          <option value="grant_funding">Grant funding receipt</option>
-          <option value="cashbook">Cashbook receipt</option>
-          <option value="other_income">Other income receipt</option>
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Receipt type" %}</label>
+        <select name="receipt_type" x-model="receiptType" @change="syncDonorFromGrant()" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]">
+          <option value="grant_funding">{% trans "Grant funding receipt" %}</option>
+          <option value="cashbook">{% trans "Cashbook receipt" %}</option>
+          <option value="other_income">{% trans "Other income receipt" %}</option>
         </select>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Receipt date</label>
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Receipt date" %}</label>
         <input type="date" name="voucher_date" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required />
       </div>
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Receipt method</label>
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Receipt method" %}</label>
         <select name="receipt_method" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required>
-          <option value="">Select</option>
-          <option value="bank">Bank</option>
-          <option value="cash">Cash</option>
-          <option value="transfer">Transfer</option>
-          <option value="cheque">Cheque</option>
-          <option value="mobile_money">Mobile money</option>
+          <option value="">{% trans "Select" %}</option>
+          <option value="bank">{% trans "Bank" %}</option>
+          <option value="cash">{% trans "Cash" %}</option>
+          <option value="transfer">{% trans "Transfer" %}</option>
+          <option value="cheque">{% trans "Cheque" %}</option>
+          <option value="mobile_money">{% trans "Mobile money" %}</option>
         </select>
       </div>
     </div>
 
+    {# —— Common: reference number | received from (non–grant-funding) OR donor preview (grant funding) —— #}
     <div class="recv-entry-section grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Received from</label>
-        <input type="text" name="received_from" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required />
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Reference number" %}</label>
+        <input type="text" name="reference_no" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" />
       </div>
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Reference no.</label>
-        <input type="text" name="reference_no" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" />
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Received from" %}</label>
+        <template x-if="receiptType === 'grant_funding'">
+          <div>
+            <input type="text" name="received_from" x-model="receivedFrom" readonly
+                   class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-[#f9fafb]" required />
+            <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "Filled automatically from the selected grant’s donor." %}</p>
+          </div>
+        </template>
+        <template x-if="receiptType !== 'grant_funding'">
+          <div>
+            <input type="text" name="received_from" id="received_from_input" list="received-from-list" autocomplete="off"
+                   x-model="receivedFrom"
+                   placeholder="{% trans 'Select or type a name' %}"
+                   class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required />
+            <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "Pick a donor or past payee, or type a new name." %}</p>
+          </div>
+        </template>
       </div>
     </div>
 
+    {# —— Common: amount, deposit bank account —— #}
     <div class="recv-entry-section grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Amount</label>
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Amount" %}</label>
         <input type="number" step="0.01" min="0.01" name="amount" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required />
       </div>
       <div class="md:col-span-2">
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Deposit bank/cash account</label>
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Deposit bank account" %}</label>
         <select name="deposit_account_id" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required>
-          <option value="">Select account</option>
-          {% for ba in deposit_accounts %}
-          <option value="{{ ba.id }}">{{ ba.account.code }} — {{ ba.account.name }}</option>
+          <option value="">{% trans "Select account" %}</option>
+          {% for acc in deposit_accounts %}
+          <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
           {% endfor %}
         </select>
       </div>
     </div>
 
-    <div x-show="receiptType === 'grant_funding'" class="recv-entry-section grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Grant</label>
-        <select name="grant_id" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]">
-          <option value="">Select grant</option>
-          {% for g in grants %}
-          <option value="{{ g.id }}">{{ g.code }} — {{ g.title }}</option>
-          {% endfor %}
-        </select>
+    {# —— Grant funding: grant, project, tranche —— #}
+    <div class="recv-entry-section space-y-3" x-show="receiptType === 'grant_funding'" x-cloak>
+      <p class="text-[12px] text-[#605e5c] -mt-0.5 mb-1">{% trans "Posting: Debit this bank account; Credit grant receivable or grant income from grant funding modality setup." %}</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Grant" %}</label>
+          <select name="grant_id" x-model="selectedGrant" @change="syncDonorFromGrant()" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]">
+            <option value="">{% trans "Select grant" %}</option>
+            {% for g in grants %}
+            <option value="{{ g.id }}">{{ g.code }} — {{ g.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Project" %}</label>
+          <input type="text" readonly class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-[#f9fafb]" :value="selectedGrant && grantMeta[selectedGrant] ? grantMeta[selectedGrant].project : ''" />
+        </div>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Tranche no./reference</label>
-        <input type="text" name="tranche_no" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" placeholder="e.g. 1, T1, 2026-Q1" />
-      </div>
-      <div class="md:col-span-2">
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Receivable account (credit)</label>
-        <select
-          name="receivable_account_id"
-          class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] {% if not can_override_funding_modality_gl %}bg-[#f3f2f1] text-[#605e5c]{% endif %}"
-          {% if not can_override_funding_modality_gl %}disabled{% endif %}
-        >
-          <option value="">{% if can_override_funding_modality_gl %}Optional override{% else %}Auto from funding modality{% endif %}</option>
-          {% for a in receivable_accounts %}
-          <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
-          {% endfor %}
-        </select>
-        {% if not can_override_funding_modality_gl %}
-        <p class="mt-1 text-[11px] text-[#605e5c]">Auto-populated from the selected funding modality mapping.</p>
-        {% else %}
-        <p class="mt-1 text-[11px] text-[#605e5c]">Override allowed for Admin / Finance Manager only.</p>
-        {% endif %}
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Tranche reference" %}</label>
+        <p x-show="!selectedGrant" class="text-[11px] text-[#605e5c] mb-1">{% trans "Select a grant to choose or enter a tranche number." %}</p>
+        <template x-if="selectedGrant && grantTranches[selectedGrant] && grantTranches[selectedGrant].length">
+          <div>
+            <select name="tranche_no" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-white">
+              <option value="">{% trans "Optional — select tranche" %}</option>
+              <template x-for="t in grantTranches[selectedGrant]" :key="t.no">
+                <option :value="t.no" x-text="t.label"></option>
+              </template>
+            </select>
+            <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "Values are tranche numbers from the grant schedule (stored as integers)." %}</p>
+          </div>
+        </template>
+        <template x-if="selectedGrant && (!grantTranches[selectedGrant] || !grantTranches[selectedGrant].length)">
+          <div>
+            <input type="number" name="tranche_no" min="1" step="1" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" placeholder="{% trans 'e.g. 1' %}" />
+            <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "No tranche schedule on this grant. Enter the numeric tranche (1, 2, …) if applicable." %}</p>
+          </div>
+        </template>
       </div>
     </div>
 
-    <div x-show="receiptType !== 'grant_funding'" class="recv-entry-section grid grid-cols-1 gap-4">
-      <div>
-        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Income account (credit)</label>
-        <select name="income_account_id" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]">
-          <option value="">Select income account</option>
-          {% for a in income_accounts %}
-          <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+    {# —— Cashbook: credit account (non-bank GL) —— #}
+    <div class="recv-entry-section" x-show="receiptType === 'cashbook'" x-cloak>
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Account (credit)" %}</label>
+      <select name="credit_account_id" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" x-bind:required="receiptType === 'cashbook'">
+        <option value="">{% trans "Select account" %}</option>
+        {% for a in cashbook_credit_accounts %}
+        <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "Posting: Debit bank; Credit this account." %}</p>
+    </div>
+
+    {# —— Other income: income account —— #}
+    <div class="recv-entry-section" x-show="receiptType === 'other_income'" x-cloak>
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Income account (credit)" %}</label>
+      <select name="income_account_id" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" x-bind:required="receiptType === 'other_income'">
+        <option value="">{% trans "Select income account" %}</option>
+        {% for a in income_accounts %}
+        <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="mt-1 text-[11px] text-[#605e5c]">{% trans "Posting: Debit bank; Credit income account." %}</p>
+    </div>
+
+    {# —— Common: description, attachment —— #}
+    <div class="recv-entry-section">
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Description" %} <span x-show="receiptType === 'grant_funding'" class="text-red-600">*</span></label>
+      <textarea name="description" rows="3" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" x-bind:required="receiptType === 'grant_funding'"></textarea>
     </div>
 
     <div class="recv-entry-section">
-      <label class="block text-xs font-semibold text-[#605e5c] mb-1">Description</label>
-      <textarea name="description" rows="3" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]"></textarea>
-    </div>
-
-    <div class="recv-entry-section">
-      <label class="block text-xs font-semibold text-[#605e5c] mb-1">Supporting attachment</label>
+      <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Supporting attachment" %} <span class="font-normal text-[#8a8886]">({% trans "optional" %})</span></label>
       <input type="file" name="attachment" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-white" />
     </div>
 
-    <div class="flex items-center gap-2 pt-3 border-t border-[#edebe9]">
-      <button type="submit" name="action" value="save_draft" class="px-4 py-2 rounded border border-[#edebe9] text-[13px] font-semibold text-[#323130] bg-white hover:bg-[#faf9f8]">Save draft</button>
-      <button type="submit" name="action" value="post" class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#0078d4] hover:bg-[#106ebe]">Post receipt</button>
-      <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}" class="ml-auto text-[13px] text-[#0078d4] hover:underline">Open registers</a>
+    <div class="flex flex-wrap items-center gap-2 pt-3 border-t border-[#edebe9]">
+      <button type="submit" name="action" value="save_draft" class="px-4 py-2 rounded border border-[#edebe9] text-[13px] font-semibold text-[#323130] bg-white hover:bg-[#faf9f8]">{% trans "Save draft" %}</button>
+      <button type="submit" name="action" value="post_new" class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#0078d4] hover:bg-[#106ebe]">{% trans "Post & New" %}</button>
+      <button type="submit" name="action" value="post_close" class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#005a9e] hover:bg-[#004578]">{% trans "Post & Close" %}</button>
+      <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}" class="ml-auto text-[13px] text-[#0078d4] hover:underline">{% trans "Open registers" %}</a>
     </div>
   </form>
 </div>
+<style>
+  [x-cloak] { display: none !important; }
+</style>
 {% endblock %}

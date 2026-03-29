@@ -1,4 +1,5 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
 {% block title %}{{ page_title }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
@@ -48,7 +49,7 @@
 <div class="dyn-command-bar">
   <div>
     <div class="dyn-page-title">Accounting periods</div>
-    <div class="dyn-page-desc">Open and close periods to control posting. Posting is blocked when a period is closed.</div>
+    <div class="dyn-page-desc">Open and close periods to control posting. Posting is allowed only when status is <strong>Open</strong> (including past dates). Soft closed and hard closed block posting. Admins can reopen <strong>soft closed</strong> periods; hard closed periods cannot be reopened.</div>
   </div>
   <div style="display:flex; gap:10px; align-items:center;">
     <a href="{% url 'tenant_portal:setup_home' %}" class="dyn-link">Back to Financial Setup</a>
@@ -119,12 +120,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="period_id" value="{{ p.id }}">
                 <input type="text" name="reason" class="dyn-reason" placeholder="Reason (required)">
-                <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
                   {% if p.status == 'open' %}
                   <button type="submit" name="action" value="soft_close" class="dyn-btn-secondary">Soft close</button>
                   <button type="submit" name="action" value="hard_close" class="dyn-btn-secondary" style="border-color:#fde7e9; color:#a4262c;">Hard close</button>
-                  {% else %}
+                  {% elif p.status == 'soft_closed' %}
                   <button type="submit" name="action" value="reopen" class="dyn-btn-secondary">Reopen</button>
+                  {% else %}
+                  <span class="text-xs" style="color:#605e5c;">{% trans "Hard closed — cannot reopen" %}</span>
                   {% endif %}
                 </div>
               </form>

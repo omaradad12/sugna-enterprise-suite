@@ -58,7 +58,7 @@
       <i data-feather="edit-3" class="w-4 h-4"></i>
       <span>{% trans "New general journal" %}</span>
     </a>
-    <a href="{% url 'tenant_portal:budget_creation' %}"
+    <a href="{% url 'tenant_portal:grants_project_budget' %}"
        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white hover:bg-[#faf9f8]"
        style="border-color:#edebe9;">
       <i data-feather="pie-chart" class="w-4 h-4" style="color:#107c10;"></i>
@@ -146,24 +146,12 @@
 
 <!-- Smart Alerts & Financial Warnings -->
 {% if smart_alerts %}
-<div class="bg-white border rounded-lg p-4 mb-4" style="border-color:#edebe9;">
+<div class="bg-white border rounded-lg p-4 mb-4" style="border-color:#edebe9;" x-data="{ alertFilter: 'all' }">
   <div class="flex items-center justify-between mb-3">
-    <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">Alerts &amp; Warnings</h2>
-    <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-xs font-medium" style="color:#0078D4;">View all</a>
+    <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">{% trans "Alerts & Warnings" %}</h2>
+    <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-xs font-medium" style="color:#0078D4;">{% trans "View all" %}</a>
   </div>
-  <div class="space-y-2">
-    {% for alert in smart_alerts %}
-    <a href="{{ alert.link_url }}" class="flex gap-3 items-start p-3 rounded-lg border-l-4 hover:bg-[#faf9f8]" style="border-color:#edebe9; border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
-      <span class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
-        <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
-      </span>
-      <div class="min-w-0 flex-1">
-        <p class="text-[13px] font-semibold text-[#111827]">{{ alert.title }}</p>
-        <p class="text-[12px] mt-0.5" style="color:#6b7280;">{{ alert.message }}</p>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
+  {% include "tenant_portal/includes/smart_alerts_items.html" with alerts=smart_alerts %}
 </div>
 {% endif %}
 
@@ -407,14 +395,14 @@
               :class="txTab === 'payments' ? 'bg-[#0078D4] text-white' : 'bg-white text-[#323130]'"
               class="px-3 py-1.5 rounded-full border"
               style="border-color:#edebe9;">
-        Payment vouchers
+        {% trans "Payments" %}
       </button>
       <button type="button"
               @click="txTab = 'receipts'"
               :class="txTab === 'receipts' ? 'bg-[#0078D4] text-white' : 'bg-white text-[#323130]'"
               class="px-3 py-1.5 rounded-full border"
               style="border-color:#edebe9;">
-        Receipt vouchers
+        {% trans "Receipts" %}
       </button>
     </div>
     <div class="overflow-x-auto -mx-3">
@@ -449,11 +437,11 @@
           {% endfor %}
           <!-- Payments -->
           <tr x-show="txTab === 'payments'" class="bg-white">
-            <td class="px-3 py-3 text-center text-[#605e5c]" colspan="7">Payment vouchers are not yet configured.</td>
+            <td class="px-3 py-3 text-center text-[#605e5c]" colspan="7">{% trans "Payments are not yet configured." %}</td>
           </tr>
           <!-- Receipts -->
           <tr x-show="txTab === 'receipts'" class="bg-white">
-            <td class="px-3 py-3 text-center text-[#605e5c]" colspan="7">Receipt vouchers are not yet configured.</td>
+            <td class="px-3 py-3 text-center text-[#605e5c]" colspan="7">{% trans "Receipts are not yet configured." %}</td>
           </tr>
         </tbody>
       </table>

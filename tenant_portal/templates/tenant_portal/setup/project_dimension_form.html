@@ -96,14 +96,17 @@
         </div>
         <div>
           <label class="pj-label">Program category</label>
-          <select name="funding_type" class="pj-input bg-white" {% if program_dimension_values %}required{% endif %}>
+          <select name="program_category_code" class="pj-input bg-white" {% if program_dimension_values %}required{% endif %}>
             {% if not program_dimension_values %}
             <option value="">— Not set —</option>
             {% endif %}
             {% for pv in program_dimension_values %}
             <option value="{{ pv.code }}"
-              {% if form_post %}{% if form_post.funding_type == pv.code %}selected{% endif %}
-              {% elif project and project.funding_type == pv.code %}selected{% endif %}>{{ pv.name }}</option>
+              {% if form_post %}
+                {% if form_post.program_category_code == pv.code %}selected{% endif %}
+              {% elif project and project.program_category_code == pv.code %}selected
+              {% elif project and not project.program_category_code and project.funding_type == pv.code %}selected
+              {% endif %}>{{ pv.name }}</option>
             {% endfor %}
           </select>
           <p class="pj-hint">Values are managed in Financial Setup → Dimensions → Program → Values.</p>
@@ -257,7 +260,7 @@
       <input type="hidden" name="funding_modality_id" value="{% if form_post %}{{ form_post.funding_modality_id }}{% elif project and project.funding_modality_id %}{{ project.funding_modality_id }}{% endif %}" />
       <input type="hidden" name="location" value="{% if form_post %}{{ form_post.location }}{% elif project %}{{ project.location }}{% endif %}" />
       <input type="hidden" name="program_sector" value="{% if form_post %}{{ form_post.program_sector }}{% elif project %}{{ project.program_sector }}{% endif %}" />
-      <input type="hidden" name="funding_type" value="{% if form_post %}{{ form_post.funding_type }}{% elif project %}{{ project.funding_type }}{% endif %}" />
+      <input type="hidden" name="program_category_code" value="{% if form_post %}{{ form_post.program_category_code }}{% elif project %}{{ project.program_category_code|default:project.funding_type }}{% endif %}" />
       <input type="hidden" name="start_date" value="{% if form_post %}{{ form_post.start_date }}{% elif project and project.start_date %}{{ project.start_date|date:'Y-m-d' }}{% endif %}" />
       <input type="hidden" name="end_date" value="{% if form_post %}{{ form_post.end_date }}{% elif project and project.end_date %}{{ project.end_date|date:'Y-m-d' }}{% endif %}" />
       <input type="hidden" name="original_end_date" value="{% if form_post %}{{ form_post.original_end_date }}{% elif project and project.original_end_date %}{{ project.original_end_date|date:'Y-m-d' }}{% endif %}" />

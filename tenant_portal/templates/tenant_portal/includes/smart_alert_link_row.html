@@ -1,0 +1,19 @@
+{# One alert row: expects `alert`, optional `compact`, optional `bell_close` #}
+<a href="{{ alert.link_url }}"
+   class="flex gap-3 hover:bg-[#f9fafb] border-l-4 {% if compact %}px-3 py-2{% else %}px-4 py-2.5{% endif %} group"
+   style="border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#2563eb{% endif %};"
+   {% if bell_close %}@click="notifOpen = false"{% endif %}>
+  <span class="shrink-0 mt-0.5 {% if compact %}w-7 h-7{% else %}w-8 h-8{% endif %} rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dbeafe]{% endif %}">
+    <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}"
+       class="{% if compact %}w-3.5 h-3.5{% else %}w-4 h-4{% endif %} {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#1d4ed8]{% endif %}"></i>
+  </span>
+  <div class="flex-1 min-w-0">
+    <span class="inline-block mb-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded
+      {% if alert.priority == 'critical' %}bg-red-100 text-red-900{% elif alert.priority == 'warning' %}bg-orange-100 text-orange-900{% else %}bg-blue-100 text-blue-900{% endif %}">
+      {{ alert.category_label|default:alert.category }}
+    </span>
+    <p class="text-[13px] font-semibold text-[#111827] break-words">{{ alert.title }}</p>
+    <p class="text-[12px] mt-0.5 text-[#4b5563] break-words whitespace-normal leading-snug">{{ alert.message }}</p>
+    <p class="text-[11px] mt-1 font-medium text-[#0078d4] group-hover:underline">{{ alert.link_label|default:alert.title }}</p>
+  </div>
+</a>

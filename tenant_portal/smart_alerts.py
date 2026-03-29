@@ -9,11 +9,10 @@ from django.db.models import Sum
 from django.utils import timezone
 from django.urls import reverse
 
+from tenant_portal.erp_alerting.constants import PRIORITY_CRITICAL, PRIORITY_INFO, PRIORITY_WARNING
 
-# Priority levels for UI: critical (red), warning (orange), information (green)
-PRIORITY_CRITICAL = "critical"
-PRIORITY_WARNING = "warning"
-PRIORITY_INFO = "information"
+# Legacy alias used in a few templates (bell / Financial Alerts)
+PRIORITY_INFORMATION = PRIORITY_INFO
 
 # Categories for grouping
 CATEGORY_CASH_BANK = "cash_bank"
@@ -22,6 +21,18 @@ CATEGORY_PAYABLES = "payables"
 CATEGORY_RECEIVABLES = "receivables"
 CATEGORY_AUDIT_RISK = "audit_risk"
 CATEGORY_PROJECTS = "projects"
+CATEGORY_WORKFLOW = "workflow"
+
+# Display labels for the Alerts & Warnings UI (grouped severity panels)
+CATEGORY_LABELS = {
+    CATEGORY_CASH_BANK: "Cash management",
+    CATEGORY_BUDGET: "Budget control",
+    CATEGORY_PAYABLES: "Internal control",
+    CATEGORY_RECEIVABLES: "Cash management",
+    CATEGORY_AUDIT_RISK: "Compliance",
+    CATEGORY_PROJECTS: "Compliance",
+    CATEGORY_WORKFLOW: "Internal control",
+}
 
 # Petty cash threshold below which we raise an alert (configurable)
 PETTY_CASH_THRESHOLD = Decimal("500")
@@ -43,12 +54,13 @@ def get_smart_alerts(tenant_db: str) -> list[dict]:
         _payables_alerts(tenant_db, today, alerts)
         _receivables_alerts(tenant_db, today, alerts)
         _audit_risk_alerts(tenant_db, alerts)
+        _project_end_alerts(tenant_db, today, alerts)
     except Exception:
         # Avoid breaking layout if any query fails (e.g. missing app/migration)
         pass
 
     # Sort: critical first, then warning, then info; then by category
-    priority_order = {PRIORITY_CRITICAL: 0, PRIORITY_WARNING: 1, PRIORITY_INFO: 2}
+    priority_order = {PRIORITY_CRITICAL: 0, PRIORITY_WARNING: 1, PRIORITY_INFO: 2, "information": 2}
     alerts.sort(key=lambda a: (priority_order.get(a["priority"], 3), a["category"]))
     return alerts
 
@@ -62,11 +74,13 @@ def _add(
     link_url: str,
     link_label: str = "",
     *,
+    category_label: str | None = None,
     restrict_to_pm_admin: bool = False,
     project_ids: list | None = None,
 ):
     row = {
         "category": category,
+        "category_label": category_label or CATEGORY_LABELS.get(category, category.replace("_", " ").title()),
         "priority": priority,
         "title": title,
         "message": message,
@@ -185,6 +199,7 @@ def _cash_bank_alerts(tenant_db: str, today, alerts: list):
             f"{len(bank_accounts)} bank/cash account(s) may need reconciliation.",
             reverse("tenant_portal:cash_bank_accounts"),
             "Bank accounts",
+            category_label="Bank reconciliation",
         )
 
     if total_cash + petty_balance < Decimal("0"):
@@ -274,19 +289,38 @@ def _payables_alerts(tenant_db: str, today, alerts: list):
             "Procurement",
         )
 
-    # Pending payment approval: journal entries pending approval
-    pending_journals = JournalEntry.objects.using(tenant_db).filter(
-        status=JournalEntry.Status.PENDING_APPROVAL,
-    ).count()
-    if pending_journals:
+    # Must match finance_journal_approval_view: that queue excludes payment vouchers (PV-…).
+    pending_gl_journals = (
+        JournalEntry.objects.using(tenant_db)
+        .filter(status=JournalEntry.Status.PENDING_APPROVAL)
+        .exclude(reference__startswith="PV-")
+        .count()
+    )
+    if pending_gl_journals:
         _add(
             alerts,
             CATEGORY_PAYABLES,
             PRIORITY_WARNING,
-            "Pending payment approval",
-            f"{pending_journals} journal(s) awaiting approval.",
+            "Journals pending approval",
+            f"{pending_gl_journals} journal(s) awaiting approval (general / recurring / adjusting).",
             reverse("tenant_portal:finance_journal_approval"),
             "Journal approval",
+        )
+    pending_payment_vouchers = (
+        JournalEntry.objects.using(tenant_db)
+        .filter(status=JournalEntry.Status.PENDING_APPROVAL)
+        .filter(reference__startswith="PV-")
+        .count()
+    )
+    if pending_payment_vouchers:
+        _add(
+            alerts,
+            CATEGORY_PAYABLES,
+            PRIORITY_WARNING,
+            "Payments pending approval",
+            f"{pending_payment_vouchers} payment(s) awaiting approval.",
+            reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
+            "Approve payments",
         )
     pending_approvals = GrantApproval.objects.using(tenant_db).filter(status=GrantApproval.Status.PENDING).count()
     if pending_approvals:
@@ -294,7 +328,7 @@ def _payables_alerts(tenant_db: str, today, alerts: list):
             alerts,
             CATEGORY_PAYABLES,
             PRIORITY_INFO,
-            "Pending payment approval",
+            "Grant approvals pending",
             f"{pending_approvals} grant approval(s) pending.",
             reverse("tenant_portal:finance_pending_approvals"),
             "Pending approvals",

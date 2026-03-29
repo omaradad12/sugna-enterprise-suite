@@ -111,6 +111,14 @@
     color: #605e5c;
     font-size: 13px;
   }
+  .bva-col-desc {
+    max-width: 28rem;
+    min-width: 12rem;
+    white-space: normal;
+    word-wrap: break-word;
+    vertical-align: top;
+    line-height: 1.4;
+  }
   .bva-empty-icon {
     width: 48px;
     height: 48px;
@@ -150,7 +158,7 @@
           <tr>
             <th scope="col">{% trans "Account" %}</th>
             <th scope="col">{% trans "Budget line" %}</th>
-            <th scope="col">{% trans "Description" %}</th>
+            <th scope="col" class="bva-col-desc">{% trans "Description" %}</th>
             <th scope="col" class="bva-th-num">{% trans "Budget" %}</th>
             <th scope="col" class="bva-th-num">{% trans "Actual" %}</th>
             <th scope="col" class="bva-th-num">{% trans "Variance" %}</th>
@@ -164,7 +172,7 @@
               <div class="bva-grant-hint">{{ row.grant.code }} — {{ row.grant.title|truncatewords:5 }}</div>
             </td>
             <td>{{ row.budget_line_label }}</td>
-            <td>{{ row.description }}</td>
+            <td class="bva-col-desc">{{ row.description }}</td>
             <td class="bva-num">{{ row.budget|floatformat:2 }}</td>
             <td class="bva-num">{{ row.actual|floatformat:2 }}</td>
             <td class="bva-num {% if row.variance < 0 %}bva-var-neg{% else %}bva-var-pos{% endif %}">{{ row.variance|floatformat:2 }}</td>

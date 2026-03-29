@@ -1,7 +1,22 @@
 """
 Context processors for tenant portal templates.
-Adds org_settings, tenant_display_name, and smart_alerts for the notification bell and dashboards.
+Adds org_settings, tenant_display_name, smart_alerts, and structured ERP alerting context.
 """
+
+from tenant_portal.erp_alerting.api import collector_to_template_context
+from tenant_portal.erp_alerting.collector import ErpAlertCollector
+from tenant_portal.erp_alerting.constants import PRIORITY_CRITICAL, PRIORITY_WARNING
+
+
+def _bell_alert_count(alerts: list) -> int:
+    """Notification bell badge: critical + warning only (not informational)."""
+    actionable = {PRIORITY_CRITICAL, PRIORITY_WARNING, "critical", "warning"}
+    n = 0
+    for a in alerts:
+        p = (a.get("priority") or "").strip().lower()
+        if p in actionable:
+            n += 1
+    return n
 
 
 def org_settings(request):
@@ -85,6 +100,78 @@ def smart_alerts(request):
         alerts = get_smart_alerts(tenant_db)
         tenant_user = getattr(request, "tenant_user", None)
         alerts = _visible_smart_alerts_for_user(alerts, tenant_user, tenant_db)
-        return {"smart_alerts": alerts, "smart_alerts_count": len(alerts)}
+        request._smart_alerts_cached = alerts
+        return {
+            "smart_alerts": alerts,
+            "smart_alerts_count": _bell_alert_count(alerts),
+        }
     except Exception:
         return {"smart_alerts": [], "smart_alerts_count": 0}
+
+
+def erp_alerting(request):
+    """
+    Structured alerts: page banners, field map, toasts, workflow queue; merged notification list for bell.
+    """
+    empty = {
+        "erp_page_banners": [],
+        "erp_field_issues": {},
+        "erp_toasts": [],
+        "erp_workflow_notifications": [],
+        "erp_blocks_action": False,
+        "notification_center_items": [],
+        "notification_center_count": 0,
+    }
+    col = getattr(request, "erp_alerts", None)
+    if not isinstance(col, ErpAlertCollector):
+        tenant_db = getattr(request, "tenant_db", None)
+        if not tenant_db or not getattr(request, "tenant", None):
+            return empty
+        try:
+            from tenant_portal.smart_alerts import get_smart_alerts
+
+            base = getattr(request, "_smart_alerts_cached", None)
+            if base is None:
+                base = get_smart_alerts(tenant_db)
+                tenant_user = getattr(request, "tenant_user", None)
+                base = _visible_smart_alerts_for_user(base, tenant_user, tenant_db)
+            return {
+                **empty,
+                "notification_center_items": base,
+                "notification_center_count": _bell_alert_count(base),
+            }
+        except Exception:
+            return empty
+
+    ctx = collector_to_template_context(col)
+    tenant_db = getattr(request, "tenant_db", None)
+    merged: list = []
+    if tenant_db and getattr(request, "tenant", None):
+        try:
+            merged = getattr(request, "_smart_alerts_cached", None)
+            if merged is None:
+                from tenant_portal.smart_alerts import get_smart_alerts
+
+                merged = get_smart_alerts(tenant_db)
+                tenant_user = getattr(request, "tenant_user", None)
+                merged = _visible_smart_alerts_for_user(merged, tenant_user, tenant_db)
+        except Exception:
+            merged = []
+    for w in ctx.get("erp_workflow_notifications", []):
+        sev = (w.get("severity") or "info").strip().lower()
+        if sev not in {"critical", "warning", "info"}:
+            sev = "info"
+        merged.append(
+            {
+                "category": "workflow",
+                "category_label": "Internal control",
+                "priority": sev,
+                "title": (w.get("code") or "Workflow").replace("_", " ").title(),
+                "message": w.get("message", ""),
+                "link_url": w.get("action_url") or "#",
+                "link_label": w.get("action_label") or "Open",
+            }
+        )
+    ctx["notification_center_items"] = merged
+    ctx["notification_center_count"] = _bell_alert_count(merged)
+    return ctx

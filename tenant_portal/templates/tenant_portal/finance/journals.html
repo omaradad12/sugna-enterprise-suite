@@ -33,6 +33,19 @@
     <code class="block mt-2 p-2 rounded bg-white/80 text-[12px] text-[#1d4ed8]">python manage.py migrate_tenant --tenant YOUR_SLUG</code>
   </div>
   {% endif %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px] leading-snug" style="border-color:#bfdbfe; background:#eff6ff; color:#1e3a5f;">
+    <strong class="text-[#1e40af]">{% trans "Posted vs pending" %}</strong>
+    — {% blocktrans trimmed %}This list includes every journal in the date range (draft, pending approval, and posted). The General Ledger and account balances include posted activity only. Payments submitted with Post &amp; New remain pending until a Finance approver posts them.{% endblocktrans %}
+    <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_approval' %}" class="font-semibold whitespace-nowrap" style="color:#1d4ed8;">{% trans "Open payment approvals" %}</a>
+  </div>
+  {% if active_source_type_filter_label and clear_source_type_filter_url %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px] leading-snug" style="border-color:#fde68a; background:#fffbeb; color:#78350f;">
+    <strong class="text-[#92400e]">{% trans "Source filter active" %}:</strong>
+    {% blocktrans trimmed %}Only journals with this source type are shown. Internal values stay{% endblocktrans %}
+    <code class="text-[12px] bg-white/70 px-1 rounded">{{ filter_source_type }}</code>.
+    <a href="{{ clear_source_type_filter_url }}" class="font-semibold whitespace-nowrap ml-1" style="color:#b45309;">{% trans "Show all source types" %}</a>
+  </div>
+  {% endif %}
   <div class="flex items-start justify-between gap-4 mb-4">
     <div>
       <h1 class="page-title mt-1">{% trans "General journal" %}</h1>
@@ -92,14 +105,28 @@
       <form method="post" action="{% url 'tenant_portal:finance_journal_create' %}" class="flex-1 flex flex-col min-h-0">
         {% csrf_token %}
         <div class="px-5 py-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Date" %}</label>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Journal date" %} <span class="text-red-600">*</span></label>
               <input type="date" name="entry_date" required value="{{ filters.period_end|date:'Y-m-d' }}"
                      class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
             </div>
             <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Project" %}</label>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Posting date" %} <span class="text-red-600">*</span></label>
+              <input type="date" name="posting_date" required value="{{ filters.period_end|date:'Y-m-d' }}"
+                     class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Accounting period" %} <span class="text-red-600">*</span></label>
+              <select name="accounting_period_id" required class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
+                <option value="">{% trans "Select period" %}</option>
+                {% for p in manual_journal_periods %}
+                <option value="{{ p.pk }}">{% if p.fiscal_year %}{{ p.fiscal_year.name }} — {% endif %}{{ p.period_name|default:p.name }} ({{ p.start_date }} – {{ p.end_date }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Project / Grant" %}</label>
               <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
                 <option value="">{% trans "None" %}</option>
                 {% for g in grants %}
@@ -107,8 +134,8 @@
                 {% endfor %}
               </select>
             </div>
-            <div>
-              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Journal type" %}</label>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Journal type" %} <span class="text-[#605e5c] font-normal">({% trans "source classification" %})</span></label>
               <select name="journal_type" class="w-full px-3 py-2 rounded border bg-white text-sm" style="border-color:#edebe9;">
                 <option value="adjustment">{% trans "Adjustment" %}</option>
                 <option value="accrual">{% trans "Accrual" %}</option>
@@ -119,9 +146,10 @@
             </div>
           </div>
           <div>
-            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Memo" %}</label>
-            <input name="memo" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Description' %}">
+            <label class="block text-xs font-semibold mb-1 text-[#605e5c]">{% trans "Description (memo)" %} <span class="text-red-600">*</span></label>
+            <input name="memo" required maxlength="255" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="{% trans 'Header description for this journal' %}">
           </div>
+          <p class="text-[11px] text-[#605e5c] leading-snug">{% trans "Rules: at least two lines; minimum one debit and one credit; total debits must equal total credits; amounts must be positive; use posting (detail) accounts only — not parent headers such as 1200." %}</p>
           <div class="border rounded-lg overflow-hidden" style="border-color:#edebe9;">
             <div class="px-4 py-2 text-xs font-semibold uppercase text-[#605e5c]" style="background:#f3f2f1;">{% trans "Lines" %}</div>
             <div class="overflow-x-auto">

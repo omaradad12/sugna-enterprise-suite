@@ -172,7 +172,7 @@ def _role_templates() -> list[dict]:
             "key": "cashier",
             "name": "Cashier",
             "role_type": Role.RoleType.OPERATIONAL,
-            "description": "Restricted to Main Cashbook only.",
+            "description": "Restricted to Cashbook only.",
             "permission_codes": [
                 "module:main_cashbook.view",
                 "cashbook:entries.view",

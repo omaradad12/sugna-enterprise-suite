@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tenant_finance.models import FiscalYear
 
 
 @dataclass(frozen=True)
@@ -18,6 +22,59 @@ def _normalize(s: str) -> str:
 
 def _user_display(user) -> str:
     return (getattr(user, "full_name", "") or "").strip() or getattr(user, "email", "") or ""
+
+
+def create_fiscal_year_with_monthly_periods(
+    *,
+    using: str,
+    name: str,
+    start_date: date,
+    end_date: date,
+    created_by=None,
+) -> "FiscalYear":
+    """
+    Create a fiscal year and monthly accounting periods (up to 12), all status OPEN.
+
+    ``period_type`` is implicitly monthly; one period per calendar month within the FY range.
+    """
+    from calendar import monthrange
+
+    from django.db import transaction
+
+    from tenant_finance.models import FiscalPeriod, FiscalYear
+
+    with transaction.atomic(using=using):
+        fy = FiscalYear.objects.using(using).create(
+            name=name,
+            start_date=start_date,
+            end_date=end_date,
+            status=FiscalYear.Status.OPEN,
+            created_by=created_by,
+        )
+        current = start_date
+        period_no = 1
+        while current <= end_date and period_no <= 12:
+            y, m = current.year, current.month
+            last_day = monthrange(y, m)[1]
+            month_end = date(y, m, last_day)
+            period_end = min(month_end, end_date)
+            FiscalPeriod.objects.using(using).create(
+                fiscal_year=fy,
+                period_number=period_no,
+                name=current.strftime("%b %Y"),
+                period_name=current.strftime("%B %Y"),
+                start_date=current,
+                end_date=period_end,
+                status=FiscalPeriod.Status.OPEN,
+            )
+            if period_end >= end_date:
+                break
+            if m == 12:
+                current = date(y + 1, 1, 1)
+            else:
+                current = date(y, m + 1, 1)
+            period_no += 1
+        return fy
 
 
 def get_period_for_date(*, using: str, dt: date):
@@ -51,8 +108,10 @@ def assert_can_post(*, using: str, dt: date, user=None) -> PeriodMatch:
         raise ValueError(f"Fiscal year is closed ({fy.name}).")
     if not p.is_posting_allowed(user=user):
         if _normalize(p.status) == "soft_closed":
-            raise ValueError("Accounting period is soft closed. You are not authorized to post in this period.")
-        raise ValueError("Accounting period is hard closed.")
+            raise ValueError(
+                "Accounting period is soft closed. Reopen the period (Financial Setup) before posting."
+            )
+        raise ValueError("Accounting period is hard closed; posting is not allowed.")
     return PeriodMatch(
         period_id=p.id,
         fiscal_year_id=p.fiscal_year_id,
@@ -144,6 +203,10 @@ def reopen_period(*, using: str, period_id: int, user=None, reason: str = ""):
         p = FiscalPeriod.objects.using(using).select_for_update().select_related("fiscal_year").get(pk=period_id)
         if p.fiscal_year and (p.fiscal_year.is_closed or p.fiscal_year.status == p.fiscal_year.Status.CLOSED):
             raise ValueError("Cannot reopen periods in a closed fiscal year.")
+        if p.status == FiscalPeriod.Status.HARD_CLOSED:
+            raise ValueError("Cannot reopen a hard-closed period.")
+        if p.status != FiscalPeriod.Status.SOFT_CLOSED:
+            raise ValueError("Only soft-closed periods can be reopened.")
 
         from_status = p.status
         p.status = FiscalPeriod.Status.OPEN

@@ -133,7 +133,7 @@ class Command(BaseCommand):
                     "dashboard:view",
                 },
             },
-            # Cashier: main cashbook only (view)
+            # Cashier: cashbook only (view)
             "Cashier": {
                 "is_system": True,
                 "role_type": "operational",

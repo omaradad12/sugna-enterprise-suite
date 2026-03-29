@@ -127,6 +127,30 @@
       <p class="text-[15px] text-[#323130]"><span class="font-mono">{{ entry.grant.code }}</span> — {{ entry.grant.title }}</p>
     </div>
     {% endif %}
+    {% if entry.created_by %}
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c]">{% trans "Created by" %}</p>
+      <p class="text-[15px] text-[#323130]">{% firstof entry.created_by.get_full_name entry.created_by.email %}</p>
+    </div>
+    {% endif %}
+    {% if entry.created_at %}
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c]">{% trans "Created at" %}</p>
+      <p class="text-[15px] text-[#323130]">{{ entry.created_at|date:"Y-m-d H:i" }}</p>
+    </div>
+    {% endif %}
+    {% if entry.approved_by %}
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c]">{% trans "Approved by" %}</p>
+      <p class="text-[15px] text-[#323130]">{% firstof entry.approved_by.get_full_name entry.approved_by.email %}</p>
+    </div>
+    {% endif %}
+    {% if entry.approved_at %}
+    <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
+      <p class="text-[11px] font-semibold uppercase text-[#605e5c]">{% trans "Approved at" %}</p>
+      <p class="text-[15px] text-[#323130]">{{ entry.approved_at|date:"Y-m-d H:i" }}</p>
+    </div>
+    {% endif %}
     {% if journal_schema_0034 and entry.posted_by %}
     <div class="rounded-xl border bg-white p-4 shadow-sm" style="border-color:#edebe9;">
       <p class="text-[11px] font-semibold uppercase text-[#605e5c]">{% trans "Posted by" %}</p>

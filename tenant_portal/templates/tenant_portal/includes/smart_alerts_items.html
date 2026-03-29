@@ -1,0 +1,30 @@
+{% load i18n %}
+{# Filter tabs + alert rows. Parent must define x-data including alertFilter: 'all'. #}
+{# Pass: alerts (list), optional compact=1, optional bell_close=1 to close notification dropdown. #}
+<div class="smart-alerts-items">
+  <div class="px-3 pt-1 pb-2 mb-1 border-b border-slate-200 shrink-0">
+    <div class="flex flex-wrap gap-1" role="tablist" aria-label="{% trans 'Filter alerts by severity' %}">
+      <button type="button" @click="alertFilter = 'all'"
+        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
+        :class="alertFilter === 'all' ? 'bg-slate-800 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">{% trans "All" %}</button>
+      <button type="button" @click="alertFilter = 'critical'"
+        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
+        :class="alertFilter === 'critical' ? 'bg-[#b91c1c] text-white shadow-sm' : 'bg-red-50 text-red-800 hover:bg-red-100'">{% trans "Critical" %}</button>
+      <button type="button" @click="alertFilter = 'warning'"
+        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
+        :class="alertFilter === 'warning' ? 'bg-[#c2410c] text-white shadow-sm' : 'bg-orange-50 text-orange-900 hover:bg-orange-100'">{% trans "Warning" %}</button>
+      <button type="button" @click="alertFilter = 'info'"
+        class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
+        :class="alertFilter === 'info' ? 'bg-[#1d4ed8] text-white shadow-sm' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'">{% trans "Info" %}</button>
+    </div>
+  </div>
+  <div class="max-h-[min(480px,70vh)] overflow-y-auto">
+    {% for alert in alerts %}
+    <div x-show="alertFilter === 'all' || alertFilter === '{{ alert.priority }}'" class="border-b border-slate-100 last:border-b-0">
+      {% include "tenant_portal/includes/smart_alert_link_row.html" with alert=alert compact=compact bell_close=bell_close %}
+    </div>
+    {% empty %}
+    <p class="px-4 py-8 text-center text-[13px] text-slate-500">{% trans "No alerts." %}</p>
+    {% endfor %}
+  </div>
+</div>

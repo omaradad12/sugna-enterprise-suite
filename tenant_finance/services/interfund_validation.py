@@ -35,7 +35,7 @@ def assert_bank_accounts_valid_for_interfund(*, transfer: "InterFundTransfer", t
     if not fb or not tb:
         raise ValueError("Bank account configuration is invalid for this transfer.")
     if not fb.is_active or not tb.is_active:
-        raise ValueError("Bank accounts must remain active.")
+        raise ValueError("Inactive bank accounts cannot be used for new inter-fund transfers.")
     if fb.currency_id != tb.currency_id:
         raise ValueError("Source and destination banks must use the same currency.")
 

@@ -29,6 +29,24 @@ TENANT_FINANCE_JOURNALLINE_0044 = (
     "0044_journalline_project_budget_workplan",
 )
 
+# ChartAccount.allow_posting (bank dropdowns, GL validation)
+TENANT_FINANCE_CHARTACCOUNT_0055 = (
+    "tenant_finance",
+    "0055_chartaccount_allow_posting",
+)
+
+# Project.program_category_code (program dimension vs FundingType enum)
+TENANT_GRANTS_PROJECT_0039 = (
+    "tenant_grants",
+    "0039_project_program_category_code",
+)
+
+# BudgetLine.project_id, flat budget_code, drop hierarchy (chains 0041→0042→0043)
+TENANT_GRANTS_BUDGETLINE_0043 = (
+    "tenant_grants",
+    "0043_budgetline_flat_budget_code",
+)
+
 # DocumentPolicyConfig + file_sha256 / retention (Document Management policy)
 TENANT_DOCUMENTS_POLICY_0002 = (
     "tenant_documents",
@@ -55,6 +73,18 @@ def tenant_grants_reporting_deadlines_ready(using: str) -> bool:
 
 def tenant_finance_journalline_project_budget_ready(using: str) -> bool:
     return migration_applied(using, *TENANT_FINANCE_JOURNALLINE_0044)
+
+
+def tenant_finance_chartaccount_allow_posting_ready(using: str) -> bool:
+    return migration_applied(using, *TENANT_FINANCE_CHARTACCOUNT_0055)
+
+
+def tenant_grants_project_program_category_ready(using: str) -> bool:
+    return migration_applied(using, *TENANT_GRANTS_PROJECT_0039)
+
+
+def tenant_grants_budgetline_schema_ready(using: str) -> bool:
+    return migration_applied(using, *TENANT_GRANTS_BUDGETLINE_0043)
 
 
 def tenant_documents_policy_ready(using: str) -> bool:
@@ -115,6 +145,43 @@ def ensure_journalline_project_budget_schema(using: str, *, auto_migrate: bool) 
     if auto_migrate:
         apply_all_migrations_for_alias(using)
         return tenant_finance_journalline_project_budget_ready(using)
+    return False
+
+
+def ensure_tenant_grants_project_program_category_schema(using: str, *, auto_migrate: bool) -> bool:
+    """
+    Return True if Project has program_category_code (tenant_grants.0039).
+    """
+    if tenant_grants_project_program_category_ready(using):
+        return True
+    if auto_migrate:
+        apply_all_migrations_for_alias(using)
+        return tenant_grants_project_program_category_ready(using)
+    return False
+
+
+def ensure_tenant_grants_budgetline_schema(using: str, *, auto_migrate: bool) -> bool:
+    """
+    Return True if BudgetLine has project_id and flat budget_code schema (tenant_grants.0043).
+    """
+    if tenant_grants_budgetline_schema_ready(using):
+        return True
+    if auto_migrate:
+        apply_all_migrations_for_alias(using)
+        return tenant_grants_budgetline_schema_ready(using)
+    return False
+
+
+def ensure_chartaccount_allow_posting_schema(using: str, *, auto_migrate: bool) -> bool:
+    """
+    Return True if ChartAccount has allow_posting (tenant_finance.0055).
+    If auto_migrate and not ready, run migrate on `using` once and re-check.
+    """
+    if tenant_finance_chartaccount_allow_posting_ready(using):
+        return True
+    if auto_migrate:
+        apply_all_migrations_for_alias(using)
+        return tenant_finance_chartaccount_allow_posting_ready(using)
     return False
 
 

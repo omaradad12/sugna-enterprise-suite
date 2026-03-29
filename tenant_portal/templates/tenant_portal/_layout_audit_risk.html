@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load i18n %}
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -27,7 +28,7 @@
   </style>
 </head>
 <body class="sns-ds-root h-screen overflow-hidden bg-[#F8FAFC] text-[#111827]">
-  <div class="h-full flex flex-col" x-data="{ userOpen: false, notifOpen: false, sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }">
+  <div class="h-full flex flex-col" x-data="{ userOpen: false, notifOpen: false, alertFilter: 'all', sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }">
 
     <header class="h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30" style="background:#0F5BA7;">
       <div class="flex items-center gap-3 min-w-0">
@@ -53,29 +54,17 @@
           <button type="button" @click="notifOpen = !notifOpen; userOpen = false" class="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-white/15 border border-white/20 relative">
             <i data-feather="bell" class="w-4 h-4"></i>
             {% if smart_alerts_count > 0 %}
-            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ffb900] text-[#201f1e]">{{ smart_alerts_count }}</span>
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ea580c] text-white shadow-sm">{{ smart_alerts_count }}</span>
             {% endif %}
           </button>
-          <div x-show="notifOpen" x-cloak @click.outside="notifOpen = false" class="absolute right-0 mt-2 w-[360px] max-h-[400px] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col">
+          <div x-show="notifOpen" x-cloak @click.outside="notifOpen = false" class="absolute right-0 mt-2 w-[min(440px,calc(100vw-2rem))] max-h-[min(90vh,640px)] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col text-left">
             <div class="px-4 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#e5e7eb;">
-              <span class="text-[13px] font-semibold text-[#111827]">Alerts &amp; Warnings</span>
-              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:#0078D4;">View all</a>
+              <span class="text-[13px] font-semibold text-[#111827]">{% trans "Alerts & Warnings" %}</span>
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:#0078D4;">{% trans "View all" %}</a>
             </div>
-            <div class="overflow-y-auto flex-1 py-2">
-              {% for alert in smart_alerts %}
-              <a href="{{ alert.link_url }}" @click="notifOpen = false" class="flex gap-3 px-4 py-2.5 hover:bg-[#f9fafb] border-l-4" style="border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
-                <span class="shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
-                  <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
-                </span>
-                <div class="min-w-0 flex-1">
-                  <p class="text-[13px] font-semibold text-[#111827] truncate">{{ alert.title }}</p>
-                  <p class="text-[12px] mt-0.5 truncate" style="color:#6b7280;">{{ alert.message }}</p>
-                </div>
-              </a>
-              {% empty %}
-              <p class="px-4 py-6 text-center text-[13px]" style="color:#6b7280;">No alerts.</p>
-              {% endfor %}
-            </div>
+            {% with panel_alerts=notification_center_items|default:smart_alerts %}
+            {% include "tenant_portal/includes/smart_alerts_items.html" with alerts=panel_alerts compact=1 bell_close=1 %}
+            {% endwith %}
           </div>
         </div>
         <div class="relative">

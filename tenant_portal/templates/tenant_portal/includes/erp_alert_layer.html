@@ -1,0 +1,30 @@
+{% load i18n %}
+{# Structured ERP alerts: critical/warning page banners + info toasts (same-request). #}
+{% if erp_page_banners %}
+<div class="erp-alert-banners mb-4 space-y-2" role="region" aria-label="{% trans 'Important alerts' %}">
+  {% for b in erp_page_banners %}
+    {% if b.severity == 'critical' %}
+    <div class="flex gap-3 rounded-md border-l-4 px-4 py-3 text-[13px] leading-snug" style="border-color:#a4262c;background:#fde7e9;color:#323130;">
+      <span class="shrink-0 font-semibold text-[#a4262c]">{% trans "Blocked" %}</span>
+      <div class="min-w-0"><p class="font-semibold">{% trans "Action cannot be completed" %}</p><p class="mt-1">{{ b.message }}</p></div>
+    </div>
+    {% elif b.severity == 'warning' %}
+    <div class="flex gap-3 rounded-md border-l-4 px-4 py-3 text-[13px] leading-snug" style="border-color:#ca5010;background:#fff4ce;color:#323130;">
+      <span class="shrink-0 font-semibold text-[#ca5010]">{% trans "Warning" %}</span>
+      <div class="min-w-0"><p>{{ b.message }}</p></div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if erp_toasts %}
+<div class="fixed bottom-6 right-6 z-[100] flex max-w-md flex-col gap-2 pointer-events-none" aria-live="polite">
+  {% for t in erp_toasts %}
+  <div class="pointer-events-auto rounded-lg border px-4 py-3 text-[13px] shadow-lg" style="border-color:#c8c6c4;background:#ffffff;color:#323130;">
+    <p class="font-semibold text-[#107c10]">{% trans "Done" %}</p>
+    <p class="mt-0.5">{{ t.message }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

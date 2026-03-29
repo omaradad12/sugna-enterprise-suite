@@ -202,7 +202,14 @@
           {% empty %}
           <tr>
             <td colspan="15" class="px-5 py-10 text-center text-[#605e5c]">
-              {% trans "No journals match the current filters." %}
+              <p class="font-medium text-[#323130]">{% trans "No journals match the current filters." %}</p>
+              <p class="mt-3 text-[12px] max-w-lg mx-auto leading-relaxed">
+                {% trans "This queue lists general, recurring, and adjusting journals only. Payments (PV-…) are approved under Payables." %}
+                <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_approval' %}" class="text-[#0078d4] font-semibold hover:underline">{% trans "Approve payments" %}</a>
+              </p>
+              <p class="mt-2 text-[12px] max-w-lg mx-auto">
+                {% trans "If a pending journal uses a journal date outside the range above, expand the period or clear filters." %}
+              </p>
             </td>
           </tr>
           {% endfor %}

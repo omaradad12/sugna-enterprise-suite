@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.utils import timezone
+
+from tenant_finance.services.bank_posting_orientation import normalize_voucher_debit_credit_accounts
+
 
 @dataclass(frozen=True)
 class PostingResult:
@@ -175,6 +179,12 @@ def post_transaction_to_journal(
 
     debit_account = ChartAccount.objects.using(using).get(pk=resolution.debit_account_id)
     credit_account = ChartAccount.objects.using(using).get(pk=resolution.credit_account_id)
+    debit_account, credit_account = normalize_voucher_debit_credit_accounts(
+        using=using,
+        transaction_type=transaction_type,
+        debit_account=debit_account,
+        credit_account=credit_account,
+    )
     if debit_account.id == credit_account.id:
         raise ValueError("Debit and credit accounts cannot be the same.")
 

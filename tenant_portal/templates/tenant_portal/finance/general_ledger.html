@@ -13,10 +13,19 @@
     overflow-y: hidden;
     max-width: 100%;
   }
+  .gl-col-bl-desc,
+  .gl-th-bl-desc {
+    min-width: 12rem;
+    max-width: 22rem;
+    white-space: normal;
+    word-wrap: break-word;
+    vertical-align: top;
+    line-height: 1.35;
+  }
   .gl-ledger-table {
     table-layout: auto;
     width: 100%;
-    min-width: 980px;
+    min-width: 1080px;
     border-collapse: separate;
     border-spacing: 0;
   }
@@ -468,6 +477,13 @@
 </style>
 
 <div class="gl-print-root">
+<div class="mb-3 rounded-lg border px-4 py-3 text-[13px] leading-snug hidden-print shadow-sm" style="border-color:#bfdbfe; background:#eff6ff; color:#1e3a5f;">
+  <strong class="text-[#1e40af]">{% trans "Posted activity only" %}</strong>
+  — {% blocktrans trimmed %}This ledger shows posted journal lines. Draft or pending-approval vouchers do not appear here until they are approved and posted. Use the General journal register to review all statuses in the same period.{% endblocktrans %}
+  <a href="{% url 'tenant_portal:finance_journals' %}" class="font-semibold whitespace-nowrap" style="color:#1d4ed8;">{% trans "General journal" %}</a>
+  ·
+  <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_approval' %}" class="font-semibold whitespace-nowrap" style="color:#1d4ed8;">{% trans "Payment approvals" %}</a>
+</div>
 {# Screen: filters only (export actions hidden when printing via .hidden-print) #}
 <div class="bg-white border rounded-lg p-3 mb-3 hidden-print shadow-sm" style="border-color:#edebe9;">
   <form method="get" action="" class="space-y-3">
@@ -608,6 +624,8 @@
           <th class="gl-th text-left">{% trans "Journal Ref" %}</th>
           <th class="gl-th text-left">{% trans "Account" %}</th>
           <th class="gl-th text-left gl-col-grant">{% trans "Grant" %}</th>
+          <th class="gl-th text-left">{% trans "Budget line" %}</th>
+          <th class="gl-th text-left gl-th-bl-desc">{% trans "Budget line description" %}</th>
           <th class="gl-th gl-col-desc text-left">{% trans "Description" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Debit" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Credit" %}</th>
@@ -621,6 +639,7 @@
           <th class="gl-th text-left">{% trans "Grant" %}</th>
           <th class="gl-th text-left">{% trans "Donor" %}</th>
           <th class="gl-th text-left">{% trans "Budget Line" %}</th>
+          <th class="gl-th text-left gl-th-bl-desc">{% trans "Budget line description" %}</th>
           <th class="gl-th gl-col-desc text-left">{% trans "Description" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Debit" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Credit" %}</th>
@@ -634,10 +653,10 @@
           {% for item in account_sections %}
             {% if item.type == 'header' %}
             {% if not forloop.first %}
-            <tr class="gl-account-gap hidden-print"><td colspan="8"></td></tr>
+            <tr class="gl-account-gap hidden-print"><td colspan="10"></td></tr>
             {% endif %}
             <tr class="gl-ledger-account-row gl-account-header hidden-print">
-              <td colspan="8">
+              <td colspan="10">
                 {% trans "Account" %}: {{ item.code }} — {{ item.name }}
               </td>
             </tr>
@@ -654,8 +673,11 @@
               <td class="gl-col-wrap print-only">{{ item.account_code }}</td>
               <td class="gl-col-wrap print-only">{{ item.account_name }}</td>
               <td class="gl-col-wrap gl-col-grant" title="{{ item.grant }}">{{ item.grant }}</td>
+              <td class="gl-col-wrap hidden-print" title="{{ item.budget_line }}">{{ item.budget_line }}</td>
+              <td class="gl-col-wrap hidden-print gl-col-bl-desc" title="{{ item.budget_line_description }}">{{ item.budget_line_description }}</td>
               <td class="gl-col-wrap print-only" title="{{ item.donor }}">{{ item.donor }}</td>
               <td class="gl-col-wrap print-only">{{ item.budget_line }}</td>
+              <td class="gl-col-wrap print-only gl-col-bl-desc">{{ item.budget_line_description }}</td>
               <td class="gl-col-desc">{{ item.memo }}</td>
               <td class="gl-col-num text-right tabular-nums gl-screen-amount">{% if item.debit %}{{ item.debit|floatformat:2 }}{% else %}—{% endif %}</td>
               <td class="gl-col-num text-right tabular-nums gl-screen-amount">{% if item.credit %}{{ item.credit|floatformat:2 }}{% else %}—{% endif %}</td>
@@ -666,13 +688,13 @@
             {% endif %}
           {% endfor %}
           <tr class="gl-total-row gl-ledger-grand-total hidden-print">
-            <td colspan="5" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
+            <td colspan="7" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
             <td class="gl-col-num text-right px-2 py-2">{{ grand_total_debit|floatformat:2 }}</td>
             <td class="gl-col-num text-right px-2 py-2">{{ grand_total_credit|floatformat:2 }}</td>
             <td class="gl-col-num text-right px-2 py-2 font-bold">{{ closing_balance|floatformat:2 }}</td>
           </tr>
           <tr class="gl-total-row gl-ledger-grand-total print-only">
-            <td colspan="8" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
+            <td colspan="9" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
             <td class="gl-col-num gl-print-gt-debit text-right px-2 py-2">{{ grand_total_debit|floatformat:2 }}</td>
             <td class="gl-col-num gl-print-gt-credit text-right px-2 py-2">{{ grand_total_credit|floatformat:2 }}</td>
             <td class="gl-col-num gl-print-gt-balance text-right px-2 py-2 font-bold">{{ closing_balance|floatformat:2 }}</td>
@@ -680,7 +702,7 @@
           </tr>
         {% else %}
           <tr>
-            <td colspan="13" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No posted lines match the selected filters." %}</td>
+            <td colspan="14" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No posted lines match the selected filters." %}</td>
           </tr>
         {% endif %}
       </tbody>
@@ -710,7 +732,7 @@
           <td class="gl-recon-label gl-recon-sub" colspan="2" style="text-align:left;padding-left:0;padding-top:6px;">{% trans "Payments (credits on cash & bank)" %}</td>
         </tr>
         <tr>
-          <td class="gl-recon-label gl-recon-sub">{% trans "Payment vouchers" %}</td>
+          <td class="gl-recon-label gl-recon-sub">{% trans "Payments" %}</td>
           <td class="gl-recon-amt gl-recon-sub-amt">{{ gl_recon_pv_credits|floatformat:2 }}</td>
         </tr>
         <tr>

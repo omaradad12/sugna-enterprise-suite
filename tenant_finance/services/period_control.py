@@ -23,9 +23,12 @@ def get_open_period_for_date(*, using: str, dt: date) -> PostingControlResult:
     )
     if not p:
         raise ValueError("No accounting period exists for this transaction date.")
-    # Hard close blocks posting at engine level; soft close handled with role exceptions via assert_can_post_journal.
-    if p.status == FiscalPeriod.Status.HARD_CLOSED or (p.is_closed and p.status != FiscalPeriod.Status.SOFT_CLOSED):
+    if p.status == FiscalPeriod.Status.HARD_CLOSED:
         raise ValueError(f"Accounting period is hard closed ({p.name or p.period_name or str(p)}).")
+    if p.status == FiscalPeriod.Status.SOFT_CLOSED:
+        raise ValueError(f"Accounting period is soft closed ({p.name or p.period_name or str(p)}).")
+    if p.is_closed:
+        raise ValueError(f"Accounting period is closed ({p.name or p.period_name or str(p)}).")
     fy = p.fiscal_year
     if fy and (fy.is_closed or fy.status == fy.Status.CLOSED):
         raise ValueError(f"Fiscal year is closed ({fy.name}).")
@@ -36,13 +39,33 @@ def get_open_period_for_date(*, using: str, dt: date) -> PostingControlResult:
     )
 
 
+def ensure_project_dimension_mapping(*, using: str, project_id: int):
+    """
+    Ensure a ProjectDimensionMapping row exists for the project (minimal active record).
+
+    Posting requires a mapping when a grant carries a project; new or re-linked projects
+    often have none yet. Optional cost center / bank / donor defaults can be filled in
+    under Project setup later.
+    """
+    from tenant_finance.models import ProjectDimensionMapping
+    from tenant_grants.models import Project
+
+    proj = Project.objects.using(using).filter(pk=project_id).first()
+    if not proj:
+        return None
+    m, _ = ProjectDimensionMapping.objects.using(using).get_or_create(
+        project=proj,
+        defaults={"status": ProjectDimensionMapping.Status.ACTIVE},
+    )
+    return m
+
+
 def assert_can_post_journal(*, using: str, entry_date: date, grant=None, user=None) -> None:
     """
     Posting control:
     - org accounting period must exist and be open for entry_date
     - if grant/project provided, must be active on entry_date
     """
-    # Enforce open/soft/hard close semantics (soft close may allow limited posting)
     from tenant_finance.services.accounting_periods import assert_can_post
 
     assert_can_post(using=using, dt=entry_date, user=user)
@@ -65,7 +88,11 @@ def assert_can_post_journal(*, using: str, entry_date: date, grant=None, user=No
                 .first()
             )
             if not m:
-                raise ValueError("No project mapping is configured for this project. Configure Default Mapping first.")
+                m = ensure_project_dimension_mapping(using=using, project_id=grant.project_id)
+            if not m:
+                raise ValueError(
+                    "This grant is linked to a project that does not exist, so posting cannot continue."
+                )
             if hasattr(m, "is_active_on") and not m.is_active_on(entry_date):
                 raise ValueError("Project mapping is inactive or outside its active period for this transaction date.")
         return

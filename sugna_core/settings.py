@@ -175,6 +175,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # Tenant-scoped RBAC context (permission cache)
     'tenant_portal.middleware_rbac.RBACContextMiddleware',
+    'tenant_portal.middleware_erp_alerts.ErpAlertingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -197,6 +198,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'tenant_portal.context_processors.org_settings',
                 'tenant_portal.context_processors.smart_alerts',
+                'tenant_portal.context_processors.erp_alerting',
             ],
         },
     },

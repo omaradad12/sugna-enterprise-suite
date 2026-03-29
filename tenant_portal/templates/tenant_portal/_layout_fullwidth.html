@@ -17,6 +17,94 @@
   <style>
     [x-cloak]{display:none!important}
 
+    /* Top bar (blue chrome): one visual system — subtle glass pills, equal weight (Dynamics-style) */
+    .erp-topbar-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      height: 2rem;
+      min-height: 2rem;
+      box-sizing: border-box;
+      padding-left: 0.875rem;
+      padding-right: 0.875rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      line-height: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .erp-topbar-pill:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.32);
+    }
+    .erp-topbar-pill:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.85);
+      outline-offset: 2px;
+    }
+    .erp-topbar-pill .erp-topbar-pill__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 1rem;
+      height: 1rem;
+      color: inherit;
+    }
+    .erp-topbar-pill .erp-topbar-pill__icon svg {
+      width: 1rem !important;
+      height: 1rem !important;
+      stroke: currentColor;
+      stroke-width: 1.6;
+    }
+    .erp-topbar-pill .erp-topbar-pill__label {
+      white-space: nowrap;
+      color: inherit;
+    }
+    /* Icon-only: same 32px height as text pills + notification */
+    .erp-topbar-pill--compact {
+      width: 2rem;
+      height: 2rem;
+      min-width: 2rem;
+      min-height: 2rem;
+      padding-left: 0;
+      padding-right: 0;
+      gap: 0;
+    }
+    /* User menu: label + avatar + chevron, same pill shell */
+    .erp-topbar-pill--user {
+      max-width: 220px;
+      min-width: 0;
+    }
+    .erp-topbar-pill--user .erp-topbar-pill__avatar {
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 9999px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .erp-topbar-pill--user .erp-topbar-pill__avatar-fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.2);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    a.erp-topbar-pill,
+    a.erp-topbar-pill:visited {
+      color: #ffffff;
+      text-decoration: none;
+    }
+
     /* ERP-style section + table shell (layout chrome; sizes in static/css/erp-typography.css) */
     .erp-section {
       border: 1px solid #edebe9;
@@ -428,7 +516,7 @@
   </style>
 </head>
 <body class="sns-ds-root h-screen overflow-hidden bg-[#faf9f8] text-[#323130]">
-  <div class="h-full flex flex-col" x-data="{ subMenu: '{{ active_submenu|default:'dashboard' }}', quickOpen: false, userOpen: false, notifOpen: false, sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }">
+  <div class="h-full flex flex-col" x-data="{ subMenu: '{{ active_submenu|default:'dashboard' }}', userOpen: false, notifOpen: false, alertFilter: 'all', sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }">
 
     <!-- Screen-only chrome: hidden when printing (see .tenant-portal-screen-chrome + @media print) -->
     <div class="tenant-portal-screen-chrome">
@@ -456,9 +544,9 @@
         </div>
       </div>
 
-      <!-- Center: global search (slightly shifted right to free space for long org names) -->
-      <div class="flex-1 flex items-center justify-end px-4 min-w-0">
-        <form class="hidden md:block w-full max-w-lg" action="#" method="get">
+      <!-- Center: global search (gutter before action group: Create Project | Post transaction) -->
+      <div class="flex-1 flex items-center justify-end pl-4 pr-2 md:pr-3 min-w-0">
+        <form class="hidden md:block w-full max-w-lg mr-2 md:mr-3" action="#" method="get">
           <label for="tenant-search-fw" class="sr-only">Search</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[#0078D4] pointer-events-none">
@@ -471,162 +559,84 @@
         </form>
       </div>
 
-      <!-- Right: post transaction, quick actions, notifications, user -->
-      <div class="flex items-center gap-2 ml-2 md:ml-4">
-        <!-- Post transaction: hub + operational entry points -->
+      <!-- Right: Create Project, Post transaction, notifications, user -->
+      <div class="flex items-center gap-3 shrink-0 pl-1 md:pl-2">
+        <!-- Create Project → Project Setup Wizard (primary action; paired metrics with Post transaction) -->
+        <a href="{% url 'tenant_portal:grants_project_setup_wizard' %}"
+           class="erp-topbar-pill hidden md:inline-flex no-underline"
+           title="{% trans 'Create Project' %}">
+          <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="plus"></i></span>
+          <span class="erp-topbar-pill__label">{% trans "Create Project" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:grants_project_setup_wizard' %}"
+           class="md:hidden erp-topbar-pill erp-topbar-pill--compact inline-flex items-center justify-center"
+           title="{% trans 'Create Project' %}">
+          <span class="erp-topbar-pill__icon"><i data-feather="plus"></i></span>
+        </a>
+
+        <!-- Post transaction: Payments / Receipts (same pill metrics; outline icons + chevron) -->
         <div class="relative hidden md:block" x-data="{ postTxnOpen: false }">
           <button type="button" @click="postTxnOpen = !postTxnOpen"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white text-[#0078D4] hover:bg-[#e5f0ff] border border-white/25">
-            <i data-feather="edit-3" class="w-4 h-4"></i>
-            <span>Post transaction</span>
-            <i data-feather="chevron-down" class="w-3 h-3"></i>
+                  class="erp-topbar-pill cursor-pointer"
+                  aria-haspopup="true"
+                  x-bind:aria-expanded="postTxnOpen">
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="receipt"></i></span>
+            <span class="erp-topbar-pill__label">{% trans "Post transaction" %}</span>
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="chevron-down"></i></span>
           </button>
           <div x-show="postTxnOpen" x-cloak @click.outside="postTxnOpen = false"
                class="absolute right-0 mt-2 w-64 rounded-xl border bg-white shadow-xl py-1 z-40 text-left"
                style="border-color:#edebe9;">
-            <a href="{% url 'tenant_portal:finance_post_transaction' %}" @click="postTxnOpen = false"
-               class="block px-3 py-2 text-[12px] font-semibold text-[#605e5c] hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">{% trans "Overview" %}</a>
-            <a href="{% url 'tenant_portal:pay_payment_vouchers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Payment Voucher" %}</a>
+            <a href="{% url 'tenant_portal:pay_payment_entry' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Payments" %}</a>
             <a href="{% url 'tenant_portal:recv_receipt_entry' %}?receipt_type=grant_funding"
                @click="postTxnOpen = false; subMenu = 'receivables'; activeItem = 'recv_center_home'"
                class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Receipts" %}</a>
-            <a href="{% url 'tenant_portal:cash_cash_transfers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Cash Transfer" %}</a>
-            <a href="{% url 'tenant_portal:cash_bank_transfers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Bank Transfer" %}</a>
-            <p class="px-3 pt-2.5 pb-0 text-[10px] font-semibold uppercase tracking-wide text-[#605e5c]">{% trans "Fund transfers" %}</p>
-            <a href="{% url 'tenant_portal:finance_interfund_transfer_create' %}?src=post" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "New inter-fund transfer" %}</a>
-            <a href="{% url 'tenant_portal:finance_interfund_transfers' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Inter-fund transfers" %}</a>
-            <a href="{% url 'tenant_portal:finance_journals' %}?open_manual=1" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8] border-t" style="border-color:#edebe9;">{% trans "Manual Journal" %}</a>
           </div>
         </div>
         <a href="{% url 'tenant_portal:finance_post_transaction' %}"
-           class="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-full bg-white text-[#0078D4] border border-white/25"
-           title="Post transaction">
-          <i data-feather="edit-3" class="w-4 h-4"></i>
+           class="md:hidden erp-topbar-pill erp-topbar-pill--compact inline-flex items-center justify-center"
+           title="{% trans 'Post transaction' %}">
+          <span class="erp-topbar-pill__icon"><i data-feather="receipt"></i></span>
         </a>
-
-        <!-- Quick actions dropdown -->
-        <div class="relative">
-          <button type="button"
-                  @click="quickOpen = !quickOpen"
-                  class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white hover:bg-white/15 border border-white/25">
-            <i data-feather="zap" class="w-4 h-4"></i>
-            <span>Quick actions</span>
-            <i data-feather="chevron-down" class="w-3 h-3"></i>
-          </button>
-          <button type="button"
-                  @click="quickOpen = !quickOpen"
-                  class="sm:hidden inline-flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-white/15 border border-white/25">
-            <i data-feather="zap" class="w-4 h-4"></i>
-          </button>
-          <div x-show="quickOpen" x-cloak
-               @click.outside="quickOpen = false"
-               class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-2 text-sm z-30">
-            <p class="px-4 pb-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Quick actions</p>
-            <div class="px-2 pb-1 space-y-1">
-              <a href="{% url 'tenant_portal:finance_post_transaction' %}"
-                 @click="quickOpen = false"
-                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
-                <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                  <i data-feather="edit-3" class="w-4 h-4 text-blue-600"></i>
-                </div>
-                <p class="text-[13px] font-semibold text-[#111827]">Post transaction</p>
-              </a>
-              <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
-                 @click="quickOpen = false"
-                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
-                <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <i data-feather="file-minus" class="w-4 h-4 text-emerald-600"></i>
-                </div>
-                <p class="text-[13px] font-semibold text-[#111827]">Create payment voucher</p>
-              </a>
-              <a href="{% url 'tenant_portal:recv_receipt_entry' %}?receipt_type=grant_funding"
-                 @click="quickOpen = false; subMenu = 'receivables'; activeItem = 'recv_center_home'"
-                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
-                <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
-                  <i data-feather="file-plus" class="w-4 h-4 text-indigo-600"></i>
-                </div>
-                <p class="text-[13px] font-semibold text-[#111827]">Create receipt</p>
-              </a>
-              <div class="border-t my-1" style="border-color:#e5e7eb;"></div>
-              <a href="{% url 'tenant_portal:budget_creation' %}"
-                 @click="quickOpen = false"
-                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
-                <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
-                  <i data-feather="pie-chart" class="w-4 h-4 text-amber-600"></i>
-                </div>
-                <p class="text-[13px] font-semibold text-[#111827]">Create budget</p>
-              </a>
-              <a href="{% url 'tenant_portal:grants_grants' %}"
-                 @click="quickOpen = false"
-                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
-                <div class="w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center">
-                  <i data-feather="folder-plus" class="w-4 h-4 text-sky-600"></i>
-                </div>
-                <p class="text-[13px] font-semibold text-[#111827]">Create grant / project</p>
-              </a>
-              <a href="{% url 'tenant_portal:grants_donor_register' %}"
-                 @click="quickOpen = false"
-                 class="flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50">
-                <div class="w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center">
-                  <i data-feather="user-plus" class="w-4 h-4 text-sky-600"></i>
-                </div>
-                <p class="text-[13px] font-semibold text-[#111827]">Create donor</p>
-              </a>
-            </div>
-          </div>
-        </div>
 
         <!-- Smart Alerts / Notifications dropdown -->
         <div class="relative">
           <button type="button"
-                  @click="notifOpen = !notifOpen; quickOpen = false; userOpen = false"
-                  class="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-full text-white hover:bg-white/15 border border-white/20 relative">
-            <i data-feather="bell" class="w-4 h-4"></i>
-            {% if smart_alerts_count > 0 %}
-            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ffb900] text-[#201f1e]">{{ smart_alerts_count }}</span>
+                  @click="notifOpen = !notifOpen; userOpen = false"
+                  class="erp-topbar-pill erp-topbar-pill--compact hidden sm:inline-flex relative cursor-pointer"
+                  aria-label="{% trans 'Alerts and notifications' %}">
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="bell"></i></span>
+            {% if notification_center_count|default:smart_alerts_count > 0 %}
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ea580c] text-white shadow-sm">{{ notification_center_count|default:smart_alerts_count }}</span>
             {% endif %}
           </button>
           <div x-show="notifOpen" x-cloak
                @click.outside="notifOpen = false"
-               class="absolute right-0 mt-2 w-[360px] max-h-[400px] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col">
+               class="absolute right-0 mt-2 w-[min(440px,calc(100vw-2rem))] max-h-[min(90vh,640px)] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col text-left">
             <div class="px-4 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#e5e7eb;">
-              <span class="text-[13px] font-semibold text-[#111827]">Alerts &amp; Warnings</span>
-              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:#0078D4;">View all</a>
+              <span class="text-[13px] font-semibold text-[#111827]">{% trans "Alerts & Warnings" %}</span>
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:#0078D4;">{% trans "View all" %}</a>
             </div>
-            <div class="overflow-y-auto flex-1 py-2">
-              {% for alert in smart_alerts %}
-              <a href="{{ alert.link_url }}" @click="notifOpen = false" class="flex gap-3 px-4 py-2.5 hover:bg-[#f9fafb] border-l-4" style="border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
-                <span class="shrink-0 mt-0.5 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
-                  <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
-                </span>
-                <div class="min-w-0 flex-1">
-                  <p class="text-[13px] font-semibold text-[#111827] truncate">{{ alert.title }}</p>
-                  <p class="text-[12px] mt-0.5 truncate" style="color:#6b7280;">{{ alert.message }}</p>
-                </div>
-              </a>
-              {% empty %}
-              <p class="px-4 py-6 text-center text-[13px]" style="color:#6b7280;">No alerts.</p>
-              {% endfor %}
-            </div>
+            {% with panel_alerts=notification_center_items|default:smart_alerts %}
+            {% include "tenant_portal/includes/smart_alerts_items.html" with alerts=panel_alerts compact=1 bell_close=1 %}
+            {% endwith %}
           </div>
         </div>
 
-        <div class="hidden sm:block h-6 w-px bg-white/20 mx-1"></div>
-
-        <!-- User profile dropdown (Microsoft Dynamics / Fluent style) -->
+        <!-- User profile dropdown (same pill shell as other top-right actions) -->
         <div class="relative">
           <button type="button"
                   @click="userOpen = !userOpen"
-                  class="flex items-center gap-2 px-2.5 py-2 rounded text-xs font-medium text-white hover:bg-white/15 transition-colors min-h-[36px]">
-            <span class="hidden sm:inline truncate max-w-[160px]">{{ tenant_user.position|default:tenant_user.full_name|default:tenant_user.email }}</span>
+                  class="erp-topbar-pill erp-topbar-pill--user cursor-pointer">
+            <span class="hidden sm:inline erp-topbar-pill__label truncate max-w-[160px]">{{ tenant_user.position|default:tenant_user.full_name|default:tenant_user.email }}</span>
             {% if tenant_user.profile_photo %}
-            <img src="{{ tenant_user.profile_photo.url }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0" />
+            <img src="{{ tenant_user.profile_photo.url }}" alt="" class="erp-topbar-pill__avatar" />
             {% else %}
-            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-[12px] font-semibold shrink-0">
+            <span class="erp-topbar-pill__avatar-fallback">
               {{ tenant_user.email|default:'?'|slice:':1'|upper }}
             </span>
             {% endif %}
-            <i data-feather="chevron-down" class="w-4 h-4 shrink-0 opacity-90"></i>
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="chevron-down"></i></span>
           </button>
           <div x-show="userOpen" x-cloak
                x-transition:enter="transition ease-out duration-150"
@@ -1160,13 +1170,6 @@
                 <i data-feather="folder" class="tenant-nav-link__ico"></i>
                 <span x-show="!sidebarCollapsed" class="truncate">{% trans "Project list" %}</span>
               </a>
-              <a href="{% url 'tenant_portal:grants_project_budget' %}"
-                 @click="activeItem = 'funds_project_budget'"
-                 class="tenant-nav-link group"
-                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_project_budget' }">
-                <i data-feather="layers" class="tenant-nav-link__ico"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Project budget structure" %}</span>
-              </a>
               <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
                  @click="activeItem = 'funds_grant_allocation'"
                  class="tenant-nav-link group"
@@ -1274,7 +1277,7 @@
                  class="tenant-nav-link group"
                  :class="{ 'tenant-nav-link--active': activeItem === 'budget_creation' }">
                 <i data-feather="file-plus" class="tenant-nav-link__ico"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Budget creation</span>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget Entry</span>
               </a>
               <a href="{% url 'tenant_portal:budget_templates' %}"
                  @click="activeItem = 'budget_templates'"
@@ -1295,7 +1298,7 @@
                  class="tenant-nav-link group"
                  :class="{ 'tenant-nav-link--active': activeItem === 'budget_structures' }">
                 <i data-feather="grid" class="tenant-nav-link__ico"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Project &amp; donor budget structures</span>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget Setup</span>
               </a>
             </div>
 
@@ -1430,7 +1433,7 @@
                      class="tenant-nav-link group"
                      :class="{ 'tenant-nav-link--active': activeItem === 'cash_main_cashbook' }">
                     <i data-feather="book-open" class="tenant-nav-link__ico"></i>
-                    <span x-show="!sidebarCollapsed" class="truncate">Main Cashbook</span>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cashbook</span>
                   </a>
                   <a href="{% url 'tenant_portal:recv_bank_cash_receipts' %}"
                      @click="activeItem = 'recv_bank_cash_receipts'"
@@ -1569,7 +1572,7 @@
                  class="tenant-nav-link group"
                  :class="{ 'tenant-nav-link--active': activeItem === 'recv_receipt_vouchers' }">
                 <i data-feather="file-plus" class="tenant-nav-link__ico"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Other income receipts</span>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Receipts" %}</span>
               </a>
               <a href="{% url 'tenant_portal:recv_donor_receipts' %}"
                  @click="activeItem = 'recv_donor_receipts'"
@@ -1657,7 +1660,7 @@
                  class="tenant-nav-link group"
                  :class="{ 'tenant-nav-link--active': activeItem === 'pay_payment_vouchers' }">
                 <i data-feather="file-minus" class="tenant-nav-link__ico"></i>
-                <span x-show="!sidebarCollapsed" class="truncate">Payment vouchers</span>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Payments" %}</span>
               </a>
               <a href="{% url 'tenant_portal:pay_vendor_payments' %}"
                  @click="activeItem = 'pay_vendor_payments'"
@@ -2300,15 +2303,27 @@
         </nav>
       </aside>
       <main class="min-w-0 flex-1 px-6 py-8 overflow-y-auto erp-main-scroll">
+      {% include "tenant_portal/includes/erp_alert_layer.html" %}
       {% if messages %}
-        <div class="mb-5 space-y-2">
+        <div class="mb-5 space-y-2" role="status">
           {% for message in messages %}
-            <div class="text-sm px-3 py-2 rounded border"
-                 style="border-color:{% if message.tags == 'error' %}#fde7e9{% else %}#dff6dd{% endif %};
-                        background:{% if message.tags == 'error' %}#fde7e9{% else %}#dff6dd{% endif %};
-                        color:{% if message.tags == 'error' %}#a4262c{% else %}#0b5a0b{% endif %};">
+            {% if 'error' in message.tags %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#fde7e9;background:#fde7e9;color:#a4262c;">
+              {{ message|linebreaksbr }}
+            </div>
+            {% elif 'warning' in message.tags %}
+            <div class="text-sm px-3 py-2 rounded border text-left" style="border-color:#fff4ce;background:#fff4ce;color:#8a6116;">
+              {{ message|linebreaksbr }}
+            </div>
+            {% elif 'success' in message.tags %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#dff6dd;background:#dff6dd;color:#0b5a0b;">
               {{ message }}
             </div>
+            {% else %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#deecf9;background:#f3f9ff;color:#004578;">
+              {{ message }}
+            </div>
+            {% endif %}
           {% endfor %}
         </div>
       {% endif %}

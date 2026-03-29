@@ -55,7 +55,8 @@ def restrict_journal_lines_by_grant_scope(qs: QuerySet, user, tenant_db: str) ->
         return qs
     allowed = assigned_grant_ids(user, tenant_db)
     if not allowed:
-        return qs.none()
+        # No grant assignments: still show organizational lines (no grant on entry or line).
+        return qs.filter(Q(entry__grant_id__isnull=True) & Q(grant_id__isnull=True))
     return qs.filter(Q(entry__grant_id__in=allowed) | Q(grant_id__in=allowed))
 
 

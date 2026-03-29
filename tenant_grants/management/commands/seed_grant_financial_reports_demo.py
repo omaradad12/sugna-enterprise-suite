@@ -102,23 +102,6 @@ class Command(BaseCommand):
             )
             grant.refresh_from_db()
 
-            def ensure_budget_line(category: str, amount: Decimal) -> None:
-                bl = (
-                    BudgetLine.objects.using(db)
-                    .filter(grant=grant, category__iexact=category)
-                    .first()
-                )
-                if bl:
-                    BudgetLine.objects.using(db).filter(pk=bl.pk).update(amount=amount)
-                else:
-                    BudgetLine.objects.using(db).create(
-                        grant=grant, category=category, amount=amount
-                    )
-
-            ensure_budget_line("Supplies", Decimal("20000.00"))
-            ensure_budget_line("Transport", Decimal("5000.00"))
-            ensure_budget_line("Staff", Decimal("10000.00"))
-
             exp, _ = ChartAccount.objects.using(db).get_or_create(
                 code="GFR-6100-SUP",
                 defaults={
@@ -136,6 +119,58 @@ class Command(BaseCommand):
                     "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
                     "is_active": True,
                 },
+            )
+            exp_st, _ = ChartAccount.objects.using(db).get_or_create(
+                code="GFR-6102-STF",
+                defaults={
+                    "name": "Program expenses — staff (demo)",
+                    "type": ChartAccount.Type.EXPENSE,
+                    "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                    "is_active": True,
+                },
+            )
+
+            def ensure_budget_line(
+                *,
+                line_code: str,
+                category: str,
+                amount: Decimal,
+                account,
+            ) -> None:
+                bl = (
+                    BudgetLine.objects.using(db)
+                    .filter(grant=grant, budget_code=line_code)
+                    .first()
+                )
+                if bl:
+                    BudgetLine.objects.using(db).filter(pk=bl.pk).update(amount=amount)
+                else:
+                    BudgetLine.objects.using(db).create(
+                        grant=grant,
+                        project=project,
+                        budget_code=line_code,
+                        category=category,
+                        amount=amount,
+                        account=account,
+                    )
+
+            ensure_budget_line(
+                line_code="GFR-DEMO-SUP",
+                category="Supplies",
+                amount=Decimal("20000.00"),
+                account=exp,
+            )
+            ensure_budget_line(
+                line_code="GFR-DEMO-TRN",
+                category="Transport",
+                amount=Decimal("5000.00"),
+                account=exp_tr,
+            )
+            ensure_budget_line(
+                line_code="GFR-DEMO-STF",
+                category="Staff",
+                amount=Decimal("10000.00"),
+                account=exp_st,
             )
             ap, _ = ChartAccount.objects.using(db).get_or_create(
                 code="GFR-2000-AP",

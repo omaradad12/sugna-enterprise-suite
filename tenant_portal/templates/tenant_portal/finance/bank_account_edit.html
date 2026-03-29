@@ -1,0 +1,210 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% block title %}Edit bank account — {{ ba.bank_name }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-[900px] mx-auto px-4 pb-8" style="background:#faf9f8;">
+  <div class="pt-4 pb-4 flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-[20px] font-semibold text-[#323130] tracking-tight">Edit bank account</h1>
+      <p class="text-[13px] text-[#605e5c] mt-1">{{ ba.bank_name }} — {{ ba.account_number }} · GL {{ ba.account.code }}</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="{% url 'tenant_portal:finance_account_ledger' %}?bank_account_id={{ ba.id }}&tab=transactions"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded border text-[13px] font-semibold text-[#323130] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="eye" class="w-4 h-4"></i>
+        View ledger
+      </a>
+      <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+         class="text-[13px] font-medium text-[#0078D4] hover:underline self-center px-1">Back to Bank Accounts</a>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg border shadow-sm overflow-hidden mb-4" style="border-color:#edebe9;">
+    <div class="px-5 py-3 border-b flex flex-wrap gap-4 justify-between" style="border-color:#edebe9; background:#faf9f8;">
+      <div>
+        <p class="text-[11px] font-semibold text-[#605e5c] uppercase tracking-wider">Current balance (posted)</p>
+        <p class="text-[18px] font-semibold text-[#323130] tabular-nums">{{ ba.currency.code }} {{ current_balance|floatformat:2 }}</p>
+      </div>
+      <div>
+        <p class="text-[11px] font-semibold text-[#605e5c] uppercase tracking-wider">Status</p>
+        {% if ba.is_active %}
+        <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#ecfdf3; color:#166534; border:1px solid #bbf7d0;">Active</span>
+        {% else %}
+        <span class="inline-flex items-center px-2 py-1 rounded text-[12px] font-semibold" style="background:#fef3c7; color:#b45309;">Inactive</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <form method="post" class="p-5 space-y-4 {% if not can_manage %}opacity-90{% endif %}">
+      {% csrf_token %}
+
+      {% if not can_manage %}
+      <div class="rounded border px-3 py-2 text-[13px]" style="border-color:#edebe9; background:#f8fafc;">
+        You have read-only access. Ask a finance manager to change this bank account.
+      </div>
+      {% endif %}
+
+      {% if has_transactions %}
+      <div class="rounded border px-3 py-2 text-[13px]" style="border-color:#edebe9; background:#fffbeb;">
+        This account has journal activity. Currency cannot be changed.
+      </div>
+      {% endif %}
+
+      <div>
+        <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Basic information</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Bank name<span class="text-[#a4262c]">*</span></label>
+            <input name="bank_name" required type="text" value="{{ ba.bank_name }}"
+                   {% if not can_manage %}readonly{% endif %}
+                   class="w-full px-3 py-2 rounded border text-[13px] text-[#323130] bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                   style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Account name<span class="text-[#a4262c]">*</span></label>
+            <input name="account_name" required type="text" value="{{ ba.account_name }}"
+                   {% if not can_manage %}readonly{% endif %}
+                   class="w-full px-3 py-2 rounded border text-[13px] bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                   style="border-color:#edebe9;" />
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Account number<span class="text-[#a4262c]">*</span></label>
+            <input name="account_number" required type="text" value="{{ ba.account_number }}"
+                   {% if not can_manage %}readonly{% endif %}
+                   class="w-full px-3 py-2 rounded border text-[13px] font-mono bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                   style="border-color:#edebe9;" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[13px] font-medium text-[#323130] mb-1">Branch</label>
+              <input name="branch" type="text" value="{{ ba.branch }}"
+                     {% if not can_manage %}readonly{% endif %}
+                     class="w-full px-3 py-2 rounded border text-[13px] bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                     style="border-color:#edebe9;" />
+            </div>
+            <div>
+              <label class="block text-[13px] font-medium text-[#323130] mb-1">Office / location</label>
+              <input name="office" type="text" value="{{ ba.office }}"
+                     {% if not can_manage %}readonly{% endif %}
+                     class="w-full px-3 py-2 rounded border text-[13px] bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                     style="border-color:#edebe9;" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Currency<span class="text-[#a4262c]">*</span></label>
+            {% if has_transactions %}
+            <input type="hidden" name="currency_id" value="{{ ba.currency_id }}" />
+            <input type="text" readonly value="{{ ba.currency.code }} — {{ ba.currency.name }}"
+                   class="w-full px-3 py-2 rounded border text-[13px] bg-[#f3f2f1]"
+                   style="border-color:#edebe9;" />
+            {% else %}
+            <select name="currency_id" required class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+              {% for c in currencies %}
+              <option value="{{ c.pk }}" {% if ba.currency_id == c.pk %}selected{% endif %}>{{ c.code }} — {{ c.name }}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Description</label>
+            <textarea name="description" rows="2" {% if not can_manage %}readonly{% endif %}
+                      class="w-full px-3 py-2 rounded border text-[13px] resize-y bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                      style="border-color:#edebe9;">{{ ba.description }}</textarea>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Account type</label>
+            <select name="account_type" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;"
+                    {% if not can_manage %}disabled{% endif %}>
+              {% for val, lbl in account_type_choices %}
+              <option value="{{ val }}" {% if ba.account_type == val %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+            {% if not can_manage %}<input type="hidden" name="account_type" value="{{ ba.account_type }}" />{% endif %}
+            <p class="text-[11px] text-[#605e5c] mt-1">Operating / Petty cash: org-wide when project is blank. Project type requires a project.</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[13px] font-medium text-[#323130] mb-1">Project (optional)</label>
+              <select name="project_id" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;"
+                      {% if not can_manage %}disabled{% endif %}>
+                <option value="">—</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if ba.linked_project_id == p.id %}selected{% endif %}>{{ p.code }}</option>
+                {% endfor %}
+              </select>
+              {% if not can_manage %}<input type="hidden" name="project_id" value="{{ ba.linked_project_id|default:'' }}" />{% endif %}
+            </div>
+            <div>
+              <label class="block text-[13px] font-medium text-[#323130] mb-1">Grant (optional)</label>
+              <select name="grant_id" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;"
+                      {% if not can_manage %}disabled{% endif %}>
+                <option value="">—</option>
+                {% for g in grants %}
+                <option value="{{ g.id }}" {% if ba.linked_grant_id == g.id %}selected{% endif %}>{{ g.code }}</option>
+                {% endfor %}
+              </select>
+              {% if not can_manage %}<input type="hidden" name="grant_id" value="{{ ba.linked_grant_id|default:'' }}" />{% endif %}
+            </div>
+          </div>
+          <label class="inline-flex items-center gap-2 text-[13px] text-[#323130]">
+            <input type="checkbox" name="is_default_operating" value="1" class="rounded border" style="border-color:#edebe9;"
+                   {% if ba.is_default_operating %}checked{% endif %}
+                   {% if not can_manage %}disabled{% endif %} />
+            Set as default operating account
+          </label>
+          {% if not can_manage and ba.is_default_operating %}<input type="hidden" name="is_default_operating" value="1" />{% endif %}
+        </div>
+      </div>
+
+      <div class="pt-4 border-t" style="border-color:#edebe9;">
+        <h3 class="text-xs font-semibold text-[#605e5c] uppercase tracking-wider mb-3">Accounting</h3>
+        <div class="space-y-3">
+          <div class="rounded border px-3 py-2 text-[13px]" style="border-color:#edebe9; background:#f8fafc;">
+            <p class="font-medium text-[#323130]">Linked GL (read-only)</p>
+            <p class="text-[#605e5c] mt-0.5 font-mono">{{ ba.account.code }} — {{ ba.account.name }}</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[13px] font-medium text-[#323130] mb-1">Opening balance</label>
+              <input name="opening_balance" type="number" step="0.01" value="{{ ba.opening_balance }}"
+                     {% if not can_manage %}readonly{% endif %}
+                     class="w-full px-3 py-2 rounded border text-[13px] bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                     style="border-color:#edebe9;" />
+            </div>
+            <div>
+              <label class="block text-[13px] font-medium text-[#323130] mb-1">As at date</label>
+              <input name="opening_balance_date" type="date" value="{{ ba.opening_balance_date|date:'Y-m-d' }}"
+                     {% if not can_manage %}readonly{% endif %}
+                     class="w-full px-3 py-2 rounded border text-[13px] bg-white {% if not can_manage %}bg-[#f3f2f1]{% endif %}"
+                     style="border-color:#edebe9;" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-[13px] font-medium text-[#323130] mb-1">Status</label>
+            <select name="status" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;"
+                    {% if not can_manage %}disabled{% endif %}>
+              <option value="active" {% if ba.is_active %}selected{% endif %}>Active</option>
+              <option value="inactive" {% if not ba.is_active %}selected{% endif %}>Inactive</option>
+            </select>
+            {% if not can_manage %}<input type="hidden" name="status" value="{% if ba.is_active %}active{% else %}inactive{% endif %}" />{% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if can_manage %}
+      <div class="pt-4 flex justify-end gap-3" style="border-top:1px solid #edebe9;">
+        <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+           class="px-4 py-2.5 rounded text-[13px] font-semibold border" style="border-color:#edebe9; color:#323130;">Cancel</a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded text-[13px] font-semibold text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          Save changes
+        </button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -15,14 +15,13 @@ Bucket = Literal["operating", "investing", "financing"]
 def cash_and_bank_chart_account_ids_extended(using: str) -> list[int]:
     """
     Chart accounts that represent cash and bank balances:
-    - Linked to an active BankAccount, and/or
+    - Linked to a BankAccount master row (active or inactive; historical activity remains in scope), and/or
     - Asset accounts whose category code is CASH or BANK (case-insensitive).
     """
     from tenant_finance.models import BankAccount, ChartAccount
 
     ids: set[int] = set(
         BankAccount.objects.using(using)
-        .filter(is_active=True)
         .values_list("account_id", flat=True)
         .distinct()
     )

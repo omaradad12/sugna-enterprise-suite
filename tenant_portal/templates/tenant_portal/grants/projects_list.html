@@ -404,7 +404,7 @@
           <td x-show="showExtraCols" x-cloak>{{ p.location|default:"—" }}</td>
           <td x-show="showExtraCols" x-cloak>{{ p.program_sector|default:"—" }}</td>
           <td class="text-right" x-show="showExtraCols" x-cloak>{{ p.total_beneficiaries|erp_int }}</td>
-          <td x-show="showExtraCols" x-cloak>{% if p.funding_type %}{{ p.get_funding_type_display }}{% else %}—{% endif %}</td>
+          <td x-show="showExtraCols" x-cloak>{% if p.program_category_code %}{{ p.program_category_code }}{% elif p.funding_type %}{{ p.get_funding_type_display }}{% else %}—{% endif %}</td>
           <td class="text-right font-semibold" x-show="showExtraCols" x-cloak>{{ p.fin.grant_count|erp_int }}</td>
           <td x-show="showExtraCols" x-cloak>{{ p.calendar_phase_label|default:"—" }}</td>
           <td x-show="showExtraCols" x-cloak class="whitespace-nowrap text-[12px]">{{ p.updated_at|date:"Y-m-d H:i"|default:"—" }}</td>

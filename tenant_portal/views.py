@@ -1,6 +1,9 @@
+import re
+from functools import lru_cache
+
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -123,42 +126,20 @@ def _get_role_display(tenant_user, tenant_db):
 
 
 def _bank_cash_posting_gl_accounts(using: str):
-    """Active posting asset GL accounts directly under 1200."""
-    from tenant_finance.models import ChartAccount
+    """Active posting asset GL accounts under 1200 — Bank Accounts (no account-category filter)."""
+    from tenant_finance.services.bank_account_dropdowns import bank_cash_posting_chart_accounts
 
-    qs = (
-        ChartAccount.objects.using(using)
-        .filter(
-            is_active=True,
-            type=ChartAccount.Type.ASSET,
-            statement_type=ChartAccount.StatementType.BALANCE_SHEET,
-            parent__code="1200",
-        )
-        .exclude(code="1200")
-        .select_related("parent")
-        .order_by("code")
-    )
-    return [acc for acc in qs if acc.is_leaf(using)]
+    return bank_cash_posting_chart_accounts(using)
 
 
 def _valid_bank_accounts_under_1200(using: str):
-    """Active BankAccount rows backed by posting asset GL under 1200."""
-    from tenant_finance.models import BankAccount, ChartAccount
+    """
+    Active BankAccount books linked to GL under 1200 — Bank Accounts, ordered by GL code.
+    Same rule set as receipt/payment validation (asset, parent 1200, active, allow_posting).
+    """
+    from tenant_finance.services.bank_account_dropdowns import valid_bank_account_books_under_1200
 
-    qs = (
-        BankAccount.objects.using(using)
-        .select_related("currency", "account", "account__parent")
-        .filter(
-            is_active=True,
-            account__is_active=True,
-            account__type=ChartAccount.Type.ASSET,
-            account__statement_type=ChartAccount.StatementType.BALANCE_SHEET,
-            account__parent__code="1200",
-        )
-        .exclude(account__code="1200")
-        .order_by("account__code", "bank_name", "account_name")
-    )
-    return [ba for ba in qs if ba.account_id and ba.account.is_leaf(using)]
+    return valid_bank_account_books_under_1200(using)
 
 
 def _tenant_export_header_rows(request, tenant_db: str, report_title: str):
@@ -183,6 +164,7 @@ def _ensure_default_receipt_and_income_accounts(using: str):
     """
     Ensure default bank/cash and income COA structure exists for receipt workflows.
     Also ensures BankAccount master rows exist for 1201-1204 accounts.
+    Seeds program expense accounts: 5350 (summary) with 5351–5360, and 5365 Indirect Costs.
     """
     from django.db import transaction
     from tenant_finance.models import BankAccount, ChartAccount, Currency
@@ -363,6 +345,69 @@ def _ensure_default_receipt_and_income_accounts(using: str):
             inc.parent = other_income_root
             inc.save(using=using)
 
+        dist_summary, _ = ChartAccount.objects.using(using).get_or_create(
+            code="5350",
+            defaults={
+                "name": "Distribution Costs (Summary)",
+                "type": ChartAccount.Type.EXPENSE,
+                "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                "is_active": True,
+                "parent": None,
+            },
+        )
+        dist_summary.name = "Distribution Costs (Summary)"
+        dist_summary.type = ChartAccount.Type.EXPENSE
+        dist_summary.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+        dist_summary.is_active = True
+        dist_summary.parent = None
+        dist_summary.save(using=using)
+
+        for code, name in [
+            ("5351", "Warehouse Costs"),
+            ("5352", "Transportation Costs"),
+            ("5353", "Vehicle Rental Costs"),
+            ("5354", "Loading & Offloading Costs"),
+            ("5355", "Supervision Costs"),
+            ("5356", "Monitoring Costs"),
+            ("5357", "Training Costs"),
+            ("5358", "Refreshments Costs"),
+            ("5359", "Stationery Costs"),
+            ("5360", "Logistics Staff Costs"),
+        ]:
+            leaf, _ = ChartAccount.objects.using(using).get_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "type": ChartAccount.Type.EXPENSE,
+                    "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                    "is_active": True,
+                    "parent": dist_summary,
+                },
+            )
+            leaf.name = name
+            leaf.type = ChartAccount.Type.EXPENSE
+            leaf.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+            leaf.is_active = True
+            leaf.parent = dist_summary
+            leaf.save(using=using)
+
+        indirect, _ = ChartAccount.objects.using(using).get_or_create(
+            code="5365",
+            defaults={
+                "name": "Indirect Costs (7%)",
+                "type": ChartAccount.Type.EXPENSE,
+                "statement_type": ChartAccount.StatementType.INCOME_EXPENDITURE,
+                "is_active": True,
+                "parent": None,
+            },
+        )
+        indirect.name = "Indirect Costs (7%)"
+        indirect.type = ChartAccount.Type.EXPENSE
+        indirect.statement_type = ChartAccount.StatementType.INCOME_EXPENDITURE
+        indirect.is_active = True
+        indirect.parent = None
+        indirect.save(using=using)
+
         # Remove deprecated income accounts from active COA usage.
         from django.db.models import Q
 
@@ -404,12 +449,13 @@ def _income_posting_accounts_for_roots(using: str, root_codes: list[str]):
         .filter(
             id__in=descendant_ids,
             is_active=True,
+            allow_posting=True,
             type=ChartAccount.Type.INCOME,
             statement_type=ChartAccount.StatementType.INCOME_EXPENDITURE,
         )
         .order_by("code")
     )
-    return [acc for acc in qs if acc.is_leaf(using)]
+    return list(qs)
 
 
 def _get_global_financial_indicators(request):
@@ -1199,9 +1245,9 @@ def _gl_source_label(entry) -> str:
     if st == JournalEntry.SourceType.INTER_FUND_TRANSFER or jt == "inter_fund_transfer":
         return "Inter-fund transfer"
     if st == JournalEntry.SourceType.PAYMENT_VOUCHER or jt == "payment_voucher":
-        return "Payment voucher"
+        return "Payments"
     if st == JournalEntry.SourceType.RECEIPT_VOUCHER or jt == "receipt_voucher":
-        return "Receipt voucher"
+        return "Receipts"
     if jt in ("adjustment", "adjusting_journal", "adjusting"):
         return "Adjusting journal"
     if st == JournalEntry.SourceType.MANUAL and not entry.is_system_generated:
@@ -1224,6 +1270,17 @@ def _finance_export_csv_url(request):
     q = request.GET.copy()
     q["format"] = "csv"
     return request.path + "?" + q.urlencode()
+
+
+def _url_without_get_params(request: HttpRequest, *param_names: str) -> str:
+    """Same path, GET query with listed params removed (used to clear accidental filters)."""
+    from urllib.parse import urlencode
+
+    q = request.GET.copy()
+    for name in param_names:
+        q.pop(name, None)
+    qs = q.urlencode()
+    return request.path + ("?" + qs if qs else "")
 
 
 def _journal_list_preset_urls(request: HttpRequest) -> dict[str, str]:
@@ -1360,6 +1417,8 @@ def finance_cash_position_view(request: HttpRequest) -> HttpResponse:
     period_outflows = (outflows.get("total") or Decimal("0"))
 
     grants = __import__("tenant_grants.models", fromlist=["Grant"]).Grant.objects.using(tenant_db).filter(status="active").order_by("code")
+    open_budget_entry = (request.GET.get("create") or "").strip().lower() in {"1", "true", "yes"}
+
     donors = __import__("tenant_grants.models", fromlist=["Donor"]).Donor.objects.using(tenant_db).order_by("name")
 
     if request.GET.get("format") == "csv":
@@ -1633,79 +1692,520 @@ def finance_grant_utilization_view(request: HttpRequest) -> HttpResponse:
     )
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:grants.manage")
+def _rebuild_project_budget_lines_from_budget_lines(*, tenant_db: str, project_id: int) -> None:
+    """
+    Rebuild ProjectBudgetLine rows from all BudgetLine rows for grants under this project.
+    Allocated amount per line code is the sum of grant budget amounts for that code.
+    """
+    from collections import defaultdict
+    from decimal import Decimal
+
+    from tenant_grants.models import BudgetLine, Grant, ProjectBudget, ProjectBudgetLine
+
+    budget, _ = ProjectBudget.objects.using(tenant_db).get_or_create(
+        project_id=project_id, name="Main", defaults={}
+    )
+    ProjectBudgetLine.objects.using(tenant_db).filter(project_budget=budget).delete()
+
+    gids = list(
+        Grant.objects.using(tenant_db).filter(project_id=project_id).values_list("pk", flat=True)
+    )
+    if not gids:
+        return
+    bls = (
+        BudgetLine.objects.using(tenant_db)
+        .select_related("account")
+        .filter(grant_id__in=gids)
+        .order_by("id")
+    )
+    by_code: dict[str, list] = defaultdict(list)
+    for bl in bls:
+        code = (bl.budget_code or "").strip()
+        if not code:
+            continue
+        by_code[code].append(bl)
+
+    for code in sorted(by_code.keys()):
+        group = by_code[code]
+        total = sum((x.amount or Decimal("0") for x in group), Decimal("0"))
+        first = group[0]
+        if not first.account_id:
+            continue
+        ProjectBudgetLine.objects.using(tenant_db).create(
+            project_budget=budget,
+            category=first.category,
+            description=first.description or "",
+            account=first.account,
+            notes=code,
+            allocated_amount=total,
+            remaining_amount=total,
+        )
+
+
+def _parse_budget_structure_json_for_post(raw: str) -> list[dict]:
+    """Flatten wizard-style headings/sub_lines from POST JSON."""
+    import json
+
+    raw = (raw or "").strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    headings_in = data.get("headings")
+    if not isinstance(headings_in, list):
+        return []
+    out: list[dict] = []
+    for h in headings_in:
+        if not isinstance(h, dict):
+            continue
+        hc = (h.get("heading_code") or "").strip()
+        hn = (h.get("heading_name") or "").strip()
+        for sl in h.get("sub_lines") or []:
+            if not isinstance(sl, dict):
+                continue
+            out.append(
+                {
+                    "heading_code": hc,
+                    "heading_name": hn,
+                    "budget_code": (sl.get("budget_code") or "").strip(),
+                    "category": (sl.get("category") or "").strip(),
+                    "coa_code": (sl.get("coa_code") or "").strip(),
+                    "description": (sl.get("description") or "").strip(),
+                    "amount_raw": sl.get("amount"),
+                }
+            )
+    return out
+
+
+def _group_rows_into_budget_headings_for_entry(rows: list[dict], *, default_heading_label: str) -> list[dict]:
+    """Build wizard-style budget headings from flat line dicts (code, category, coa_code, description, amount)."""
+    from collections import defaultdict
+
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        code = (r.get("code") or "").strip()
+        parts = code.split(".") if code else []
+        hkey = ".".join(parts[:-1]) if len(parts) > 1 else ""
+        amt = r.get("amount")
+        if amt is not None and amt != "":
+            try:
+                if isinstance(amt, (int, float)):
+                    n = float(amt)
+                else:
+                    n = float(str(amt).replace(",", "").strip())
+                amt_str = f"{n:,.2f}"
+            except (TypeError, ValueError):
+                amt_str = str(amt)
+        else:
+            amt_str = ""
+        groups[hkey].append(
+            {
+                "budget_code": code,
+                "category": r.get("category") or "",
+                "coa_code": (r.get("coa_code") or "").strip(),
+                "description": r.get("description") or "",
+                "amount": amt_str,
+            }
+        )
+    headings: list[dict] = []
+    for hkey in sorted(groups.keys(), key=lambda k: (k == "", k)):
+        subs = groups[hkey]
+        if hkey == "":
+            hc, hn = "", default_heading_label
+        else:
+            hc, hn = hkey, hkey
+        headings.append(
+            {
+                "heading_code": hc,
+                "heading_name": hn,
+                "collapsed": False,
+                "sub_lines": subs,
+            }
+        )
+    if not headings:
+        headings = [
+            {
+                "heading_code": "",
+                "heading_name": default_heading_label,
+                "collapsed": False,
+                "sub_lines": [
+                    {
+                        "budget_code": "",
+                        "category": "",
+                        "coa_code": "",
+                        "description": "",
+                        "amount": "",
+                    }
+                ],
+            }
+        ]
+    return headings
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def grants_project_budget_view(request: HttpRequest) -> HttpResponse:
-    """Maintain project budget lines (allocated / remaining) for activity-based planning."""
+    """Single-page project/grant budget: structure, amounts (BudgetLine), and project rollup (ProjectBudgetLine)."""
     from decimal import Decimal, InvalidOperation
 
     from django.shortcuts import redirect
-    from django.urls import reverse
 
     from tenant_finance.models import ChartAccount
-    from tenant_grants.models import Project, ProjectBudget, ProjectBudgetLine
+    from tenant_grants.models import BudgetLine, Grant, Project, ProjectBudget, ProjectBudgetLine
+    from tenant_grants.services.project_budget_actuals import refresh_project_budget_and_activity_actuals
 
     tenant_db = request.tenant_db
-    projects = list(Project.objects.using(tenant_db).order_by("code")[:400])
+    can_manage = (
+        user_has_permission(request.tenant_user, "module:grants.manage", using=tenant_db)
+        or user_has_permission(request.tenant_user, "module:finance.manage", using=tenant_db)
+        or user_has_permission(request.tenant_user, "module:finance.view", using=tenant_db)
+    )
+    projects = list(
+        Project.objects.using(tenant_db)
+        .filter(status=Project.Status.ACTIVE)
+        .order_by("-id")[:400]
+    )
     pid = (request.GET.get("project_id") or request.POST.get("project_id") or "").strip()
+    selected_grant_id = (request.GET.get("grant_id") or request.POST.get("grant_id") or "").strip()
+
+    if (request.GET.get("download_template") or "").strip().lower() in {"1", "true", "yes"}:
+        import openpyxl
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "BudgetImportTemplate"
+        ws.append(
+            [
+                "GrantCode",
+                "BudgetCode",
+                "BudgetName",
+                "COACode",
+                "Description",
+                "Amount",
+            ]
+        )
+        ws.append(
+            [
+                "GR-001",
+                "6010",
+                "Personnel Costs",
+                "6010",
+                "Monthly payroll and field allowances",
+                "10000.00",
+            ]
+        )
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="budget_import_template.xlsx"'
+        wb.save(response)
+        return response
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+        if action == "import":
+            if not can_manage:
+                messages.error(request, "You do not have permission to import budgets.")
+            else:
+                import openpyxl
+
+                upload = request.FILES.get("budget_file")
+                if not upload:
+                    messages.error(request, "Please choose an Excel file to import.")
+                else:
+                    try:
+                        wb = openpyxl.load_workbook(upload)
+                        ws = wb.active
+                        created = 0
+                        skipped = 0
+                        skip_row_messages: list[str] = []
+                        touched_projects: set[int] = set()
+                        for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                            grant_code, budget_code, budget_line_name, coa_code, description, amount = (
+                                row + (None,) * 6
+                            )[:6]
+                            if not grant_code or not budget_code:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _("Row %(row)s: GrantCode and BudgetLineCode are required.")
+                                    % {"row": idx}
+                                )
+                                continue
+                            line_code = str(budget_code).strip()
+                            coa_code_s = str(coa_code).strip() if coa_code is not None else ""
+                            if not coa_code_s:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _("Row %(row)s: COACode is required.") % {"row": idx}
+                                )
+                                continue
+                            grant = (
+                                Grant.objects.using(tenant_db)
+                                .filter(code=str(grant_code).strip())
+                                .first()
+                            )
+                            if not grant:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _("Row %(row)s: No grant with GrantCode \"%(code)s\".")
+                                    % {"row": idx, "code": str(grant_code).strip()}
+                                )
+                                continue
+                            if not grant.project_id:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _("Row %(row)s: Grant \"%(code)s\" is not linked to a project.")
+                                    % {"row": idx, "code": str(grant_code).strip()}
+                                )
+                                continue
+                            coa_lookup = coa_code_s.strip()
+                            coa = (
+                                ChartAccount.objects.using(tenant_db)
+                                .filter(code=coa_lookup, is_active=True)
+                                .first()
+                            )
+                            if not coa:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _("Row %(row)s: No active chart account with code \"%(code)s\".")
+                                    % {"row": idx, "code": coa_lookup}
+                                )
+                                continue
+                            if coa.type != ChartAccount.Type.EXPENSE:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _(
+                                        "Row %(row)s: Chart account \"%(code)s\" must be an expense account."
+                                    )
+                                    % {"row": idx, "code": coa_lookup}
+                                )
+                                continue
+                            try:
+                                amt = Decimal(str(amount or "0").replace(",", ""))
+                            except Exception:
+                                skipped += 1
+                                skip_row_messages.append(
+                                    _("Row %(row)s: Amount must be numeric.") % {"row": idx}
+                                )
+                                continue
+                            cat = (
+                                str(budget_line_name).strip()
+                                if budget_line_name is not None
+                                else ""
+                            )
+                            BudgetLine.objects.using(tenant_db).update_or_create(
+                                grant=grant,
+                                budget_code=line_code,
+                                defaults={
+                                    "project": grant.project,
+                                    "account": coa,
+                                    "category": cat,
+                                    "description": (description or "")
+                                    if description is not None
+                                    else "",
+                                    "amount": amt,
+                                },
+                            )
+                            created += 1
+                            touched_projects.add(grant.project_id)
+                        for proj_id in touched_projects:
+                            _rebuild_project_budget_lines_from_budget_lines(
+                                tenant_db=tenant_db, project_id=proj_id
+                            )
+                            refresh_project_budget_and_activity_actuals(
+                                tenant_db, project_ids={proj_id}
+                            )
+                        if created:
+                            messages.success(
+                                request,
+                                _("Imported %(n)s budget line(s) from Excel.") % {"n": created},
+                            )
+                        if skipped:
+                            max_lines = 60
+                            shown = skip_row_messages[:max_lines]
+                            body = "\n".join(shown)
+                            if len(skip_row_messages) > max_lines:
+                                body += "\n" + (
+                                    _("… and %(n)s more row(s) not listed.")
+                                    % {"n": len(skip_row_messages) - max_lines}
+                                )
+                            messages.warning(
+                                request,
+                                _("Skipped %(n)s row(s):\n%(details)s")
+                                % {"n": skipped, "details": body},
+                            )
+                        elif not created:
+                            messages.info(
+                                request,
+                                _("No budget lines were imported (spreadsheet had no valid data rows)."),
+                            )
+                    except Exception:
+                        messages.error(request, "Could not read the Excel file. Please check the format.")
+            rp = request.POST.get("project_id") or pid
+            rg = request.POST.get("grant_id") or selected_grant_id
+            q = f"project_id={rp}" if rp else ""
+            if rg:
+                q = (q + "&" if q else "") + f"grant_id={rg}"
+            return redirect(request.path + ("?" + q if q else ""))
+
         if not pid.isdigit():
-            messages.error(request, "Select a project.")
+            messages.error(request, "Please select project and click Load.")
         else:
             proj = Project.objects.using(tenant_db).filter(pk=int(pid)).first()
             if not proj:
                 messages.error(request, "Project not found.")
-            elif action == "ensure_budget":
-                ProjectBudget.objects.using(tenant_db).get_or_create(
-                    project=proj, name="Main", defaults={}
-                )
-                messages.success(request, "Project budget container ready.")
-                return redirect(reverse("tenant_portal:grants_project_budget") + f"?project_id={pid}")
-            elif action == "add_line":
-                budget = (
-                    ProjectBudget.objects.using(tenant_db)
-                    .filter(project_id=int(pid), name="Main")
-                    .first()
-                )
-                if not budget:
-                    messages.error(request, "Create the project budget first (Main).")
+            elif action == "save_budget":
+                if not can_manage:
+                    messages.error(request, "You do not have permission to save budgets.")
                 else:
-                    cat = (request.POST.get("category") or "").strip()
-                    raw_amt = (request.POST.get("allocated_amount") or "0").replace(",", "")
-                    acc_id = (request.POST.get("account_id") or "").strip()
-                    desc = (request.POST.get("description") or "").strip()
-                    try:
-                        amt = Decimal(raw_amt)
-                    except InvalidOperation:
-                        amt = Decimal("0")
-                    acct = (
-                        ChartAccount.objects.using(tenant_db).filter(pk=int(acc_id)).first()
-                        if acc_id.isdigit()
+                    grant_id = (request.POST.get("grant_id") or "").strip()
+                    grant = (
+                        Grant.objects.using(tenant_db)
+                        .filter(pk=int(grant_id))
+                        .first()
+                        if grant_id.isdigit()
                         else None
                     )
-                    if not cat:
-                        messages.error(request, "Category is required.")
-                    elif amt < 0:
-                        messages.error(request, "Allocated amount cannot be negative.")
+                    if not grant:
+                        messages.error(request, "Select a grant.")
+                    elif getattr(grant, "project_id", None) != int(pid):
+                        messages.error(request, "Selected grant must belong to the selected project.")
                     else:
-                        ProjectBudgetLine.objects.using(tenant_db).create(
-                            project_budget=budget,
-                            category=cat,
-                            description=desc,
-                            account=acct,
-                            allocated_amount=amt,
-                            remaining_amount=amt,
-                        )
-                        messages.success(request, "Budget line added.")
-                        return redirect(reverse("tenant_portal:grants_project_budget") + f"?project_id={pid}")
+                        structure_raw = (request.POST.get("budget_structure_json") or "").strip()
+                        flat = _parse_budget_structure_json_for_post(structure_raw)
+
+                        row_errors: list[str] = []
+                        cleaned_rows: list[dict] = []
+                        seen_codes: set[str] = set()
+
+                        for i, row in enumerate(flat, start=1):
+                            code = (row["budget_code"] or "").strip()
+                            name = (row["category"] or "").strip()
+                            coa_code = (row["coa_code"] or "").strip()
+                            description = row["description"] or ""
+                            raw_amt = row["amount_raw"]
+
+                            if not any(
+                                [
+                                    code,
+                                    name,
+                                    coa_code,
+                                    description,
+                                    (str(raw_amt) if raw_amt is not None else "").strip(),
+                                ]
+                            ):
+                                continue
+                            if not code:
+                                continue
+                            if not coa_code:
+                                row_errors.append(
+                                    _("Sub-line %(n)s: COA code is required.") % {"n": i}
+                                )
+                                continue
+                            account = (
+                                ChartAccount.objects.using(tenant_db)
+                                .filter(code=coa_code, is_active=True)
+                                .first()
+                            )
+                            if not account:
+                                row_errors.append(
+                                    _("Sub-line %(n)s: COA code '%(code)s' was not found.")
+                                    % {"n": i, "code": coa_code}
+                                )
+                                continue
+                            if account.type != ChartAccount.Type.EXPENSE:
+                                row_errors.append(
+                                    _(
+                                        "Sub-line %(n)s: Selected COA must be an expense account."
+                                    )
+                                    % {"n": i}
+                                )
+                                continue
+                            raw_amt_s = (str(raw_amt) if raw_amt is not None else "").replace(
+                                ",", ""
+                            ).strip()
+                            try:
+                                line_amt = Decimal(str(raw_amt_s or "0"))
+                            except (InvalidOperation, ValueError):
+                                row_errors.append(_("Sub-line %(n)s: Amount must be numeric.") % {"n": i})
+                                continue
+
+                            if code in seen_codes:
+                                row_errors.append(
+                                    _("Duplicate budget line code '%(code)s'.") % {"code": code}
+                                )
+                                continue
+                            seen_codes.add(code)
+                            cleaned_rows.append(
+                                {
+                                    "code": code,
+                                    "name": name,
+                                    "account": account,
+                                    "description": description,
+                                    "amount": line_amt,
+                                }
+                            )
+
+                        if row_errors:
+                            for err in row_errors[:5]:
+                                messages.error(request, err)
+                            if len(row_errors) > 5:
+                                messages.error(
+                                    request,
+                                    _("%(n)s more validation error(s).") % {"n": len(row_errors) - 5},
+                                )
+                        elif not cleaned_rows:
+                            messages.error(request, _("Add at least one budget line before saving."))
+                        else:
+                            codes_in_form = {r["code"] for r in cleaned_rows}
+                            BudgetLine.objects.using(tenant_db).filter(grant=grant).exclude(
+                                budget_code__in=codes_in_form
+                            ).delete()
+                            for row in cleaned_rows:
+                                BudgetLine.objects.using(tenant_db).update_or_create(
+                                    grant=grant,
+                                    budget_code=row["code"],
+                                    defaults={
+                                        "account": row["account"],
+                                        "category": row["name"],
+                                        "description": row["description"],
+                                        "amount": row["amount"],
+                                    },
+                                )
+                            _rebuild_project_budget_lines_from_budget_lines(
+                                tenant_db=tenant_db, project_id=proj.pk
+                            )
+                            refresh_project_budget_and_activity_actuals(
+                                tenant_db, project_ids={proj.pk}
+                            )
+                            messages.success(
+                                request,
+                                f"Budget saved with {len(cleaned_rows)} line(s).",
+                            )
+                            return redirect(
+                                request.path + f"?project_id={pid}&grant_id={grant.pk}"
+                            )
 
     budget = None
     lines: list = []
     selected_project = None
+    grants_for_project: list = []
+    selected_grant = None
     if pid.isdigit():
         selected_project = Project.objects.using(tenant_db).filter(pk=int(pid)).first()
         if selected_project:
+            grants_for_project = list(
+                Grant.objects.using(tenant_db).filter(project_id=selected_project.pk).order_by("code")
+            )
+            if not selected_grant_id and grants_for_project:
+                selected_grant_id = str(grants_for_project[0].pk)
+            if selected_grant_id.isdigit():
+                selected_grant = (
+                    Grant.objects.using(tenant_db)
+                    .filter(pk=int(selected_grant_id), project_id=selected_project.pk)
+                    .first()
+                )
             budget = (
                 ProjectBudget.objects.using(tenant_db)
                 .filter(project=selected_project, name="Main")
@@ -1720,21 +2220,68 @@ def grants_project_budget_view(request: HttpRequest) -> HttpResponse:
                 )
 
     accounts = list(
-        ChartAccount.objects.using(tenant_db).filter(is_active=True).order_by("code")[:500]
+        ChartAccount.objects.using(tenant_db)
+        .filter(is_active=True, type=ChartAccount.Type.EXPENSE)
+        .order_by("code")[:500]
     )
+    row_dicts: list[dict] = []
+    if selected_project and selected_grant:
+        grant_lines = list(
+            BudgetLine.objects.using(tenant_db)
+            .select_related("account")
+            .filter(grant=selected_grant)
+            .order_by("id")
+        )
+        if grant_lines:
+            row_dicts = [
+                {
+                    "code": (bl.budget_code or "").strip(),
+                    "category": bl.category or "",
+                    "coa_code": (bl.account.code or "").strip() if bl.account_id else "",
+                    "description": bl.description or "",
+                    "amount": bl.amount,
+                }
+                for bl in grant_lines
+            ]
+    if not row_dicts and lines:
+        row_dicts = [
+            {
+                "code": (bl.notes or "").strip(),
+                "category": bl.category or "",
+                "coa_code": (bl.account.code or "").strip() if bl.account_id else "",
+                "description": bl.description or "",
+                "amount": bl.allocated_amount,
+            }
+            for bl in lines
+        ]
+    budget_headings_for_script = _group_rows_into_budget_headings_for_entry(
+        row_dicts,
+        default_heading_label=_("Budget lines"),
+    )
+
+    url_name = getattr(getattr(request, "resolver_match", None), "url_name", None) or ""
+    active_item = "budget_creation" if url_name == "budget_creation" else "budget_structures"
     return render(
         request,
         "tenant_portal/grants/project_budget.html",
         {
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
-            "active_submenu": "funds",
-            "active_item": "funds_project_budget",
+            "active_submenu": "budget",
+            "active_item": active_item,
             "projects": projects,
+            "no_active_projects": len(projects) == 0,
+            "grants_for_project": grants_for_project,
+            "selected_grant_id": selected_grant_id,
             "selected_project": selected_project,
             "project_budget": budget,
             "budget_lines": lines,
             "accounts": accounts,
+            "budget_headings_for_script": budget_headings_for_script,
+            "coa_options_for_script": [
+                {"code": a.code, "label": f"{a.code} — {a.name or ''}"} for a in accounts
+            ],
+            "can_manage_budget": can_manage,
         },
     )
 
@@ -2218,7 +2765,11 @@ def finance_expense_trend_view(request: HttpRequest) -> HttpResponse:
         did = (f.get("donor_id") or "").strip()
         if did.isdigit():
             did_i = int(did)
-            q = q.filter(Q(entry__donor_id=did_i) | Q(donor_id=did_i))
+            q = q.filter(
+                Q(entry__donor_id=did_i)
+                | Q(entry__grant__donor_id=did_i)
+                | Q(grant__donor_id=did_i)
+            )
         return q
 
     total_expenses = (_scope_lines().aggregate(t=Sum("debit"))["t"] or Decimal("0"))
@@ -2478,6 +3029,7 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
     controlled adjustments when the user has posting permission.
     """
     from django.urls import reverse
+    from django.utils.translation import gettext as _
     from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
 
     blocked = render_if_setup_incomplete_for_transactions(
@@ -2495,64 +3047,64 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
     post_txn_links = [
         {
             "code": "payment_voucher",
-            "label": "Payment Voucher",
-            "description": "Pay vendors, expenses, and payroll from bank or cash.",
+            "label": _("Payments"),
+            "description": _("Pay vendors, expenses, and payroll from bank or cash."),
             "url": reverse("tenant_portal:pay_payment_vouchers"),
             "icon": "file-minus",
             "section": "vouchers",
         },
         {
             "code": "grant_funding_receipt",
-            "label": "Grant funding receipt",
-            "description": "Create a new posted or draft grant-linked receipt voucher.",
+            "label": _("Grant funding receipt"),
+            "description": _("Create a new posted or draft grant-linked receipt voucher."),
             "url": reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=grant_funding",
             "icon": "award",
             "section": "vouchers",
         },
         {
             "code": "other_income_receipt",
-            "label": "Other income receipt",
-            "description": "Create a new non-grant income receipt voucher.",
+            "label": _("Other income receipt"),
+            "description": _("Create a new non-grant income receipt voucher."),
             "url": reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=other_income",
             "icon": "file-plus",
             "section": "vouchers",
         },
         {
             "code": "cashbook_receipt",
-            "label": "Cashbook receipt",
-            "description": "Create a new cash/bank receipt voucher entry.",
+            "label": _("Cashbook receipt"),
+            "description": _("Create a new cash/bank receipt voucher entry."),
             "url": reverse("tenant_portal:recv_receipt_entry") + "?receipt_type=cashbook",
             "icon": "credit-card",
             "section": "vouchers",
         },
         {
             "code": "cash_transfer",
-            "label": "Cash Transfer",
-            "description": "Move cash between on-hand / petty cash accounts.",
+            "label": _("Cash transfer"),
+            "description": _("Move cash between on-hand / petty cash accounts."),
             "url": reverse("tenant_portal:cash_cash_transfers"),
             "icon": "shuffle",
             "section": "cash_bank",
         },
         {
             "code": "bank_transfer",
-            "label": "Bank Transfer",
-            "description": "Transfer funds between bank accounts.",
+            "label": _("Bank transfer"),
+            "description": _("Transfer funds between bank accounts."),
             "url": reverse("tenant_portal:cash_bank_transfers"),
             "icon": "repeat",
             "section": "cash_bank",
         },
         {
             "code": "inter_fund_transfer",
-            "label": "New inter-fund transfer",
-            "description": "Create a project/bank transfer; approval workflow posts to the general ledger.",
+            "label": _("New inter-fund transfer"),
+            "description": _("Create a project/bank transfer; approval workflow posts to the general ledger."),
             "url": reverse("tenant_portal:finance_interfund_transfer_create") + "?src=post",
             "icon": "arrow-right-circle",
             "section": "fund_transfers",
         },
         {
             "code": "inter_fund_transfers_register",
-            "label": "Inter-fund transfers",
-            "description": "Register: review, approve, post, and reverse transfers in workflow.",
+            "label": _("Inter-fund transfers"),
+            "description": _("Register: review, approve, post, and reverse transfers in workflow."),
             "url": reverse("tenant_portal:finance_interfund_transfers"),
             "icon": "list",
             "section": "fund_transfers",
@@ -2562,9 +3114,9 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
         post_txn_links.append(
             {
                 "code": "manual_journal",
-                "label": "Manual Journal",
-                "description": "Controlled manual journal lines (draft → approval → post).",
-                "url": reverse("tenant_portal:finance_journals") + "?open_manual=1",
+                "label": _("Manual journal"),
+                "description": _("Controlled manual journal lines (draft → approval → post)."),
+                "url": reverse("tenant_portal:finance_journals") + "?open_manual=1&voucher_scope=all",
                 "icon": "book-open",
                 "section": "manual_optional",
             }
@@ -2777,22 +3329,11 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
         JournalEntry,
         JournalEntryAttachment,
     )
-    from tenant_finance.receivable_accounts import receivable_accounts_q
     from tenant_finance.services.journal_posting import post_receipt_voucher
     from tenant_grants.models import Grant
-    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
 
     tenant_db = request.tenant_db
     user = request.tenant_user
-
-    blocked = render_if_setup_incomplete_for_transactions(
-        request,
-        page_title=_("Receipt entry"),
-        active_submenu="receivables",
-        active_item="recv_receipt_entry",
-    )
-    if blocked:
-        return blocked
 
     _ensure_default_receipt_and_income_accounts(tenant_db)
 
@@ -2802,12 +3343,6 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
     can_post = user_has_permission(user, "finance:journals.post", using=tenant_db) or user_has_permission(
         user, "module:finance.manage", using=tenant_db
     )
-    can_override_funding_modality_gl = (
-        getattr(user, "is_tenant_admin", False)
-        or user_has_permission(user, "module:finance.manage", using=tenant_db)
-        or user_has_permission(user, "rbac:roles.manage", using=tenant_db)
-    )
-
     receipt_type = (
         (request.POST.get("receipt_type") if request.method == "POST" else request.GET.get("receipt_type"))
         or "grant_funding"
@@ -2821,7 +3356,8 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
             return redirect(reverse("tenant_portal:recv_receipt_entry"))
 
         action = (request.POST.get("action") or "").strip().lower()
-        post_requested = action == "post"
+        post_requested = action in {"post", "post_new", "post_close"}
+        post_then_close = action == "post_close"
         errors: list[str] = []
 
         raw_date = (request.POST.get("voucher_date") or "").strip()
@@ -2840,21 +3376,39 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
         if receipt_type == "grant_funding" and not grant:
             errors.append("Grant is required for grant funding receipts.")
 
-        if grant:
-            ended_by_date = bool(grant.end_date and grant.end_date < timezone.localdate())
-            if grant.status != Grant.Status.ACTIVE or ended_by_date:
+        if grant and voucher_date:
+            if not grant.is_active_on(voucher_date):
                 errors.append("Receipts cannot be recorded for an ended or inactive grant.")
 
         received_from = (request.POST.get("received_from") or "").strip()
         reference_no = (request.POST.get("reference_no") or "").strip()
         description = (request.POST.get("description") or "").strip()
-        tranche_no = (request.POST.get("tranche_no") or "").strip()
+        tranche_no_raw = (request.POST.get("tranche_no") or "").strip()
+        tranche_no_int: int | None = None
+        if tranche_no_raw:
+            if tranche_no_raw.isdigit():
+                tranche_no_int = int(tranche_no_raw)
+            else:
+                m = re.match(r"^\s*(\d+)", tranche_no_raw)
+                if m:
+                    tranche_no_int = int(m.group(1))
+                else:
+                    errors.append(
+                        "Tranche must be a number (e.g. 1) matching a configured grant tranche. "
+                        "Do not enter text such as instalment labels in this field."
+                    )
         receipt_method = (request.POST.get("receipt_method") or "").strip()
         allowed_methods = {"bank", "cash", "transfer", "cheque", "mobile_money"}
         if receipt_method not in allowed_methods:
             errors.append("Receipt method is required.")
-        if not received_from:
+        if receipt_type == "grant_funding" and grant and getattr(grant, "donor", None):
+            received_from = (grant.donor.name or "").strip() or received_from
+        if receipt_type != "grant_funding" and not received_from:
             errors.append("Received from is required.")
+        if receipt_type == "grant_funding" and not received_from:
+            errors.append("Grant donor is required (select a grant with a donor).")
+        if receipt_type == "grant_funding" and not description:
+            errors.append("Description is required for grant funding receipts.")
 
         try:
             amount = Decimal((request.POST.get("amount") or "0").replace(",", ""))
@@ -2864,32 +3418,31 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
             errors.append("Amount must be greater than zero.")
 
         deposit_account_id = (request.POST.get("deposit_account_id") or "").strip()
-        deposit_bank_account = (
-            BankAccount.objects.using(tenant_db)
-            .select_related("account", "account__parent")
-            .filter(pk=deposit_account_id, is_active=True)
-            .first()
-            if deposit_account_id.isdigit()
-            else None
-        )
-        if not deposit_bank_account:
+        from tenant_finance.services.bank_account_dropdowns import resolve_deposit_chart_and_bank_for_receipt
+
+        dep_gl, deposit_bank_account = resolve_deposit_chart_and_bank_for_receipt(tenant_db, deposit_account_id)
+        if not dep_gl:
             errors.append("Deposit bank/cash account is required.")
-        else:
-            dep_gl = deposit_bank_account.account
-            parent_code = (dep_gl.parent.code if dep_gl.parent_id else "").strip()
-            if (
-                parent_code != "1200"
-                or not dep_gl.is_leaf(tenant_db)
-                or dep_gl.type != ChartAccount.Type.ASSET
-                or not dep_gl.is_active
-                or (dep_gl.statement_type or "") != ChartAccount.StatementType.BALANCE_SHEET
-            ):
-                errors.append("Deposit account must be an active posting child account under 1200.")
 
         income_account = None
-        receivable_account = None
-        funding_mapping = {}
-        if receipt_type in {"cashbook", "other_income"}:
+        funding_mapping: dict = {}
+        credit_account = None
+        if receipt_type == "cashbook":
+            credit_account_id = (request.POST.get("credit_account_id") or "").strip()
+            credit_acc = (
+                ChartAccount.objects.using(tenant_db).filter(pk=credit_account_id, is_active=True).first()
+                if credit_account_id.isdigit()
+                else None
+            )
+            if not credit_acc:
+                errors.append("Credit account is required for cashbook receipts.")
+            elif credit_acc.type == ChartAccount.Type.ASSET:
+                errors.append("Credit account cannot be a bank/cash asset account for cashbook receipts.")
+            elif not credit_acc.allow_posting:
+                errors.append("Credit account must be a posting (leaf) account.")
+            else:
+                credit_account = credit_acc
+        elif receipt_type == "other_income":
             income_account_id = (request.POST.get("income_account_id") or "").strip()
             income_account = (
                 ChartAccount.objects.using(tenant_db).filter(pk=income_account_id, is_active=True).first()
@@ -2900,23 +3453,24 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
                 errors.append("Income account is required.")
             elif (
                 income_account.type != ChartAccount.Type.INCOME
-                or not income_account.is_leaf(tenant_db)
+                or not income_account.allow_posting
                 or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
             ):
                 errors.append("Income account must be an active posting income GL account.")
+            else:
+                credit_account = income_account
         else:
-            from tenant_grants.models import GrantTranche
             from tenant_grants.services.payment_modality import (
-                has_complete_gl_mapping,
                 resolve_component_account_mapping,
                 tranche_payment_type_to_component_type,
             )
+            from tenant_grants.models import GrantTranche
 
             component_type = ""
-            if grant and tranche_no:
+            if grant and tranche_no_int is not None:
                 tr = (
                     GrantTranche.objects.using(tenant_db)
-                    .filter(grant_id=grant.id, tranche_no=tranche_no)
+                    .filter(grant_id=grant.id, tranche_no=tranche_no_int)
                     .only("payment_type")
                     .first()
                 )
@@ -2924,51 +3478,48 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
                     component_type = tranche_payment_type_to_component_type(tr.payment_type)
 
             if grant:
+                from tenant_grants.models import FundingSource
+                from tenant_grants.services.funding_modality_gl import ensure_funding_modality_gl_mapping_autofill
+
+                fs = getattr(grant, "funding_modality", None)
+                if fs is None and getattr(grant, "funding_modality_id", None):
+                    fs = FundingSource.objects.using(tenant_db).filter(pk=grant.funding_modality_id).first()
+                if fs:
+                    ensure_funding_modality_gl_mapping_autofill(tenant_db, fs)
+
                 funding_mapping = resolve_component_account_mapping(
                     using=tenant_db,
                     grant=grant,
                     component_type=component_type,
                 )
-                mapping_complete = has_complete_gl_mapping(
-                    using=tenant_db,
-                    grant=grant,
-                    component_type=component_type,
-                )
-                if not mapping_complete and not can_override_funding_modality_gl:
-                    errors.append("GL account mapping is missing for selected funding modality.")
+                mapped_receivable = funding_mapping.get("receivable_account")
+                mapped_income = funding_mapping.get("income_account")
+                if mapped_receivable is not None:
+                    credit_account = mapped_receivable
+                elif mapped_income is not None:
+                    credit_account = mapped_income
+                if credit_account is None:
+                    errors.append(
+                        "No grant receivable or grant income account is configured for this grant's funding modality. "
+                        "Complete funding modality GL mapping under grant configuration."
+                    )
 
-            receivable_account_id = (request.POST.get("receivable_account_id") or "").strip()
-            if can_override_funding_modality_gl and receivable_account_id:
-                receivable_q = receivable_accounts_q()
-                receivable_account = (
-                    ChartAccount.objects.using(tenant_db)
-                    .filter(receivable_q, pk=receivable_account_id, is_active=True)
-                    .first()
-                    if receivable_account_id.isdigit()
-                    else None
-                )
-                if not receivable_account:
-                    errors.append("Receivable account is invalid.")
-            if not tranche_no:
-                errors.append("Tranche number/reference is required for grant funding receipt.")
-
-        if grant and getattr(grant, "bank_account_id", None) and deposit_bank_account:
-            if grant.bank_account_id != deposit_bank_account.id:
+        gba = getattr(grant, "bank_account", None) if grant else None
+        if receipt_type == "grant_funding" and grant and gba and getattr(gba, "account_id", None) and dep_gl:
+            if gba.account_id != dep_gl.id:
                 errors.append("Selected deposit account must match the grant-linked bank account.")
 
-        if reference_no and deposit_bank_account:
+        if reference_no and dep_gl:
             duplicate_ref = (
                 JournalEntry.objects.using(tenant_db)
                 .filter(source_type=JournalEntry.SourceType.RECEIPT_VOUCHER, source_document_no__iexact=reference_no)
-                .filter(lines__account_id=deposit_bank_account.account_id)
+                .filter(lines__account_id=dep_gl.id)
                 .exists()
             )
             if duplicate_ref:
                 errors.append("Reference number must be unique per bank account.")
 
         attachment = request.FILES.get("attachment")
-        if post_requested and not attachment:
-            errors.append("Supporting attachment is required before posting.")
         if post_requested and voucher_date:
             try:
                 _finance_assert_open_period(voucher_date, tenant_db, getattr(request, "tenant_user_id", None))
@@ -3006,34 +3557,38 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
                 messages.error(request, "You do not have permission to post receipts.")
                 return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
 
-            credit_account = receivable_account if receipt_type == "grant_funding" else income_account
-            if grant and receipt_type == "grant_funding":
-                mapped_receivable = funding_mapping.get("receivable_account")
-                if mapped_receivable is None and can_override_funding_modality_gl and receivable_account is None:
-                    messages.error(request, "GL account mapping is missing for selected funding modality.")
-                    return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
-                if mapped_receivable is not None:
-                    credit_account = mapped_receivable
-                if can_override_funding_modality_gl and receivable_account is not None:
-                    credit_account = receivable_account
+            if grant and receipt_type == "grant_funding" and funding_mapping:
                 pref_bank_type = (funding_mapping.get("bank_account_type") or "").strip()
-                if pref_bank_type and deposit_bank_account and deposit_bank_account.account_type != pref_bank_type:
-                    alt_bank = (
+                if pref_bank_type and dep_gl:
+                    ba_gl = (
                         BankAccount.objects.using(tenant_db)
-                        .filter(is_active=True, account_type=pref_bank_type)
-                        .order_by("-is_default_operating", "bank_name", "account_name")
+                        .filter(account_id=dep_gl.id, is_active=True)
+                        .order_by("-is_default_operating", "id")
                         .first()
                     )
-                    if alt_bank and alt_bank.account_id:
-                        deposit_bank_account = alt_bank
-            memo_suffix = f" | Tranche: {tranche_no}" if receipt_type == "grant_funding" and tranche_no else ""
+                    if ba_gl and ba_gl.account_type != pref_bank_type:
+                        alt_bank = (
+                            BankAccount.objects.using(tenant_db)
+                            .filter(
+                                is_active=True,
+                                account_id=dep_gl.id,
+                                account_type=pref_bank_type,
+                            )
+                            .order_by("-is_default_operating", "id")
+                            .first()
+                        )
+                        if alt_bank:
+                            deposit_bank_account = alt_bank
+            memo_suffix = ""
+            if receipt_type == "grant_funding" and tranche_no_int is not None:
+                memo_suffix = f" | Tranche: {tranche_no_int}"
             entry = post_receipt_voucher(
                 using=tenant_db,
                 user=user,
                 entry_date=voucher_date,
                 memo=(description or f"Receipt from {received_from}") + memo_suffix,
-                grant=grant,
-                deposit_chart_account=deposit_bank_account.account,
+                grant=grant if receipt_type == "grant_funding" else None,
+                deposit_chart_account=dep_gl,
                 income_chart_account=credit_account,
                 amount=amount,
                 description=description or f"Receipt {reference_no or ''}".strip(),
@@ -3060,15 +3615,45 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
                 messages.success(request, f"Receipt {entry.reference} submitted for approval.")
             else:
                 messages.success(request, f"Receipt {entry.reference} saved as draft.")
+            if post_requested and post_then_close:
+                return redirect(reverse("tenant_portal:recv_receipt_vouchers"))
             return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
+
+    from django.db.models import Prefetch
+
+    from tenant_grants.models import GrantTranche
 
     grants = (
         Grant.objects.using(tenant_db)
         .select_related("donor", "project")
+        .prefetch_related(
+            Prefetch(
+                "tranches",
+                queryset=GrantTranche.objects.using(tenant_db).order_by("sort_order", "tranche_no"),
+            )
+        )
         .filter(status=Grant.Status.ACTIVE)
         .order_by("code")
     )
-    deposit_accounts = _valid_bank_accounts_under_1200(tenant_db)
+    grant_meta = {
+        str(g.id): {
+            "project": (f"{g.project.code} — {g.project.name}" if getattr(g, "project", None) else ""),
+            "donor": (g.donor.name if getattr(g, "donor", None) else ""),
+            "fund": (g.donor.name if getattr(g, "donor", None) else ""),
+        }
+        for g in grants
+    }
+    grant_tranches = {
+        str(g.id): [
+            {"no": t.tranche_no, "label": f"T{t.tranche_no} — {t.get_payment_type_display()}"}
+            for t in g.tranches.all()
+        ]
+        for g in grants
+    }
+    from tenant_finance.services.bank_account_dropdowns import bank_cash_posting_chart_accounts
+
+    # Same GL list as payment voucher (not only BankAccount master rows); excludes inactive-only bank books.
+    deposit_accounts = bank_cash_posting_chart_accounts(tenant_db)
     income_accounts = (
         ChartAccount.objects.using(tenant_db)
         .filter(
@@ -3079,11 +3664,40 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
         )
         .order_by("code")
     )
-    receivable_accounts = (
+    cashbook_credit_accounts = (
         ChartAccount.objects.using(tenant_db)
-        .filter(receivable_accounts_q(), is_active=True, children__isnull=True)
+        .filter(is_active=True, allow_posting=True, children__isnull=True)
+        .exclude(type=ChartAccount.Type.ASSET)
         .order_by("code")
     )
+
+    from tenant_grants.models import Donor
+
+    _seen_payee: set[str] = set()
+    received_from_suggestions: list[str] = []
+    for nm in (
+        Donor.objects.using(tenant_db)
+        .filter(status=Donor.Status.ACTIVE)
+        .values_list("name", flat=True)
+    ):
+        s = (nm or "").strip()
+        if s and s not in _seen_payee:
+            _seen_payee.add(s)
+            received_from_suggestions.append(s)
+    for nm in (
+        JournalEntry.objects.using(tenant_db)
+        .filter(source_type=JournalEntry.SourceType.RECEIPT_VOUCHER)
+        .exclude(payee_name__isnull=True)
+        .exclude(payee_name="")
+        .values_list("payee_name", flat=True)
+        .distinct()[:400]
+    ):
+        s = (nm or "").strip()
+        if s and s not in _seen_payee:
+            _seen_payee.add(s)
+            received_from_suggestions.append(s)
+    received_from_suggestions.sort(key=lambda x: x.lower())
+
     return render(
         request,
         "tenant_portal/recv/receipt_entry_form.html",
@@ -3094,8 +3708,10 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
             "grants": grants,
             "deposit_accounts": deposit_accounts,
             "income_accounts": income_accounts,
-            "receivable_accounts": receivable_accounts,
-            "can_override_funding_modality_gl": can_override_funding_modality_gl,
+            "cashbook_credit_accounts": cashbook_credit_accounts,
+            "received_from_suggestions": received_from_suggestions,
+            "grant_meta": grant_meta,
+            "grant_tranches": grant_tranches,
             "active_submenu": "receivables",
             "active_item": "recv_receipt_entry",
         },
@@ -3241,11 +3857,9 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
         grant = Grant.objects.using(tenant_db).filter(pk=project_id).select_related("donor", "bank_account").first() if project_id else None
         if project_id and not grant:
             errors.append("Selected project is invalid.")
-        elif grant:
-            # Block ended/inactive projects for both draft and post
-            ended_by_date = bool(grant.end_date and grant.end_date < timezone.localdate())
-            if grant.status != Grant.Status.ACTIVE or ended_by_date:
-                errors.append("Receipts cannot be recorded for an ended or inactive project.")
+        elif grant and voucher_date:
+            if not grant.is_active_on(voucher_date):
+                errors.append("Receipts cannot be recorded for an ended or inactive grant.")
         if not received_from:
             errors.append("Received from / Donor / Project is required.")
         allowed_methods = {"bank", "cash", "transfer", "cheque", "mobile_money"}
@@ -3267,49 +3881,31 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
         if allocation_total != amount:
             errors.append("Allocation total must equal receipt amount.")
 
-        deposit_bank_account = (
-            BankAccount.objects.using(tenant_db)
-            .select_related("account", "account__parent")
-            .filter(pk=deposit_account_id, is_active=True)
-            .first()
-            if deposit_account_id
-            else None
-        )
+        from tenant_finance.services.bank_account_dropdowns import resolve_deposit_chart_and_bank_for_receipt
+
+        dep_gl, deposit_bank_account = resolve_deposit_chart_and_bank_for_receipt(tenant_db, deposit_account_id)
         income_account = (
             ChartAccount.objects.using(tenant_db).filter(pk=income_account_id).first()
             if income_account_id
             else None
         )
 
-        if not deposit_bank_account:
+        if not dep_gl:
             errors.append("Deposit bank account must be selected.")
-        else:
-            dep_gl = deposit_bank_account.account
-            dep_gl_parent = (dep_gl.parent.code if getattr(dep_gl, "parent_id", None) else "").strip()
-            if (dep_gl.code or "").strip() == "1200":
-                errors.append("Parent account 1200 cannot be used directly for receipt posting.")
-            elif (
-                dep_gl_parent != "1200"
-                or not dep_gl.is_leaf(tenant_db)
-                or dep_gl.type != ChartAccount.Type.ASSET
-                or not dep_gl.is_active
-                or (dep_gl.statement_type or "") != ChartAccount.StatementType.BALANCE_SHEET
-            ):
-                errors.append("Deposit account must be a posting child account under 1200 — Bank Accounts.")
+        elif (dep_gl.code or "").strip() == "1200":
+            errors.append("Parent account 1200 cannot be used directly for receipt posting.")
         if not income_account:
             errors.append("Income account must be selected.")
         elif (
             income_account.type != ChartAccount.Type.INCOME
             or not income_account.is_active
-            or not income_account.is_leaf(tenant_db)
+            or not income_account.allow_posting
             or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
         ):
             errors.append("Income account must be an active posting income GL account.")
 
         attachment = request.FILES.get("attachment")
         post_requested = action in {"post", "submit_approval"}
-        if post_requested and not attachment:
-            errors.append("Supporting document attachment is required before posting.")
 
         # Additional validations only when posting (not just saving draft)
         if post_requested:
@@ -3323,29 +3919,29 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
             elif (
                 income_account.type != ChartAccount.Type.INCOME
                 or not income_account.is_active
-                or not income_account.is_leaf(tenant_db)
+                or not income_account.allow_posting
                 or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
             ):
                 errors.append("Income account must be an active posting income GL account before posting.")
             if amount <= 0:
                 errors.append("Amount must be greater than zero before posting.")
 
-            # Deposit bank account required for non-cash methods
-            if not deposit_bank_account:
+            # Deposit GL required for posting
+            if not dep_gl:
                 errors.append("Deposit bank account is required before posting.")
 
             # If project is selected, bank account must be linked to the selected project
             if grant and receipt_method in {"bank", "transfer", "cheque", "mobile_money"}:
                 if not getattr(grant, "bank_account_id", None):
                     errors.append("The selected project does not have a linked bank account.")
-                elif not deposit_bank_account or deposit_bank_account.id != grant.bank_account_id:
+                elif not getattr(grant.bank_account, "account_id", None) or grant.bank_account.account_id != dep_gl.id:
                     errors.append("Selected deposit bank account must match the bank account linked to the selected project.")
 
-            if deposit_bank_account and reference_no:
+            if dep_gl and reference_no:
                 duplicate_ref = (
                     JournalEntry.objects.using(tenant_db)
                     .filter(source_type=JournalEntry.SourceType.RECEIPT_VOUCHER, source_document_no__iexact=reference_no)
-                    .filter(lines__account_id=deposit_bank_account.account_id)
+                    .filter(lines__account_id=dep_gl.id)
                     .exists()
                 )
                 if duplicate_ref:
@@ -3408,15 +4004,26 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
                 elif mapped_income is not None:
                     credit_income_account = mapped_income
                 pref_bank_type = (mapping.get("bank_account_type") or "").strip()
-                if pref_bank_type and deposit_bank_account and deposit_bank_account.account_type != pref_bank_type:
-                    alt_bank = (
+                if pref_bank_type and dep_gl:
+                    ba_gl = (
                         BankAccount.objects.using(tenant_db)
-                        .filter(is_active=True, account_type=pref_bank_type)
-                        .order_by("-is_default_operating", "bank_name", "account_name")
+                        .filter(account_id=dep_gl.id, is_active=True)
+                        .order_by("-is_default_operating", "id")
                         .first()
                     )
-                    if alt_bank and alt_bank.account_id:
-                        deposit_bank_account = alt_bank
+                    if ba_gl and ba_gl.account_type != pref_bank_type:
+                        alt_bank = (
+                            BankAccount.objects.using(tenant_db)
+                            .filter(
+                                is_active=True,
+                                account_id=dep_gl.id,
+                                account_type=pref_bank_type,
+                            )
+                            .order_by("-is_default_operating", "id")
+                            .first()
+                        )
+                        if alt_bank:
+                            deposit_bank_account = alt_bank
 
             entry = post_receipt_voucher(
                 using=tenant_db,
@@ -3424,7 +4031,7 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
                 entry_date=voucher_date,
                 memo=description or f"Receipt voucher from {received_from or 'N/A'}",
                 grant=grant,
-                deposit_chart_account=deposit_bank_account.account,
+                deposit_chart_account=dep_gl,
                 income_chart_account=credit_income_account,
                 amount=amount,
                 description=description,
@@ -3475,38 +4082,19 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.models import ChartAccount as CA, BankAccount
     from tenant_grants.models import Donor
 
-    # Projects: active only, and not ended by date (if end_date is set)
+    # Active grants for filters (respect revised/extended end dates)
     grants = (
         Grant.objects.using(tenant_db)
         .filter(status=Grant.Status.ACTIVE)
-        .select_related("donor", "bank_account", "bank_account__currency")
+        .select_related("donor", "project", "bank_account", "bank_account__currency")
         .order_by("code")
     )
     today = timezone.localdate()
-    grants = [g for g in grants if not (g.end_date and g.end_date < today)]
+    grants = [g for g in grants if g.is_active_on(today)]
 
-    bank_accounts = _valid_bank_accounts_under_1200(tenant_db)
+    from tenant_finance.services.bank_account_dropdowns import receipt_register_deposit_dropdown_rows
 
-    bank_balances: dict[int, Decimal] = {}
-    if bank_accounts:
-        acc_ids = [b.account_id for b in bank_accounts if b.account_id]
-        if acc_ids:
-            bal_rows = (
-                JournalLine.objects.using(tenant_db)
-                .filter(account_id__in=acc_ids, entry__status=JournalEntry.Status.POSTED)
-                .values("account_id")
-                .annotate(b=Sum("debit") - Sum("credit"))
-            )
-            by_acc = {r["account_id"]: (r.get("b") or Decimal("0")) for r in bal_rows}
-            for b in bank_accounts:
-                bank_balances[b.id] = (b.opening_balance or Decimal("0")) + by_acc.get(b.account_id, Decimal("0"))
-    bank_account_rows = [
-        {
-            "obj": b,
-            "balance": bank_balances.get(b.id, Decimal("0")),
-        }
-        for b in bank_accounts
-    ]
+    bank_account_rows = receipt_register_deposit_dropdown_rows(tenant_db)
 
     # Chart of Accounts (all active GL accounts) for income dropdown (per your request)
     income_accounts = _income_posting_accounts_for_roots(tenant_db, ["4200"])
@@ -3821,17 +4409,12 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
                 errors.append("Selected bank account is invalid or inactive.")
             else:
                 dep_gl = deposit_bank_account.account
+                from tenant_finance.services.bank_account_dropdowns import deposit_gl_is_valid_bank_under_1200
+
                 if (dep_gl.code or "").strip() == "1200":
                     errors.append("Parent account 1200 cannot be used directly.")
-                parent_code = (dep_gl.parent.code if dep_gl.parent_id else "").strip()
-                if (
-                    parent_code != "1200"
-                    or not dep_gl.is_leaf(tenant_db)
-                    or dep_gl.type != ChartAccount.Type.ASSET
-                    or not dep_gl.is_active
-                    or (dep_gl.statement_type or "") != ChartAccount.StatementType.BALANCE_SHEET
-                ):
-                    errors.append("Bank account must be linked to a child posting account under 1200.")
+                elif not deposit_gl_is_valid_bank_under_1200(tenant_db, dep_gl):
+                    errors.append("Bank account must be linked to a child posting account under 1200 — Bank Accounts.")
 
             income_account = (
                 ChartAccount.objects.using(tenant_db).filter(pk=income_account_id, is_active=True).first()
@@ -3842,7 +4425,7 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
                 errors.append("Income account is invalid or inactive.")
             elif (
                 income_account.type != ChartAccount.Type.INCOME
-                or not income_account.is_leaf(tenant_db)
+                or not income_account.allow_posting
                 or (income_account.statement_type or "") != ChartAccount.StatementType.INCOME_EXPENDITURE
             ):
                 errors.append("Income account must be an active posting income GL account.")
@@ -3853,8 +4436,6 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
 
             post_requested = action in {"post", "submit_approval"}
             if post_requested:
-                if not attachment:
-                    errors.append("Attachment is required before posting.")
                 if voucher_date:
                     try:
                         _finance_assert_open_period(voucher_date, tenant_db, getattr(request, "tenant_user_id", None))
@@ -4192,8 +4773,11 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
         .select_related("donor", "bank_account", "bank_account__currency", "bank_account__account")
         .order_by("code")
     )
-    grants = [g for g in grants if not (g.end_date and g.end_date < timezone.localdate())]
-    bank_accounts = _valid_bank_accounts_under_1200(tenant_db)
+    today = timezone.localdate()
+    grants = [g for g in grants if g.is_active_on(today)]
+    from tenant_finance.services.bank_account_dropdowns import bank_cash_posting_chart_accounts
+
+    bank_accounts = bank_cash_posting_chart_accounts(tenant_db)
     income_accounts = _income_posting_accounts_for_roots(tenant_db, ["4100"])
     donors = Donor.objects.using(tenant_db).filter(status=Donor.Status.ACTIVE).order_by("name")
 
@@ -4802,7 +5386,7 @@ def recv_grant_income_tracking_view(request: HttpRequest) -> HttpResponse:
     from django.db.models import Sum
     from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import JournalEntry, JournalLine
+    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
     from tenant_grants.models import Grant
     from tenant_grants.services.receivable_modality import effective_eligible_for_claimable
 
@@ -4854,7 +5438,7 @@ def recv_grant_income_tracking_view(request: HttpRequest) -> HttpResponse:
             continue
         amount = (
             JournalLine.objects.using(tenant_db)
-            .filter(entry=je, account__type="asset", debit__gt=0)
+            .filter(entry=je, account__type=ChartAccount.Type.ASSET, debit__gt=0)
             .aggregate(t=Sum("debit"))
             .get("t")
             or Decimal("0")
@@ -5238,7 +5822,7 @@ def finance_accounts_view(request: HttpRequest) -> HttpResponse:
     from io import TextIOWrapper
     from collections import defaultdict
 
-    from tenant_finance.models import ChartAccount, AccountCategory
+    from tenant_finance.models import AccountCategory, ChartAccount, normalize_finance_account_class
 
     tenant_db = request.tenant_db
     # Export current Chart of Accounts as CSV
@@ -5347,15 +5931,20 @@ def finance_accounts_view(request: HttpRequest) -> HttpResponse:
                     )
                 is_active_raw = (row.get("is_active") or "").strip()
                 is_active = is_active_raw not in ("0", "false", "False", "")
+                norm_type = normalize_finance_account_class(type_) or type_
                 st = ""
-                if type_ in ("asset", "liability", "equity"):
+                if norm_type in (
+                    ChartAccount.Type.ASSET,
+                    ChartAccount.Type.LIABILITY,
+                    ChartAccount.Type.EQUITY,
+                ):
                     st = ChartAccount.StatementType.BALANCE_SHEET
-                elif type_ in ("income", "expense"):
+                elif norm_type in (ChartAccount.Type.INCOME, ChartAccount.Type.EXPENSE):
                     st = ChartAccount.StatementType.INCOME_EXPENDITURE
                 ChartAccount.objects.using(tenant_db).create(
                     code=code,
                     name=name,
-                    type=type_,
+                    type=norm_type,
                     statement_type=st or "",
                     parent=parent,
                     category=category,
@@ -5455,7 +6044,7 @@ def finance_accounts_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.manage")
 def finance_account_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
-    """Edit a chart account. Used accounts cannot change code, type, or statement type."""
+    """Edit a chart account. Used accounts may rename code (GL references use IDs); type/statement stay locked."""
     from tenant_finance.models import ChartAccount, AccountCategory
 
     tenant_db = request.tenant_db
@@ -5476,24 +6065,30 @@ def finance_account_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
         status = (request.POST.get("status") or "active").strip().lower()
 
         if used:
-            if code != acc.code or type_ != acc.type or statement_type != (acc.statement_type or ""):
+            if type_ != acc.type or statement_type != (acc.statement_type or ""):
                 messages.error(
                     request,
-                    "This account is used in transactions. Code, account type, and statement type cannot be changed.",
+                    "This account is used in transactions. Account type and statement type cannot be changed.",
                 )
+                return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
+            if not code:
+                messages.error(request, "Account code is required.")
+                return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
+            if code != acc.code and ChartAccount.objects.using(tenant_db).filter(code=code).exclude(pk=pk).exists():
+                messages.error(request, "An account with this code already exists.")
                 return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
 
         if not name:
             messages.error(request, "Account name is required.")
             return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
-        if not code and not used:
+        if not used and not code:
             messages.error(request, "Account code is required.")
             return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
         if not type_:
             messages.error(request, "Account type must be selected.")
             return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
 
-        if not used and code != acc.code and ChartAccount.objects.using(tenant_db).filter(code=code).exists():
+        if not used and code != acc.code and ChartAccount.objects.using(tenant_db).filter(code=code).exclude(pk=pk).exists():
             messages.error(request, "An account with this code already exists.")
             return redirect(reverse("tenant_portal:finance_account_edit", args=[pk]))
 
@@ -5501,8 +6096,7 @@ def finance_account_edit_view(request: HttpRequest, pk: int) -> HttpResponse:
         category = AccountCategory.objects.using(tenant_db).filter(pk=category_id).first() if category_id else None
         is_active = status != "inactive"
 
-        if not used:
-            acc.code = code
+        acc.code = code
         acc.name = name
         acc.type = type_
         if not used:
@@ -5550,7 +6144,7 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
 
     from decimal import Decimal
 
-    from django.db.models import DecimalField, Q, Sum, Value
+    from django.db.models import DecimalField, Exists, OuterRef, Q, Sum, Value
     from django.db.models.functions import Coalesce
 
     from tenant_finance.db_compat import journalentry_has_0034_schema
@@ -5565,12 +6159,19 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
     status = (request.GET.get("status") or "").strip()
     search = (request.GET.get("q") or "").strip()
     source_type_f = (request.GET.get("source_type") or "").strip()
+    voucher_scope_param = (request.GET.get("voucher_scope") or "").strip().lower()
     accounting_period_id = (
         request.GET.get("accounting_period_id") or request.GET.get("fiscal_period_id") or ""
     ).strip()
     quick_filter = (request.GET.get("quick") or "").strip()
 
     je_schema_0034 = journalentry_has_0034_schema(tenant_db)
+    # General journal defaults to Post transaction vouchers (Payments & Receipts); ?voucher_scope=all for full GL.
+    voucher_scope = (
+        "all"
+        if je_schema_0034 and voucher_scope_param == "all"
+        else ("operational" if je_schema_0034 else "all")
+    )
 
     accounting_periods_all = list(
         FiscalPeriod.objects.using(tenant_db).select_related("fiscal_year").order_by("-start_date")
@@ -5621,7 +6222,18 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             )
         except Exception:
             allowed_grant_ids = []
-        entries_qs = entries_qs.filter(grant_id__in=allowed_grant_ids) if allowed_grant_ids else entries_qs.none()
+        if allowed_grant_ids:
+            line_grant_match = JournalLine.objects.using(tenant_db).filter(
+                entry_id=OuterRef("pk"),
+                grant_id__in=allowed_grant_ids,
+            )
+            entries_qs = entries_qs.filter(
+                Q(grant_id__in=allowed_grant_ids)
+                | Q(grant_id__isnull=True)
+                | Exists(line_grant_match)
+            )
+        else:
+            entries_qs = entries_qs.filter(grant_id__isnull=True)
 
     if f["grant_id"]:
         if not can_all_grants:
@@ -5641,6 +6253,14 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
         and source_type_f in dict(JournalEntry.SourceType.choices)
     ):
         entries_qs = entries_qs.filter(source_type=source_type_f)
+    elif je_schema_0034 and voucher_scope == "operational":
+        pv = JournalEntry.SourceType.PAYMENT_VOUCHER
+        rv = JournalEntry.SourceType.RECEIPT_VOUCHER
+        entries_qs = entries_qs.filter(
+            Q(source_type__in=[pv, rv])
+            | Q(reference__istartswith="PV-")
+            | Q(reference__istartswith="RV-")
+        )
     if search:
         q = (
             Q(reference__icontains=search)
@@ -5665,13 +6285,19 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
     kpi_total_debit = line_totals.get("td") or Decimal("0")
     kpi_total_credit = line_totals.get("tc") or Decimal("0")
 
-    entries_slice = entries_qs[:200]
+    entries_slice = entries_qs.distinct()[:200]
 
     entries = []
     for entry in entries_slice:
         journal_no = entry.reference or f"JV-{entry.entry_date.year}-{entry.id:04d}"
         jt = (entry.journal_type or "").strip()
-        jt_label = jt.replace("_", " ").title() if jt else "—"
+        jt_lower = jt.lower()
+        if jt_lower == "payment_voucher":
+            jt_label = "Payments"
+        elif jt_lower == "receipt_voucher":
+            jt_label = "Receipts"
+        else:
+            jt_label = jt.replace("_", " ").title() if jt else "—"
         if je_schema_0034:
             src_doc = (
                 (entry.source_document_no or "").strip()
@@ -5746,8 +6372,21 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
         except Exception:
             grants = grants.none()
     donors = Donor.objects.using(tenant_db).order_by("name")
-    accounts = ChartAccount.objects.using(tenant_db).filter(is_active=True).order_by("code")
+    accounts = (
+        ChartAccount.objects.using(tenant_db)
+        .filter(is_active=True, allow_posting=True)
+        .order_by("code")
+    )
     accounting_periods = FiscalPeriod.objects.using(tenant_db).order_by("-start_date")[:48]
+    manual_journal_periods = list(
+        FiscalPeriod.objects.using(tenant_db)
+        .filter(
+            Q(status=FiscalPeriod.Status.OPEN) | Q(status=""),
+            is_closed=False,
+        )
+        .select_related("fiscal_year")
+        .order_by("-start_date")[:48]
+    )
 
     can_reverse_journal = user_has_permission(user, "finance:journals.reverse", using=tenant_db)
     can_create_manual = user_has_permission(user, "finance.add_journalentry", using=tenant_db)
@@ -5814,6 +6453,19 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             )
         return response
 
+    active_source_type_label = ""
+    clear_source_type_filter_url = ""
+    if je_schema_0034 and source_type_f and source_type_f in dict(JournalEntry.SourceType.choices):
+        active_source_type_label = dict(JournalEntry.SourceType.choices).get(source_type_f, source_type_f)
+        clear_source_type_filter_url = _url_without_get_params(request, "source_type")
+
+    q_all = request.GET.copy()
+    q_all["voucher_scope"] = "all"
+    voucher_scope_all_url = request.path + "?" + q_all.urlencode()
+    q_op = request.GET.copy()
+    q_op.pop("voucher_scope", None)
+    voucher_scope_operational_url = request.path + ("?" + q_op.urlencode() if q_op else "")
+
     return render(
         request,
         "tenant_portal/finance/journals.html",
@@ -5826,6 +6478,11 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             "donors": donors,
             "accounting_periods": accounting_periods,
             "filter_source_type": source_type_f,
+            "active_source_type_filter_label": active_source_type_label,
+            "clear_source_type_filter_url": clear_source_type_filter_url,
+            "voucher_scope": voucher_scope,
+            "voucher_scope_all_url": voucher_scope_all_url,
+            "voucher_scope_operational_url": voucher_scope_operational_url,
             "filter_accounting_period_id": accounting_period_id,
             "quick_filter": quick_filter,
             "journal_preset_urls": _journal_list_preset_urls(request),
@@ -5843,6 +6500,7 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             "journal_schema_0034": je_schema_0034,
             "manual_journal_budget_lines": manual_journal_budget_lines,
             "manual_journal_workplan_activities": manual_journal_workplan_activities,
+            "manual_journal_periods": manual_journal_periods,
             "active_submenu": "core",
             "active_item": "core_journals",
         },
@@ -5863,7 +6521,12 @@ def finance_journal_detail_view(request: HttpRequest, entry_id: int) -> HttpResp
     je_schema_0034 = journalentry_has_0034_schema(tenant_db)
     je_schema_0040 = journalentry_has_0040_adjusting_schema(tenant_db)
     je_qs = JournalEntry.objects.using(tenant_db).select_related(
-        "grant", "donor", "created_by", "currency", "cost_center"
+        "grant",
+        "donor",
+        "created_by",
+        "approved_by",
+        "currency",
+        "cost_center",
     )
     if je_schema_0034:
         je_qs = je_qs.select_related("posted_by")
@@ -5983,10 +6646,16 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal
 
     from tenant_finance.models import AuditLog, JournalEntry, JournalLine
+    from tenant_finance.services.manual_journal_validation import (
+        map_journal_type_to_source_type,
+        validate_manual_journal_header,
+    )
 
     tenant_db = request.tenant_db
 
     entry_date_str = request.POST.get("entry_date") or ""
+    posting_date_str = (request.POST.get("posting_date") or "").strip()
+    accounting_period_id = (request.POST.get("accounting_period_id") or "").strip()
     memo = (request.POST.get("memo") or "").strip()
     grant_id = request.POST.get("grant_id") or ""
     journal_type = (request.POST.get("journal_type") or "").strip() or "adjustment"
@@ -5994,15 +6663,13 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
     from django.utils.dateparse import parse_date
 
     entry_date = parse_date(entry_date_str)
+    posting_date = parse_date(posting_date_str) if posting_date_str else None
+    if not posting_date:
+        posting_date = entry_date
+    _je_back = reverse("tenant_portal:finance_journals") + "?open_manual=1"
     if not entry_date:
         messages.error(request, "Please provide a valid journal date.")
-        return redirect(reverse("tenant_portal:finance_journals"))
-
-    try:
-        _finance_assert_open_period(entry_date, tenant_db, request.tenant_user_id)
-    except ValueError as e:
-        messages.error(request, str(e))
-        return redirect(reverse("tenant_portal:finance_journals"))
+        return redirect(_je_back)
 
     accounts = request.POST.getlist("line_account")
     debits = request.POST.getlist("line_debit")
@@ -6036,11 +6703,23 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
         "source": "manual",
     }
 
+    hdr_errs = validate_manual_journal_header(
+        tenant_db=tenant_db,
+        entry_date=entry_date,
+        posting_date=posting_date,
+        memo=memo,
+        accounting_period_id=accounting_period_id,
+    )
     try:
         _finance_validate_journal_payload(header, lines, tenant_db)
     except ValueError as e:
-        messages.error(request, str(e))
-        return redirect(reverse("tenant_portal:finance_journals"))
+        for part in str(e).split("\n"):
+            if part.strip():
+                hdr_errs.append(part.strip())
+    if hdr_errs:
+        for msg in hdr_errs:
+            messages.error(request, msg)
+        return redirect(_je_back)
 
     from django.core.exceptions import ValidationError as DjangoValidationError
     from django.db import transaction
@@ -6051,23 +6730,25 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
         if grant_id:
             grant = Grant.objects.using(tenant_db).select_related("project").filter(pk=grant_id).first()
             if grant:
-                tmp = JournalEntry(entry_date=entry_date, grant=grant)
+                tmp = JournalEntry(entry_date=entry_date, grant=grant, posting_date=posting_date)
                 try:
                     tmp.full_clean()
                 except DjangoValidationError as e:
                     err = " ".join(f"{k}: {v}" for k, v in (e.message_dict or {}).items()) or str(e)
                     messages.error(request, err)
-                    return redirect(reverse("tenant_portal:finance_journals"))
+                    return redirect(_je_back)
 
+        st_manual = map_journal_type_to_source_type(journal_type)
         entry = JournalEntry.objects.using(tenant_db).create(
             entry_date=entry_date,
+            posting_date=posting_date,
             memo=memo,
             grant=grant,
             status=JournalEntry.Status.DRAFT,
             created_by=request.tenant_user,
             journal_type=journal_type,
             source="manual",
-            source_type=JournalEntry.SourceType.MANUAL,
+            source_type=st_manual,
             is_system_generated=False,
         )
 
@@ -6202,7 +6883,15 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                 }
                 gl_date = _finance_journal_gl_date(entry)
                 _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
-                _finance_validate_journal_payload(header, lines, tenant_db)
+                from tenant_finance.services.manual_journal_validation import (
+                    validate_journal_entry_lines_from_model,
+                )
+
+                _errs = validate_journal_entry_lines_from_model(tenant_db=tenant_db, entry=entry)
+                if not (entry.memo or "").strip():
+                    _errs.append("Description (memo) is required.")
+                if _errs:
+                    raise ValueError("\n".join(_errs))
                 _finance_validate_journal_line_grants(lines, tenant_db, gl_date)
                 if entry.grant_id:
                     entry.refresh_from_db()
@@ -6317,6 +7006,15 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                     raise ValueError(
                         "Maker-checker is enforced: you cannot post a journal entry you created."
                     )
+                from tenant_finance.services.manual_journal_validation import (
+                    validate_journal_entry_lines_from_model,
+                )
+
+                _post_errs = validate_journal_entry_lines_from_model(tenant_db=tenant_db, entry=entry)
+                if not (entry.memo or "").strip():
+                    _post_errs.append("Description (memo) is required.")
+                if _post_errs:
+                    raise ValueError("\n".join(_post_errs))
                 _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
                 if entry.grant_id:
                     from decimal import Decimal
@@ -6561,7 +7259,9 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                 raise ValueError("Unsupported journal action.")
 
     except ValueError as e:
-        messages.error(request, str(e))
+        for part in str(e).split("\n"):
+            if part.strip():
+                messages.error(request, part.strip())
 
     return _finance_journal_action_redirect(request)
 
@@ -6662,51 +7362,28 @@ def _finance_generate_adjusting_journal_number(tenant_db, entry_date):
 
 def _finance_validate_journal_payload(header, lines, tenant_db):
     """
-    Validate journal business rules.
+    Validate journal line business rules (balanced, posting accounts, amounts).
 
-    header: dict with entry_date, memo, grant_id, journal_type, source
+    header: dict with entry_date, memo, grant_id, journal_type, source (unused; kept for callers)
     lines: list of dicts with account_id, description, debit, credit
     """
     from decimal import Decimal
 
-    from tenant_finance.models import ChartAccount
+    from tenant_finance.services.manual_journal_validation import validate_manual_journal_lines
 
-    if len(lines) < 2:
-        raise ValueError("A journal must have at least two lines.")
+    errs = validate_manual_journal_lines(
+        tenant_db=tenant_db,
+        lines=lines,
+        require_line_description=True,
+    )
+    if errs:
+        raise ValueError("\n".join(errs))
 
     total_debit = Decimal("0")
     total_credit = Decimal("0")
-
-    for idx, line in enumerate(lines, start=1):
-        account_id = line.get("account_id")
-        debit = Decimal(line.get("debit") or "0")
-        credit = Decimal(line.get("credit") or "0")
-
-        if debit and credit:
-            raise ValueError(f"Line {idx}: a line cannot have both debit and credit.")
-        if not debit and not credit:
-            raise ValueError(f"Line {idx}: a line must have either debit or credit.")
-
-        # Only active leaf (posting) accounts allowed; parent/summary accounts cannot be used in transactions
-        account = (
-            ChartAccount.objects.using(tenant_db)
-            .filter(pk=account_id, is_active=True)
-            .first()
-        )
-        if not account:
-            raise ValueError(f"Line {idx}: account is not an active posting account.")
-        if not account.is_leaf(using=tenant_db):
-            raise ValueError(
-                f"Line {idx}: only leaf (posting) accounts can be used in transactions. "
-                f"Account {account.code} is a summary account and cannot receive entries."
-            )
-
-        total_debit += debit
-        total_credit += credit
-
-    if total_debit != total_credit:
-        raise ValueError("Total debit must equal total credit.")
-
+    for line in lines:
+        total_debit += Decimal(str(line.get("debit") or "0").replace(",", ""))
+        total_credit += Decimal(str(line.get("credit") or "0").replace(",", ""))
     return total_debit, total_credit
 
 
@@ -6714,6 +7391,74 @@ def _finance_journal_gl_date(entry) -> object:
     """Effective GL date for period controls (posting date when set, else journal date)."""
     pd = getattr(entry, "posting_date", None)
     return pd or entry.entry_date
+
+
+@lru_cache(maxsize=64)
+def _bank_chart_account_ids(tenant_db: str) -> frozenset[int]:
+    """ChartAccount PKs that are linked to a BankAccount master row (bank GL lines)."""
+    from tenant_finance.models import BankAccount
+
+    return frozenset(
+        pk for pk in BankAccount.objects.using(tenant_db).values_list("account_id", flat=True) if pk
+    )
+
+
+def _journal_entry_gross_amount(tenant_db: str, entry, *, lines: list | None = None) -> "Decimal":
+    """
+    Face amount for a payment voucher / journal entry.
+
+    For lines posted to bank GLs (ChartAccount linked to BankAccount), the movement matches
+    _compute_bank_current_balance: net = posted debits − posted credits on those accounts
+    (opening balance applies per bank book, not per entry). The displayed amount is the
+    magnitude of that net bank movement.
+
+    Balanced bank-to-bank transfers net to zero on combined bank lines; we then use one leg
+    (max of total bank debits vs credits). If nothing posts to a bank GL, falls back to
+    total debits on the entry (e.g. non-bank expense vs AP).
+    """
+    from decimal import Decimal
+
+    from django.db.models import Sum
+
+    from tenant_finance.models import JournalLine
+
+    def _fallback_total_debits() -> Decimal:
+        if lines is not None:
+            t = sum((ln.debit or Decimal("0")) for ln in lines)
+            return t if t else Decimal("0")
+        t = (
+            JournalLine.objects.using(tenant_db)
+            .filter(entry=entry)
+            .aggregate(t=Sum("debit"))
+            .get("t")
+        )
+        return t if t is not None else Decimal("0")
+
+    bank_ids = _bank_chart_account_ids(tenant_db)
+    if not bank_ids:
+        return _fallback_total_debits()
+
+    if lines is not None:
+        td = Decimal("0")
+        tc = Decimal("0")
+        for ln in lines:
+            if ln.account_id not in bank_ids:
+                continue
+            td += ln.debit or Decimal("0")
+            tc += ln.credit or Decimal("0")
+    else:
+        qs = JournalLine.objects.using(tenant_db).filter(entry=entry, account_id__in=bank_ids)
+        agg = qs.aggregate(td=Sum("debit"), tc=Sum("credit"))
+        td = agg["td"] if agg["td"] is not None else Decimal("0")
+        tc = agg["tc"] if agg["tc"] is not None else Decimal("0")
+
+    if td == 0 and tc == 0:
+        return _fallback_total_debits()
+
+    net = td - tc
+    if net != 0:
+        return abs(net)
+    return max(td, tc)
 
 
 def _finance_validate_journal_line_grants(lines: list, tenant_db: str, gl_date) -> None:
@@ -7156,7 +7901,6 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
         .filter(
             gl_date__gte=f["period_start"],
             gl_date__lte=f["period_end"],
-            entry__is_system_generated=True,
         )
         .select_related(
             "account",
@@ -7236,6 +7980,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             grant_ids.add(eg)
         account_ids.add(ln.account_id)
     budget_map: dict[tuple[int | None, int], str] = {}
+    budget_desc_acc: dict[tuple[int, int], list[str]] = {}
     if grant_ids and account_ids:
         for bl in (
             BudgetLine.objects.using(tenant_db)
@@ -7246,6 +7991,13 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             if not label:
                 label = (bl.description or "").strip()
             budget_map[(bl.grant_id, bl.account_id)] = label or "—"
+            bd = (bl.description or "").strip()
+            if bd:
+                key = (bl.grant_id, bl.account_id)
+                budget_desc_acc.setdefault(key, []).append(bd)
+    budget_desc_map: dict[tuple[int, int], str] = {
+        k: "; ".join(dict.fromkeys(v)) for k, v in budget_desc_acc.items()
+    }
 
     def _eff_grant_id(ln):
         return ln.grant_id or (ln.entry.grant_id if ln.entry else None)
@@ -7288,6 +8040,17 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             budget_line = budget_map.get((ent.grant_id, acc_id))
         return budget_line or "—"
 
+    def _budget_line_description_label(ln, ent, eg_id, acc_id):
+        pbl = getattr(ln, "project_budget_line", None)
+        if pbl:
+            d = (getattr(pbl, "description", None) or "").strip()
+            return d or "—"
+        bkey = (eg_id, acc_id)
+        out = budget_desc_map.get(bkey)
+        if out is None and ent.grant_id:
+            out = budget_desc_map.get((ent.grant_id, acc_id))
+        return out or "—"
+
     def _fund_label(ln, ent):
         g = ln.grant or ent.grant
         project = getattr(g, "project", None) if g else None
@@ -7328,6 +8091,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
         eg_id = _eff_grant_id(line)
         activity = _activity_label(line)
         budget_line = _budget_line_label(line, ent, eg_id, acc_id)
+        budget_line_description = _budget_line_description_label(line, ent, eg_id, acc_id)
 
         gl_date = getattr(line, "gl_date", None) or ent.posting_date or ent.entry_date
         posted_by = "—"
@@ -7354,6 +8118,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
                 "donor": _donor_label(line, ent),
                 "activity": activity,
                 "budget_line": budget_line,
+                "budget_line_description": budget_line_description,
                 "memo": (line.description or ent.memo or "").strip() or "—",
                 "debit": line.debit,
                 "credit": line.credit,
@@ -7492,6 +8257,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             "Grant",
             "Donor",
             "Budget line",
+            "Budget line description",
             "Description",
             "Debit",
             "Credit",
@@ -7575,6 +8341,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
                 r["grant"],
                 r["donor"],
                 r["budget_line"],
+                r["budget_line_description"],
                 r["memo"],
                 r["debit"] or Decimal("0"),
                 r["credit"] or Decimal("0"),
@@ -7589,12 +8356,12 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
         num_start = header_row + 1
         num_end = ws.max_row
         for r_idx in range(num_start, num_end + 1):
-            ws.cell(row=r_idx, column=9).number_format = "#,##0.00"
             ws.cell(row=r_idx, column=10).number_format = "#,##0.00"
             ws.cell(row=r_idx, column=11).number_format = "#,##0.00"
+            ws.cell(row=r_idx, column=12).number_format = "#,##0.00"
 
         ws.freeze_panes = f"A{header_row + 1}"
-        widths = [12, 18, 14, 26, 24, 22, 24, 38, 14, 14, 18, 11, 24]
+        widths = [12, 18, 14, 26, 24, 22, 24, 36, 38, 14, 14, 18, 11, 24]
         for idx, width in enumerate(widths, start=1):
             ws.column_dimensions[get_column_letter(idx)].width = width
 
@@ -7651,7 +8418,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
 def finance_account_ledger_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal
 
-    from django.db.models import Q
+    from django.db.models import Q, Sum
     from tenant_finance.models import BankAccount, ChartAccount, JournalEntry
     from tenant_finance.services.financial_reporting import (
         assert_grant_filter_allowed,
@@ -7699,17 +8466,6 @@ def finance_account_ledger_view(request: HttpRequest) -> HttpResponse:
         p = int(project_id)
         lines_qs = lines_qs.filter(Q(entry__grant__project_id=p) | Q(grant__project_id=p))
 
-    allowed_bank_source_types = {
-        JournalEntry.SourceType.PAYMENT_VOUCHER,
-        JournalEntry.SourceType.RECEIPT_VOUCHER,
-        JournalEntry.SourceType.BANK_TRANSFER,
-        JournalEntry.SourceType.INTER_FUND_TRANSFER,
-        JournalEntry.SourceType.CASH_TRANSFER,
-        JournalEntry.SourceType.FUND_TRANSFER,
-        JournalEntry.SourceType.MANUAL,
-    }
-    if selected_bank:
-        lines_qs = lines_qs.filter(entry__source_type__in=allowed_bank_source_types)
     if tx_type:
         if tx_type == "adjusting_journal":
             lines_qs = lines_qs.filter(entry__source_type=JournalEntry.SourceType.MANUAL)
@@ -7902,7 +8658,11 @@ def finance_trial_balance_view(request: HttpRequest) -> HttpResponse:
     did = (f.get("donor_id") or "").strip()
     if did.isdigit():
         d_int = int(did)
-        base_qs = base_qs.filter(Q(donor_id=d_int) | Q(entry__donor_id=d_int))
+        base_qs = base_qs.filter(
+            Q(entry__donor_id=d_int)
+            | Q(entry__grant__donor_id=d_int)
+            | Q(grant__donor_id=d_int)
+        )
 
     agg_qs = (
         base_qs.values("account_id", "account__code", "account__name", "account__type")
@@ -8268,7 +9028,9 @@ def finance_statement_financial_position_view(request: HttpRequest) -> HttpRespo
         line_qs = line_qs.filter(Q(entry__grant_id=gid_int) | Q(grant_id=gid_int))
     if donor_id:
         did = int(donor_id)
-        line_qs = line_qs.filter(Q(entry__donor_id=did) | Q(donor_id=did))
+        line_qs = line_qs.filter(
+            Q(entry__donor_id=did) | Q(entry__grant__donor_id=did) | Q(grant__donor_id=did)
+        )
 
     qs = (
         line_qs.values(
@@ -8282,9 +9044,9 @@ def finance_statement_financial_position_view(request: HttpRequest) -> HttpRespo
     )
 
     rows = list(qs)
-    assets_raw = [r for r in rows if r["account__type"] == "asset"]
-    liabilities_raw = [r for r in rows if r["account__type"] == "liability"]
-    equity_raw = [r for r in rows if r["account__type"] == "equity"]
+    assets_raw = [r for r in rows if r["account__type"] == ChartAccount.Type.ASSET]
+    liabilities_raw = [r for r in rows if r["account__type"] == ChartAccount.Type.LIABILITY]
+    equity_raw = [r for r in rows if r["account__type"] == ChartAccount.Type.EQUITY]
 
     assets_current, assets_non_current = partition_assets(assets_raw)
     liabilities_current, liabilities_non_current = partition_liabilities(liabilities_raw)
@@ -8477,7 +9239,9 @@ def finance_statement_of_activities_view(request: HttpRequest) -> HttpResponse:
         line_qs = line_qs.filter(Q(entry__grant_id=gid_int) | Q(grant_id=gid_int))
     if donor_id:
         did = int(donor_id)
-        line_qs = line_qs.filter(Q(entry__donor_id=did) | Q(donor_id=did))
+        line_qs = line_qs.filter(
+            Q(entry__donor_id=did) | Q(entry__grant__donor_id=did) | Q(grant__donor_id=did)
+        )
 
     qs = (
         line_qs.values(
@@ -8493,8 +9257,8 @@ def finance_statement_of_activities_view(request: HttpRequest) -> HttpResponse:
     )
 
     rows = list(qs)
-    income_raw = [r for r in rows if r["account__type"] == "income"]
-    expense_raw = [r for r in rows if r["account__type"] == "expense"]
+    income_raw = [r for r in rows if r["account__type"] == ChartAccount.Type.INCOME]
+    expense_raw = [r for r in rows if r["account__type"] == ChartAccount.Type.EXPENSE]
 
     income_sections = group_income_by_category(income_raw)
     total_income = sum(s["subtotal"] for s in income_sections)
@@ -8690,7 +9454,9 @@ def finance_cash_flow_statement_view(request: HttpRequest) -> HttpResponse:
         base = base.filter(Q(entry__grant_id=gid_int) | Q(grant_id=gid_int))
     if donor_id:
         did = int(donor_id)
-        base = base.filter(Q(entry__donor_id=did) | Q(donor_id=did))
+        base = base.filter(
+            Q(entry__donor_id=did) | Q(entry__grant__donor_id=did) | Q(grant__donor_id=did)
+        )
     if cid_int:
         base = base.filter(entry__currency_id=cid_int)
     if dim_int:
@@ -9540,9 +10306,10 @@ def grants_donor_edit_view(request: HttpRequest, donor_id: int) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="module:grants.view")
 def grants_grants_view(request: HttpRequest) -> HttpResponse:
     from decimal import Decimal, InvalidOperation
+    from django.db.models import Q, Sum
     from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import BankAccount
+    from tenant_finance.models import BankAccount, ChartAccount, JournalLine
     from tenant_grants.models import (
         Donor,
         DonorAgreement,
@@ -9613,9 +10380,12 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         if not project:
             errors.append("Selected project is invalid or inactive.")
 
-        # Validate bank account (active only)
+        # Validate bank account (active, GL under 1200 — Bank Accounts)
+        from tenant_finance.services.bank_account_dropdowns import deposit_gl_is_valid_bank_under_1200
+
         bank_account = (
             BankAccount.objects.using(tenant_db)
+            .select_related("account")
             .filter(pk=bank_account_id, is_active=True)
             .first()
             if bank_account_id
@@ -9623,6 +10393,8 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         )
         if not bank_account:
             errors.append("Selected bank account is invalid or inactive.")
+        elif not bank_account.account_id or not deposit_gl_is_valid_bank_under_1200(tenant_db, bank_account.account):
+            errors.append("Bank account must be linked to an active posting GL under 1200 — Bank Accounts.")
 
         grant_ceiling = Decimal("0")
         if raw_ceiling:
@@ -9671,15 +10443,9 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             if not funding_modality:
                 messages.error(request, "Funding modality is required.")
                 return redirect(reverse("tenant_portal:grants_grants"))
-            if funding_modality is not None:
-                from tenant_grants.services.payment_modality import has_complete_gl_mapping
+            from tenant_grants.services.funding_modality_gl import ensure_funding_modality_gl_mapping_autofill
 
-                if not has_complete_gl_mapping(
-                    using=tenant_db,
-                    funding_source=funding_modality,
-                ):
-                    messages.error(request, "GL account mapping is missing for selected funding modality.")
-                    return redirect(reverse("tenant_portal:grants_grants"))
+            mapping_ok = ensure_funding_modality_gl_mapping_autofill(tenant_db, funding_modality)
             expense_report_approved = request.POST.get("expense_report_approved") == "on"
             audit_approved = request.POST.get("audit_approved") == "on"
             final_report_approved = request.POST.get("final_report_approved") == "on"
@@ -9692,7 +10458,7 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
                     donor=donor,
                     project=project,
                     bank_account=bank_account,
-                    status=Grant.Status.ACTIVE,
+                    status=Grant.Status.ACTIVE if mapping_ok else Grant.Status.DRAFT,
                     award_amount=grant_ceiling,
                     grant_ceiling=grant_ceiling,
                     eligible_receivable_amount=eligible_receivable_amount,
@@ -9719,21 +10485,100 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             if request.FILES.get("signed_contract_document"):
                 grant.signed_contract_document = request.FILES["signed_contract_document"]
                 grant.save(using=tenant_db)
-            messages.success(request, "Project grant created.")
+            messages.success(
+                request,
+                "Project grant created."
+                if mapping_ok
+                else "Project grant created as Draft (funding modality GL mapping incomplete). Complete Financial Setup before posting transactions.",
+            )
             return redirect(reverse("tenant_portal:grants_grants"))
 
     f = _parse_grants_filters(request)
-    qs = Grant.objects.using(tenant_db).select_related("donor").order_by("-created_at")
+    qs = (
+        Grant.objects.using(tenant_db)
+        .select_related("donor", "project", "currency", "bank_account", "bank_account__currency", "funding_modality")
+        .prefetch_related("donor_agreement_links__agreement")
+        .order_by("-created_at")
+    )
     if f["donor_id"]:
         qs = qs.filter(donor_id=f["donor_id"])
+    if f["project_id"]:
+        qs = qs.filter(project_id=f["project_id"])
     if f["grant_id"]:
         qs = qs.filter(pk=f["grant_id"])
+    valid_grant_statuses = {s for s, _ in Grant.Status.choices}
+    if f["status"] in valid_grant_statuses:
+        qs = qs.filter(status=f["status"])
+    if f["start_date_from"]:
+        qs = qs.filter(start_date__gte=f["start_date_from"])
+    if f["start_date_to"]:
+        qs = qs.filter(start_date__lte=f["start_date_to"])
+    if f["end_date_from"]:
+        qs = qs.filter(end_date__gte=f["end_date_from"])
+    if f["end_date_to"]:
+        qs = qs.filter(end_date__lte=f["end_date_to"])
+    if f["currency_id"].isdigit():
+        cid = int(f["currency_id"])
+        qs = qs.filter(Q(currency_id=cid) | Q(bank_account__currency_id=cid))
+    if f["funding_modality_id"].isdigit():
+        qs = qs.filter(funding_modality_id=int(f["funding_modality_id"]))
+    amount_min = None
+    amount_max = None
+    try:
+        amount_min = Decimal(f["amount_min"].replace(",", "")) if f["amount_min"] else None
+    except (InvalidOperation, ValueError):
+        amount_min = None
+    try:
+        amount_max = Decimal(f["amount_max"].replace(",", "")) if f["amount_max"] else None
+    except (InvalidOperation, ValueError):
+        amount_max = None
+    if amount_min is not None:
+        qs = qs.filter(award_amount__gte=amount_min)
+    if amount_max is not None:
+        qs = qs.filter(award_amount__lte=amount_max)
     if f.get("q"):
-        from django.db.models import Q
         qs = qs.filter(
             Q(code__icontains=f["q"]) | Q(title__icontains=f["q"]) | Q(project_name__icontains=f["q"])
         )
-    grants = list(qs.select_related("bank_account", "funding_modality")[:200])
+    # Enterprise data integrity: list view only shows grants linked to both donor contract and project.
+    qs = qs.filter(project_id__isnull=False, donor_agreement_links__isnull=False).distinct()
+    grants = list(qs[:300])
+
+    # Ensure agreement/project cross-link exists for each grant link.
+    for g in grants:
+        if not g.project_id:
+            continue
+        for link in g.donor_agreement_links.all():
+            DonorAgreementProject.objects.using(tenant_db).get_or_create(
+                agreement_id=link.agreement_id,
+                project_id=g.project_id,
+            )
+
+    spent_by_grant = {
+        row["entry__grant_id"]: row["spent"] or Decimal("0")
+        for row in JournalLine.objects.using(tenant_db)
+        .filter(
+            account__type=ChartAccount.Type.EXPENSE,
+            entry__grant_id__in=[g.pk for g in grants],
+        )
+        .values("entry__grant_id")
+        .annotate(spent=Sum("debit"))
+    }
+    for g in grants:
+        ceiling = Decimal(str(g.award_amount or g.grant_ceiling or 0))
+        spent = spent_by_grant.get(g.pk, Decimal("0"))
+        g.utilization_pct = ((spent / ceiling) * Decimal("100")) if ceiling > 0 else None
+        links = list(g.donor_agreement_links.all())
+        g.donor_contract = links[0].agreement if links else None
+
+    total_value = sum((Decimal(str(g.award_amount or 0)) for g in grants), Decimal("0"))
+    active_grants = sum(1 for g in grants if g.status == Grant.Status.ACTIVE)
+    summary_cards = [
+        {"label": "Total grants", "value": len(grants)},
+        {"label": "Total value", "value": total_value},
+        {"label": "Active grants", "value": active_grants},
+    ]
+
     donors = list(_active_donors_queryset(tenant_db))
     donor_contracts = list(
         DonorAgreement.objects.using(tenant_db)
@@ -9742,7 +10587,9 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
         .order_by("donor__name", "agreement_code")
     )
     projects = list(Project.objects.using(tenant_db).filter(is_active=True).order_by("code"))
-    bank_accounts = BankAccount.objects.using(tenant_db).filter(is_active=True).order_by("bank_name", "account_name")
+    bank_accounts = _valid_bank_accounts_under_1200(tenant_db)
+    from tenant_finance.models import Currency
+    currencies = list(Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code"))
     from tenant_grants.models import FundingSource
 
     funding_modalities = list(
@@ -9755,6 +10602,10 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
                 g.code,
                 g.title,
                 g.donor.name if g.donor else "",
+                g.project.name if g.project else "",
+                (g.currency.code if g.currency else (g.bank_account.currency.code if g.bank_account and g.bank_account.currency else "")),
+                (g.utilization_pct.quantize(Decimal("0.1")) if g.utilization_pct is not None else ""),
+                (g.donor_contract.agreement_code if getattr(g, "donor_contract", None) else ""),
                 g.bank_account.account_name if g.bank_account else "",
                 g.award_amount,
                 g.start_date or "",
@@ -9767,7 +10618,20 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             export_format=export_format,
             filename_base="grant_agreements",
             title="Grant Agreements",
-            headers=["Code", "Title", "Donor", "Amount", "Start date", "End date", "Status"],
+            headers=[
+                "Code",
+                "Title",
+                "Donor",
+                "Project",
+                "Currency",
+                "Utilization %",
+                "Donor contract",
+                "Bank account",
+                "Amount",
+                "Start date",
+                "End date",
+                "Status",
+            ],
             rows=rows,
         )
         if resp:
@@ -9782,15 +10646,743 @@ def grants_grants_view(request: HttpRequest) -> HttpResponse:
             "donors": donors,
             "donor_contracts": donor_contracts,
             "projects": projects,
+            "currencies": currencies,
             "bank_accounts": bank_accounts,
             "funding_modalities": funding_modalities,
             "filters": f,
+            "summary_cards": summary_cards,
+            "grant_status_choices": Grant.Status.choices,
             "active_submenu": "funds",
             "active_item": "funds_grant_agreements",
             "export_csv_url": _grants_export_urls(request)["csv"],
             "export_xlsx_url": _grants_export_urls(request)["xlsx"],
             "export_pdf_url": _grants_export_urls(request)["pdf"],
             "can_manage": can_manage,
+        },
+    )
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:grants.manage")
+def grants_project_setup_wizard_view(request: HttpRequest) -> HttpResponse:
+    import json
+    from decimal import Decimal, InvalidOperation
+    import re
+
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+    from django.utils.dateparse import parse_date
+
+    from tenant_finance.models import BankAccount, ChartAccount, Currency
+    from tenant_grants.models import (
+        BudgetLine,
+        Donor,
+        DonorAgreement,
+        DonorAgreementGrant,
+        DonorAgreementProject,
+        FundingSource,
+        Grant,
+        Project,
+    )
+
+    tenant_db = request.tenant_db
+    session_key = "project_setup_wizard_draft_v1"
+
+    def _to_decimal(raw: str | None) -> Decimal | None:
+        val = (raw or "").strip().replace(",", "")
+        if not val:
+            return None
+        try:
+            return Decimal(val)
+        except (InvalidOperation, ValueError):
+            return None
+
+    def _default_draft() -> dict:
+        return {
+            "step": 1,
+            "donor": {"mode": "existing", "existing_id": "", "code": "", "name": "", "email": ""},
+            "contract": {
+                "agreement_code": "",
+                "title": "",
+                "status": DonorAgreement.Status.DRAFT,
+                "agreement_type": DonorAgreement.AgreementType.GRANT,
+                "start_date": "",
+                "end_date": "",
+                "funding_limit": "",
+                "currency_id": "",
+            },
+            "project": {
+                "code": "",
+                "name": "",
+                "status": Project.Status.PLANNING,
+                "start_date": "",
+                "end_date": "",
+                "currency_id": "",
+            },
+            "grant": {
+                "code": "",
+                "title": "",
+                "start_date": "",
+                "end_date": "",
+                "grant_ceiling": "",
+                "eligible_receivable_amount": "",
+                "bank_account_id": "",
+                "funding_method": "",
+                "funding_mode": "existing",
+                "funding_modality_id": "",
+                "funding_new_name": "",
+                "funding_new_modality_type": FundingSource.ModalityType.MIXED_MODALITY,
+                "funding_new_retention_percentage": "",
+                "funding_new_allow_instalments": False,
+            },
+            "budget_headings": [
+                {
+                    "heading_code": "",
+                    "heading_name": "",
+                    "collapsed": False,
+                    "sub_lines": [],
+                }
+            ],
+        }
+
+    donor_budget_code_re = re.compile(r"^\d+(?:\.\d+)+$")
+
+    def _default_budget_headings() -> list[dict]:
+        return [
+            {
+                "heading_code": "",
+                "heading_name": "",
+                "collapsed": False,
+                "sub_lines": [],
+            }
+        ]
+
+    def _migrate_budget_draft(draft: dict) -> None:
+        if draft.get("budget_headings"):
+            return
+        flat = draft.pop("budget_lines", None)
+        if not flat:
+            draft["budget_headings"] = _default_budget_headings()
+            return
+        subs: list[dict] = []
+        for x in flat:
+            subs.append(
+                {
+                    "budget_code": (x.get("budget_code") or "").strip(),
+                    "category": (x.get("category") or "").strip(),
+                    "coa_code": (x.get("coa_code") or "").strip(),
+                    "description": (x.get("description") or "").strip(),
+                    "amount": str(x.get("amount") or "").strip(),
+                }
+            )
+        if not subs:
+            subs = [
+                {
+                    "budget_code": "",
+                    "category": "",
+                    "coa_code": "",
+                    "description": "",
+                    "amount": "",
+                }
+            ]
+        draft["budget_headings"] = [
+            {
+                "heading_code": "",
+                "heading_name": "",
+                "collapsed": False,
+                "sub_lines": subs,
+            }
+        ]
+
+    def _parse_budget_headings_from_post() -> list[dict]:
+        raw = (request.POST.get("budget_structure_json") or "").strip()
+        if not raw:
+            return _default_budget_headings()
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return _default_budget_headings()
+        headings_in = data.get("headings")
+        if not isinstance(headings_in, list):
+            return _default_budget_headings()
+        out: list[dict] = []
+        for h in headings_in:
+            if not isinstance(h, dict):
+                continue
+            subs: list[dict] = []
+            for sl in h.get("sub_lines") or []:
+                if not isinstance(sl, dict):
+                    continue
+                subs.append(
+                    {
+                        "budget_code": (sl.get("budget_code") or "").strip(),
+                        "category": (sl.get("category") or "").strip(),
+                        "coa_code": (sl.get("coa_code") or "").strip(),
+                        "description": (sl.get("description") or "").strip(),
+                        "amount": str(sl.get("amount") or "").strip(),
+                    }
+                )
+            out.append(
+                {
+                    "heading_code": (h.get("heading_code") or "").strip(),
+                    "heading_name": (h.get("heading_name") or "").strip(),
+                    "collapsed": bool(h.get("collapsed")),
+                    "sub_lines": subs,
+                }
+            )
+        return out or _default_budget_headings()
+
+    def _flatten_budget_sub_lines(draft: dict) -> list[dict]:
+        lines: list[dict] = []
+        for h in draft.get("budget_headings") or []:
+            for sl in h.get("sub_lines") or []:
+                if not any(
+                    [
+                        (sl.get("budget_code") or "").strip(),
+                        (sl.get("category") or "").strip(),
+                        (sl.get("coa_code") or "").strip(),
+                        (sl.get("description") or "").strip(),
+                        (sl.get("amount") or "").strip(),
+                    ]
+                ):
+                    continue
+                lines.append(sl)
+        return lines
+
+    def _validate_step(step: int, draft: dict) -> bool:
+        ok = True
+        if step == 1:
+            d = draft["donor"]
+            if d["mode"] == "existing":
+                if not d["existing_id"].isdigit():
+                    messages.error(request, "Select an existing donor.")
+                    ok = False
+            else:
+                if not d["code"].strip():
+                    messages.error(request, "Donor code is required for new donor.")
+                    ok = False
+                if not d["name"].strip():
+                    messages.error(request, "Donor name is required for new donor.")
+                    ok = False
+        elif step == 2:
+            c = draft["contract"]
+            if not c["title"].strip():
+                messages.error(request, "Donor contract title is required.")
+                ok = False
+            sd = parse_date(c["start_date"] or "")
+            ed = parse_date(c["end_date"] or "")
+            if sd and ed and ed < sd:
+                messages.error(request, "Contract end date cannot be earlier than start date.")
+                ok = False
+        elif step == 3:
+            p = draft["project"]
+            if not p["code"].strip():
+                messages.error(request, "Project code is required.")
+                ok = False
+            if not p["name"].strip():
+                messages.error(request, "Project name is required.")
+                ok = False
+            sd = parse_date(p["start_date"] or "")
+            ed = parse_date(p["end_date"] or "")
+            if sd and ed and ed < sd:
+                messages.error(request, "Project end date cannot be earlier than start date.")
+                ok = False
+        elif step == 4:
+            g = draft["grant"]
+            if not g["code"].strip():
+                messages.error(request, "Project grant code is required.")
+                ok = False
+            if not g["title"].strip():
+                messages.error(request, "Project grant title is required.")
+                ok = False
+            if not g["bank_account_id"].isdigit():
+                messages.error(request, "Select a bank account.")
+                ok = False
+            ceiling = _to_decimal(g["grant_ceiling"])
+            if ceiling is None or ceiling <= 0:
+                messages.error(request, "Grant ceiling must be a positive amount.")
+                ok = False
+            eligible = _to_decimal(g["eligible_receivable_amount"]) or ceiling
+            if eligible is None or eligible < 0:
+                messages.error(request, "Eligible receivable must be zero or greater.")
+                ok = False
+            elif ceiling is not None and eligible > ceiling:
+                messages.error(request, "Eligible receivable cannot exceed grant ceiling.")
+                ok = False
+            if g["funding_mode"] == "existing":
+                if not g["funding_modality_id"].isdigit():
+                    messages.error(request, "Select an existing funding modality.")
+                    ok = False
+            else:
+                if not g["funding_new_name"].strip():
+                    messages.error(request, "Funding modality name is required.")
+                    ok = False
+        elif step == 5:
+            headings = draft.get("budget_headings") or []
+            if not headings:
+                messages.error(request, "Add at least one budget heading.")
+                ok = False
+            else:
+                heading_codes_seen: set[str] = set()
+                all_sub_codes: list[str] = []
+                for hi, h in enumerate(headings, start=1):
+                    hc = (h.get("heading_code") or "").strip()
+                    hn = (h.get("heading_name") or "").strip()
+                    if not hc or not hn:
+                        messages.error(
+                            request,
+                            f"Budget heading {hi}: heading code and name are required.",
+                        )
+                        ok = False
+                    elif not donor_budget_code_re.match(hc):
+                        messages.error(
+                            request,
+                            f"Budget heading {hi}: heading code must follow donor format (e.g. 6.2).",
+                        )
+                        ok = False
+                    elif hc in heading_codes_seen:
+                        messages.error(
+                            request,
+                            f"Budget heading {hi}: duplicate heading code '{hc}' within this budget.",
+                        )
+                        ok = False
+                    else:
+                        heading_codes_seen.add(hc)
+
+                    subs = h.get("sub_lines") or []
+                    filled: list[dict] = []
+                    for sl in subs:
+                        if not any(
+                            [
+                                (sl.get("budget_code") or "").strip(),
+                                (sl.get("category") or "").strip(),
+                                (sl.get("coa_code") or "").strip(),
+                                (sl.get("description") or "").strip(),
+                                (sl.get("amount") or "").strip(),
+                            ]
+                        ):
+                            continue
+                        filled.append(sl)
+                    if not filled:
+                        messages.error(
+                            request,
+                            f"Budget heading {hi}: add at least one sub-line with code, name, COA, and amount.",
+                        )
+                        ok = False
+                    for j, ln in enumerate(filled, start=1):
+                        code = (ln.get("budget_code") or "").strip()
+                        cat = (ln.get("category") or "").strip()
+                        if not code or not cat:
+                            messages.error(
+                                request,
+                                f"Budget heading {hi}, sub-line {j}: BudgetLineCode and BudgetLineName are required.",
+                            )
+                            ok = False
+                        if not donor_budget_code_re.match(code):
+                            messages.error(
+                                request,
+                                f"Budget heading {hi}, sub-line {j}: code must follow donor format (e.g. 6.2.1).",
+                            )
+                            ok = False
+                        elif hc and (not code.startswith(hc + ".") or code == hc):
+                            messages.error(
+                                request,
+                                f"Budget heading {hi}, sub-line {j}: code must be under heading '{hc}' (e.g. {hc}.1).",
+                            )
+                            ok = False
+                        coa_code = (ln.get("coa_code") or "").strip()
+                        if not coa_code:
+                            messages.error(
+                                request,
+                                f"Budget heading {hi}, sub-line {j}: COA code is required.",
+                            )
+                            ok = False
+                        elif not ChartAccount.objects.using(tenant_db).filter(
+                            code=coa_code, is_active=True
+                        ).exists():
+                            messages.error(
+                                request,
+                                f"Budget heading {hi}, sub-line {j}: COA code '{coa_code}' was not found.",
+                            )
+                            ok = False
+                        amt = _to_decimal(ln.get("amount"))
+                        if amt is None or amt < 0:
+                            messages.error(
+                                request,
+                                f"Budget heading {hi}, sub-line {j}: amount must be zero or greater.",
+                            )
+                            ok = False
+                        all_sub_codes.append(code)
+                if ok and len(all_sub_codes) != len(set(all_sub_codes)):
+                    messages.error(
+                        request,
+                        "Duplicate BudgetLineCode within this project grant. Each sub-line code must be unique.",
+                    )
+                    ok = False
+        return ok
+
+    draft = request.session.get(session_key) or _default_draft()
+    _migrate_budget_draft(draft)
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "next").strip().lower()
+        step = int((request.POST.get("step") or draft.get("step") or 1))
+        step = max(1, min(6, step))
+
+        if action == "reset":
+            request.session.pop(session_key, None)
+            return redirect(reverse("tenant_portal:grants_project_setup_wizard"))
+
+        if step == 1:
+            draft["donor"] = {
+                "mode": (request.POST.get("donor_mode") or "existing").strip(),
+                "existing_id": (request.POST.get("donor_existing_id") or "").strip(),
+                "code": (request.POST.get("donor_code") or "").strip().upper(),
+                "name": (request.POST.get("donor_name") or "").strip(),
+                "email": (request.POST.get("donor_email") or "").strip(),
+            }
+        elif step == 2:
+            draft["contract"] = {
+                "agreement_code": (request.POST.get("agreement_code") or "").strip(),
+                "title": (request.POST.get("agreement_title") or "").strip(),
+                "status": (request.POST.get("agreement_status") or DonorAgreement.Status.DRAFT).strip(),
+                "agreement_type": (
+                    request.POST.get("agreement_type") or DonorAgreement.AgreementType.GRANT
+                ).strip(),
+                "start_date": (request.POST.get("agreement_start_date") or "").strip(),
+                "end_date": (request.POST.get("agreement_end_date") or "").strip(),
+                "funding_limit": (request.POST.get("agreement_funding_limit") or "").strip(),
+                "currency_id": (request.POST.get("agreement_currency_id") or "").strip(),
+            }
+        elif step == 3:
+            draft["project"] = {
+                "code": (request.POST.get("project_code") or "").strip().upper(),
+                "name": (request.POST.get("project_name") or "").strip(),
+                "status": (request.POST.get("project_status") or Project.Status.PLANNING).strip(),
+                "start_date": (request.POST.get("project_start_date") or "").strip(),
+                "end_date": (request.POST.get("project_end_date") or "").strip(),
+                "currency_id": (request.POST.get("project_currency_id") or "").strip(),
+            }
+        elif step == 4:
+            draft["grant"] = {
+                "code": (request.POST.get("grant_code") or "").strip().upper(),
+                "title": (request.POST.get("grant_title") or "").strip(),
+                "start_date": (request.POST.get("grant_start_date") or "").strip(),
+                "end_date": (request.POST.get("grant_end_date") or "").strip(),
+                "grant_ceiling": (request.POST.get("grant_ceiling") or "").strip(),
+                "eligible_receivable_amount": (request.POST.get("eligible_receivable_amount") or "").strip(),
+                "bank_account_id": (request.POST.get("bank_account_id") or "").strip(),
+                "funding_method": (request.POST.get("funding_method") or "").strip(),
+                "funding_mode": (request.POST.get("funding_mode") or "existing").strip(),
+                "funding_modality_id": (request.POST.get("funding_modality_id") or "").strip(),
+                "funding_new_name": (request.POST.get("funding_new_name") or "").strip(),
+                "funding_new_modality_type": (
+                    request.POST.get("funding_new_modality_type") or FundingSource.ModalityType.MIXED_MODALITY
+                ).strip(),
+                "funding_new_retention_percentage": (
+                    request.POST.get("funding_new_retention_percentage") or ""
+                ).strip(),
+                "funding_new_allow_instalments": request.POST.get("funding_new_allow_instalments") == "1",
+            }
+            # Auto-apply NGO default GL mapping from Financial Setup templates (no manual GL on project form).
+            if draft["grant"].get("funding_mode") == "existing" and (draft["grant"].get("funding_modality_id") or "").isdigit():
+                from tenant_grants.services.funding_modality_gl import ensure_funding_modality_gl_mapping_autofill
+
+                fs_auto = FundingSource.objects.using(tenant_db).filter(
+                    pk=int(draft["grant"]["funding_modality_id"]), is_active=True
+                ).first()
+                if fs_auto:
+                    ensure_funding_modality_gl_mapping_autofill(tenant_db, fs_auto)
+        elif step == 5:
+            draft["budget_headings"] = _parse_budget_headings_from_post()
+
+        if action == "back":
+            draft["step"] = max(1, step - 1)
+            request.session[session_key] = draft
+            request.session.modified = True
+            return redirect(reverse("tenant_portal:grants_project_setup_wizard"))
+
+        if action in {"next", "finish"}:
+            if _validate_step(step, draft):
+                if action == "next":
+                    if step == 4:
+                        g4 = draft.get("grant") or {}
+                        if g4.get("funding_mode") == "existing" and (g4.get("funding_modality_id") or "").isdigit():
+                            from tenant_grants.services.funding_modality_gl import (
+                                ensure_funding_modality_gl_mapping_autofill,
+                                funding_modality_is_ready_for_use,
+                            )
+
+                            fs_w = FundingSource.objects.using(tenant_db).filter(
+                                pk=int(g4["funding_modality_id"]), is_active=True
+                            ).first()
+                            if fs_w:
+                                ensure_funding_modality_gl_mapping_autofill(tenant_db, fs_w)
+                            if fs_w and not funding_modality_is_ready_for_use(tenant_db, fs_w):
+                                messages.warning(
+                                    request,
+                                    "Funding modality GL mapping is not complete. You can continue; the wizard will save the "
+                                    "project and grant as Planning/Draft until Financial Setup is finished. Posting receipts, "
+                                    "payments, and journals remains blocked until mapping is complete.",
+                                )
+                    draft["step"] = min(6, step + 1)
+                    request.session[session_key] = draft
+                    request.session.modified = True
+                    return redirect(reverse("tenant_portal:grants_project_setup_wizard"))
+                # finish
+                if not all(_validate_step(s, draft) for s in (1, 2, 3, 4, 5)):
+                    draft["step"] = 1
+                    request.session[session_key] = draft
+                    request.session.modified = True
+                else:
+                    try:
+                        with transaction.atomic(using=tenant_db):
+                            donor_data = draft["donor"]
+                            if donor_data["mode"] == "existing":
+                                donor = Donor.objects.using(tenant_db).get(pk=int(donor_data["existing_id"]))
+                            else:
+                                donor = Donor(
+                                    code=donor_data["code"],
+                                    name=donor_data["name"],
+                                    email=donor_data["email"],
+                                    donor_type=Donor.DonorType.INSTITUTION,
+                                    status=Donor.Status.ACTIVE,
+                                )
+                                donor.full_clean()
+                                donor.save(using=tenant_db, audit_user=request.tenant_user)
+
+                            grant_data = draft["grant"]
+                            funding_source = None
+                            if grant_data["funding_mode"] == "existing":
+                                funding_source = FundingSource.objects.using(tenant_db).get(
+                                    pk=int(grant_data["funding_modality_id"]), is_active=True
+                                )
+                            else:
+                                retention = _to_decimal(grant_data["funding_new_retention_percentage"])
+                                funding_source = FundingSource(
+                                    name=grant_data["funding_new_name"],
+                                    modality_type=grant_data["funding_new_modality_type"],
+                                    donor=None,
+                                    retention_percentage=retention,
+                                    allow_instalments=bool(grant_data["funding_new_allow_instalments"]),
+                                    is_active=True,
+                                )
+                                funding_source.full_clean()
+                                funding_source.save(using=tenant_db)
+                            from tenant_grants.services.funding_modality_gl import (
+                                ensure_funding_modality_gl_mapping_autofill,
+                            )
+
+                            mapping_ok = ensure_funding_modality_gl_mapping_autofill(tenant_db, funding_source)
+                            if not mapping_ok:
+                                messages.warning(
+                                    request,
+                                    "Funding modality GL mapping is incomplete. Project and grant were saved as Planning/Draft. "
+                                    "Complete Financial Setup → Funding modalities before posting financial transactions.",
+                                )
+
+                            contract_data = draft["contract"]
+                            contract_code = contract_data["agreement_code"] or _generate_donor_agreement_code(tenant_db)
+                            agreement = DonorAgreement(
+                                agreement_code=contract_code,
+                                donor=donor,
+                                title=contract_data["title"],
+                                agreement_type=contract_data["agreement_type"],
+                                status=contract_data["status"],
+                                funding_source=funding_source,
+                                currency_id=int(contract_data["currency_id"]) if contract_data["currency_id"].isdigit() else None,
+                                funding_limit=_to_decimal(contract_data["funding_limit"]),
+                                start_date=parse_date(contract_data["start_date"] or ""),
+                                end_date=parse_date(contract_data["end_date"] or ""),
+                            )
+                            agreement.full_clean()
+                            agreement.save(using=tenant_db)
+
+                            project_data = draft["project"]
+                            proj_status = project_data["status"]
+                            if not mapping_ok and proj_status == Project.Status.ACTIVE:
+                                proj_status = Project.Status.PLANNING
+                            project = Project(
+                                code=project_data["code"],
+                                name=project_data["name"],
+                                donor=donor,
+                                status=proj_status,
+                                funding_modality=funding_source,
+                                currency_id=int(project_data["currency_id"]) if project_data["currency_id"].isdigit() else None,
+                                start_date=parse_date(project_data["start_date"] or ""),
+                                end_date=parse_date(project_data["end_date"] or ""),
+                                original_end_date=parse_date(project_data["end_date"] or ""),
+                                is_active=proj_status in {Project.Status.ACTIVE, Project.Status.PLANNING},
+                            )
+                            project.full_clean()
+                            project.save(using=tenant_db)
+
+                            ceiling = _to_decimal(grant_data["grant_ceiling"]) or Decimal("0")
+                            eligible = _to_decimal(grant_data["eligible_receivable_amount"]) or ceiling
+                            grant = Grant(
+                                code=grant_data["code"],
+                                title=grant_data["title"],
+                                donor=donor,
+                                project=project,
+                                bank_account_id=int(grant_data["bank_account_id"]),
+                                status=Grant.Status.ACTIVE if mapping_ok else Grant.Status.DRAFT,
+                                grant_ceiling=ceiling,
+                                award_amount=ceiling,
+                                eligible_receivable_amount=eligible,
+                                funding_modality=funding_source,
+                                funding_method=grant_data["funding_method"]
+                                if grant_data["funding_method"] in {c[0] for c in Grant.FundingMethod.choices}
+                                else "",
+                                start_date=parse_date(grant_data["start_date"] or ""),
+                                end_date=parse_date(grant_data["end_date"] or ""),
+                                original_end_date=parse_date(grant_data["end_date"] or ""),
+                            )
+                            grant.full_clean()
+                            grant.save(using=tenant_db)
+
+                            DonorAgreementGrant.objects.using(tenant_db).update_or_create(
+                                agreement=agreement,
+                                grant=grant,
+                            )
+                            DonorAgreementProject.objects.using(tenant_db).update_or_create(
+                                agreement=agreement,
+                                project=project,
+                            )
+
+                            for line in _flatten_budget_sub_lines(draft):
+                                coa = ChartAccount.objects.using(tenant_db).filter(
+                                    code=(line.get("coa_code") or "").strip(), is_active=True
+                                ).first()
+                                if not coa:
+                                    raise ValidationError(
+                                        f"Budget line COA code '{(line.get('coa_code') or '').strip()}' was not found."
+                                    )
+                                bl = BudgetLine(
+                                    grant=grant,
+                                    project=project,
+                                    budget_code=line["budget_code"].strip(),
+                                    category=line["category"].strip(),
+                                    description=line["description"].strip(),
+                                    amount=_to_decimal(line["amount"]) or Decimal("0"),
+                                    account=coa,
+                                )
+                                bl.full_clean()
+                                bl.save(using=tenant_db)
+
+                    except Exception as exc:
+                        messages.error(request, str(exc))
+                        draft["step"] = 6
+                        request.session[session_key] = draft
+                        request.session.modified = True
+                    else:
+                        request.session.pop(session_key, None)
+                        messages.success(
+                            request,
+                            "Project setup wizard completed successfully."
+                            if mapping_ok
+                            else "Project setup saved. Project is Planning and grant is Draft until funding modality GL mapping is complete in Financial Setup. Financial posting remains blocked until then.",
+                        )
+                        return redirect(
+                            f"{reverse('tenant_portal:grants_project_setup_wizard')}?done=1"
+                            f"&donor_id={donor.pk}&agreement_id={agreement.pk}&project_id={project.pk}"
+                            f"&grant_id={grant.pk}&funding_source_id={funding_source.pk}"
+                        )
+
+    step = int(draft.get("step") or 1)
+    if step < 1 or step > 6:
+        step = 1
+    draft["step"] = step
+    request.session[session_key] = draft
+    request.session.modified = True
+
+    done_data = None
+    if request.GET.get("done") == "1":
+        did = request.GET.get("donor_id") or ""
+        aid = request.GET.get("agreement_id") or ""
+        pid = request.GET.get("project_id") or ""
+        gid = request.GET.get("grant_id") or ""
+        fsid = request.GET.get("funding_source_id") or ""
+        if all(x.isdigit() for x in [did, aid, pid, gid, fsid]):
+            done_data = {
+                "donor_id": int(did),
+                "agreement_id": int(aid),
+                "project_id": int(pid),
+                "grant_id": int(gid),
+                "funding_source_id": int(fsid),
+            }
+
+    coa_accounts = list(
+        ChartAccount.objects.using(tenant_db).filter(is_active=True).order_by("code")[:1000]
+    )
+    from tenant_grants.services.funding_modality_gl import (
+        funding_modality_is_ready_for_use,
+        funding_modality_mapping_summary_rows,
+    )
+
+    modality_gl_summary = []
+    gl_mapping_ready = True
+    _g = draft.get("grant") or {}
+    if _g.get("funding_mode") == "existing" and (_g.get("funding_modality_id") or "").isdigit():
+        _fs_sum = FundingSource.objects.using(tenant_db).filter(pk=int(_g["funding_modality_id"])).first()
+        if _fs_sum:
+            modality_gl_summary = funding_modality_mapping_summary_rows(tenant_db, _fs_sum)
+            gl_mapping_ready = funding_modality_is_ready_for_use(tenant_db, _fs_sum)
+    _bh = draft.get("budget_headings") or _default_budget_headings()
+    wizard_budget_subline_count = sum(
+        1
+        for h in _bh
+        for sl in (h.get("sub_lines") or [])
+        if any(
+            [
+                (sl.get("budget_code") or "").strip(),
+                (sl.get("category") or "").strip(),
+                (sl.get("coa_code") or "").strip(),
+                (sl.get("description") or "").strip(),
+                (sl.get("amount") or "").strip(),
+            ]
+        )
+    )
+
+    return render(
+        request,
+        "tenant_portal/grants/project_setup_wizard.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "active_submenu": "funds",
+            "active_item": "funds_grant_agreements",
+            "wizard_draft": draft,
+            "wizard_step": step,
+            "wizard_steps": [
+                "Donor",
+                "Donor contract",
+                "Project",
+                "Project grant",
+                "Budget structure",
+                "Summary",
+            ],
+            "budget_headings_for_script": _bh,
+            "coa_options_for_script": [
+                {"code": a.code, "label": f"{a.code} — {a.name or ''}"} for a in coa_accounts
+            ],
+            "wizard_budget_subline_count": wizard_budget_subline_count,
+            "donors": list(Donor.objects.using(tenant_db).order_by("name")),
+            "currencies": list(Currency.objects.using(tenant_db).filter(status=Currency.Status.ACTIVE).order_by("code")),
+            "bank_accounts": _valid_bank_accounts_under_1200(tenant_db),
+            "funding_modalities": list(FundingSource.objects.using(tenant_db).filter(is_active=True).order_by("name")),
+            "grant_funding_methods": Grant.FundingMethod.choices,
+            "agreement_statuses": DonorAgreement.Status.choices,
+            "agreement_types": DonorAgreement.AgreementType.choices,
+            "project_statuses": Project.Status.choices,
+            "funding_modality_types": FundingSource.ModalityType.choices,
+            "coa_accounts": coa_accounts,
+            "done_data": done_data,
+            "recent_projects": list(
+                Grant.objects.using(tenant_db)
+                .select_related("project", "donor", "currency")
+                .order_by("-created_at")[:10]
+            ),
+            "modality_gl_summary": modality_gl_summary,
+            "gl_mapping_ready": gl_mapping_ready,
         },
     )
 
@@ -9818,6 +11410,15 @@ def _parse_grants_filters(request):
         "donor_id": request.GET.get("donor_id") or "",
         "grant_id": request.GET.get("grant_id") or "",
         "project_id": request.GET.get("project_id") or "",
+        "status": (request.GET.get("status") or "").strip().lower(),
+        "start_date_from": parse_date(request.GET.get("start_date_from") or ""),
+        "start_date_to": parse_date(request.GET.get("start_date_to") or ""),
+        "end_date_from": parse_date(request.GET.get("end_date_from") or ""),
+        "end_date_to": parse_date(request.GET.get("end_date_to") or ""),
+        "amount_min": (request.GET.get("amount_min") or "").strip(),
+        "amount_max": (request.GET.get("amount_max") or "").strip(),
+        "currency_id": (request.GET.get("currency_id") or "").strip(),
+        "funding_modality_id": (request.GET.get("funding_modality_id") or "").strip(),
         "deadline_status": (request.GET.get("deadline_status") or "").strip().lower(),
         "q": (request.GET.get("q") or "").strip(),
     }
@@ -10187,6 +11788,11 @@ def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
     show_create_modal = False
     show_edit_modal = False
     edit_source_id = ""
+    if request.method == "GET":
+        configure_id = (request.GET.get("configure") or "").strip()
+        if configure_id.isdigit():
+            show_edit_modal = True
+            edit_source_id = configure_id
 
     def _post_is_active() -> bool:
         status_raw = (request.POST.get("status") or "").strip().lower()
@@ -10212,6 +11818,32 @@ def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
 
     if request.method == "POST":
         action = (request.POST.get("action") or "create").strip().lower()
+        if action == "apply_ngo_template":
+            src_apply = (request.POST.get("source_id") or "").strip()
+            if not can_manage:
+                messages.error(request, "You do not have permission to update funding modalities.")
+            elif not src_apply.isdigit():
+                messages.error(request, "Invalid funding modality.")
+            else:
+                from tenant_grants.services.funding_modality_gl import apply_default_ngo_gl_mapping_to_funding_source
+
+                fs_apply = FundingSource.objects.using(tenant_db).filter(pk=int(src_apply)).first()
+                if not fs_apply:
+                    messages.error(request, "Funding modality not found.")
+                else:
+                    _ensure_default_receipt_and_income_accounts(tenant_db)
+                    n = apply_default_ngo_gl_mapping_to_funding_source(tenant_db, fs_apply)
+                    if n:
+                        messages.success(
+                            request,
+                            f"Applied NGO default GL mapping template ({n} component row(s)). Review and save if needed.",
+                        )
+                    else:
+                        messages.warning(
+                            request,
+                            "Could not apply defaults: ensure Chart of Accounts includes receivable, grant income, and advance liability accounts (use Apply from a tenant with seeded COA).",
+                        )
+            return redirect(reverse("tenant_portal:grants_funding_sources"))
         if action == "delete":
             edit_source_id = (request.POST.get("source_id") or "").strip()
             if not edit_source_id.isdigit():
@@ -10314,6 +11946,19 @@ def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
                         with transaction.atomic(using=tenant_db):
                             obj.save(using=tenant_db)
                             _save_structure_and_validate(obj, modality_type)
+                            obj.refresh_from_db()
+                            from tenant_grants.services.funding_modality_gl import (
+                                funding_modality_is_ready_for_use,
+                                funding_modality_mapping_issues,
+                            )
+
+                            if obj.is_active and not funding_modality_is_ready_for_use(tenant_db, obj):
+                                for msg in funding_modality_mapping_issues(tenant_db, obj):
+                                    messages.error(request, msg)
+                                raise ValidationError(
+                                    "Cannot set this modality to Active until GL mapping is complete. "
+                                    "Use Apply NGO template on the Funding modalities page, map each account manually, or set status to Inactive."
+                                )
                     except ValidationError as exc:
                         _seen2: set[str] = set()
                         for text in _humanize_validation_error_messages(exc):
@@ -10390,6 +12035,10 @@ def grants_funding_sources_view(request: HttpRequest) -> HttpResponse:
         sources_qs = sources_qs.filter(retention_percentage__isnull=False, retention_percentage__lte=retention_max)
 
     sources_list = list(sources_qs)
+    from tenant_grants.services.funding_modality_gl import funding_modality_is_ready_for_use
+
+    for s in sources_list:
+        s.gl_mapping_ready = funding_modality_is_ready_for_use(tenant_db, s)
     funding_kpi = {
         "total_shown": len(sources_list),
         "with_donor": sum(1 for s in sources_list if s.donor_id),
@@ -10570,7 +12219,11 @@ def _donor_agreement_filter_queryset(qs, f: dict):
     if f.get("funding_source_id"):
         qs = qs.filter(funding_source_id=f["funding_source_id"])
     if f.get("program_category"):
-        qs = qs.filter(project_links__project__funding_type=f["program_category"])
+        pc = f["program_category"]
+        qs = qs.filter(
+            Q(project_links__project__program_category_code=pc)
+            | Q(project_links__project__funding_type=pc)
+        )
     has_file = (f.get("has_file") or "").strip().lower()
     if has_file == "yes":
         qs = qs.exclude(file="").filter(file__isnull=False)
@@ -10706,7 +12359,7 @@ def grants_donor_agreements_view(request: HttpRequest) -> HttpResponse:
     from django.utils import timezone
     from django.utils.dateparse import parse_date
 
-    from tenant_finance.models import Currency
+    from tenant_finance.models import Currency, FinancialDimension, FinancialDimensionValue
     from tenant_grants.models import (
         Donor,
         DonorAgreement,
@@ -12443,9 +14096,8 @@ def grants_agreement_create_from_tracking_view(request: HttpRequest, tracking_id
     if not grant:
         messages.error(request, "No agreement linked to this tracking. Use Convert to Grant Agreement from the tracking list.")
         return redirect(reverse("tenant_portal:grants_grant_tracking"))
-    from tenant_finance.models import BankAccount
     donors = list(_active_donors_queryset(tenant_db))
-    bank_accounts = BankAccount.objects.using(tenant_db).filter(is_active=True).order_by("bank_name", "account_name")
+    bank_accounts = _valid_bank_accounts_under_1200(tenant_db)
     from django.utils.dateparse import parse_date
     from decimal import Decimal, InvalidOperation
 
@@ -12476,9 +14128,17 @@ def grants_agreement_create_from_tracking_view(request: HttpRequest, tracking_id
             for msg in errors:
                 messages.error(request, msg)
         else:
+            from tenant_finance.models import BankAccount
+            from tenant_finance.services.bank_account_dropdowns import deposit_gl_is_valid_bank_under_1200
+
             bank_account = BankAccount.objects.using(tenant_db).filter(pk=bank_account_id, is_active=True).first() if bank_account_id else None
             if not bank_account:
                 messages.error(request, "Selected bank account is invalid or inactive.")
+            elif not bank_account.account_id or not deposit_gl_is_valid_bank_under_1200(tenant_db, bank_account.account):
+                messages.error(
+                    request,
+                    "Bank account must be linked to an active posting GL under 1200 — Bank Accounts.",
+                )
             else:
                 grant.bank_account = bank_account
                 grant.start_date = start_date
@@ -14753,6 +16413,8 @@ def grants_reporting_deadlines_view(request: HttpRequest) -> HttpResponse:
 
 @tenant_view(require_module="finance_grants", require_perm="module:grants.manage")
 def grants_budgets_view(request: HttpRequest) -> HttpResponse:
+    from django.utils.text import slugify
+
     from tenant_grants.models import Grant, BudgetLine
     from tenant_finance.models import ChartAccount
 
@@ -14766,23 +16428,40 @@ def grants_budgets_view(request: HttpRequest) -> HttpResponse:
         notes = (request.POST.get("notes") or "").strip()
         if not grant_id or not category:
             messages.error(request, "Please select a project/grant and provide a category.")
+        elif not account_id:
+            messages.error(request, "Please select an expense (chart) account for the budget line.")
         else:
             grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first()
-            account = (
-                ChartAccount.objects.using(tenant_db).filter(pk=account_id).first()
-                if account_id
-                else None
-            )
-            BudgetLine.objects.using(tenant_db).create(
-                grant=grant,
-                account=account,
-                category=category,
-                description=description,
-                amount=amount or 0,
-                notes=notes,
-            )
-            messages.success(request, "Budget line created.")
-            return redirect(reverse("tenant_portal:grants_budgets"))
+            account = ChartAccount.objects.using(tenant_db).filter(pk=account_id).first()
+            if not grant or not getattr(grant, "project_id", None):
+                messages.error(request, "Grant not found or has no project.")
+            elif not account:
+                messages.error(request, "Selected chart account was not found.")
+            else:
+                base = (slugify(category) or "line").upper().replace("-", "_")[:40]
+                if not base:
+                    base = "LINE"
+                line_code = base
+                n = 0
+                while (
+                    BudgetLine.objects.using(tenant_db)
+                    .filter(grant_id=grant.pk, budget_code=line_code)
+                    .exists()
+                ):
+                    n += 1
+                    line_code = f"{base[:32]}_{n}"
+                BudgetLine.objects.using(tenant_db).create(
+                    grant=grant,
+                    project_id=grant.project_id,
+                    budget_code=line_code,
+                    account=account,
+                    category=category,
+                    description=description,
+                    amount=amount or 0,
+                    notes=notes,
+                )
+                messages.success(request, "Budget line created.")
+                return redirect(reverse("tenant_portal:grants_budgets"))
 
     grants = Grant.objects.using(tenant_db).order_by("-created_at")[:100]
     accounts = ChartAccount.objects.using(tenant_db).order_by("code")
@@ -14910,211 +16589,6 @@ def budgeting_center_view(request: HttpRequest) -> HttpResponse:
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
-def budget_creation_view(request: HttpRequest) -> HttpResponse:
-    """
-    Budget Creation: wrapper around grants_budgets_view using full-width layout, filters, and exports.
-    """
-    from decimal import Decimal
-    from django.db.models import Sum
-    from tenant_finance.models import JournalLine, ChartAccount
-    from tenant_grants.models import Grant, BudgetLine, Donor
-    from django.utils.dateparse import parse_date
-    import openpyxl
-
-    tenant_db = request.tenant_db
-
-    # Handle Excel import for budget lines
-    if request.method == "POST" and request.POST.get("action") == "import":
-        upload = request.FILES.get("budget_file")
-        if not upload:
-            messages.error(request, "Please choose an Excel file to import.")
-        else:
-            try:
-                wb = openpyxl.load_workbook(upload)
-                ws = wb.active
-                created = 0
-                skipped = 0
-                for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                    grant_code, budget_line_code, budget_line_name, description, amount = (row + (None,) * 5)[:5]
-                    if not grant_code or not budget_line_code or not budget_line_name:
-                        skipped += 1
-                        continue
-                    grant = Grant.objects.using(tenant_db).filter(code=str(grant_code).strip()).first()
-                    if not grant:
-                        skipped += 1
-                        continue
-                    coa = ChartAccount.objects.using(tenant_db).filter(
-                        code=str(budget_line_code).strip()
-                    ).first()
-                    if not coa:
-                        skipped += 1
-                        continue
-                    try:
-                        amt = Decimal(str(amount or "0"))
-                    except Exception:
-                        amt = Decimal("0")
-                    BudgetLine.objects.using(tenant_db).update_or_create(
-                        grant=grant,
-                        budget_line_code=str(budget_line_code).strip(),
-                        defaults={
-                            "account": coa,
-                            "category": str(budget_line_name).strip(),
-                            "description": (description or "") if description is not None else "",
-                            "amount": amt,
-                        },
-                    )
-                    created += 1
-                messages.success(
-                    request,
-                    f"Imported {created} budget lines from Excel. Skipped {skipped} invalid rows.",
-                )
-                return redirect(reverse("tenant_portal:budget_creation"))
-            except Exception:
-                messages.error(request, "Could not read the Excel file. Please check the format.")
-
-    # Manual budget line creation mirrors grants_budgets_view
-    if request.method == "POST" and request.POST.get("action") != "import":
-        grant_id = request.POST.get("grant_id")
-        account_id = request.POST.get("account_id") or None
-        budget_line_code = (request.POST.get("budget_line_code") or "").strip()
-        category = (request.POST.get("category") or "").strip()
-        description = (request.POST.get("description") or "").strip()
-        amount = request.POST.get("amount") or "0"
-        notes = (request.POST.get("notes") or "").strip()
-        if not grant_id or not category or not budget_line_code:
-            messages.error(
-                request, "Please select a project/grant and provide budget line code and name."
-            )
-        else:
-            grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first()
-            account = (
-                ChartAccount.objects.using(tenant_db).filter(pk=account_id).first()
-                if account_id
-                else None
-            )
-            coa_by_code = ChartAccount.objects.using(tenant_db).filter(code=budget_line_code).first()
-            if not coa_by_code:
-                messages.error(
-                    request, "Budget line code must exist in Chart of Accounts (COA account code)."
-                )
-                return redirect(reverse("tenant_portal:budget_creation"))
-            if account and account.pk != coa_by_code.pk:
-                messages.error(
-                    request, "Selected COA account must match Budget line code."
-                )
-                return redirect(reverse("tenant_portal:budget_creation"))
-            BudgetLine.objects.using(tenant_db).create(
-                grant=grant,
-                budget_line_code=budget_line_code,
-                account=coa_by_code,
-                category=category,
-                description=description,
-                amount=amount or 0,
-                notes=notes,
-            )
-            messages.success(request, "Budget line created.")
-            return redirect(reverse("tenant_portal:budget_creation"))
-
-    # Filters
-    from django.utils import timezone
-    f = _parse_finance_filters(request)
-    # Adapt: allow donor filter too
-    donor_id = request.GET.get("donor_id") or ""
-    if donor_id:
-        f["donor_id"] = donor_id
-
-    # Budget lines filtered by grant/donor
-    grants_qs = Grant.objects.using(tenant_db).select_related("donor").order_by("code")
-    if f.get("donor_id"):
-        grants_qs = grants_qs.filter(donor_id=f["donor_id"])
-    if f.get("grant_id"):
-        grants_qs = grants_qs.filter(pk=f["grant_id"])
-    grants = list(grants_qs)
-    grant_ids = [g.id for g in grants]
-
-    budget_lines = (
-        BudgetLine.objects.using(tenant_db)
-        .select_related("grant", "account")
-        .filter(grant_id__in=grant_ids or BudgetLine.objects.using(tenant_db).values("grant_id"))
-        .order_by("grant__code", "id")
-    )
-
-    # Totals per grant
-    totals_by_grant = (
-        budget_lines.values("grant_id")
-        .annotate(total=Sum("amount"))
-    )
-    totals_map = {row["grant_id"]: row["total"] for row in totals_by_grant}
-
-    # Actual spend per grant for quick summary and links to transactions
-    spend_by_grant = {
-        r["entry__grant_id"]: r["spent"]
-        for r in JournalLine.objects.using(tenant_db)
-        .filter(
-            account__type=ChartAccount.Type.EXPENSE,
-            entry__grant_id__isnull=False,
-            entry__entry_date__gte=f["period_start"],
-            entry__entry_date__lte=f["period_end"],
-        )
-        .values("entry__grant_id")
-        .annotate(spent=Sum("debit"))
-    }
-
-    export_format = request.GET.get("format") or ""
-    if export_format:
-        rows = []
-        for b in budget_lines:
-            g = b.grant
-            rows.append(
-                [
-                    g.code if g else "",
-                    b.budget_line_code or "",
-                    b.category,
-                    b.description or "",
-                    b.amount,
-                ]
-            )
-        resp = _export_table_response(
-            export_format=export_format,
-            filename_base="budget_creation",
-            title="Budget Creation",
-            headers=[
-                "GrantCode",
-                "BudgetLineCode",
-                "BudgetLineName",
-                "Description",
-                "Amount",
-            ],
-            rows=rows,
-        )
-        if resp:
-            return resp
-
-    donors = __import__("tenant_grants.models", fromlist=["Donor"]).Donor.objects.using(tenant_db).order_by("name")
-    accounts = ChartAccount.objects.using(tenant_db).order_by("code")
-    return render(
-        request,
-        "tenant_portal/budget/budget_creation.html",
-        {
-            "tenant": request.tenant,
-            "tenant_user": request.tenant_user,
-            "filters": f,
-            "grants": grants,
-            "donors": donors,
-            "budget_lines": budget_lines,
-            "totals_map": totals_map,
-            "spend_by_grant": spend_by_grant,
-            "accounts": accounts,
-            "active_submenu": "budget",
-            "active_item": "budget_creation",
-            "export_csv_url": _grants_export_urls(request)["csv"],
-            "export_xlsx_url": _grants_export_urls(request)["xlsx"],
-            "export_pdf_url": _grants_export_urls(request)["pdf"],
-        },
-    )
-
-
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def budget_templates_view(request: HttpRequest) -> HttpResponse:
     """Budget templates list (reusable donor/project budget structures)."""
     from tenant_grants.models import BudgetTemplate
@@ -15166,12 +16640,247 @@ def budget_versions_view(request: HttpRequest) -> HttpResponse:
     return HttpResponseRedirect(reverse("tenant_portal:budget_creation") + ("?" + request.GET.urlencode() if request.GET else ""))
 
 
+def _budget_code_sort_key(code: str) -> tuple:
+    """Natural sort key for dotted budget line codes (e.g. 6.2.10 after 6.2.9)."""
+    s = (code or "").strip()
+    if not s:
+        return (999999,)
+    parts: list = []
+    for p in s.split("."):
+        p = p.strip()
+        if p.isdigit():
+            parts.append(int(p))
+        else:
+            parts.append(p)
+    return tuple(parts)
+
+
+def _budget_line_hierarchy_ancestors(code: str) -> list[str]:
+    """Dotted hierarchy only: 6.2.1 -> ['6', '6.2']."""
+    code = (code or "").strip()
+    if not code or "." not in code:
+        return []
+    parts = code.split(".")
+    return [".".join(parts[:i]) for i in range(1, len(parts))]
+
+
+def _budget_line_is_under(line_code: str, ancestor: str) -> bool:
+    lc = (line_code or "").strip()
+    ac = (ancestor or "").strip()
+    if not lc or not ac:
+        return False
+    return lc == ac or lc.startswith(ac + ".")
+
+
+def _decimal_budget_metric(v) -> "Decimal":
+    from decimal import Decimal
+
+    if v is None:
+        return Decimal("0")
+    if isinstance(v, Decimal):
+        return v
+    try:
+        return Decimal(str(v))
+    except Exception:
+        return Decimal("0")
+
+
+def _expand_budget_structure_rows_with_hierarchy(rows: list[dict]) -> list[dict]:
+    """
+    Insert synthetic heading rows for missing parent segments in dotted BudgetLineCode.
+    Rolls up amounts from all descendant lines (including intermediate codes present in data).
+    """
+    from copy import deepcopy
+    from decimal import Decimal
+
+    if not rows:
+        return rows
+
+    scope_needed: dict[tuple[str, str], set[str]] = {}
+    existing_codes: dict[tuple[str, str], set[str]] = {}
+
+    for r in rows:
+        pk = ((r.get("project_code") or "").strip(), (r.get("grant_code") or "").strip())
+        bc = (r.get("budget_code") or "").strip()
+        if bc and bc != "—":
+            existing_codes.setdefault(pk, set()).add(bc)
+        if bc and bc != "—" and "." in bc:
+            for anc in _budget_line_hierarchy_ancestors(bc):
+                scope_needed.setdefault(pk, set()).add(anc)
+
+    synthetic: list[dict] = []
+    for pk, ancestors in scope_needed.items():
+        proj_code, grant_code = pk
+        have = existing_codes.get(pk, set())
+        tmpl = next(
+            (
+                r
+                for r in rows
+                if (r.get("project_code") or "").strip() == proj_code
+                and (r.get("grant_code") or "").strip() == grant_code
+            ),
+            None,
+        )
+        if not tmpl:
+            continue
+        for anc in ancestors:
+            if anc in have:
+                continue
+            appr = rev = act = com = avl = Decimal("0")
+            for r in rows:
+                if (r.get("project_code") or "").strip() != proj_code:
+                    continue
+                if (r.get("grant_code") or "").strip() != grant_code:
+                    continue
+                lc = (r.get("budget_code") or "").strip()
+                if not lc or lc == "—":
+                    continue
+                if _budget_line_is_under(lc, anc):
+                    appr += _decimal_budget_metric(r.get("approved_budget"))
+                    rev += _decimal_budget_metric(r.get("revised_budget"))
+                    act += _decimal_budget_metric(r.get("actual_spent"))
+                    com += _decimal_budget_metric(r.get("committed_amount"))
+                    avl += _decimal_budget_metric(r.get("available_balance"))
+            synthetic.append(
+                {
+                    "project_code": tmpl["project_code"],
+                    "project_name": tmpl["project_name"],
+                    "donor": tmpl["donor"],
+                    "grant_code": tmpl["grant_code"],
+                    "budget_code": anc,
+                    "budget_line_name": anc,
+                    "line_description": str(_("Subtotal")),
+                    "coa_code": "—",
+                    "coa_name": "—",
+                    "currency": tmpl["currency"],
+                    "approved_budget": appr,
+                    "revised_budget": rev,
+                    "actual_spent": act,
+                    "committed_amount": com,
+                    "available_balance": avl,
+                    "status": tmpl["status"],
+                    "is_heading": True,
+                }
+            )
+
+    merged: list[dict] = []
+    for r in rows:
+        m = deepcopy(r)
+        m.setdefault("is_heading", False)
+        merged.append(m)
+    merged.extend(synthetic)
+    merged.sort(
+        key=lambda r: (
+            (r.get("project_code") or "").strip(),
+            (r.get("grant_code") or "").strip(),
+            _budget_code_sort_key((r.get("budget_code") or "").strip()),
+        )
+    )
+    return merged
+
+
+def _build_budget_line_tree_roots(lines: list[dict]) -> list[dict]:
+    """Nest rows by dotted budget_code (parent prefix)."""
+    if not lines:
+        return []
+    sorted_lines = sorted(
+        lines,
+        key=lambda x: _budget_code_sort_key((x.get("budget_code") or "").strip()),
+    )
+    by_code: dict[str, dict] = {}
+    for r in sorted_lines:
+        c = (r.get("budget_code") or "").strip()
+        by_code[c] = {**r, "tree_children": []}
+    roots: list[dict] = []
+    for r in sorted_lines:
+        c = (r.get("budget_code") or "").strip()
+        node = by_code[c]
+        parent_c = ".".join(c.split(".")[:-1]) if "." in c else ""
+        if parent_c and parent_c in by_code:
+            by_code[parent_c]["tree_children"].append(node)
+        else:
+            roots.append(node)
+    return roots
+
+
+def _flatten_budget_tree_with_depth(nodes: list[dict], depth: int = 0) -> list[dict]:
+    out: list[dict] = []
+    for n in nodes:
+        ch = n.get("tree_children") or []
+        row = {k: v for k, v in n.items() if k != "tree_children"}
+        row["tree_depth"] = depth
+        out.append(row)
+        out.extend(_flatten_budget_tree_with_depth(ch, depth + 1))
+    return out
+
+
+def _budget_export_leaf_approved_total(rows: list[dict]) -> "Decimal":
+    """Sum approved budget on detail lines only (exclude hierarchy heading rollups)."""
+    from decimal import Decimal
+
+    t = Decimal("0")
+    for r in rows:
+        if r.get("is_heading"):
+            continue
+        t += _decimal_budget_metric(r.get("approved_budget"))
+    return t
+
+
+def _format_budget_amount_export(v) -> str:
+    d = _decimal_budget_metric(v)
+    return f"{d:,.2f}"
+
+
+def _budget_structure_table_headers():
+    return [
+        _("Project Code"),
+        _("Project Name"),
+        _("Donor"),
+        _("Grant Code"),
+        _("Budget Code"),
+        _("Name"),
+        _("Description"),
+        _("COA Code"),
+        _("COA Name"),
+        _("Currency"),
+        _("Approved Budget"),
+        _("Revised Budget"),
+        _("Actual Spent"),
+        _("Committed Amount"),
+        _("Available Balance"),
+        _("Status"),
+    ]
+
+
+def _budget_structure_row_to_export_list(r: dict) -> list:
+    desc = (str(r.get("line_description") or "").strip()) or "—"
+    return [
+        r.get("project_code") or "—",
+        r.get("project_name") or "—",
+        r.get("donor") or "—",
+        r.get("grant_code") or "—",
+        r.get("budget_code") or "—",
+        r.get("budget_line_name") or "—",
+        desc,
+        r.get("coa_code") or "—",
+        r.get("coa_name") or "—",
+        r.get("currency") or "—",
+        _format_budget_amount_export(r.get("approved_budget")),
+        _format_budget_amount_export(r.get("revised_budget")),
+        _format_budget_amount_export(r.get("actual_spent")),
+        _format_budget_amount_export(r.get("committed_amount")),
+        _format_budget_amount_export(r.get("available_balance")),
+        (str(r.get("status") or "").strip() or "—").title(),
+    ]
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def budget_structures_view(request: HttpRequest) -> HttpResponse:
     """Enterprise budget structure view with filters, import, export, and control metrics."""
     from decimal import Decimal
     import io
     import openpyxl
+    from django.conf import settings
     from django.db.models import Sum
     from django.utils import timezone as dj_tz
     from openpyxl.drawing.image import Image as XLImage
@@ -15179,8 +16888,26 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
     from openpyxl.utils import get_column_letter
     from tenant_finance.models import ChartAccount, JournalEntry, JournalLine, OrganizationSettings
     from tenant_grants.models import BudgetLine, Donor, Grant, Project, PurchaseRequisition
+    from tenant_portal.migration_checks import ensure_tenant_grants_budgetline_schema
 
     tenant_db = request.tenant_db
+    if not ensure_tenant_grants_budgetline_schema(
+        tenant_db, auto_migrate=getattr(settings, "TENANT_AUTO_MIGRATE", False)
+    ):
+        return render(
+            request,
+            "tenant_portal/finance/tenant_migration_required.html",
+            {
+                "tenant": request.tenant,
+                "tenant_user": request.tenant_user,
+                "tenant_db": tenant_db,
+                "migration_label": "tenant_grants.0043_budgetline_flat_budget_code",
+                "active_submenu": "budget",
+                "active_item": "budget_structures",
+                "show_account_category_seed": False,
+            },
+            status=503,
+        )
 
     # ----- Filters -----
     f = _parse_finance_filters(request)
@@ -15240,8 +16967,9 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
                         amt = Decimal("0")
                     obj, is_created = BudgetLine.objects.using(tenant_db).update_or_create(
                         grant=grant,
-                        budget_line_code=bl_code,
+                        budget_code=bl_code,
                         defaults={
+                            "project": grant.project,
                             "account": coa,
                             "category": bl_name or bl_code,
                             "description": (f"{currency}".strip() if currency else ""),
@@ -15273,7 +17001,7 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
     qs = (
         BudgetLine.objects.using(tenant_db)
         .select_related("grant", "grant__project", "grant__donor", "grant__currency", "account")
-        .order_by("grant__project__code", "grant__code", "budget_line_code")
+        .order_by("grant__project__code", "grant__code", "budget_code")
     )
     if project_id.isdigit():
         qs = qs.filter(grant__project_id=int(project_id))
@@ -15325,7 +17053,7 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
     rows: list[dict] = []
     for b in raw_lines:
         actual = actual_map.get((b.grant_id, b.account_id), Decimal("0"))
-        committed = commit_map.get((b.grant_id, (b.budget_line_code or "").strip()), Decimal("0"))
+        committed = commit_map.get((b.grant_id, (b.budget_code or "").strip()), Decimal("0"))
         approved = b.amount or Decimal("0")
         revised = approved
         available = revised - actual - committed
@@ -15334,8 +17062,9 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
             "project_name": b.grant.project.name if getattr(b.grant, "project_id", None) else "—",
             "donor": b.grant.donor.name if getattr(b.grant, "donor_id", None) else "—",
             "grant_code": b.grant.code if b.grant_id else "—",
-            "budget_line_code": b.budget_line_code or "—",
+            "budget_code": b.budget_code or "—",
             "budget_line_name": b.category or "—",
+            "line_description": (getattr(b, "description", None) or "").strip(),
             "coa_code": b.account.code if b.account_id else "—",
             "coa_name": b.account.name if b.account_id else "—",
             "currency": b.grant.currency.code if getattr(b.grant, "currency_id", None) else "—",
@@ -15350,47 +17079,63 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
             continue
         rows.append(row)
 
-    # ----- Export -----
+    rows = _expand_budget_structure_rows_with_hierarchy(rows)
+
+    org_settings = OrganizationSettings.objects.using(tenant_db).first()
+    print_logo_url = None
+    if org_settings:
+        lf = getattr(org_settings, "report_logo", None) or getattr(org_settings, "organization_logo", None)
+        if lf and getattr(lf, "name", None):
+            print_logo_url = lf.url
+    print_org_name = _tenant_legal_name_for_official_reports(request) or (
+        getattr(request.tenant, "name", None) or "Organization"
+    )
+    sel_project_label = _("All projects")
+    if project_id.isdigit():
+        for p in projects:
+            if str(p.pk) == project_id:
+                sel_project_label = f"{p.code} — {p.name}"
+                break
+    sel_grant_label = _("All grants")
+    if grant_id.isdigit():
+        for g in grants:
+            if str(g.pk) == grant_id:
+                sel_grant_label = f"{g.code} — {g.title}"
+                break
+    period_label = f"{f['period_start']} – {f['period_end']}"
+    budget_export_grand_total = _budget_export_leaf_approved_total(rows)
+    for r in rows:
+        bc = (r.get("budget_code") or "").strip()
+        r["hierarchy_depth"] = bc.count(".") if bc and bc != "—" else 0
+
+    print_report_title = _("Project & Grant Budget Structure")
+    _version_labels = dict([("main", "Main")])
+    print_version_label = _version_labels.get(budget_version, budget_version or "—")
+    print_generated_at = dj_tz.localtime(dj_tz.now()).strftime("%Y-%m-%d %H:%M")
+    print_filters_line = (
+        f"{_('Project')}: {sel_project_label}  |  {_('Grant')}: {sel_grant_label}  |  "
+        f"{_('Period')}: {period_label}  |  {_('Version')}: {print_version_label}  |  "
+        f"{_('Generated')}: {print_generated_at}"
+    )
+
+    # ----- Export: Excel (full 15-column layout matching print/PDF) -----
     if request.GET.get("format") == "xlsx":
-        headers = [
-            "Project Code",
-            "Project Name",
-            "Donor",
-            "Grant Code",
-            "Budget Line Code",
-            "Budget Line Name",
-            "COA Code",
-            "COA Name",
-            "Currency",
-            "Approved Budget",
-            "Revised Budget",
-            "Actual Spent",
-            "Committed Amount",
-            "Available Balance",
-            "Status",
-        ]
-        wb = Workbook()
+        from openpyxl.styles import Border, PatternFill, Side
+
+        headers = _budget_structure_table_headers()
+        ncols = len(headers)
+        last_col = get_column_letter(ncols)
+        wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Budget Structure"
-        org_settings = OrganizationSettings.objects.using(tenant_db).first()
-        last_col = get_column_letter(len(headers))
-        ws.merge_cells(f"A1:{last_col}1")
-        ws["A1"] = _tenant_legal_name_for_official_reports(request) or "Organization"
-        ws["A1"].font = Font(size=13, bold=True)
-        ws["A1"].alignment = Alignment(horizontal="center")
-        ws.merge_cells(f"A2:{last_col}2")
-        ws["A2"] = "Project & Grant Budget Structure"
-        ws["A2"].font = Font(size=12, bold=True)
-        ws["A2"].alignment = Alignment(horizontal="center")
-        ws.merge_cells(f"A3:{last_col}3")
-        ws["A3"] = (
-            f"Project: {project_id or 'All'} | Grant: {grant_id or 'All'} | "
-            f"Period: {f['period_start']} - {f['period_end']} | Version: {budget_version}"
-        )
-        ws["A3"].alignment = Alignment(horizontal="center")
-        ws.merge_cells(f"A4:{last_col}4")
-        ws["A4"] = f"Generated: {dj_tz.localtime(dj_tz.now()).strftime('%Y-%m-%d %H:%M')}"
-        ws["A4"].alignment = Alignment(horizontal="center")
+
+        r_logo, r_org, r_report, r_filters, r_hdr = 1, 2, 3, 4, 5
+        r_data_start = 6
+        thin = Side(style="thin", color="D2D0CE")
+        grid = Border(left=thin, right=thin, top=thin, bottom=thin)
+        font_11 = Font(size=11)
+        font_11_bold = Font(size=11, bold=True)
+        fill_hdr = PatternFill(fill_type="solid", fgColor="F3F2F1")
 
         if org_settings:
             try:
@@ -15399,48 +17144,93 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
                 logo_field = getattr(org_settings, "report_logo", None) or getattr(
                     org_settings, "organization_logo", None
                 )
-                if logo_field and logo_field.path and os.path.isfile(logo_field.path):
+                if logo_field and getattr(logo_field, "path", None) and os.path.isfile(logo_field.path):
+                    ws.merge_cells(f"A{r_logo}:{last_col}{r_logo}")
+                    ws.row_dimensions[r_logo].height = 52
                     img = XLImage(logo_field.path)
-                    img.height = 50
+                    img.height = 48
                     img.width = 160
-                    img.anchor = "F1"
+                    img.anchor = f"A{r_logo}"
                     ws.add_image(img)
             except Exception:
                 pass
 
+        ws.merge_cells(f"A{r_org}:{last_col}{r_org}")
+        c_org = ws.cell(row=r_org, column=1, value=print_org_name)
+        c_org.font = Font(size=14, bold=True)
+        c_org.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        ws.merge_cells(f"A{r_report}:{last_col}{r_report}")
+        c_rep = ws.cell(row=r_report, column=1, value=str(print_report_title))
+        c_rep.font = Font(size=12, bold=True)
+        c_rep.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        ws.merge_cells(f"A{r_filters}:{last_col}{r_filters}")
+        c_fl = ws.cell(row=r_filters, column=1, value=print_filters_line)
+        c_fl.font = Font(size=10)
+        c_fl.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
         for cidx, h in enumerate(headers, start=1):
-            cell = ws.cell(row=6, column=cidx, value=h)
-            cell.font = Font(bold=True)
-            cell.alignment = Alignment(horizontal="center")
+            cell = ws.cell(row=r_hdr, column=cidx, value=str(h))
+            cell.font = font_11_bold
+            cell.fill = fill_hdr
+            cell.border = grid
+            if cidx >= 11 and cidx <= 15:
+                cell.alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+            elif cidx == ncols:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-        row_idx = 7
+        amt_cols = range(11, 16)
         for r in rows:
-            ws.append(
-                [
-                    r["project_code"],
-                    r["project_name"],
-                    r["donor"],
-                    r["grant_code"],
-                    r["budget_line_code"],
-                    r["budget_line_name"],
-                    r["coa_code"],
-                    r["coa_name"],
-                    r["currency"],
-                    r["approved_budget"],
-                    r["revised_budget"],
-                    r["actual_spent"],
-                    r["committed_amount"],
-                    r["available_balance"],
-                    r["status"].title(),
-                ]
-            )
-            row_idx += 1
+            _ld = (str(r.get("line_description") or "").strip()) or "—"
+            row_vals = [
+                r.get("project_code") or "—",
+                r.get("project_name") or "—",
+                r.get("donor") or "—",
+                r.get("grant_code") or "—",
+                r.get("budget_code") or "—",
+                r.get("budget_line_name") or "—",
+                _ld,
+                r.get("coa_code") or "—",
+                r.get("coa_name") or "—",
+                r.get("currency") or "—",
+                _decimal_budget_metric(r.get("approved_budget")),
+                _decimal_budget_metric(r.get("revised_budget")),
+                _decimal_budget_metric(r.get("actual_spent")),
+                _decimal_budget_metric(r.get("committed_amount")),
+                _decimal_budget_metric(r.get("available_balance")),
+                (str(r.get("status") or "").strip() or "—").title(),
+            ]
+            ws.append(row_vals)
+            excel_row = ws.max_row
+            is_bold = bool(r.get("is_heading"))
+            for col in range(1, ncols + 1):
+                cell = ws.cell(row=excel_row, column=col)
+                cell.border = grid
+                cell.font = font_11_bold if is_bold else font_11
+                if col in amt_cols:
+                    cell.number_format = "#,##0.00"
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                elif col == ncols:
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                else:
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-        for idx in (10, 11, 12, 13, 14):
-            for r_idx in range(7, ws.max_row + 1):
-                ws.cell(row=r_idx, column=idx).number_format = "#,##0.00"
-        ws.freeze_panes = "A7"
-        for i, w in enumerate([14, 26, 20, 14, 16, 24, 12, 24, 10, 16, 16, 16, 18, 18, 12], start=1):
+        for cidx in range(1, ncols + 1):
+            ch = ws.cell(row=r_hdr, column=cidx)
+            if cidx in amt_cols:
+                ch.number_format = "#,##0.00"
+                ch.alignment = Alignment(horizontal="right", vertical="center")
+            elif cidx == ncols:
+                ch.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                ch.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+        ws.freeze_panes = f"A{r_data_start}"
+        col_widths = [12, 22, 18, 12, 14, 22, 38, 10, 24, 9, 14, 14, 14, 14, 14, 11]
+        for i, w in enumerate(col_widths, start=1):
             ws.column_dimensions[get_column_letter(i)].width = w
 
         out = io.BytesIO()
@@ -15453,18 +17243,151 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
         response["Content-Disposition"] = 'attachment; filename="budget_structure.xlsx"'
         return response
 
-    # ----- Tree View -----
+    # ----- Export: PDF -----
+    if request.GET.get("format") == "pdf":
+        import html
+        import os
+
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Image as RLImage
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=landscape(A4),
+            title=str(print_report_title),
+            leftMargin=36,
+            rightMargin=36,
+            topMargin=42,
+            bottomMargin=42,
+        )
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "btc",
+            parent=styles["Normal"],
+            fontSize=14,
+            alignment=TA_CENTER,
+            spaceAfter=4,
+            leading=16,
+        )
+        subtitle_style = ParagraphStyle(
+            "bts",
+            parent=styles["Normal"],
+            fontSize=12,
+            alignment=TA_CENTER,
+            spaceAfter=6,
+            leading=14,
+        )
+        filt_style = ParagraphStyle(
+            "btf",
+            parent=styles["Normal"],
+            fontSize=9,
+            alignment=TA_CENTER,
+            spaceAfter=10,
+            leading=11,
+        )
+        story = []
+        logo_flow = None
+        if org_settings:
+            try:
+                lf = getattr(org_settings, "report_logo", None) or getattr(
+                    org_settings, "organization_logo", None
+                )
+                if lf and getattr(lf, "path", None) and os.path.isfile(lf.path):
+                    logo_flow = RLImage(lf.path, width=1.75 * inch, height=0.52 * inch)
+            except Exception:
+                logo_flow = None
+        if logo_flow:
+            story.append(
+                Table(
+                    [[logo_flow]],
+                    colWidths=[10 * inch],
+                    style=TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER")]),
+                )
+            )
+            story.append(Spacer(1, 8))
+        story.append(Paragraph(html.escape(print_org_name), title_style))
+        story.append(Paragraph(html.escape(str(print_report_title)), subtitle_style))
+        story.append(Paragraph(html.escape(print_filters_line), filt_style))
+
+        hdrs = [str(h) for h in _budget_structure_table_headers()]
+        pdf_data = [hdrs]
+        for r in rows:
+            pdf_data.append([html.escape(str(x)) for x in _budget_structure_row_to_export_list(r)])
+
+        tw = landscape(A4)[0] - 72
+        cw = [
+            tw * 0.055,
+            tw * 0.085,
+            tw * 0.065,
+            tw * 0.055,
+            tw * 0.06,
+            tw * 0.075,
+            tw * 0.11,
+            tw * 0.045,
+            tw * 0.085,
+            tw * 0.038,
+            tw * 0.068,
+            tw * 0.068,
+            tw * 0.068,
+            tw * 0.068,
+            tw * 0.068,
+            tw * 0.048,
+        ]
+        tbl = Table(pdf_data, colWidths=cw, repeatRows=1)
+        pdf_styles = [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F3F2F1")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#323130")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 11),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D2D0CE")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (10, 0), (14, -1), "RIGHT"),
+            ("ALIGN", (0, 1), (9, -1), "LEFT"),
+            ("ALIGN", (15, 1), (15, -1), "CENTER"),
+            ("ALIGN", (0, 0), (9, 0), "CENTER"),
+            ("ALIGN", (10, 0), (14, 0), "RIGHT"),
+            ("ALIGN", (15, 0), (15, 0), "CENTER"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FAFAFA")]),
+        ]
+        for ri, r in enumerate(rows, start=1):
+            if r.get("is_heading"):
+                pdf_styles.append(("FONTNAME", (0, ri), (-1, ri), "Helvetica-Bold"))
+        tbl.setStyle(TableStyle(pdf_styles))
+        story.append(tbl)
+        doc.build(story)
+        pdf_bytes = buf.getvalue()
+        buf.close()
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="budget_structure.pdf"'
+        return response
+
+    # ----- Tree View (hierarchy: dotted BudgetLineCode, synthetic headings included) -----
     tree_rows: dict[str, dict] = {}
     for r in rows:
         proj_key = f'{r["project_code"]} — {r["project_name"]}'
         grant_key = r["grant_code"]
         proj_bucket = tree_rows.setdefault(proj_key, {"grants": {}})
-        grant_bucket = proj_bucket["grants"].setdefault(grant_key, [])
-        grant_bucket.append(r)
+        proj_bucket["grants"].setdefault(grant_key, []).append(r)
+
+    tree_rows_flat: dict[str, dict] = {}
+    for proj_key, pdata in tree_rows.items():
+        tree_rows_flat[proj_key] = {"grants": {}}
+        for grant_key, glines in pdata["grants"].items():
+            roots = _build_budget_line_tree_roots(glines)
+            tree_rows_flat[proj_key]["grants"][grant_key] = _flatten_budget_tree_with_depth(roots)
 
     q_export = request.GET.copy()
     q_export["format"] = "xlsx"
     export_xlsx_url = request.path + "?" + q_export.urlencode()
+    q_pdf = request.GET.copy()
+    q_pdf["format"] = "pdf"
+    export_pdf_url = request.path + "?" + q_pdf.urlencode()
     q_table = request.GET.copy()
     q_table["view"] = "table"
     table_view_url = request.path + "?" + q_table.urlencode()
@@ -15491,8 +17414,9 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
             "selected_status": status,
             "view_mode": view_mode,
             "rows": rows,
-            "tree_rows": tree_rows,
+            "tree_rows": tree_rows_flat,
             "export_xlsx_url": export_xlsx_url,
+            "export_pdf_url": export_pdf_url,
             "table_view_url": table_view_url,
             "tree_view_url": tree_view_url,
             "status_choices": [
@@ -15502,6 +17426,16 @@ def budget_structures_view(request: HttpRequest) -> HttpResponse:
                 ("closed", "Closed"),
             ],
             "version_choices": [("main", "Main")],
+            "print_org_name": print_org_name,
+            "print_logo_url": print_logo_url,
+            "print_report_title": print_report_title,
+            "print_filters_line": print_filters_line,
+            "print_generated_at": print_generated_at,
+            "print_version_label": print_version_label,
+            "print_project_label": sel_project_label,
+            "print_grant_label": sel_grant_label,
+            "print_period_label": period_label,
+            "budget_export_grand_total": budget_export_grand_total,
         },
     )
 
@@ -16161,22 +18095,9 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
                 ba = BankAccount.objects.using(tenant_db).filter(pk=ba_id).first()
                 if ba:
                     if ba.is_active:
-                        current_bal = (
-                            (JournalLine.objects.using(tenant_db)
-                             .filter(account_id=ba.account_id, entry__status=JournalEntry.Status.POSTED)
-                             .aggregate(b=Sum("debit") - Sum("credit"))
-                             .get("b") or Decimal("0"))
-                            + (ba.opening_balance or Decimal("0"))
-                        )
-                        if current_bal != Decimal("0"):
-                            messages.error(
-                                request,
-                                "Cannot deactivate bank account with non-zero balance.",
-                            )
-                        else:
-                            ba.is_active = False
-                            ba.save(update_fields=["is_active"])
-                            messages.success(request, f"Bank account {ba.account_number} is now inactive.")
+                        ba.is_active = False
+                        ba.save(update_fields=["is_active"])
+                        messages.success(request, f"Bank account {ba.account_number} is now inactive.")
                     else:
                         ba.is_active = True
                         ba.save(update_fields=["is_active"])
@@ -16236,7 +18157,6 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
         currency_id = request.POST.get("currency_id") or ""
         raw_opening_balance = (request.POST.get("opening_balance") or "").replace(",", "").strip()
         raw_opening_date = (request.POST.get("opening_balance_date") or "").strip()
-        status = (request.POST.get("status") or "active").strip().lower()
 
         errors = []
 
@@ -16307,10 +18227,10 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
                 "currency_id": currency_id or "",
                 "opening_balance": raw_opening_balance or "",
                 "opening_balance_date": raw_opening_date or "",
-                "status": status,
             }
         else:
-            is_active = status != "inactive"
+            # Status is manual-only after creation; new accounts are always Active.
+            is_active = True
             if is_default_operating and account_type == BankAccount.AccountType.OPERATING:
                 BankAccount.objects.using(tenant_db).filter(is_default_operating=True).update(
                     is_default_operating=False
@@ -16355,7 +18275,6 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
                     "currency_id": currency_id or "",
                     "opening_balance": raw_opening_balance or "",
                     "opening_balance_date": raw_opening_date or "",
-                    "status": status,
                 }
                 return redirect(reverse("tenant_portal:cash_bank_accounts"))
             messages.success(request, "Bank account created.")
@@ -16525,6 +18444,185 @@ def cash_bank_accounts_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+@tenant_view(require_module="finance_grants", require_perm="cashbank:accounts.view")
+def cash_bank_account_edit_view(request: HttpRequest, bank_account_id: int) -> HttpResponse:
+    """Edit an existing bank account master row (same rules as create; GL code is fixed)."""
+    from decimal import Decimal, InvalidOperation
+
+    from django.contrib import messages
+    from django.db import transaction
+    from django.db.models import Sum
+    from django.http import Http404
+    from django.shortcuts import redirect, render
+    from django.urls import reverse
+    from django.utils import timezone
+    from django.utils.dateparse import parse_date
+
+    from tenant_finance.models import BankAccount, ChartAccount, Currency, JournalEntry, JournalLine
+    from tenant_grants.models import Grant, Project
+
+    tenant_db = request.tenant_db
+    user = request.tenant_user
+    can_manage = user_has_permission(user, "module:finance.manage", using=tenant_db)
+
+    ba = (
+        BankAccount.objects.using(tenant_db)
+        .select_related("currency", "account", "linked_project", "linked_grant")
+        .filter(pk=bank_account_id)
+        .first()
+    )
+    if not ba:
+        raise Http404("Bank account not found.")
+
+    has_transactions = False
+    if ba.account_id:
+        has_transactions = JournalLine.objects.using(tenant_db).filter(account_id=ba.account_id).exists()
+
+    posted_bal = Decimal("0")
+    if ba.account_id:
+        posted_bal = (
+            JournalLine.objects.using(tenant_db)
+            .filter(account_id=ba.account_id, entry__status=JournalEntry.Status.POSTED)
+            .aggregate(b=Sum("debit") - Sum("credit"))
+            .get("b")
+            or Decimal("0")
+        )
+    current_balance = (ba.opening_balance or Decimal("0")) + posted_bal
+
+    if request.method == "POST":
+        if not can_manage:
+            messages.error(request, "You do not have permission to edit bank accounts.")
+            return redirect(reverse("tenant_portal:cash_bank_accounts"))
+
+        bank_name = (request.POST.get("bank_name") or "").strip()
+        account_name = (request.POST.get("account_name") or "").strip()
+        account_number = (request.POST.get("account_number") or "").strip()
+        branch = (request.POST.get("branch") or "").strip()
+        office = (request.POST.get("office") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        account_type = (request.POST.get("account_type") or BankAccount.AccountType.OPERATING).strip()
+        project_id = (request.POST.get("project_id") or "").strip()
+        grant_id = (request.POST.get("grant_id") or "").strip()
+        is_default_operating = (request.POST.get("is_default_operating") or "").strip() == "1"
+        currency_id = request.POST.get("currency_id") or ""
+        raw_opening_balance = (request.POST.get("opening_balance") or "").replace(",", "").strip()
+        raw_opening_date = (request.POST.get("opening_balance_date") or "").strip()
+        status = (request.POST.get("status") or "active").strip().lower()
+
+        errors = []
+        if not bank_name:
+            errors.append("Bank name is required.")
+        if not account_name:
+            errors.append("Account name is required.")
+        if not account_number:
+            errors.append("Account number is required.")
+        if account_number:
+            exists = (
+                BankAccount.objects.using(tenant_db)
+                .filter(account_number__iexact=account_number)
+                .exclude(pk=ba.pk)
+                .exists()
+            )
+            if exists:
+                errors.append("Account number must be unique. Another bank account already uses this number.")
+
+        opening_balance = Decimal("0")
+        if raw_opening_balance:
+            try:
+                opening_balance = Decimal(raw_opening_balance)
+            except (InvalidOperation, ValueError):
+                errors.append("Opening balance must be a numeric amount.")
+
+        opening_balance_date = None
+        if raw_opening_date:
+            opening_balance_date = parse_date(raw_opening_date)
+            if not opening_balance_date:
+                errors.append("Opening balance date is not a valid date.")
+            elif opening_balance_date > timezone.localdate():
+                errors.append("Opening balance date cannot be in the future.")
+
+        project = Project.objects.using(tenant_db).filter(pk=project_id).first() if project_id.isdigit() else None
+        grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first() if grant_id.isdigit() else None
+        if grant and project and grant.project_id and grant.project_id != project.pk:
+            errors.append("Selected grant must belong to selected project.")
+        if account_type == BankAccount.AccountType.PROJECT and not project:
+            errors.append("Project account type requires a project.")
+        if account_type == BankAccount.AccountType.RESTRICTED and not grant:
+            errors.append("Restricted account type requires a grant.")
+
+        currency = ba.currency
+        if not has_transactions:
+            currency = Currency.objects.using(tenant_db).filter(pk=currency_id).first() if currency_id else None
+            if not currency:
+                errors.append("Selected currency does not exist.")
+        elif currency_id and str(currency_id) != str(ba.currency_id):
+            errors.append("Currency cannot be changed after transactions exist.")
+
+        if errors:
+            for msg in errors:
+                messages.error(request, msg)
+        else:
+            is_active = status != "inactive"
+            try:
+                with transaction.atomic(using=tenant_db):
+                    if is_default_operating and account_type == BankAccount.AccountType.OPERATING:
+                        BankAccount.objects.using(tenant_db).filter(is_default_operating=True).exclude(pk=ba.pk).update(
+                            is_default_operating=False
+                        )
+                    elif account_type != BankAccount.AccountType.OPERATING:
+                        is_default_operating = False
+                    ba.bank_name = bank_name
+                    ba.account_name = account_name
+                    ba.account_number = account_number
+                    ba.branch = branch
+                    ba.office = office
+                    ba.description = description
+                    ba.account_type = account_type
+                    ba.linked_project = project
+                    ba.linked_grant = grant
+                    ba.opening_balance = opening_balance
+                    ba.opening_balance_date = opening_balance_date
+                    ba.is_active = is_active
+                    if not has_transactions:
+                        ba.currency = currency
+                    ba.is_default_operating = is_default_operating and account_type == BankAccount.AccountType.OPERATING
+                    ba.save()
+                    gl_name = f"{bank_name} {ba.currency.code}".strip()[:150]
+                    ChartAccount.objects.using(tenant_db).filter(pk=ba.account_id).update(
+                        name=gl_name,
+                        updated_by=user,
+                    )
+            except Exception as exc:
+                messages.error(request, str(exc))
+                return redirect(reverse("tenant_portal:cash_bank_account_edit", kwargs={"bank_account_id": ba.pk}))
+
+            messages.success(request, "Bank account updated.")
+            return redirect(reverse("tenant_portal:cash_bank_account_edit", kwargs={"bank_account_id": ba.pk}))
+
+    currencies = Currency.objects.using(tenant_db).order_by("code")
+    projects = Project.objects.using(tenant_db).order_by("code")
+    grants = Grant.objects.using(tenant_db).order_by("code")
+
+    return render(
+        request,
+        "tenant_portal/finance/bank_account_edit.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "ba": ba,
+            "currencies": currencies,
+            "projects": projects,
+            "grants": grants,
+            "account_type_choices": BankAccount.AccountType.choices,
+            "can_manage": can_manage,
+            "has_transactions": has_transactions,
+            "current_balance": current_balance,
+            "active_submenu": "cash",
+            "active_item": "fund_bank_accounts",
+        },
+    )
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def cash_cash_accounts_view(request: HttpRequest) -> HttpResponse:
     """
@@ -16550,9 +18648,9 @@ def cash_petty_accounts_view(request: HttpRequest) -> HttpResponse:
 @tenant_view(require_module="finance_grants", require_perm="cashbook:entries.view")
 def cash_main_cashbook_view(request: HttpRequest) -> HttpResponse:
     """
-    Main Cashbook: organizational cash transactions not linked to donor-funded projects.
-    Shows lines that hit cash/bank GL accounts (from BankAccount), grant_id is null,
-    with running balance. Filters: date, office, transaction type.
+    Cashbook: posted journal lines on bank/cash GL accounts (from BankAccount), with running balance.
+    By default includes grant-linked payments/receipts; use scope=org to limit to entries with no grant.
+    Filters: date, office, transaction type, scope.
     """
     from decimal import Decimal
 
@@ -16564,6 +18662,9 @@ def cash_main_cashbook_view(request: HttpRequest) -> HttpResponse:
     f = _parse_finance_filters(request)
     office_filter = (request.GET.get("office") or "").strip()
     txn_type_filter = (request.GET.get("transaction_type") or "").strip().lower()
+    scope = (request.GET.get("scope") or "all").strip().lower()
+    if scope not in ("all", "org"):
+        scope = "all"
 
     # GL account IDs that are linked to bank/cash accounts (organizational)
     cash_account_ids = list(
@@ -16578,15 +18679,16 @@ def cash_main_cashbook_view(request: HttpRequest) -> HttpResponse:
             .filter(
                 account_id__in=cash_account_ids,
                 entry__status=JournalEntry.Status.POSTED,
-                entry__grant__isnull=True,
             )
             .filter(
                 entry__entry_date__gte=f["period_start"],
                 entry__entry_date__lte=f["period_end"],
             )
-            .select_related("entry", "entry__created_by", "account")
+            .select_related("entry", "entry__created_by", "entry__grant", "entry__grant__project", "account")
             .order_by("entry__entry_date", "entry_id", "id")
         )
+        if scope == "org":
+            qs = qs.filter(entry__grant__isnull=True)
         if office_filter:
             # Filter by bank account office (exact match from dropdown)
             bank_account_ids_office = list(
@@ -16637,9 +18739,18 @@ def cash_main_cashbook_view(request: HttpRequest) -> HttpResponse:
             if entry.created_by_id:
                 u = getattr(entry, "created_by", None)
                 entered_by = getattr(u, "username", None) or getattr(u, "email", None) or str(entry.created_by_id)
+            grant_label = "—"
+            if getattr(entry, "grant_id", None):
+                g = getattr(entry, "grant", None)
+                if g:
+                    gc = (getattr(g, "code", None) or "").strip()
+                    gt = (getattr(g, "title", None) or "").strip()
+                    grant_label = f"{gc or '—'} — {gt or '—'}" if (gc or gt) else "—"
+
             rows.append({
                 "date": entry.entry_date,
                 "reference": ref,
+                "grant_label": grant_label,
                 "description": desc,
                 "debit": debit,
                 "credit": credit,
@@ -16663,6 +18774,7 @@ def cash_main_cashbook_view(request: HttpRequest) -> HttpResponse:
                 "period_end": f["period_end"],
                 "office": office_filter,
                 "transaction_type": txn_type_filter,
+                "scope": scope,
             },
             "offices": offices,
         },
@@ -17833,7 +19945,7 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
         {"label": _("Total payments (period)"), "value": _fmt_money(total_payments_period)},
         {"label": _("Expenses (month to date)"), "value": _fmt_money(expenses_this_month)},
         {"label": _("Budget line alerts"), "value": f"{over_budget_n:,}"},
-        {"label": _("Payment vouchers (period)"), "value": f"{posted_pv_period_n:,}"},
+        {"label": _("Payments (period)"), "value": f"{posted_pv_period_n:,}"},
         {"label": _("Top payees / vendors"), "value": top_vendors_display},
     ]
 
@@ -17850,7 +19962,7 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
             "id": "pending_approvals",
             "label": _("Pending approvals"),
             "value": f"{pending_payments_n:,}",
-            "hint": _("Draft or submitted payment vouchers"),
+            "hint": _("Draft or submitted payments"),
             "href": reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
             "tone": "neutral",
         },
@@ -17947,14 +20059,14 @@ def pay_payment_batches_view(request: HttpRequest) -> HttpResponse:
         ),
         hub_links=[
             {
-                "label": _("Bulk payment voucher approval"),
+                "label": _("Bulk payment approval"),
                 "url": reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
-                "hint": _("Review and approve multiple vouchers in one queue."),
+                "hint": _("Review and approve multiple payments in one queue."),
             },
             {
-                "label": _("Payment vouchers"),
+                "label": _("Payments"),
                 "url": reverse("tenant_portal:pay_payment_vouchers"),
-                "hint": _("Create or edit vouchers before batch submission."),
+                "hint": _("Create or edit payments before batch submission."),
             },
             {
                 "label": _("General journal (register)"),
@@ -17999,6 +20111,7 @@ def pay_supporting_documents_view(request: HttpRequest) -> HttpResponse:
             entry_date__lte=f["period_end"],
         )
         .select_related("grant")
+        .prefetch_related("lines")
         .annotate(att_count=Count("attachments", distinct=True))
         .order_by("-entry_date", "-id")
     )
@@ -18008,13 +20121,7 @@ def pay_supporting_documents_view(request: HttpRequest) -> HttpResponse:
     vouchers = []
     for je in vouchers_qs[:200]:
         pv_ref = je.reference or f"PV-{je.id:05d}"
-        amt = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
+        amt = _journal_entry_gross_amount(tenant_db, je, lines=list(je.lines.all()))
         vouchers.append(
             {
                 "id": je.id,
@@ -18134,6 +20241,140 @@ def pay_payables_aging_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _pv_selectable_budget_codes(tenant_db: str, grant, project_id: int) -> list:
+    """
+    Payment voucher: active budget codes for the grant with a usable expense account.
+
+    Selection is by grant (already validated against the chosen project in the JSON view).
+    We do not require BudgetLine.project_id to match the form project: legacy rows may
+    only be keyed by grant; grant.project must still align with the form when posting.
+    """
+    from tenant_finance.models import ChartAccount
+    from tenant_grants.models import BudgetLine
+
+    qs = (
+        BudgetLine.objects.using(tenant_db)
+        .filter(
+            grant_id=grant.id,
+            status=BudgetLine.Status.ACTIVE,
+            account_id__isnull=False,
+        )
+        .select_related("account")
+        .order_by("budget_code", "id")
+    )
+    out: list = []
+    for bl in qs:
+        acc = bl.account
+        # List any active expense mapped to the code; do not require allow_posting here or
+        # many tenants see an empty dropdown while COA leaves that flag false on valid lines.
+        if not acc or not acc.is_active:
+            continue
+        if str(acc.type or "").upper() != ChartAccount.Type.EXPENSE:
+            continue
+        out.append(bl)
+    return out
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_pv_grants_for_project_json(request: HttpRequest) -> HttpResponse:
+    from django.utils import timezone
+    from django.utils.dateparse import parse_date
+    from django.utils.translation import gettext as _
+
+    from tenant_grants.models import Grant, Project
+
+    tenant_db = request.tenant_db
+    raw_pid = (request.GET.get("project_id") or "").strip()
+    if not raw_pid.isdigit():
+        return JsonResponse({"grants": [], "no_grants_message": ""})
+    project = Project.objects.using(tenant_db).filter(pk=int(raw_pid)).first()
+    if not project:
+        return JsonResponse({"grants": [], "no_grants_message": str(_("No active grants found for this project."))})
+    if project.status != Project.Status.ACTIVE or not project.is_active:
+        return JsonResponse({"grants": [], "no_grants_message": str(_("No active grants found for this project."))})
+
+    raw_date = (request.GET.get("date") or "").strip()
+
+    qs = (
+        Grant.objects.using(tenant_db)
+        .filter(project_id=int(raw_pid), status=Grant.Status.ACTIVE)
+        .select_related("project")
+        .order_by("code")
+    )
+
+    if not raw_date:
+        # Payment date not set yet — list workflow-active grants so users can choose grant first.
+        # Submit still enforces open periods for the voucher date.
+        grants = [{"id": g.id, "code": g.code, "title": g.title} for g in qs]
+        msg = str(_("No active grants found for this project.")) if not grants else ""
+    else:
+        ref_date = parse_date(raw_date) or timezone.localdate()
+        grants = [{"id": g.id, "code": g.code, "title": g.title} for g in qs if g.is_active_on(ref_date)]
+        if not grants and qs.exists():
+            msg = str(
+                _(
+                    "No grants are open on the selected payment date. "
+                    "Use a date within the grant and project agreement period, or update end dates in Funds & Donors."
+                )
+            )
+        elif not grants:
+            msg = str(_("No active grants found for this project."))
+        else:
+            msg = ""
+
+    return JsonResponse({"grants": grants, "no_grants_message": msg})
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_pv_budget_lines_for_grant_json(request: HttpRequest) -> HttpResponse:
+    from django.utils import timezone
+    from django.utils.dateparse import parse_date
+
+    from tenant_grants.models import Grant, Project
+
+    tenant_db = request.tenant_db
+    raw_gid = (request.GET.get("grant_id") or "").strip()
+    raw_pid = (request.GET.get("project_id") or "").strip()
+    if not raw_gid.isdigit() or not raw_pid.isdigit():
+        return JsonResponse({"lines": []})
+    project = Project.objects.using(tenant_db).filter(pk=int(raw_pid)).first()
+    if not project or project.status != Project.Status.ACTIVE or not project.is_active:
+        return JsonResponse({"lines": []})
+    grant = (
+        Grant.objects.using(tenant_db)
+        .select_related("project")
+        .filter(pk=int(raw_gid))
+        .first()
+    )
+    if not grant or grant.status != Grant.Status.ACTIVE:
+        return JsonResponse({"lines": []})
+    if grant.project_id != int(raw_pid):
+        return JsonResponse({"lines": []})
+    raw_date = (request.GET.get("date") or "").strip()
+    if raw_date:
+        ref_date = parse_date(raw_date) or timezone.localdate()
+        if not grant.is_active_on(ref_date):
+            return JsonResponse({"lines": []})
+
+    lines = _pv_selectable_budget_codes(tenant_db, grant, int(raw_pid))
+    payload = []
+    for bl in lines:
+        acc = bl.account
+        suffix = (bl.description or bl.category or "").strip()
+        label = f"{bl.budget_code} — {suffix}" if suffix else (bl.budget_code or "")
+        payload.append(
+            {
+                "id": bl.id,
+                "budget_code": bl.budget_code,
+                "code": bl.budget_code,
+                "label": label.strip(),
+                "expense_account_id": bl.account_id,
+                "expense_account_label": f"{acc.code} — {acc.name}",
+            }
+        )
+    return JsonResponse({"lines": payload})
+
+
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
     """
@@ -18160,24 +20401,16 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         JournalEntryAttachment,
         AuditLog,
     )
-    from tenant_grants.models import Grant, GrantAssignment
-    from tenant_portal.setup_prerequisites import render_if_setup_incomplete_for_transactions
+    from tenant_grants.models import Grant
+    from tenant_portal.setup_prerequisites import get_first_missing_transaction_prerequisite
 
     tenant_db = request.tenant_db
     user = request.tenant_user
 
-    blocked = render_if_setup_incomplete_for_transactions(
-        request,
-        page_title=_("Payment vouchers"),
-        active_submenu="payables",
-        active_item="pay_payment_vouchers",
-    )
-    if blocked:
-        return blocked
+    setup_warning = get_first_missing_transaction_prerequisite(tenant_db)
 
     _ensure_default_receipt_and_income_accounts(tenant_db)
 
-    # Determine if user is finance manager (can see all projects)
     is_manager = user_has_permission(user, "module:finance.manage", using=tenant_db)
 
     # Handle new voucher POST (maker creates / saves draft / submits for approval)
@@ -18186,12 +20419,61 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
 
         # Mandatory fields
         raw_entry_date = (request.POST.get("entry_date") or "").strip()
+        payment_type = (request.POST.get("payment_type") or "expense_payment").strip()
         payee_type = (request.POST.get("payee_type") or "").strip()
-        payee = (request.POST.get("payee") or "").strip()
+        payee_in = (request.POST.get("payee") or "").strip()
+        raw_payee_ref = (request.POST.get("payee_ref_type") or "").strip().lower()
+        raw_payee_id = (request.POST.get("payee_ref_id") or "").strip()
+        payee = payee_in
+        payee_ref_resolved_type = ""
+        payee_ref_resolved_id = None
+        from tenant_grants.models import Donor as _Donor, Supplier as _Supplier
+        from tenant_users.models import TenantUser as _TenantUser
+
+        if raw_payee_ref == "supplier" and raw_payee_id.isdigit():
+            _s = _Supplier.objects.using(tenant_db).filter(pk=int(raw_payee_id), is_active=True).first()
+            if _s:
+                payee = (_s.name or "").strip()
+                payee_ref_resolved_type = JournalEntry.PayeeReferenceType.SUPPLIER
+                payee_ref_resolved_id = _s.pk
+            else:
+                payee_ref_resolved_type = JournalEntry.PayeeReferenceType.MANUAL
+        elif raw_payee_ref == "employee" and raw_payee_id.isdigit():
+            _u = _TenantUser.objects.using(tenant_db).filter(pk=int(raw_payee_id), is_active=True).first()
+            if _u:
+                payee = (_u.get_full_name() or "").strip() or (_u.email or "").strip()
+                payee_ref_resolved_type = JournalEntry.PayeeReferenceType.EMPLOYEE
+                payee_ref_resolved_id = _u.pk
+            else:
+                payee_ref_resolved_type = JournalEntry.PayeeReferenceType.MANUAL
+        elif raw_payee_ref == "donor" and raw_payee_id.isdigit():
+            _d = _Donor.objects.using(tenant_db).filter(pk=int(raw_payee_id), status=_Donor.Status.ACTIVE).first()
+            if _d:
+                payee = (_d.name or "").strip()
+                payee_ref_resolved_type = JournalEntry.PayeeReferenceType.DONOR
+                payee_ref_resolved_id = _d.pk
+            else:
+                payee_ref_resolved_type = JournalEntry.PayeeReferenceType.MANUAL
+        elif raw_payee_ref == "history":
+            payee_ref_resolved_type = JournalEntry.PayeeReferenceType.HISTORY
+            payee_ref_resolved_id = None
+        elif raw_payee_ref == "manual":
+            payee_ref_resolved_type = JournalEntry.PayeeReferenceType.MANUAL
+            payee_ref_resolved_id = None
+        elif raw_payee_ref:
+            payee_ref_resolved_type = JournalEntry.PayeeReferenceType.MANUAL
+            payee_ref_resolved_id = None
+        if not payee_ref_resolved_type and payee:
+            payee_ref_resolved_type = JournalEntry.PayeeReferenceType.MANUAL
         payment_method = (request.POST.get("payment_method") or "").strip()
         payment_account_id = request.POST.get("payment_account_id") or ""
+        destination_account_id = request.POST.get("destination_account_id") or ""
         expense_account_id = request.POST.get("expense_account_id") or ""
         grant_id = request.POST.get("grant_id") or None
+        project_id = (request.POST.get("project_id") or "").strip()
+        budget_line_id = (
+            request.POST.get("budget_code_id") or request.POST.get("budget_line_id") or ""
+        ).strip()
         description = (request.POST.get("description") or "").strip()
 
         # Voucher date: required, not in the future
@@ -18206,51 +20488,77 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         if entry_date and entry_date > timezone.localdate():
             errors.append("Voucher date cannot be in the future.")
 
-        if not payee_type:
-            errors.append("Payee type is required.")
-        if not payee:
-            errors.append("Payee name is required.")
+        valid_payment_types = {"expense_payment", "cash_transfer", "bank_transfer", "inter_fund_transfer"}
+        if payment_type not in valid_payment_types:
+            errors.append("Payment type is required.")
+            payment_type = "expense_payment"
+        if payment_type == "expense_payment":
+            if not payee_type:
+                errors.append("Payee type is required.")
+            if not payee:
+                errors.append("Payee name is required.")
         if not payment_method:
             errors.append("Payment method is required.")
         if not payment_account_id:
             errors.append("Bank / cash account is required.")
-        if not expense_account_id:
-            errors.append("Expense account is required.")
+        if payment_type != "expense_payment" and not destination_account_id:
+            errors.append("Destination account is required for transfers.")
         if not description:
             errors.append("Purpose of payment is required.")
 
-        # Detail lines: amount + optional per-line grant (NGO multi-grant lines)
-        import re
+        project_obj = None
+        budget_line_obj = None
+        from tenant_grants.models import BudgetLine, Project
 
-        detail_line_indices = set()
-        for k in request.POST:
-            m = re.match(r"detail_amount_(\d+)$", k)
-            if m:
-                detail_line_indices.add(int(m.group(1)))
+        if payment_type == "expense_payment":
+            if not project_id or not project_id.isdigit():
+                errors.append("Project is required.")
+                project_obj = None
+            else:
+                project_obj = Project.objects.using(tenant_db).filter(pk=int(project_id)).first()
+                if (
+                    not project_obj
+                    or project_obj.status != Project.Status.ACTIVE
+                    or not project_obj.is_active
+                ):
+                    errors.append("Select an active project.")
+                    project_obj = None
+            if not grant_id:
+                errors.append("Grant is required.")
+            if not budget_line_id or not budget_line_id.isdigit():
+                errors.append("Budget code is required.")
+            else:
+                budget_line_obj = (
+                    BudgetLine.objects.using(tenant_db)
+                    .select_related("grant", "account")
+                    .filter(pk=int(budget_line_id))
+                    .first()
+                )
+                if not budget_line_obj:
+                    errors.append("Invalid budget code.")
+                elif str(budget_line_obj.grant_id) != str(grant_id):
+                    errors.append("Budget code must belong to the selected grant.")
+                elif project_obj and budget_line_obj.grant.project_id != project_obj.id:
+                    errors.append("Budget code must belong to the selected project.")
+                elif budget_line_obj.grant_id and project_obj:
+                    sel_ids = {
+                        x.id
+                        for x in _pv_selectable_budget_codes(tenant_db, budget_line_obj.grant, project_obj.id)
+                    }
+                    if budget_line_obj.id not in sel_ids:
+                        errors.append(
+                            "This budget code cannot be used (inactive or unmapped expense account)."
+                        )
+            if budget_line_obj:
+                if budget_line_obj.account_id:
+                    expense_account_id = str(budget_line_obj.account_id)
+                else:
+                    errors.append("Budget code has no expense account mapped.")
 
-        detail_lines: list[dict] = []
-        for i in sorted(detail_line_indices):
-            try:
-                val = Decimal(str(request.POST.get(f"detail_amount_{i}") or "0"))
-            except (InvalidOperation, ValueError):
-                continue
-            if val <= 0:
-                continue
-            raw_gid = (request.POST.get(f"detail_grant_id_{i}") or "").strip()
-            line_grant = (
-                Grant.objects.using(tenant_db).filter(pk=raw_gid).first() if raw_gid else None
-            )
-            detail_lines.append({"amount": val, "grant": line_grant})
-
-        if not detail_lines:
-            try:
-                single = Decimal(str(request.POST.get("amount") or "0"))
-            except (InvalidOperation, ValueError):
-                single = Decimal("0")
-            if single > 0:
-                detail_lines.append({"amount": single, "grant": None})
-
-        total_amount = sum(d["amount"] for d in detail_lines) if detail_lines else Decimal("0")
+        try:
+            total_amount = Decimal(str(request.POST.get("amount") or "0").replace(",", ""))
+        except (InvalidOperation, ValueError):
+            total_amount = Decimal("0")
 
         def _parse_exchange_rate(raw: str):
             s = (raw or "").strip()
@@ -18265,39 +20573,18 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         raw_due = (request.POST.get("payment_due_date") or "").strip()
         payment_due_date = parse_date(raw_due) if raw_due else None
         if total_amount <= 0:
-            errors.append("Total payment amount must be greater than zero and at least one payment detail line is required.")
-
-        # Funding allocation validation (if co-funding is used)
-        use_co_funding = request.POST.get("use_co_funding") == "1"
-        if use_co_funding and total_amount > 0:
-            funding_amounts = []
-            for key, value in request.POST.items():
-                if key.startswith("funding_amount_"):
-                    try:
-                        val = Decimal(str(value or "0"))
-                    except (InvalidOperation, ValueError):
-                        continue
-                    if val > 0:
-                        funding_amounts.append(val)
-
-            funding_total = sum(funding_amounts) if funding_amounts else Decimal("0")
-            if funding_total > total_amount:
-                errors.append("Total funding allocation amount cannot exceed the total payment voucher amount.")
-            elif funding_total != total_amount:
-                errors.append("Total funding allocation amount must equal the total payment voucher amount.")
-
-            # Percentage check (sum of row percentages should be 100%)
-            if funding_amounts:
-                pct_sum = sum((amt / total_amount) * Decimal("100") for amt in funding_amounts)
-                # Allow small rounding tolerance of 0.01%
-                if pct_sum.quantize(Decimal("0.01")) != Decimal("100.00"):
-                    errors.append("Total funding allocation percentage must be 100%.")
+            errors.append("Total payment amount must be greater than zero.")
 
         # If there are validation errors, show them and do not create voucher
         if errors:
             for msg in errors:
                 messages.error(request, msg)
         else:
+            budget_override_needed = False
+            budget_override_notes: list = []
+            grant_envelope_exceeded = False
+            grant_available_snapshot = None
+
             # Additional runtime validations before creating voucher
             if entry_date:
                 try:
@@ -18309,16 +20596,28 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             # Only active projects can accept transactions
             from tenant_grants.models import Grant as _Grant
 
+            from django.utils import timezone as _tz
+
+            ref_date = entry_date if entry_date else _tz.localdate()
+            _grants_to_validate: list = []
             if grant_id:
-                grant_obj = _Grant.objects.using(tenant_db).filter(pk=grant_id).first()
-                from django.utils import timezone as _tz
-                today = _tz.localdate()
-                if not grant_obj or grant_obj.status != _Grant.Status.ACTIVE or (
-                    grant_obj.end_date and grant_obj.end_date < today
+                _go = (
+                    _Grant.objects.using(tenant_db)
+                    .select_related("project")
+                    .filter(pk=grant_id)
+                    .first()
+                )
+                if _go:
+                    _grants_to_validate.append(_go)
+            for grant_obj in _grants_to_validate:
+                if (
+                    not grant_obj
+                    or grant_obj.status != _Grant.Status.ACTIVE
+                    or not grant_obj.is_active_on(ref_date)
                 ):
                     messages.error(
                         request,
-                        "Payments cannot be recorded for an ended or inactive project.",
+                        "Payments cannot be recorded for an ended or inactive grant.",
                     )
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
@@ -18328,7 +20627,16 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                 if payment_account_id
                 else None
             )
-            expense_account = ChartAccount.objects.using(tenant_db).filter(pk=expense_account_id).first()
+            destination_account = (
+                ChartAccount.objects.using(tenant_db).filter(pk=destination_account_id).first()
+                if destination_account_id
+                else None
+            )
+            expense_account = (
+                ChartAccount.objects.using(tenant_db).filter(pk=expense_account_id).first()
+                if expense_account_id
+                else None
+            )
             grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first() if grant_id else None
 
             if not payment_account or payment_account.id not in valid_payment_account_ids:
@@ -18337,24 +20645,94 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     "Bank / cash account must be an active posting asset account under 1200 — Bank Accounts.",
                 )
                 return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+            if payment_type != "expense_payment":
+                if not destination_account or destination_account.id not in valid_payment_account_ids:
+                    messages.error(
+                        request,
+                        "Destination account must be an active posting asset account under 1200 — Bank Accounts.",
+                    )
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                if destination_account.id == payment_account.id:
+                    messages.error(request, "Source and destination accounts cannot be the same.")
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
-            # Finance officer restriction: must have an active assignment for the selected grant
-            if not is_manager:
-                if not grant:
-                    messages.error(request, "You must select an assigned project to post a payment.")
-                    grant = None
-                else:
-                    has_assignment = GrantAssignment.objects.using(tenant_db).filter(
-                        grant=grant, officer=user, is_active=True
-                    ).exists()
-                    if not has_assignment:
-                        messages.error(
-                            request,
-                            "You are not assigned to this project. Please contact the finance manager.",
+            from tenant_finance.services.bank_account_dropdowns import chart_gl_usable_for_new_bank_transaction
+
+            if payment_account:
+                if not chart_gl_usable_for_new_bank_transaction(tenant_db, payment_account.id):
+                    messages.error(
+                        request,
+                        "Selected bank / cash account is inactive and cannot be used for new transactions.",
+                    )
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+            if payment_type != "expense_payment" and destination_account:
+                if not chart_gl_usable_for_new_bank_transaction(tenant_db, destination_account.id):
+                    messages.error(
+                        request,
+                        "Destination bank / cash account is inactive and cannot be used for new transactions.",
+                    )
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+
+            if payment_type == "expense_payment":
+                if (
+                    not expense_account
+                    or expense_account.type != ChartAccount.Type.EXPENSE
+                    or not expense_account.is_active
+                ):
+                    messages.error(
+                        request,
+                        "Expense account must be an active expense account.",
+                    )
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                if budget_line_obj and expense_account.id != budget_line_obj.account_id:
+                    messages.error(
+                        request,
+                        "Expense account must match the selected budget line.",
+                    )
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+
+            if payment_type == "expense_payment" and grant and total_amount > 0:
+                from django.db.models import Sum as _Sum
+
+                from tenant_finance.models import get_grant_posted_expense_total
+                from tenant_finance.services.budget_control import BudgetControlEngine
+
+                engine = BudgetControlEngine(tenant_db)
+                if budget_line_obj:
+                    bc = engine.check_budget_line_new_expense(grant, budget_line_obj, total_amount)
+                    if bc.status == "block":
+                        budget_override_needed = True
+                        if bc.message:
+                            budget_override_notes.append(bc.message)
+                    elif bc.message and bc.status in ("warn", "critical"):
+                        messages.warning(request, bc.message)
+
+                if grant:
+                    bl_sum = (
+                        BudgetLine.objects.using(tenant_db)
+                        .filter(grant=grant)
+                        .aggregate(s=_Sum("amount"))
+                        .get("s")
+                        or Decimal("0")
+                    )
+                    envelope = bl_sum if bl_sum > 0 else (grant.award_amount or Decimal("0"))
+                    posted = get_grant_posted_expense_total(grant.id, tenant_db)
+                    available = envelope - posted
+                    grant_available_snapshot = available
+                    if total_amount > available:
+                        grant_envelope_exceeded = True
+                        budget_override_needed = True
+                        budget_override_notes.append(
+                            f"Amount exceeds grant budget availability ({available:.2f} remaining)."
                         )
-                        grant = None
 
-            if total_amount > 0 and payment_account and expense_account and (is_manager or grant):
+            can_post_voucher = total_amount > 0 and (is_manager or grant)
+            if payment_type == "expense_payment":
+                can_post_voucher = can_post_voucher and bool(payment_account) and bool(expense_account)
+            else:
+                can_post_voucher = can_post_voucher and bool(payment_account) and bool(destination_account)
+
+            if can_post_voucher:
                 # Validate sufficient bank balance for payments before creating voucher
                 from tenant_finance.models import BankAccount as _BankAccount
 
@@ -18379,6 +20757,8 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                 action = (request.POST.get("action") or "").strip()
                 if action == "save_draft":
                     status = JournalEntry.Status.DRAFT
+                elif action in ("post_new", "post_close", "submit_for_approval"):
+                    status = JournalEntry.Status.PENDING_APPROVAL
                 else:
                     status = JournalEntry.Status.PENDING_APPROVAL
 
@@ -18390,10 +20770,20 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     status=status,
                     created_by=request.tenant_user,
                     payee_name=payee or "",
+                    payee_ref_type=payee_ref_resolved_type or "",
+                    payee_ref_id=payee_ref_resolved_id,
                     payment_method=payment_method or "",
                     source=JournalEntry.SourceType.PAYMENT_VOUCHER,
                     source_type=JournalEntry.SourceType.PAYMENT_VOUCHER,
-                    journal_type="payment_voucher",
+                    journal_type=(
+                        "payment_voucher"
+                        if payment_type == "expense_payment"
+                        else (
+                            "cash_transfer"
+                            if payment_type == "cash_transfer"
+                            else ("bank_transfer" if payment_type == "bank_transfer" else "fund_transfer")
+                        )
+                    ),
                     is_system_generated=True,
                     exchange_rate=exchange_rate,
                     payment_due_date=payment_due_date,
@@ -18425,25 +20815,41 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     # Audit logging should never block the main transaction
                     pass
 
-                # Debit expense per detail line (optional grant per line), credit bank/cash with total
-                for row in detail_lines:
-                    line_grant = row.get("grant") or grant
+                # Expense payment: Dr expense (from budget code); Cr bank/cash (single amount).
+                if payment_type == "expense_payment":
                     JournalLine.objects.using(tenant_db).create(
                         entry=entry,
                         account=expense_account,
                         description=description,
-                        debit=row["amount"],
+                        debit=total_amount,
                         credit=Decimal("0"),
-                        grant=line_grant,
+                        grant=grant,
                     )
-                JournalLine.objects.using(tenant_db).create(
-                    entry=entry,
-                    account=payment_account,
-                    description=description,
-                    debit=Decimal("0"),
-                    credit=total_amount,
-                    grant=grant,
-                )
+                    JournalLine.objects.using(tenant_db).create(
+                        entry=entry,
+                        account=payment_account,
+                        description=description,
+                        debit=Decimal("0"),
+                        credit=total_amount,
+                        grant=grant,
+                    )
+                else:
+                    JournalLine.objects.using(tenant_db).create(
+                        entry=entry,
+                        account=destination_account,
+                        description=description,
+                        debit=total_amount,
+                        credit=Decimal("0"),
+                        grant=grant,
+                    )
+                    JournalLine.objects.using(tenant_db).create(
+                        entry=entry,
+                        account=payment_account,
+                        description=description,
+                        debit=Decimal("0"),
+                        credit=total_amount,
+                        grant=grant,
+                    )
 
                 # NGO source documents (invoice, receipt, approval memo)
                 _attach_specs = (
@@ -18462,13 +20868,85 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                             uploaded_by=request.tenant_user,
                         )
 
+                budget_override_comment = (request.POST.get("budget_override_comment") or "").strip()
+                if (
+                    payment_type == "expense_payment"
+                    and grant
+                    and status == JournalEntry.Status.PENDING_APPROVAL
+                    and budget_override_needed
+                ):
+                    from tenant_finance.services.budget_control import (
+                        BudgetCheckResult,
+                        BudgetControlEngine,
+                    )
+
+                    engine = BudgetControlEngine(tenant_db)
+                    full_check = engine.check_entry(entry)
+                    if grant_envelope_exceeded and full_check.status != "block":
+                        over_amt = total_amount - grant_available_snapshot
+                        if over_amt < 0:
+                            over_amt = Decimal("0")
+                        full_check = BudgetCheckResult(
+                            status="block",
+                            message="; ".join(budget_override_notes) or full_check.message,
+                            utilization_percent=full_check.utilization_percent,
+                            over_amount=over_amt,
+                            details={
+                                **(full_check.details or {}),
+                                "grant_envelope": True,
+                                "available": str(grant_available_snapshot),
+                                "requested": str(total_amount),
+                            },
+                        )
+                    reason_parts = [budget_override_comment] if budget_override_comment else []
+                    reason_parts.extend(budget_override_notes)
+                    combined_reason = "\n".join(x for x in reason_parts if x)
+                    over_budget_amt = None
+                    if full_check.over_amount is not None:
+                        over_budget_amt = str(full_check.over_amount)
+                    elif grant_envelope_exceeded and grant_available_snapshot is not None:
+                        od = total_amount - grant_available_snapshot
+                        over_budget_amt = str(od if od > 0 else Decimal("0"))
+                    engine.create_pending_budget_override_request(
+                        entry=entry,
+                        user=request.tenant_user,
+                        reason=combined_reason,
+                        check_result=full_check,
+                        extra_snapshot={
+                            "grant_envelope_exceeded": grant_envelope_exceeded,
+                            "maker_notes": budget_override_notes,
+                            "total_payment_amount": str(total_amount),
+                            "grant_available_before_pv": str(grant_available_snapshot)
+                            if grant_available_snapshot is not None
+                            else None,
+                            "over_budget_amount": over_budget_amt,
+                            "maker_comment": budget_override_comment or None,
+                        },
+                    )
+
                 if status == JournalEntry.Status.DRAFT:
+                    if budget_override_needed:
+                        messages.warning(
+                            request,
+                            "This payment exceeds available budget. When you submit for approval "
+                            "(Post & New / Post & Close), it will require Finance Manager approval before posting.",
+                        )
                     messages.success(request, f"Payment voucher {entry.reference} saved as draft.")
                 else:
+                    if budget_override_needed:
+                        messages.warning(
+                            request,
+                            "This payment exceeds available budget. It is pending Finance Manager approval "
+                            "before it can be posted.",
+                        )
                     messages.success(
                         request,
-                        f"Payment voucher {entry.reference} submitted for approval."
+                        f"Payment voucher {entry.reference} submitted for approval.",
                     )
+                if status == JournalEntry.Status.DRAFT:
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                if action == "post_close":
+                    return redirect(reverse("tenant_portal:outgoing_fund_center"))
                 return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
     # Filters for list
@@ -18479,6 +20957,7 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         JournalEntry.objects.using(tenant_db)
         .filter(reference__startswith="PV-", entry_date__gte=f["period_start"], entry_date__lte=f["period_end"])
         .select_related("grant")
+        .prefetch_related("lines")
         .order_by("-entry_date", "-id")
     )
     if grant_id:
@@ -18486,13 +20965,7 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
 
     vouchers = []
     for je in vouchers_qs[:100]:
-        total = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
+        total = _journal_entry_gross_amount(tenant_db, je, lines=list(je.lines.all()))
         vouchers.append(
             {
                 "id": je.id,
@@ -18536,23 +21009,22 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         .order_by("code")
     )
 
-    if is_manager:
-        grants = Grant.objects.using(tenant_db).filter(status=Grant.Status.ACTIVE).order_by("code")
-    else:
-        # Officer: only see actively assigned projects
-        assigned_ids = GrantAssignment.objects.using(tenant_db).filter(
-            officer=user, is_active=True
-        ).values_list("grant_id", flat=True)
-        grants = Grant.objects.using(tenant_db).filter(
-            status=Grant.Status.ACTIVE, id__in=assigned_ids
-        ).order_by("code")
+    # All users with payment access: same project/grant universe as JSON dropdowns (no GrantAssignment filter).
+    grants = Grant.objects.using(tenant_db).filter(status=Grant.Status.ACTIVE).order_by("code")
+
+    from tenant_grants.models import BudgetLine, Project
+
+    projects = list(
+        Project.objects.using(tenant_db)
+        .filter(status=Project.Status.ACTIVE, is_active=True)
+        .order_by("code")
+    )
 
     from decimal import Decimal as _PVDec
 
     from django.db.models import Sum as _Sum
 
     from tenant_finance.models import get_grant_posted_expense_total
-    from tenant_grants.models import BudgetLine
 
     def _grant_budget_snapshot(g: Grant) -> dict:
         bl_sum = (
@@ -18585,13 +21057,197 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             "expense_accounts": expense_accounts,
             "grants": grants,
             "grant_budget": grant_budget,
+            "setup_warning": setup_warning,
+            "create_mode": getattr(getattr(request, "resolver_match", None), "url_name", "") == "pay_payment_entry",
             "active_submenu": "payables",
             "active_item": "pay_payment_vouchers",
             "export_csv_url": _grants_export_urls(request)["csv"],
             "export_xlsx_url": _grants_export_urls(request)["xlsx"],
             "export_pdf_url": _grants_export_urls(request)["pdf"],
+            "payee_autocomplete_url": reverse("tenant_portal:pay_payee_autocomplete"),
+            "projects": projects,
+            "pv_grants_json_url": reverse("tenant_portal:pay_pv_grants_json"),
+            "pv_budget_lines_json_url": reverse("tenant_portal:pay_pv_budget_lines_json"),
         },
     )
+
+
+def _payee_autocomplete_score(query: str, *texts: str) -> int:
+    q = (query or "").strip().lower()
+    if not q:
+        return 0
+    best = 0
+    for raw in texts:
+        if not raw:
+            continue
+        t = (raw or "").strip().lower()
+        if not t:
+            continue
+        if t == q:
+            best = max(best, 100)
+        elif t.startswith(q):
+            best = max(best, 86)
+        elif q in t:
+            best = max(best, 58)
+    return best
+
+
+@require_http_methods(["GET"])
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_payee_autocomplete_view(request: HttpRequest) -> HttpResponse:
+    """
+    JSON search for payment voucher payee: suppliers, staff, donors, prior voucher payees.
+    """
+    from django.db.models import Q
+
+    from tenant_finance.models import JournalEntry
+    from tenant_grants.models import Donor, Supplier
+    from tenant_users.models import TenantUser
+
+    tenant_db = request.tenant_db
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 1:
+        return JsonResponse({"results": []})
+
+    candidates: list[dict] = []
+    seen_norm: set[str] = set()
+
+    def _push(norm_key: str, item: dict) -> None:
+        if norm_key in seen_norm:
+            return
+        seen_norm.add(norm_key)
+        candidates.append(item)
+
+    # Suppliers / vendors
+    sup_qs = (
+        Supplier.objects.using(tenant_db)
+        .filter(is_active=True)
+        .filter(Q(name__icontains=q) | Q(code__icontains=q))
+        .order_by("name")[:40]
+    )
+    for s in sup_qs:
+        label = (s.name or "").strip()
+        if not label:
+            continue
+        sc = _payee_autocomplete_score(q, s.name, s.code)
+        if sc <= 0:
+            continue
+        _push(
+            f"supplier:{s.pk}",
+            {
+                "type": "supplier",
+                "id": s.pk,
+                "label": label,
+                "meta": _("Vendor · %(code)s") % {"code": s.code},
+                "score": sc + 5,  # prefer master over free-text history
+            },
+        )
+
+    # Staff (tenant users)
+    user_qs = (
+        TenantUser.objects.using(tenant_db)
+        .filter(is_active=True)
+        .filter(Q(full_name__icontains=q) | Q(email__icontains=q) | Q(position__icontains=q))
+        .order_by("full_name", "email")[:40]
+    )
+    for u in user_qs:
+        label = (u.get_full_name() or "").strip() or (u.email or "").strip()
+        if not label:
+            continue
+        sc = _payee_autocomplete_score(q, u.full_name, u.email, u.position or "")
+        if sc <= 0:
+            continue
+        _push(
+            f"employee:{u.pk}",
+            {
+                "type": "employee",
+                "id": u.pk,
+                "label": label,
+                "meta": _("Staff · %(email)s") % {"email": u.email or "—"},
+                "score": sc + 4,
+            },
+        )
+
+    # Donors (approved master)
+    donor_qs = (
+        Donor.objects.using(tenant_db)
+        .filter(status=Donor.Status.ACTIVE)
+        .filter(Q(name__icontains=q) | Q(code__icontains=q) | Q(short_name__icontains=q))
+        .order_by("name")[:40]
+    )
+    for d in donor_qs:
+        label = (d.name or "").strip()
+        if not label:
+            continue
+        sc = _payee_autocomplete_score(q, d.name, d.code, d.short_name or "")
+        if sc <= 0:
+            continue
+        _push(
+            f"donor:{d.pk}",
+            {
+                "type": "donor",
+                "id": d.pk,
+                "label": label,
+                "meta": _("Donor · %(code)s") % {"code": d.code},
+                "score": sc + 3,
+            },
+        )
+
+    # Previously used payees on payment vouchers
+    hist_qs = (
+        JournalEntry.objects.using(tenant_db)
+        .filter(
+            Q(source_type=JournalEntry.SourceType.PAYMENT_VOUCHER)
+            | Q(journal_type="payment_voucher")
+            | Q(source=JournalEntry.SourceType.PAYMENT_VOUCHER),
+        )
+        .exclude(payee_name="")
+        .filter(payee_name__icontains=q)
+        .values_list("payee_name", flat=True)
+        .distinct()[:50]
+    )
+    for name in hist_qs:
+        label = (name or "").strip()
+        if not label:
+            continue
+        sc = _payee_autocomplete_score(q, label)
+        if sc <= 0:
+            continue
+        nk = f"hist:{label.lower()}"
+        if nk in seen_norm:
+            continue
+        # Skip if same label already matched a master record
+        if label.lower() in {c.get("label", "").lower() for c in candidates}:
+            continue
+        _push(
+            nk,
+            {
+                "type": "history",
+                "id": None,
+                "label": label,
+                "meta": _("Previous payment"),
+                "score": sc + 1,
+            },
+        )
+
+    candidates.sort(key=lambda r: (-(r.get("score") or 0), (r.get("label") or "").lower()))
+    out = []
+    for row in candidates[:25]:
+        out.append(
+            {
+                "type": row["type"],
+                "id": row["id"],
+                "label": row["label"],
+                "meta": row["meta"],
+            }
+        )
+    return JsonResponse({"results": out})
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_payment_entry_view(request: HttpRequest) -> HttpResponse:
+    """Dedicated create-entry route for payment vouchers."""
+    return pay_payment_vouchers_view(request)
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
@@ -18648,7 +21304,10 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
     from tenant_finance.models import JournalEntry, JournalLine, ChartAccount, AuditLog
 
     tenant_db = request.tenant_db
-    entry = get_object_or_404(JournalEntry.objects.using(tenant_db), pk=entry_id)
+    entry = get_object_or_404(
+        JournalEntry.objects.using(tenant_db).select_related("grant", "grant__currency"),
+        pk=entry_id,
+    )
 
     reference = entry.reference or f"PV-{entry.id:05d}"
     if not reference.startswith("PV-"):
@@ -18696,8 +21355,15 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
                     messages.error(request, "Maker-checker is enforced: you cannot approve a voucher you created.")
                     return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
 
-                # Post the voucher
+                # Approve pending budget override (if any) so JournalEntry.save passes budget control
+                from tenant_finance.services.budget_control import BudgetControlEngine
                 from tenant_finance.services.journal_posting import post_payment_voucher
+
+                BudgetControlEngine(tenant_db).approve_pending_override_for_entry(
+                    entry=entry,
+                    decided_by=request.tenant_user,
+                    decision_note=comment,
+                )
 
                 entry.status = JournalEntry.Status.POSTED
                 entry.posted_at = _tz.now()
@@ -18735,6 +21401,13 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
                 if not _has("finance:vouchers.approve"):
                     messages.error(request, "You do not have permission to return/reject vouchers.")
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                from tenant_finance.services.budget_control import BudgetControlEngine
+
+                BudgetControlEngine(tenant_db).cancel_pending_override_for_entry(
+                    entry=entry,
+                    decided_by=request.tenant_user,
+                    note=comment,
+                )
                 # Return to draft for correction by maker
                 entry.status = JournalEntry.Status.DRAFT
                 entry.save(update_fields=["status"])
@@ -18771,7 +21444,24 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
         (l for l in lines if l.debit > 0 and l.account.type == ChartAccount.Type.EXPENSE),
         None,
     )
-    total = sum((l.debit - l.credit) for l in lines) if lines else Decimal("0")
+    net = sum((l.debit - l.credit) for l in lines) if lines else Decimal("0")
+    expense_total = sum(
+        (l.debit for l in lines if getattr(l.account, "type", None) == ChartAccount.Type.EXPENSE),
+        Decimal("0"),
+    )
+    total = expense_total if expense_total > 0 else (abs(net) if net else Decimal("0"))
+
+    from tenant_finance.services.budget_control import BudgetControlEngine
+
+    _bc = BudgetControlEngine(tenant_db)
+    pending_budget_override = _bc.get_pending_override_for_entry(entry)
+
+    budget_check_result = None
+    budget_comparison_rows: list = []
+    if entry.grant_id:
+        budget_check_result, budget_comparison_rows = _bc.budget_comparison_rows_for_entry(entry)
+
+    grant_currency = getattr(entry.grant, "currency", None) if entry.grant_id else None
 
     return render(
         request,
@@ -18785,6 +21475,10 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
             "payment_line": payment_line,
             "expense_line": expense_line,
             "amount": total,
+            "pending_budget_override": pending_budget_override,
+            "budget_comparison_rows": budget_comparison_rows,
+            "budget_check_result": budget_check_result,
+            "grant_currency": grant_currency,
             "active_submenu": "payables",
             "active_item": "pay_payment_vouchers",
         },
@@ -18801,7 +21495,9 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
     """
     from django.utils import timezone as _tz
 
-    from tenant_finance.models import JournalEntry, AuditLog
+    from django.db.models import Exists, OuterRef, Sum
+
+    from tenant_finance.models import BudgetOverrideRequest, JournalEntry, AuditLog
 
     tenant_db = request.tenant_db
     from rbac.models import user_has_permission as _uhp
@@ -18820,12 +21516,21 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
             status=403,
         )
 
+    _pending_ov_sq = BudgetOverrideRequest.objects.filter(
+        entry_id=OuterRef("pk"),
+        status=BudgetOverrideRequest.Status.PENDING,
+    )
     # Pending vouchers (maker has submitted, not yet posted)
     pending_qs = (
         JournalEntry.objects.using(tenant_db)
         .filter(status=JournalEntry.Status.PENDING_APPROVAL)
         .filter(reference__startswith="PV-")
-        .select_related("grant", "created_by")
+        .select_related("grant", "grant__currency", "created_by", "currency")
+        .prefetch_related("lines__account")
+        .annotate(
+            pv_total=Sum("lines__debit"),
+            has_pending_budget_override=Exists(_pending_ov_sq),
+        )
         .order_by("entry_date", "id")
     )
 
@@ -18867,7 +21572,14 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
                             and not _has("finance:vouchers.post")
                         ):
                             continue
+                        from tenant_finance.services.budget_control import BudgetControlEngine
                         from tenant_finance.services.journal_posting import post_payment_voucher
+
+                        BudgetControlEngine(tenant_db).approve_pending_override_for_entry(
+                            entry=entry,
+                            decided_by=request.tenant_user,
+                            decision_note=comment,
+                        )
 
                         entry.status = JournalEntry.Status.POSTED
                         entry.posted_at = _tz.now()
@@ -18884,6 +21596,13 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
                         post_payment_voucher(using=tenant_db, entry=entry, user=request.tenant_user)
                         summary = "Payment voucher approved and posted (bulk)."
                     else:
+                        from tenant_finance.services.budget_control import BudgetControlEngine
+
+                        BudgetControlEngine(tenant_db).cancel_pending_override_for_entry(
+                            entry=entry,
+                            decided_by=request.tenant_user,
+                            note=comment,
+                        )
                         # Return to draft for correction by maker
                         entry.status = JournalEntry.Status.DRAFT
                         entry.save(update_fields=["status"])
@@ -19248,9 +21967,7 @@ def pay_vendor_payments_view(request: HttpRequest) -> HttpResponse:
     Vendor payments: list payment vouchers where payee_type = Vendor.
     """
     from decimal import Decimal, InvalidOperation
-    from django.db.models import Sum
-    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
-    from tenant_grants.models import Grant
+    from tenant_finance.models import JournalEntry
 
     tenant_db = request.tenant_db
 
@@ -19259,6 +21976,7 @@ def pay_vendor_payments_view(request: HttpRequest) -> HttpResponse:
         JournalEntry.objects.using(tenant_db)
         .filter(reference__startswith="PV-")
         .select_related("grant")
+        .prefetch_related("lines")
         .order_by("-entry_date", "-id")
     )
 
@@ -19304,13 +22022,7 @@ def pay_vendor_payments_view(request: HttpRequest) -> HttpResponse:
 
     rows = []
     for je in vouchers_qs[:200]:
-        total = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
+        total = _journal_entry_gross_amount(tenant_db, je, lines=list(je.lines.all()))
 
         if min_amount is not None and total < min_amount:
             continue
@@ -19350,9 +22062,7 @@ def pay_non_vendor_payments_view(request: HttpRequest) -> HttpResponse:
     Non-vendor payments: list payment vouchers not related to vendor accounts.
     """
     from decimal import Decimal, InvalidOperation
-    from django.db.models import Sum
-    from tenant_finance.models import JournalEntry, JournalLine
-    from tenant_grants.models import Grant
+    from tenant_finance.models import JournalEntry
 
     tenant_db = request.tenant_db
 
@@ -19360,6 +22070,7 @@ def pay_non_vendor_payments_view(request: HttpRequest) -> HttpResponse:
         JournalEntry.objects.using(tenant_db)
         .filter(reference__startswith="PV-")
         .select_related("grant")
+        .prefetch_related("lines")
         .order_by("-entry_date", "-id")
     )
 
@@ -19408,13 +22119,7 @@ def pay_non_vendor_payments_view(request: HttpRequest) -> HttpResponse:
 
     rows = []
     for je in vouchers_qs[:200]:
-        total = (
-            JournalLine.objects.using(tenant_db)
-            .filter(entry=je)
-            .aggregate(t=Sum("debit") - Sum("credit"))
-            .get("t")
-            or Decimal("0")
-        )
+        total = _journal_entry_gross_amount(tenant_db, je, lines=list(je.lines.all()))
 
         if min_amount is not None and total < min_amount:
             continue
@@ -19566,7 +22271,7 @@ def grants_approvals_view(request: HttpRequest) -> HttpResponse:
 def grants_reports_view(request: HttpRequest) -> HttpResponse:
     from django.db.models import Sum
     from tenant_grants.models import BudgetLine, Donor, Grant
-    from tenant_finance.models import JournalLine
+    from tenant_finance.models import ChartAccount, JournalLine
 
     tenant_db = request.tenant_db
 
@@ -19587,7 +22292,7 @@ def grants_reports_view(request: HttpRequest) -> HttpResponse:
         for row in BudgetLine.objects.using(tenant_db).values("grant_id").annotate(total=Sum("amount"))
     }
 
-    entry_filter = {"entry__grant_id__isnull": False, "account__type": "expense"}
+    entry_filter = {"entry__grant_id__isnull": False, "account__type": ChartAccount.Type.EXPENSE}
     if start:
         entry_filter["entry__entry_date__gte"] = start
     if end:

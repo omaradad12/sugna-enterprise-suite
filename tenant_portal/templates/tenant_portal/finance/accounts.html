@@ -102,13 +102,15 @@
               {{ a.name }}
             </td>
             <td class="px-5 py-2">
-              {% if a.type == 'asset' %}
+              {% if a.type == 'ASSET' %}
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#eff6ff; color:#1d4ed8;">Asset</span>
-              {% elif a.type == 'liability' %}
+              {% elif a.type == 'LIABILITY' %}
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#fff7ed; color:#c05621;">Liability</span>
-              {% elif a.type == 'income' %}
+              {% elif a.type == 'EQUITY' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#f5f3ff; color:#5b21b6;">Equity</span>
+              {% elif a.type == 'INCOME' %}
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#ecfdf3; color:#15803d;">Income</span>
-              {% elif a.type == 'expense' %}
+              {% elif a.type == 'EXPENSE' %}
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold" style="background:#fef2f2; color:#b91c1c;">Expense</span>
               {% else %}
               <span class="capitalize text-[#605e5c] text-xs">{{ a.type }}</span>

@@ -88,6 +88,7 @@
                     <option value="{{ val }}">{{ lbl }}</option>
                     {% endfor %}
                   </select>
+                  <p class="text-[11px] text-[#605e5c] mt-1">Operating / Petty cash: org-wide (multi-project) when project is blank. Project type: one project only.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
@@ -300,7 +301,7 @@
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Office / Location</th>
                 <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Current balance</th>
                 <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Status</th>
-                <th class="text-left font-semibold text-[#323130] px-5 py-3 w-28">Actions</th>
+                <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap min-w-[9rem]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -329,11 +330,26 @@
                   {% endif %}
                 </td>
                 <td class="px-5 py-3">
-                  <div class="flex flex-wrap items-center gap-2">
+                  <div class="flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
+                    <a href="{% url 'tenant_portal:cash_bank_account_edit' ba.pk %}"
+                       class="inline-flex items-center gap-1 text-[12px] font-semibold text-[#0078D4] hover:underline whitespace-nowrap"
+                       title="View bank account details">
+                      <i data-feather="eye" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                      View
+                    </a>
+                    {% if can_manage %}
+                    <a href="{% url 'tenant_portal:cash_bank_account_edit' ba.pk %}"
+                       class="inline-flex items-center gap-1 text-[12px] font-semibold text-[#0078D4] hover:underline whitespace-nowrap"
+                       title="Edit bank account">
+                      <i data-feather="edit-2" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                      Edit
+                    </a>
+                    {% endif %}
                     <a href="{% url 'tenant_portal:finance_account_ledger' %}?bank_account_id={{ ba.id }}&tab=transactions"
-                       class="inline-flex items-center gap-1 text-[#0078D4] hover:underline text-[12px] font-medium"
-                       title="View transactions">
-                      <i data-feather="eye" class="w-4 h-4"></i>
+                       class="inline-flex items-center gap-1 text-[12px] font-medium text-[#605e5c] hover:underline whitespace-nowrap"
+                       title="Posted transactions (ledger)">
+                      <i data-feather="list" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                      Ledger
                     </a>
                     {% if can_manage %}
                     <form method="post" class="inline">
@@ -362,8 +378,6 @@
                       </button>
                     </form>
                     {% endif %}
-                    {% else %}
-                    <span class="text-[11px] text-[#a19f9d]">Read-only</span>
                     {% endif %}
                   </div>
                 </td>
@@ -470,6 +484,7 @@
                   <option value="{{ val }}" {% if create_form_data.account_type == val %}selected{% endif %}>{{ lbl }}</option>
                   {% endfor %}
                 </select>
+                <p class="text-[11px] text-[#605e5c] mt-1">Operating / Petty cash: org-wide when project is blank. Project type: requires a project.</p>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -512,13 +527,9 @@
                          class="w-full px-3 py-2 rounded border text-[13px] bg-white" style="border-color:#edebe9;" />
                 </div>
               </div>
-              <div>
-                <label class="block text-[13px] font-medium text-[#323130] mb-1">Status</label>
-                <select name="status" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
-                  <option value="active" {% if create_form_data.status != 'inactive' %}selected{% endif %}>Active</option>
-                  <option value="inactive" {% if create_form_data.status == 'inactive' %}selected{% endif %}>Inactive</option>
-                </select>
-              </div>
+              <p class="text-[12px] text-[#605e5c]">
+                New accounts are created <span class="font-semibold text-[#323130]">Active</span>. Use Edit or Activate/Deactivate on the list to change status (independent of project or grant).
+              </p>
             </div>
           </div>
         </div>

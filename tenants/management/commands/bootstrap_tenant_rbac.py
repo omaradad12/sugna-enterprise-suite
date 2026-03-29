@@ -137,8 +137,8 @@ class Command(BaseCommand):
             # -----------------------------
             # Major system modules (by area)
             # -----------------------------
-            ("module:main_cashbook.view", "View Main Cashbook"),
-            ("module:main_cashbook.manage", "Manage Main Cashbook"),
+            ("module:main_cashbook.view", "View Cashbook"),
+            ("module:main_cashbook.manage", "Manage Cashbook"),
             ("module:cash_bank.view", "View Cash & Bank"),
             ("module:cash_bank.manage", "Manage Cash & Bank"),
             ("module:core_accounting.view", "View Core Accounting"),
@@ -164,7 +164,7 @@ class Command(BaseCommand):
             # Transactional module permissions (granular by action)
             # Use these for segregation of duties (maker-checker).
             # -------------------------------------------------------
-            # Main Cashbook
+            # Cashbook (main_cashbook perm codes)
             ("cashbook:entries.view", "View cashbook entries"),
             ("cashbook:entries.create", "Create cashbook entries"),
             ("cashbook:entries.edit", "Edit draft/pending cashbook entries"),

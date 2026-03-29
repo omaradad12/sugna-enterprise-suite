@@ -1,29 +1,18 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Financial Alerts &amp; Risks | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Financial Alerts & Risks" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Financial Alerts &amp; Risks</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Budget overruns, low cash, expiring grants, and other warnings.</p>
+  <h1 class="text-2xl font-bold tracking-tight">{% trans "Financial Alerts & Risks" %}</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">{% trans "Budget overruns, low cash, expiring grants, and other warnings." %}</p>
 </div>
 
 {% if smart_alerts %}
-<div class="bg-white border rounded-lg p-4 mb-5" style="border-color:#edebe9;">
-  <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Smart Alerts &amp; Warnings</h2>
-  <p class="text-xs text-[#605e5c] mb-3">Click an alert to open the relevant module.</p>
-  <div class="space-y-2">
-    {% for alert in smart_alerts %}
-    <a href="{{ alert.link_url }}" class="flex gap-3 items-start p-3 rounded-lg border-l-4 hover:bg-[#faf9f8]" style="border-color:#edebe9; border-left-color:{% if alert.priority == 'critical' %}#dc2626{% elif alert.priority == 'warning' %}#ea580c{% else %}#16a34a{% endif %};">
-      <span class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center {% if alert.priority == 'critical' %}bg-[#fee2e2]{% elif alert.priority == 'warning' %}bg-[#ffedd5]{% else %}bg-[#dcfce7]{% endif %}">
-        <i data-feather="{% if alert.priority == 'critical' %}alert-octagon{% elif alert.priority == 'warning' %}alert-triangle{% else %}info{% endif %}" class="w-4 h-4 {% if alert.priority == 'critical' %}text-[#dc2626]{% elif alert.priority == 'warning' %}text-[#ea580c]{% else %}text-[#16a34a]{% endif %}"></i>
-      </span>
-      <div class="min-w-0 flex-1">
-        <p class="text-[13px] font-semibold text-[#111827]">{{ alert.title }}</p>
-        <p class="text-[12px] mt-0.5" style="color:#6b7280;">{{ alert.message }}</p>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
+<div class="bg-white border rounded-lg p-4 mb-5" style="border-color:#edebe9;" x-data="{ alertFilter: 'all' }">
+  <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-1">{% trans "Alerts & Warnings" %}</h2>
+  <p class="text-xs text-[#605e5c] mb-3">{% trans "Filter by severity or click an alert to open the related page." %}</p>
+  {% include "tenant_portal/includes/smart_alerts_items.html" with alerts=smart_alerts %}
 </div>
 {% endif %}
 

@@ -1,11 +1,11 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% block title %}Main Cashbook | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}Cashbook | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div class="max-w-[1600px] mx-auto px-4 pb-8" style="background:#faf9f8;">
   <div class="pt-6 pb-5">
-    <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Main Cashbook</h1>
-    <p class="text-sm text-[#605e5c] mt-1">Organizational cash transactions not linked to donor-funded projects. Entries link to the Chart of Accounts and follow double-entry accounting.</p>
+    <h1 class="text-2xl font-bold text-[#323130] tracking-tight">Cashbook</h1>
+    <p class="text-sm text-[#605e5c] mt-1">Posted bank and cash movements from the chart of accounts (double-entry). Includes project/grant-linked receipts and payments by default; narrow to organizational-only entries if needed.</p>
   </div>
 
   <!-- Filters -->
@@ -40,6 +40,13 @@
           <option value="other" {% if filters.transaction_type == 'other' %}selected{% endif %}>Other</option>
         </select>
       </div>
+      <div class="min-w-[200px]">
+        <label class="block text-xs font-semibold text-[#605e5c] mb-1">Grant scope</label>
+        <select name="scope" class="w-full px-3 py-2 rounded border bg-white text-[13px]" style="border-color:#edebe9;">
+          <option value="all" {% if filters.scope == 'all' %}selected{% endif %}>All entries (incl. grant-linked)</option>
+          <option value="org" {% if filters.scope == 'org' %}selected{% endif %}>Organizational only (no grant)</option>
+        </select>
+      </div>
       <button type="submit"
               class="inline-flex items-center justify-center gap-2 px-5 py-2 rounded text-[13px] font-semibold text-white"
               style="background:#0078D4;">
@@ -61,6 +68,7 @@
           <tr style="background:#f3f2f1; border-bottom:1px solid #edebe9;">
             <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Date</th>
             <th class="text-left font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Reference Number</th>
+            <th class="text-left font-semibold text-[#323130] px-5 py-3">Grant / project</th>
             <th class="text-left font-semibold text-[#323130] px-5 py-3">Description</th>
             <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Debit</th>
             <th class="text-right font-semibold text-[#323130] px-5 py-3 whitespace-nowrap">Credit</th>
@@ -90,13 +98,13 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="px-5 py-16 text-center">
+            <td colspan="10" class="px-5 py-16 text-center">
               <div class="flex flex-col items-center justify-center">
                 <div class="w-14 h-14 rounded-full flex items-center justify-center mb-3" style="background:#f3f2f1;">
                   <i data-feather="book-open" class="w-7 h-7 text-[#605e5c]"></i>
                 </div>
                 <p class="text-[15px] font-semibold text-[#323130]">No cashbook entries</p>
-                <p class="text-[13px] text-[#605e5c] mt-1 max-w-sm">No organizational cash transactions (without grant) in this period. Try a wider date range or different filters.</p>
+                <p class="text-[13px] text-[#605e5c] mt-1 max-w-md">No posted bank/cash lines in this period for the filters you chose. Try a wider date range, set Grant scope to &quot;All entries&quot;, or check that vouchers are posted.</p>
               </div>
             </td>
           </tr>

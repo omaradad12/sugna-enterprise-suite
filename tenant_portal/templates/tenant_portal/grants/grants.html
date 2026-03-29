@@ -1,9 +1,10 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
+{% load erp_format %}
 {% block title %}{% trans "Project grants" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div x-data="{}" class="contents">
+<div x-data="{ advancedOpen: {% if filters.end_date_from or filters.end_date_to or filters.amount_min or filters.amount_max or filters.currency_id or filters.funding_modality_id %}true{% else %}false{% endif %} }" class="contents">
 {% include "tenant_portal/finance/_dynamics_financial_report_styles.html" %}
 <style>
   .dynamics-gfr-page {
@@ -30,6 +31,39 @@
     border: 1px solid #edebe9;
     border-radius: 4px;
     box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 900px) {
+    .dynamics-gfr-page .dynamics-gfr-kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-card {
+    border: 1px solid #edebe9;
+    border-top: 3px solid #0078d4;
+    border-radius: 4px;
+    background: #fff;
+    padding: 0.65rem 0.85rem;
+    box-shadow: 0 0.6px 1.8px rgba(0, 0, 0, 0.05);
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #605e5c;
+  }
+  .dynamics-gfr-page .dynamics-gfr-kpi-value {
+    margin-top: 0.2rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #201f1e;
+    font-variant-numeric: tabular-nums;
   }
   .dynamics-gfr-page .dynamics-gfr-toolbar > span:first-child {
     font-size: 11px;
@@ -156,6 +190,7 @@
   .dynamics-gfr-page .dynamics-gfr-badge--ok { background: #dff6dd; color: #107c10; border-color: #a7e0a5; }
   .dynamics-gfr-page .dynamics-gfr-badge--neutral { background: #f3f2f1; color: #605e5c; border-color: #e1dfdd; }
   .dynamics-gfr-page .dynamics-gfr-badge--warn { background: #fff4ce; color: #8a6116; border-color: #e0d5a3; }
+  .dynamics-gfr-page .dynamics-gfr-badge--info { background: #deecf9; color: #004578; border-color: #b3d8f2; }
   .dynamics-gfr-page .dynamics-gfr-empty {
     text-align: center;
     padding: 3rem 1.5rem 3.25rem;
@@ -208,6 +243,21 @@
     padding-left: 0.85rem;
     margin-left: -0.25rem;
   }
+  .dynamics-gfr-page .dynamics-filter-basic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6rem 0.75rem;
+    align-items: end;
+  }
+  .dynamics-gfr-page .dynamics-filter-advanced-grid {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #edebe9;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6rem 0.75rem;
+    align-items: end;
+  }
   @media print {
     .dynamics-gfr-page .hidden-print,
     .dynamics-gfr-page .dynamics-gfr-toolbar,
@@ -227,12 +277,6 @@
 </style>
 
 <div class="dynamics-financial-report dynamics-gfr-page max-w-[1680px] mx-auto w-full pb-10 print-area erp-section">
-  <header class="dynamics-report-hero hidden-print" role="region" aria-label="{% trans 'Page summary' %}">
-    <p class="dynamics-hero-org">{% trans "Funds & donors" %} · {% trans "Project grants" %}</p>
-    <h1 class="dynamics-hero-title">{% trans "Project grants" %}</h1>
-    <p class="dynamics-hero-subtitle">{% trans "Search, filter, export, and manage project-level grant allocations linked to donor contracts, projects, and funding modalities." %}</p>
-  </header>
-
   <div class="dynamics-gfr-toolbar hidden-print" role="toolbar" aria-label="{% trans 'Commands' %}">
     <span>{% trans "Export" %}</span>
     {% if export_csv_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_csv_url }}"><i data-feather="file-text" class="w-4 h-4"></i> {% trans "CSV" %}</a>{% endif %}
@@ -240,46 +284,137 @@
     {% if export_pdf_url %}<a class="dynamics-btn-secondary no-underline" href="{{ export_pdf_url }}"><i data-feather="file" class="w-4 h-4"></i> {% trans "PDF" %}</a>{% endif %}
     <button type="button" class="dynamics-btn-secondary dynamics-btn-print" onclick="window.print()"><i data-feather="printer" class="w-4 h-4"></i> {% trans "Print" %}</button>
     <span class="dynamics-gfr-toolbar-spacer" aria-hidden="true"></span>
+    <a href="{% url 'tenant_portal:grants_project_setup_wizard' %}" class="dynamics-btn-secondary no-underline">
+      <i data-feather="layers" class="w-4 h-4"></i>
+      {% trans "Setup wizard" %}
+    </a>
     <button type="button" class="dynamics-btn-primary" @click="$refs.newGrantModal.classList.remove('hidden')">
       <i data-feather="plus" class="w-4 h-4"></i>
       {% trans "Create grant" %}
     </button>
   </div>
 
+  <div class="dynamics-gfr-kpi-grid hidden-print">
+    {% for card in summary_cards %}
+    <div class="dynamics-gfr-kpi-card">
+      <div class="dynamics-gfr-kpi-label">{{ card.label }}</div>
+      <div class="dynamics-gfr-kpi-value">
+        {% if card.label == 'Total value' %}
+          {{ card.value|erp_amount }} USD
+        {% else %}
+          {{ card.value|erp_int }}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
   <div class="dynamics-filter-pane hidden-print mb-4">
     <div class="dynamics-filter-head">
       <i data-feather="sliders" class="w-4 h-4 flex-shrink-0" style="color:#0078d4;"></i>
       <span class="dynamics-filter-head-title">{% trans "View filters" %}</span>
-      <span class="dynamics-filter-head-hint">{% trans "Search by code or name, optionally narrow by donor, then Apply." %}</span>
+      <span class="dynamics-filter-head-hint">{% trans "Basic filters are always visible; advanced filters are optional." %}</span>
     </div>
     <form method="get" action="" class="dynamics-filter-grid">
-      <div class="dynamics-filter-field" style="flex:1 1 220px; min-width:min(100%, 280px);">
-        <label for="grants-search">{% trans "Search" %}</label>
-        <div class="dynamics-grants-search-wrap">
-          <span class="dynamics-grants-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
-          <input id="grants-search" name="q" type="search" value="{{ filters.q|default:'' }}"
-                 placeholder="{% trans 'Code, grant name…' %}"
-                 class="dynamics-input" autocomplete="off" />
+      <div class="dynamics-filter-basic-grid">
+        <div class="dynamics-filter-field" style="min-width:min(100%, 260px);">
+          <label for="grants-search">{% trans "Search" %}</label>
+          <div class="dynamics-grants-search-wrap">
+            <span class="dynamics-grants-search-icon" aria-hidden="true"><i data-feather="search" class="w-4 h-4"></i></span>
+            <input id="grants-search" name="q" type="search" value="{{ filters.q|default:'' }}"
+                   placeholder="{% trans 'Code, grant name…' %}"
+                   class="dynamics-input" autocomplete="off" />
+          </div>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-donor">{% trans "Donor" %}</label>
+          <select id="grants-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
+            <option value="">{% trans "All" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-project">{% trans "Project" %}</label>
+          <select id="grants-project" name="project_id" class="dynamics-select w-full min-w-[180px]">
+            <option value="">{% trans "All" %}</option>
+            {% for p in projects %}
+            <option value="{{ p.pk }}" {% if filters.project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-status">{% trans "Status" %}</label>
+          <select id="grants-status" name="status" class="dynamics-select w-full min-w-[160px]">
+            <option value="">{% trans "All" %}</option>
+            {% for value, label in grant_status_choices %}
+            <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-start-date-from">{% trans "Start date from" %}</label>
+          <input id="grants-start-date-from" name="start_date_from" type="date" value="{{ filters.start_date_from|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-start-date-to">{% trans "Start date to" %}</label>
+          <input id="grants-start-date-to" name="start_date_to" type="date" value="{{ filters.start_date_to|date:'Y-m-d' }}" class="dynamics-input" />
         </div>
       </div>
-      <div class="dynamics-filter-field">
-        <label for="grants-donor">{% trans "Donor" %}</label>
-        <select id="grants-donor" name="donor_id" class="dynamics-select w-full min-w-[180px]">
-          <option value="">{% trans "All" %}</option>
-          {% for d in donors %}
-          <option value="{{ d.pk }}" {% if filters.donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
-          {% endfor %}
-        </select>
+
+      <div class="flex items-center gap-2 mt-2">
+        <button type="button" class="dynamics-btn-secondary" @click="advancedOpen = !advancedOpen">
+          <span x-text="advancedOpen ? '{% trans "Hide advanced filters" %}' : '{% trans "Show advanced filters" %}'"></span>
+        </button>
       </div>
+
+      <div class="dynamics-filter-advanced-grid" x-show="advancedOpen" x-cloak>
+        <div class="dynamics-filter-field">
+          <label for="grants-end-date-from">{% trans "End date from" %}</label>
+          <input id="grants-end-date-from" name="end_date_from" type="date" value="{{ filters.end_date_from|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-end-date-to">{% trans "End date to" %}</label>
+          <input id="grants-end-date-to" name="end_date_to" type="date" value="{{ filters.end_date_to|date:'Y-m-d' }}" class="dynamics-input" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-amount-min">{% trans "Amount min" %}</label>
+          <input id="grants-amount-min" name="amount_min" type="text" value="{{ filters.amount_min }}" class="dynamics-input" placeholder="0.00" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-amount-max">{% trans "Amount max" %}</label>
+          <input id="grants-amount-max" name="amount_max" type="text" value="{{ filters.amount_max }}" class="dynamics-input" placeholder="0.00" />
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-currency">{% trans "Currency" %}</label>
+          <select id="grants-currency" name="currency_id" class="dynamics-select w-full">
+            <option value="">{% trans "All" %}</option>
+            {% for c in currencies %}
+            <option value="{{ c.pk }}" {% if filters.currency_id == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="dynamics-filter-field">
+          <label for="grants-funding-modality">{% trans "Funding modality" %}</label>
+          <select id="grants-funding-modality" name="funding_modality_id" class="dynamics-select w-full">
+            <option value="">{% trans "All" %}</option>
+            {% for m in funding_modalities %}
+            <option value="{{ m.pk }}" {% if filters.funding_modality_id == m.pk|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
       {% if filters.grant_id %}
       <input type="hidden" name="grant_id" value="{{ filters.grant_id }}" />
       {% endif %}
-      <div class="dynamics-filter-field flex flex-col justify-end pb-px">
-        <label class="opacity-0 pointer-events-none select-none" aria-hidden="true">&nbsp;</label>
+      <div class="dynamics-filter-field flex flex-row items-end gap-2 pb-px mt-2">
         <button type="submit" class="dynamics-btn-primary">
           <i data-feather="check" class="w-4 h-4"></i>
           {% trans "Apply" %}
         </button>
+        <a href="{% url 'tenant_portal:grants_grants' %}" class="dynamics-btn-secondary no-underline">{% trans "Reset" %}</a>
       </div>
     </form>
   </div>
@@ -295,10 +430,15 @@
           <tr>
             <th>{% trans "Code" %}</th>
             <th>{% trans "Grant name" %}</th>
+            <th>{% trans "Donor" %}</th>
+            <th>{% trans "Project" %}</th>
+            <th>{% trans "Currency" %}</th>
+            <th class="text-right">{% trans "Utilization %" %}</th>
             <th>{% trans "Status" %}</th>
             <th>{% trans "Start date" %}</th>
             <th>{% trans "End date" %}</th>
             <th class="text-right">{% trans "Amount" %}</th>
+            <th>{% trans "Donor contract" %}</th>
             <th>{% trans "Actions" %}</th>
           </tr>
         </thead>
@@ -307,13 +447,21 @@
           <tr>
             <td><span class="dynamics-gfr-code">{{ g.code }}</span></td>
             <td>
-              <a href="?grant_id={{ g.pk }}" class="dynamics-gfr-grant-link no-underline">
+              <a href="{% url 'tenant_portal:grants_grants' %}?grant_id={{ g.pk }}" class="dynamics-gfr-grant-link no-underline">
                 {{ g.title }}
               </a>
+            </td>
+            <td>{{ g.donor.name|default:"—" }}</td>
+            <td>{{ g.project.code|default:"—" }}{% if g.project %} — {{ g.project.name }}{% endif %}</td>
+            <td class="dynamics-gfr-code">{% if g.currency %}{{ g.currency.code }}{% elif g.bank_account and g.bank_account.currency %}{{ g.bank_account.currency.code }}{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums font-semibold">
+              {% if g.utilization_pct is not None %}{{ g.utilization_pct|floatformat:1 }}%{% else %}—{% endif %}
             </td>
             <td class="whitespace-nowrap">
               {% if g.status == 'active' %}
               <span class="dynamics-gfr-badge dynamics-gfr-badge--ok">{{ g.get_status_display }}</span>
+              {% elif g.status == 'draft' %}
+              <span class="dynamics-gfr-badge dynamics-gfr-badge--info">{{ g.get_status_display }}</span>
               {% elif g.status == 'closed' %}
               <span class="dynamics-gfr-badge dynamics-gfr-badge--neutral">{{ g.get_status_display }}</span>
               {% else %}
@@ -323,19 +471,24 @@
             <td style="color:#605e5c;">{{ g.start_date|date:"Y-m-d"|default:"—" }}</td>
             <td style="color:#605e5c;">{{ g.end_date|date:"Y-m-d"|default:"—" }}</td>
             <td class="text-right tabular-nums font-semibold" style="color:#201f1e;">
-              {% if g.award_amount %}${{ g.award_amount|floatformat:0 }} USD{% else %}—{% endif %}
+              {% if g.award_amount %}{{ g.award_amount|erp_amount }} USD{% else %}—{% endif %}
             </td>
+            <td>{{ g.donor_contract.agreement_code|default:"—" }}</td>
             <td>
               <span class="inline-flex items-center gap-1 flex-wrap">
-                <a href="?grant_id={{ g.pk }}" class="dynamics-gfr-action-link">{% trans "View" %}</a>
+                <a href="{% url 'tenant_portal:grants_grants' %}?grant_id={{ g.pk }}" class="dynamics-gfr-action-link">{% trans "View" %}</a>
                 <span class="dynamics-gfr-action-sep">|</span>
-                <a href="#" class="dynamics-gfr-action-link">{% trans "Edit" %}</a>
+                {% if can_manage %}
+                <a href="{% url 'tenant_portal:setup_grant_dimension_edit' g.pk %}" class="dynamics-gfr-action-link">{% trans "Edit" %}</a>
+                {% else %}
+                <span class="dynamics-gfr-action-link" style="color:#a19f9d;cursor:not-allowed;" title="{% trans 'Requires Grants — Manage permission' %}">{% trans "Edit" %}</span>
+                {% endif %}
               </span>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="p-0 border-0">
+            <td colspan="12" class="p-0 border-0">
               <div class="dynamics-gfr-empty">
                 <div class="dynamics-gfr-empty-icon" aria-hidden="true"><i data-feather="file-text" class="w-6 h-6"></i></div>
                 <p class="dynamics-gfr-empty-title">{% trans "No project grants" %}</p>
