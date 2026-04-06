@@ -21,6 +21,8 @@ WorkingDirectory=/root/sugna-enterprise-suite
 Environment=APP_DIR=/root/sugna-enterprise-suite
 Environment=ENV_FILE=.env.prod
 Environment=MIGRATE_TENANTS=true
+# Optional: extend waits if the server is slow to start (see scripts/deploy.sh)
+# Environment=WAIT_WEB_MAX_ATTEMPTS=120
 ExecStart=/root/sugna-enterprise-suite/scripts/deploy.sh
 
 # If you invoke deploy via a small webhook HTTP server, use that binary as ExecStart

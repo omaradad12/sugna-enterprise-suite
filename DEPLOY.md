@@ -216,6 +216,8 @@ If you use the dev/prod override files, add the same `-f docker-compose.yml -f d
 
 If you use a service such as `sugna-webhook`, point it at the same workflow as `scripts/deploy.sh` (or invoke that script). Example unit file: `deploy/sugna-webhook.service.example`.
 
+The script waits until PostgreSQL accepts connections (`pg_isready` in the `db` container) and until the `web` container stays in Docker state `running` (not `restarting`) before running `migrate` / `exec`, so you do not hit *"Container ... is restarting"*. Tune waits with `WAIT_DB_MAX_ATTEMPTS`, `WAIT_WEB_MAX_ATTEMPTS`, and `WAIT_POLL_INTERVAL` (each attempt sleeps `WAIT_POLL_INTERVAL` seconds; defaults are documented in `scripts/deploy.sh`).
+
 ---
 
 ## 5. Environment variables reference
