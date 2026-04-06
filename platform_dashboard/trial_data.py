@@ -15,13 +15,15 @@ from django.utils import timezone
 
 from tenants.models import Tenant
 
+from .tenant_schema import tenant_table_has_trial_date_columns
+
 
 def trial_today() -> date:
     return timezone.now().date()
 
 
 def trial_start_date(tenant: Tenant) -> date | None:
-    if getattr(tenant, "trial_started_at", None):
+    if tenant_table_has_trial_date_columns() and getattr(tenant, "trial_started_at", None):
         return tenant.trial_started_at
     if tenant.created_at:
         return tenant.created_at.date()
@@ -31,7 +33,7 @@ def trial_start_date(tenant: Tenant) -> date | None:
 def days_remaining_trial(tenant: Tenant, today: date | None = None) -> int | None:
     """Days until trial expiry; negative if past. None if no expiry set."""
     today = today or trial_today()
-    if getattr(tenant, "trial_converted_at", None):
+    if tenant_table_has_trial_date_columns() and getattr(tenant, "trial_converted_at", None):
         return None
     exp = tenant.subscription_expiry
     if not exp:
@@ -44,7 +46,7 @@ def trial_row_alert(tenant: Tenant, today: date | None = None) -> str:
     Visual bucket for row styling: ok | expiring_soon | expired | converted | suspended
     """
     today = today or trial_today()
-    if getattr(tenant, "trial_converted_at", None):
+    if tenant_table_has_trial_date_columns() and getattr(tenant, "trial_converted_at", None):
         return "converted"
     if not tenant.is_active and tenant.status == Tenant.Status.TRIAL:
         return "suspended"
@@ -60,7 +62,7 @@ def trial_row_alert(tenant: Tenant, today: date | None = None) -> str:
 
 def trial_status_label(tenant: Tenant, today: date | None = None) -> str:
     today = today or trial_today()
-    if getattr(tenant, "trial_converted_at", None):
+    if tenant_table_has_trial_date_columns() and getattr(tenant, "trial_converted_at", None):
         return "Converted"
     if not tenant.is_active and tenant.status == Tenant.Status.TRIAL:
         return "Suspended"
@@ -87,7 +89,10 @@ def trial_kpis(base: QuerySet[Tenant]) -> dict[str, Any]:
         subscription_expiry__lte=end7,
     ).count()
     expired_trials = trial_qs.filter(subscription_expiry__lt=today).count()
-    converted = base.filter(trial_converted_at__isnull=False).count()
+    if tenant_table_has_trial_date_columns():
+        converted = base.filter(trial_converted_at__isnull=False).count()
+    else:
+        converted = 0
     ended_without_convert = expired_trials
     conversion_denom = converted + ended_without_convert
     conversion_rate = None
@@ -121,6 +126,8 @@ def trial_status_filter_q(key: str, today: date | None = None) -> Q | None:
             subscription_expiry__lte=end7,
         )
     if key == "converted":
+        if not tenant_table_has_trial_date_columns():
+            return Q(pk__in=[])
         return Q(trial_converted_at__isnull=False)
     if key == "suspended":
         return Q(status=Tenant.Status.TRIAL, is_active=False)
@@ -128,6 +135,8 @@ def trial_status_filter_q(key: str, today: date | None = None) -> Q | None:
 
 
 def trials_base_queryset() -> QuerySet[Tenant]:
+    if not tenant_table_has_trial_date_columns():
+        return Tenant.objects.filter(status=Tenant.Status.TRIAL)
     return Tenant.objects.filter(
         Q(status=Tenant.Status.TRIAL) | Q(trial_converted_at__isnull=False)
     )
@@ -159,15 +168,21 @@ def apply_trial_filters(
         qs = qs.filter(country__icontains=country)
     # Trial start range: trial_started_at when set, else date(created_at)
     if start_from:
-        qs = qs.filter(
-            Q(trial_started_at__gte=start_from)
-            | Q(trial_started_at__isnull=True, created_at__date__gte=start_from)
-        )
+        if tenant_table_has_trial_date_columns():
+            qs = qs.filter(
+                Q(trial_started_at__gte=start_from)
+                | Q(trial_started_at__isnull=True, created_at__date__gte=start_from)
+            )
+        else:
+            qs = qs.filter(created_at__date__gte=start_from)
     if start_to:
-        qs = qs.filter(
-            Q(trial_started_at__lte=start_to)
-            | Q(trial_started_at__isnull=True, created_at__date__lte=start_to)
-        )
+        if tenant_table_has_trial_date_columns():
+            qs = qs.filter(
+                Q(trial_started_at__lte=start_to)
+                | Q(trial_started_at__isnull=True, created_at__date__lte=start_to)
+            )
+        else:
+            qs = qs.filter(created_at__date__lte=start_to)
     if expiry_from:
         qs = qs.filter(subscription_expiry__gte=expiry_from)
     if expiry_to:
@@ -194,7 +209,9 @@ def build_trial_row(tenant: Tenant) -> TrialRow:
     if len(mods) > 10:
         modules_short += "…"
     today = trial_today()
-    converted = bool(getattr(tenant, "trial_converted_at", None))
+    converted = bool(
+        tenant_table_has_trial_date_columns() and getattr(tenant, "trial_converted_at", None)
+    )
     return TrialRow(
         tenant=tenant,
         trial_start=trial_start_date(tenant),

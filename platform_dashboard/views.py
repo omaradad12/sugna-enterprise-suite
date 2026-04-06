@@ -39,6 +39,7 @@ from .subscription_data import (
     build_subscription_row,
     subscription_kpis,
 )
+from .tenant_schema import tenant_table_has_trial_date_columns
 from .trial_data import (
     apply_trial_filters,
     build_trial_row,
@@ -543,7 +544,11 @@ def tenant_subscriptions_view(request):
     expiry_from = parse_date((request.GET.get("expiry_from") or "").strip() or "")
     expiry_to = parse_date((request.GET.get("expiry_to") or "").strip() or "")
 
-    base = Tenant.objects.prefetch_related("modules").all()
+    base = (
+        Tenant.objects.defer("trial_started_at", "trial_converted_at")
+        .prefetch_related("modules")
+        .all()
+    )
     kpis = subscription_kpis(base)
 
     qs, billing_note = apply_subscription_filters(
@@ -590,7 +595,11 @@ def tenant_subscriptions_view(request):
     rows = [build_subscription_row(t) for t in page.object_list]
 
     plans = list(
-        Tenant.objects.exclude(plan="").values_list("plan", flat=True).distinct().order_by("plan")[:80]
+        Tenant.objects.defer("trial_started_at", "trial_converted_at")
+        .exclude(plan="")
+        .values_list("plan", flat=True)
+        .distinct()
+        .order_by("plan")[:80]
     )
     sp_qs = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
     plan_choices = sorted(
@@ -644,7 +653,10 @@ def _tenant_subscription_action_post(request):
     today = timezone.now().date()
 
     with transaction.atomic():
-        tenant = get_object_or_404(Tenant.objects.select_for_update(), pk=int(tid))
+        tenant = get_object_or_404(
+            Tenant.objects.select_for_update().defer("trial_started_at", "trial_converted_at"),
+            pk=int(tid),
+        )
         if action == "activate":
             tenant.is_active = True
             if tenant.status in (Tenant.Status.EXPIRED, Tenant.Status.SUSPENDED):
@@ -707,10 +719,10 @@ def trials_view(request):
     expiry_from = parse_date((request.GET.get("expiry_from") or "").strip() or "")
     expiry_to = parse_date((request.GET.get("expiry_to") or "").strip() or "")
 
-    base_all = Tenant.objects.all()
+    base_all = Tenant.objects.defer("trial_started_at", "trial_converted_at")
     kpis = trial_kpis(base_all)
 
-    qs = trials_base_queryset().prefetch_related("modules")
+    qs = trials_base_queryset().defer("trial_started_at", "trial_converted_at").prefetch_related("modules")
     qs = apply_trial_filters(
         qs,
         q=search,
@@ -724,6 +736,7 @@ def trials_view(request):
         expiry_to=expiry_to,
     )
 
+    has_trial_cols = tenant_table_has_trial_date_columns()
     allowed_sort = {
         "name",
         "-name",
@@ -737,22 +750,39 @@ def trials_view(request):
         "-created_at",
         "subscription_expiry",
         "-subscription_expiry",
+    }
+    if has_trial_cols:
+        allowed_sort |= {
+            "trial_converted_at",
+            "-trial_converted_at",
+            "trial_started_at",
+            "-trial_started_at",
+        }
+    effective_sort = sort
+    if not has_trial_cols and sort in (
         "trial_converted_at",
         "-trial_converted_at",
         "trial_started_at",
         "-trial_started_at",
-    }
-    if sort in allowed_sort:
-        qs = qs.order_by(sort)
-    else:
+    ):
+        effective_sort = "subscription_expiry"
+    if effective_sort in allowed_sort:
+        qs = qs.order_by(effective_sort)
+    elif has_trial_cols:
         qs = qs.order_by("-trial_converted_at", "subscription_expiry", "name")
+    else:
+        qs = qs.order_by("subscription_expiry", "name")
 
     paginator = Paginator(qs, per_page)
     page = paginator.get_page(page_num)
     rows = [build_trial_row(t) for t in page.object_list]
 
     plans = list(
-        Tenant.objects.exclude(plan="").values_list("plan", flat=True).distinct().order_by("plan")[:80]
+        Tenant.objects.defer("trial_started_at", "trial_converted_at")
+        .exclude(plan="")
+        .values_list("plan", flat=True)
+        .distinct()
+        .order_by("plan")[:80]
     )
     sp_qs = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
     plan_choices = sorted(
@@ -764,12 +794,19 @@ def trials_view(request):
     modules = Module.objects.filter(is_active=True).order_by("sort_order", "code")
     module_filter_id = int(module_filter) if module_filter.isdigit() else None
     countries = list(
-        Tenant.objects.exclude(country="").values_list("country", flat=True).distinct().order_by("country")[:60]
+        Tenant.objects.defer("trial_started_at", "trial_converted_at")
+        .exclude(country="")
+        .values_list("country", flat=True)
+        .distinct()
+        .order_by("country")[:60]
     )
 
-    trial_list_empty = not Tenant.objects.filter(
-        Q(status=Tenant.Status.TRIAL) | Q(trial_converted_at__isnull=False)
-    ).exists()
+    if tenant_table_has_trial_date_columns():
+        trial_list_empty = not Tenant.objects.filter(
+            Q(status=Tenant.Status.TRIAL) | Q(trial_converted_at__isnull=False)
+        ).exists()
+    else:
+        trial_list_empty = not Tenant.objects.filter(status=Tenant.Status.TRIAL).exists()
 
     context = {
         "rows": rows,
@@ -813,13 +850,26 @@ def _trials_action_post(request):
 
     today = timezone.now().date()
     now = timezone.now()
+    has_trial_cols = tenant_table_has_trial_date_columns()
 
     with transaction.atomic():
-        tenant = get_object_or_404(Tenant.objects.select_for_update(), pk=int(tid))
+        if has_trial_cols:
+            tenant = get_object_or_404(Tenant.objects.select_for_update(), pk=int(tid))
+        else:
+            tenant = get_object_or_404(
+                Tenant.objects.select_for_update().defer("trial_started_at", "trial_converted_at"),
+                pk=int(tid),
+            )
 
         if action == "extend_trial":
             if tenant.status != Tenant.Status.TRIAL:
                 messages.warning(request, "Only tenants in trial status can be extended.")
+            elif not has_trial_cols:
+                base = tenant.subscription_expiry or today
+                start = base if base >= today else today
+                tenant.subscription_expiry = start + timedelta(days=30)
+                tenant.save(update_fields=["subscription_expiry", "updated_at"])
+                messages.success(request, f"Extended trial for {tenant.name} until {tenant.subscription_expiry}.")
             else:
                 if not tenant.trial_started_at:
                     tenant.trial_started_at = today
@@ -829,7 +879,12 @@ def _trials_action_post(request):
                 tenant.save()
                 messages.success(request, f"Extended trial for {tenant.name} until {tenant.subscription_expiry}.")
         elif action == "convert_to_paid":
-            if tenant.trial_converted_at:
+            if not has_trial_cols:
+                messages.error(
+                    request,
+                    "Trial conversion requires database migrations. Run: python manage.py migrate tenants",
+                )
+            elif tenant.trial_converted_at:
                 messages.warning(request, "This tenant is already marked as converted from trial.")
             elif tenant.status != Tenant.Status.TRIAL:
                 messages.warning(request, "Convert to paid only applies to tenants currently in trial.")
@@ -858,7 +913,7 @@ def _trials_action_post(request):
                 tenant.save()
                 messages.warning(request, f"Suspended trial for {tenant.name}.")
         elif action == "cancel_trial":
-            if getattr(tenant, "trial_converted_at", None):
+            if has_trial_cols and getattr(tenant, "trial_converted_at", None):
                 messages.warning(request, "Cannot cancel a trial that is already converted; use tenant subscription instead.")
             elif tenant.status != Tenant.Status.TRIAL:
                 messages.warning(request, "Cancel trial only applies to tenants in trial status.")
