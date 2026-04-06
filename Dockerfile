@@ -17,7 +17,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 8000
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 # Default: run gunicorn (compose can override if needed)
 CMD ["gunicorn", "-c", "config/gunicorn/gunicorn_conf.py", "sugna_core.wsgi:application"]

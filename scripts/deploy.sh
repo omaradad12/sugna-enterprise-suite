@@ -44,7 +44,7 @@ if [ "$MIGRATE_TENANTS" = "true" ]; then
     exec -T web python manage.py migrate_all_tenants --noinput
 fi
 
-echo "==> Collecting static assets"
+echo "==> Collecting static assets (idempotent; web entrypoint also runs collectstatic on start)"
 docker compose \
   --env-file "$ENV_FILE" \
   -f docker-compose.yml \

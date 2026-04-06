@@ -1,0 +1,2 @@
+# Shell scripts used in Docker images must use LF line endings
+deploy/*.sh text eol=lf

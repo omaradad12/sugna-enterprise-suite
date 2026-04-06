@@ -111,11 +111,23 @@ Production must use **DEBUG=false** and environment variables for **SECRET_KEY**
 
    Skipping `migrate_all_tenants` causes `ProgrammingError: relation "tenant_grants_…" does not exist` when tenant code runs.
 
-4. **Static files**
+4. **Static files (CSS, JS, admin assets)**
+
+   **Settings:** `STATIC_URL=/static/`, `STATIC_ROOT=/app/staticfiles`, `MEDIA_URL=/media/`, `MEDIA_ROOT=/app/media` (see `config/settings/base.py`).
+
+   **Why styling can disappear in production:** `docker-compose.prod.yml` mounts a **named volume** on `/app/staticfiles`. That mount hides anything collected at **image build** time, so the directory is empty until `collectstatic` runs **inside the running container**.
+
+   **Automatic fix:** The production image uses `deploy/docker-entrypoint.sh` as **ENTRYPOINT**. It runs `python manage.py collectstatic --noinput` before Gunicorn so the shared volume is filled on every `web` container start. The `scripts/deploy.sh` step that runs `collectstatic` remains valid but is redundant (idempotent).
+
+   **Nginx:** The `nginx` service mounts the same static volume at `/staticfiles` (read-only) and serves `location /static/` via `alias /staticfiles/`; media uses `/media`. **WhiteNoise is not used** — with `DEBUG=false`, Django does not add static URL handlers (`sugna_core/urls.py`); the edge proxy must serve `/static/` and `/media/`.
+
+   **Manual check (web container):**
 
    ```bash
-   docker compose exec web python manage.py collectstatic --noinput
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec web ls -la /app/staticfiles | head
    ```
+
+   You should see directories such as `admin/`, `css/`, `vendor/`, etc.
 
 5. **Superuser** (optional)
 

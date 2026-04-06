@@ -42,6 +42,7 @@ services:
       - "8000"
     volumes:
       - media_volume_prod:/app/media:rw
+      # Same volume as nginx:/staticfiles — entrypoint runs collectstatic into /app/staticfiles (see deploy/docker-entrypoint.sh).
       - static_volume_prod:/app/staticfiles:rw
 
   nginx:
@@ -55,6 +56,7 @@ services:
       - /root/sugna-enterprise-suite/deploy/nginx:/etc/nginx/conf.d:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - media_volume_prod:/media:ro
+      # location /static/ → alias /staticfiles/ (must match web STATIC_ROOT volume content)
       - static_volume_prod:/staticfiles:ro
     restart: unless-stopped
 
