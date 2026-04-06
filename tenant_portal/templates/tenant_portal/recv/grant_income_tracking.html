@@ -1,5 +1,5 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
-{% load i18n %}
+{% load i18n erp_format %}
 {% block title %}{% trans "Grant income tracking" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
