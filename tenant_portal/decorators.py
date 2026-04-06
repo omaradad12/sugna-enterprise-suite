@@ -1,24 +1,26 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import Callable
+from typing import Callable, Sequence
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
-
-from tenant_portal.auth import get_tenant_db_for_request, get_tenant_user
+from tenant_portal.auth import get_tenant_db_for_request, get_tenant_user, redirect_to_tenant_login
 from rbac.models import user_has_permission
 
 
-def tenant_view(require_module: str | None = None, require_perm: str | None = None):
+def tenant_view(
+    require_module: str | None = None,
+    require_perm: str | None = None,
+    require_perm_any: Sequence[str] | None = None,
+):
     """
     Decorator for tenant-scoped views:
     - tenant resolved (request.tenant)
     - tenant DB provisioned
     - tenant user logged in
-    - optional module entitlement (control plane)
-    - optional RBAC permission (tenant DB)
+    - optional module entitlement (control plane; respects TenantModule.is_enabled)
+    - optional RBAC permission (tenant DB), or any-of list via require_perm_any
     """
 
     def decorator(view_func: Callable[[HttpRequest], HttpResponse]):
@@ -34,15 +36,16 @@ def tenant_view(require_module: str | None = None, require_perm: str | None = No
 
             user = get_tenant_user(request)
             if not user:
-                return redirect(reverse("tenant_portal:login"))
+                return redirect_to_tenant_login(request)
 
             # Provide consistent attributes even if middleware isn't installed.
             request.tenant_db = tenant_db
             request.tenant_user = user
 
             if require_module:
-                enabled = set(tenant.modules.values_list("code", flat=True))
-                if require_module not in enabled:
+                from tenants.services.tenant_modules import tenant_enabled_module_codes
+
+                if require_module not in tenant_enabled_module_codes(tenant):
                     return render(
                         request,
                         "tenant_portal/forbidden.html",
@@ -50,13 +53,21 @@ def tenant_view(require_module: str | None = None, require_perm: str | None = No
                         status=403,
                     )
 
-            if require_perm:
+            perm_list: list[str] = []
+            if require_perm_any:
+                perm_list = [p for p in require_perm_any if p]
+            elif require_perm:
+                perm_list = [require_perm]
+
+            if perm_list:
                 cached = getattr(request, "rbac_permission_codes", None)
                 allowed = False
-                if isinstance(cached, set):
-                    allowed = ("*" in cached) or (require_perm in cached)
-                if not allowed and user_has_permission(user, require_perm, using=tenant_db):
+                if isinstance(cached, set) and "*" in cached:
                     allowed = True
+                elif isinstance(cached, set):
+                    allowed = any(p in cached for p in perm_list)
+                if not allowed:
+                    allowed = any(user_has_permission(user, p, using=tenant_db) for p in perm_list)
                 if not allowed:
                     return render(
                         request,

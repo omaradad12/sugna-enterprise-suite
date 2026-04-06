@@ -54,7 +54,7 @@ def assert_bank_line_orientation_on_post_to_gl(entry, using: str) -> None:
     from django.core.exceptions import ValidationError
     from django.utils.translation import gettext as _
 
-    from tenant_finance.models import BankAccount, JournalLine
+    from tenant_finance.models import BankAccount, JournalEntry, JournalLine
 
     if not entry.pk:
         return

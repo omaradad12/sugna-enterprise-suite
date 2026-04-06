@@ -19,6 +19,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from tenants.models import Tenant
+from tenants.services.provisioning_errors import TenantFinanceInitError
 from tenants.services.provisioning import (
     default_tenant_db_credentials,
     provision_postgres_role_and_database,
@@ -41,7 +42,10 @@ class TenantOnboardingResult:
 
 
 def _fail(tenant: Tenant, step: str, exc: BaseException, *, persist_on_tenant: bool = True) -> TenantOnboardingResult:
-    err = f"{step}: {exc}"
+    if isinstance(exc, TenantFinanceInitError):
+        err = f"{step}: {exc.detail()}"
+    else:
+        err = f"{step}: {exc}"
     logger.error("Tenant onboarding failed slug=%s: %s", tenant.slug, err, exc_info=True)
     if persist_on_tenant:
         tenant.provisioning_status = tenant.ProvisioningStatus.FAILED
@@ -122,6 +126,21 @@ def run_full_tenant_provisioning(
     gen_pw: str | None = None
 
     try:
+        try:
+            mod_codes = list(
+                tenant.modules.filter(tenant_modules__is_enabled=True)
+                .values_list("code", flat=True)
+                .distinct()
+            )
+            logger.info(
+                "Tenant onboarding pipeline start slug=%s plan=%s enabled_module_codes=%s",
+                tenant.slug,
+                (tenant.plan or "").strip() or "(none)",
+                mod_codes,
+            )
+        except Exception:
+            logger.exception("Tenant onboarding: could not log module entitlements for slug=%s", tenant.slug)
+
         # --- Credentials ---
         if reuse_saved_credentials and tenant.db_name and tenant.db_user and tenant.db_password:
             db_name = tenant.db_name
@@ -173,7 +192,7 @@ def run_full_tenant_provisioning(
         except Exception as exc:
             return _fail(tenant, "migrate_tenant", exc, persist_on_tenant=persist_fail)
 
-        # --- Default rows (currencies, FY, COA scaffold, etc.) ---
+        # --- Default rows (currencies, FY, COA scaffold, financial dimensions, etc.) ---
         try:
             init_summary = run_tenant_initialization(tenant)
             logger.info("Tenant init summary slug=%s: %s", tenant.slug, init_summary)

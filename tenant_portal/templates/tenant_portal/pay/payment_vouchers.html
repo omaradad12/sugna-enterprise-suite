@@ -1,5 +1,6 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
+{# Payment Entry ↔ Excel: column labels must match tenant_finance/services/payment_voucher_excel_schema.py #}
 {% block title %}{% trans "Payments" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 {% trans "Select grant" as pv_label_select_grant %}
 {% trans "Select budget code" as pv_label_select_budget_code %}
@@ -220,8 +221,38 @@
     pvGrantsUrl = ($el && $el.dataset && $el.dataset.pvGrantsUrl) ? $el.dataset.pvGrantsUrl : '';
     pvBudgetLinesUrl = ($el && $el.dataset && $el.dataset.pvBudgetLinesUrl) ? $el.dataset.pvBudgetLinesUrl : '';
     setTimeout(function () { syncGrantSelect(); syncBudgetCodeSelects(); }, 0);
+    {% if edit_json %}
+    (function(){
+      try {
+        var p = JSON.parse(document.getElementById('pv-edit-payload').textContent);
+        if (p) {
+          paymentAmount = p.amount || '';
+          paymentDescription = p.description || '';
+          projectId = p.project_id ? String(p.project_id) : '';
+          grantId = p.grant_id ? String(p.grant_id) : '';
+          budgetCodeId = p.budget_code_id ? String(p.budget_code_id) : '';
+          expenseAccountId = p.expense_account_id ? String(p.expense_account_id) : '';
+          payeeText = p.payee || '';
+          payeeRefType = p.payee_ref_type || '';
+          payeeRefId = p.payee_ref_id ? String(p.payee_ref_id) : '';
+        }
+      } catch (e) {}
+      setTimeout(function () {
+        if (!projectId) return;
+        loadGrants({ preserveGrant: true }).then(function () {
+          if (grantId && $refs.pvGrantSelect) { $refs.pvGrantSelect.value = grantId; }
+          return loadBudgetCodes();
+        }).then(function () {
+          if (budgetCodeId && $refs.pvBudgetCodeSelect) { $refs.pvBudgetCodeSelect.value = budgetCodeId; onBudgetCodeChange(); }
+        });
+      }, 80);
+    })();
+    {% endif %}
   "
 >
+  {% if edit_json %}
+  <script type="application/json" id="pv-edit-payload">{{ edit_json|safe }}</script>
+  {% endif %}
   <style>
     .pay-entry-hero {
       border: 1px solid #e5e7eb;
@@ -258,7 +289,13 @@
   </style>
 
   <div class="pay-entry-hero">
-    <h1 class="text-2xl font-semibold text-[#323130]">{% trans "Payments" %}</h1>
+    <h1 class="text-2xl font-semibold text-[#323130]">{% if edit_entry %}{% trans "Edit payment voucher" %}{% else %}{% trans "Payments" %}{% endif %}</h1>
+    {% if edit_entry and edit_is_posted %}
+    <p class="text-[13px] text-[#b45309] mt-1 font-medium">{% trans "You are modifying a posted transaction. Changes will affect financial balances." %}</p>
+    <p class="text-[13px] text-[#605e5c] mt-1">{% trans "Corrections update the same journal in the register (no separate reversal row). A reason is required; all changes are stored in the audit log." %}</p>
+    {% elif edit_entry %}
+    <p class="text-[13px] text-[#605e5c] mt-1">{% trans "Changes are logged." %}</p>
+    {% endif %}
   </div>
 
   {% if setup_warning %}
@@ -271,13 +308,14 @@
 
   <form method="post" enctype="multipart/form-data" class="pay-entry-shell space-y-4">
     {% csrf_token %}
+    {% if edit_entry %}<input type="hidden" name="entry_id" value="{{ edit_entry.id }}" />{% endif %}
     <input type="hidden" name="payment_type" value="expense_payment" />
     <input type="hidden" name="payee_type" value="other" />
 
     <div class="pay-entry-section grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Payment date" %}</label>
-        <input type="date" name="entry_date" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required @change="projectId && loadGrants({ preserveGrant: true })" />
+        <input type="date" name="entry_date" value="{% if edit_entry %}{{ edit_entry.entry_date|date:'Y-m-d' }}{% endif %}" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required @change="projectId && loadGrants({ preserveGrant: true })" />
       </div>
       <div class="relative" @click.outside="payeeOpen = false">
         <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Payee" %}</label>
@@ -331,10 +369,10 @@
         <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Payment method" %}</label>
         <select name="payment_method" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required>
           <option value="">{% trans "Select" %}</option>
-          <option value="cheque">{% trans "Cheque" %}</option>
-          <option value="bank_transfer">{% trans "Bank transfer" %}</option>
-          <option value="mobile_money">{% trans "Mobile money" %}</option>
-          <option value="cash">{% trans "Cash" %}</option>
+          <option value="cheque" {% if edit_entry and edit_entry.payment_method == "cheque" %}selected{% endif %}>{% trans "Cheque" %}</option>
+          <option value="bank_transfer" {% if edit_entry and edit_entry.payment_method == "bank_transfer" %}selected{% endif %}>{% trans "Bank transfer" %}</option>
+          <option value="mobile_money" {% if edit_entry and edit_entry.payment_method == "mobile_money" %}selected{% endif %}>{% trans "Mobile money" %}</option>
+          <option value="cash" {% if edit_entry and edit_entry.payment_method == "cash" %}selected{% endif %}>{% trans "Cash" %}</option>
         </select>
       </div>
       <div>
@@ -342,7 +380,7 @@
         <select name="payment_account_id" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required>
           <option value="">{% trans "Select account" %}</option>
           {% for acc in payment_accounts %}
-          <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
+          <option value="{{ acc.id }}" {% if edit_entry and edit_entry.payment_account_id == acc.id %}selected{% endif %}>{{ acc.code }} — {{ acc.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -354,7 +392,7 @@
         <select name="project_id" x-model="projectId" @change="loadGrants()" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" required>
           <option value="">{% trans "Select project" %}</option>
           {% for p in projects %}
-          <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+          <option value="{{ p.id }}" {% if edit_entry and edit_entry.project_id == p.id %}selected{% endif %}>{{ p.code }} — {{ p.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -393,7 +431,7 @@
       </div>
       <div>
         <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Reference" %}</label>
-        <input type="text" name="reference_no" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" />
+        <input type="text" name="reference_no" value="{% if edit_entry %}{{ edit_entry.reference_no }}{% endif %}" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px]" />
       </div>
       <div class="md:col-span-2">
         <label class="block text-xs font-semibold text-[#605e5c] mb-1">{% trans "Description" %}</label>
@@ -406,18 +444,37 @@
       <input type="file" name="attach_invoice" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-white" />
     </div>
 
+    {% if edit_is_posted %}
+    <div class="pay-entry-section rounded-lg border px-3 py-3" style="border-color:#fde68a; background:#fffbeb;">
+      <label class="block text-xs font-semibold text-[#92400e] mb-1">{% trans "Reason for change" %} <span class="text-[#b45309]">*</span></label>
+      <textarea
+        name="correction_reason"
+        rows="3"
+        required
+        class="w-full border border-[#fde68a] rounded px-3 py-2 text-[13px] bg-white"
+        placeholder="{% trans 'Required for compliance — describe why this posted voucher is being corrected' %}"
+      ></textarea>
+    </div>
+    {% endif %}
+
     <div class="pay-entry-section">
-      <label class="block text-xs font-semibold text-[#605e5c] mb-1">
-        {% trans "Comment for approver" %}
-        <span class="font-normal text-[#8a8886]">({% trans "e.g. justification if payment may exceed budget" %})</span>
-      </label>
-      <textarea name="budget_override_comment" rows="2" class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-white" placeholder="{% trans 'Optional — shown to Finance Manager when budget approval is required' %}"></textarea>
+      <textarea
+        name="budget_override_comment"
+        rows="2"
+        class="w-full border border-[#edebe9] rounded px-3 py-2 text-[13px] bg-white"
+        placeholder="{% trans 'Optional — shown to Finance Manager when budget approval is required' %}"
+        aria-label="{% trans 'Optional note' %}"
+      ></textarea>
     </div>
 
     <div class="flex flex-wrap items-center gap-2 pt-3 border-t border-[#edebe9]">
-      <button type="submit" name="action" value="save_draft" class="px-4 py-2 rounded border border-[#edebe9] text-[13px] font-semibold text-[#323130] bg-white hover:bg-[#faf9f8]">{% trans "Save Draft" %}</button>
-      <button type="submit" name="action" value="post_new" class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#0078d4] hover:bg-[#106ebe]">{% trans "Post & New" %}</button>
-      <button type="submit" name="action" value="post_close" class="px-4 py-2 rounded border border-[#0078d4] text-[13px] font-semibold text-[#0078d4] bg-white hover:bg-[#f3f9fd]">{% trans "Post & Close" %}</button>
+      {% if edit_is_posted %}
+      <button type="submit" name="action" value="save_posted_correction" class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#0078d4] hover:bg-[#106ebe]">{% trans "Apply correction" %}</button>
+      {% else %}
+      <button type="submit" name="action" value="save_draft" formnovalidate class="px-4 py-2 rounded border border-[#edebe9] text-[13px] font-semibold text-[#323130] bg-white hover:bg-[#faf9f8]">{% trans "Save Draft" %}</button>
+      <button type="submit" name="action" value="post_new" formnovalidate class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#0078d4] hover:bg-[#106ebe]">{% trans "Submit for approval & New" %}</button>
+      <button type="submit" name="action" value="post_close" formnovalidate class="px-4 py-2 rounded border border-[#0078d4] text-[13px] font-semibold text-[#0078d4] bg-white hover:bg-[#f3f9fd]">{% trans "Submit for approval & Close" %}</button>
+      {% endif %}
     </div>
   </form>
 </div>

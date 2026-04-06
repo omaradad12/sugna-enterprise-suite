@@ -12,5 +12,10 @@ cryptography>=46.0.5,<47.0.0
 # Image processing used by tenants branding (from PIL import Image)
 Pillow
 
+# Reporting (General Ledger Excel export)
+pandas>=2.0,<3
+XlsxWriter>=3.1,<4
+openpyxl>=3.1,<4
+
 # Production server (optional for local dev)
 gunicorn>=21.0,<23.0

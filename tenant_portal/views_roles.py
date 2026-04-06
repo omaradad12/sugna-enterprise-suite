@@ -143,6 +143,7 @@ def _role_templates() -> list[dict]:
                 "cashbank:reconciliation.post",
                 "cashbook:entries.view",
                 "finance:audit.view",
+                "module:audit_risk.view",
                 "dashboard:view",
             ],
         },
@@ -193,6 +194,7 @@ def _role_templates() -> list[dict]:
                 "finance:reporting.view",
                 "finance:reporting.export",
                 "finance:audit.view",
+                "module:audit_risk.view",
                 "dashboard:view",
             ],
         },
@@ -220,6 +222,7 @@ def _tab_for_module_title(title: str) -> str:
         "cost sharing",
         "governance",
         "internal control",
+        "audit risk",
     }:
         return "financial"
     # Procurement (in this suite, procurement lives under grants/procurement flows)

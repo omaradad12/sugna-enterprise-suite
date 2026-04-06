@@ -25,7 +25,7 @@
   .gl-ledger-table {
     table-layout: auto;
     width: 100%;
-    min-width: 1080px;
+    min-width: 52rem;
     border-collapse: separate;
     border-spacing: 0;
   }
@@ -87,10 +87,9 @@
     line-height: 1.3;
     vertical-align: middle;
   }
-  .gl-ledger-table td:nth-child(1),
-  .gl-ledger-table td:nth-child(2),
-  .gl-ledger-table td:nth-child(4),
-  .gl-ledger-table td:nth-child(7) {
+  .gl-ledger-table tbody tr.gl-data-row td:nth-child(1),
+  .gl-ledger-table tbody tr.gl-data-row td:nth-child(2),
+  .gl-ledger-table tbody tr.gl-data-row td:nth-child(4) {
     white-space: nowrap;
   }
   .gl-ledger-table .gl-col-grant {
@@ -128,6 +127,17 @@
     border: 0;
     padding: 0;
     background: #fff;
+  }
+  .gl-subtotal-row td {
+    background: #f1f5f9 !important;
+    color: #1e293b !important;
+    font-weight: 600;
+    border-top: 1px solid #cbd5e1;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .gl-subtotal-row .gl-col-num {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
   }
   .gl-total-row td {
     background: #f3f4f6 !important;
@@ -343,6 +353,13 @@
       border-bottom: 1px solid #e0dedb !important;
       font-weight: 600 !important;
     }
+    .gl-ledger-table tbody tr.gl-subtotal-row td {
+      background: #eef2f7 !important;
+      color: #201f1e !important;
+      font-weight: 600 !important;
+      border-top: 1px solid #c5d0dc !important;
+      font-size: 7.5px !important;
+    }
     .gl-ledger-table tbody tr.gl-ledger-grand-total td {
       background: #faf9f8 !important;
       color: #323130 !important;
@@ -396,7 +413,6 @@
     .gl-ledger-table col.gl-col-w-8 { width: 8%; min-width: 17mm; }
     .gl-ledger-table col.gl-col-w-9 { width: 8%; min-width: 17mm; }
     .gl-ledger-table col.gl-col-w-10 { width: 8%; min-width: 17mm; }
-    .gl-ledger-table col.gl-col-w-11 { width: 0%; }
 
     .gl-reconciliation-print {
       margin-top: 0.65rem;
@@ -482,7 +498,7 @@
   — {% blocktrans trimmed %}This ledger shows posted journal lines. Draft or pending-approval vouchers do not appear here until they are approved and posted. Use the General journal register to review all statuses in the same period.{% endblocktrans %}
   <a href="{% url 'tenant_portal:finance_journals' %}" class="font-semibold whitespace-nowrap" style="color:#1d4ed8;">{% trans "General journal" %}</a>
   ·
-  <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_approval' %}" class="font-semibold whitespace-nowrap" style="color:#1d4ed8;">{% trans "Payment approvals" %}</a>
+  <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="font-semibold whitespace-nowrap" style="color:#1d4ed8;">{% trans "Payment approvals" %}</a>
 </div>
 {# Screen: filters only (export actions hidden when printing via .hidden-print) #}
 <div class="bg-white border rounded-lg p-3 mb-3 hidden-print shadow-sm" style="border-color:#edebe9;">
@@ -619,18 +635,18 @@
   <div class="erp-section-body overflow-x-auto gl-ledger-scroll">
     <table class="erp-table gl-ledger-table w-full text-[12px]">
       <thead>
+        {# Screen: compact columns only (full titles in print / Excel export) #}
         <tr class="hidden-print">
           <th class="gl-th text-left">{% trans "Date" %}</th>
           <th class="gl-th text-left">{% trans "Journal Ref" %}</th>
           <th class="gl-th text-left">{% trans "Account" %}</th>
           <th class="gl-th text-left gl-col-grant">{% trans "Grant" %}</th>
-          <th class="gl-th text-left">{% trans "Budget line" %}</th>
-          <th class="gl-th text-left gl-th-bl-desc">{% trans "Budget line description" %}</th>
           <th class="gl-th gl-col-desc text-left">{% trans "Description" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Debit" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Credit" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Running balance" %}</th>
         </tr>
+        {# Print & PDF: full structured header aligned with subtotals / grand total #}
         <tr class="print-only">
           <th class="gl-th text-left">{% trans "Date" %}</th>
           <th class="gl-th text-left">{% trans "Journal Ref" %}</th>
@@ -638,14 +654,15 @@
           <th class="gl-th text-left">{% trans "Account name" %}</th>
           <th class="gl-th text-left">{% trans "Grant" %}</th>
           <th class="gl-th text-left">{% trans "Donor" %}</th>
-          <th class="gl-th text-left">{% trans "Budget Line" %}</th>
-          <th class="gl-th text-left gl-th-bl-desc">{% trans "Budget line description" %}</th>
+          <th class="gl-th text-left">{% trans "Budgetcode" %}</th>
+          <th class="gl-th text-left">{% trans "Budget line" %}</th>
           <th class="gl-th gl-col-desc text-left">{% trans "Description" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Debit" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Credit" %}</th>
           <th class="gl-th gl-col-num text-right">{% trans "Running balance" %}</th>
           <th class="gl-th text-left">{% trans "Currency" %}</th>
-          <th class="gl-th text-left">{% trans "Document Reference" %}</th>
+          <th class="gl-th text-left">{% trans "Payee" %}</th>
+          <th class="gl-th text-left">{% trans "Document reference" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -653,19 +670,35 @@
           {% for item in account_sections %}
             {% if item.type == 'header' %}
             {% if not forloop.first %}
-            <tr class="gl-account-gap hidden-print"><td colspan="10"></td></tr>
+            <tr class="gl-account-gap hidden-print"><td colspan="8"></td></tr>
+            <tr class="gl-account-gap print-only"><td colspan="15"></td></tr>
             {% endif %}
-            <tr class="gl-ledger-account-row gl-account-header hidden-print">
-              <td colspan="10">
+            <tr class="gl-ledger-account-row gl-account-header">
+              <td class="hidden-print" colspan="8">
+                {% trans "Account" %}: {{ item.code }} — {{ item.name }}
+              </td>
+              <td class="print-only" colspan="15">
                 {% trans "Account" %}: {{ item.code }} — {{ item.name }}
               </td>
             </tr>
-            {% else %}
+            {% elif item.type == 'subtotal' %}
+            <tr class="gl-subtotal-row hidden-print">
+              <td colspan="5" class="text-right px-3 py-2">{% trans "Subtotal" %} — {{ item.code }} — {{ item.name }}</td>
+              <td class="gl-col-num text-right px-2 py-2">{{ item.debit|floatformat:2 }}</td>
+              <td class="gl-col-num text-right px-2 py-2">{{ item.credit|floatformat:2 }}</td>
+              <td class="gl-col-num text-right px-2 py-2">{{ item.running_balance|floatformat:2 }}</td>
+            </tr>
+            <tr class="gl-subtotal-row print-only">
+              <td colspan="9" class="text-right px-3 py-2">{% trans "Subtotal" %} — {{ item.code }} — {{ item.name }}</td>
+              <td class="gl-col-num text-right px-2 py-2">{{ item.debit|floatformat:2 }}</td>
+              <td class="gl-col-num text-right px-2 py-2">{{ item.credit|floatformat:2 }}</td>
+              <td class="gl-col-num text-right px-2 py-2">{{ item.running_balance|floatformat:2 }}</td>
+              <td colspan="3" class="px-2 py-2"></td>
+            </tr>
+            {% elif item.type == 'row' %}
             <tr class="gl-data-row">
               <td class="whitespace-nowrap">{{ item.gl_date|date:"d/m/Y" }}</td>
-              <td class="hidden-print">
-                {{ item.journal_number }}
-              </td>
+              <td class="hidden-print">{{ item.journal_number }}</td>
               <td class="print-only">
                 <a href="{% url 'tenant_portal:finance_journal_detail' item.entry_id %}" class="gl-journal-link">{{ item.journal_number }}</a>
               </td>
@@ -673,22 +706,21 @@
               <td class="gl-col-wrap print-only">{{ item.account_code }}</td>
               <td class="gl-col-wrap print-only">{{ item.account_name }}</td>
               <td class="gl-col-wrap gl-col-grant" title="{{ item.grant }}">{{ item.grant }}</td>
-              <td class="gl-col-wrap hidden-print" title="{{ item.budget_line }}">{{ item.budget_line }}</td>
-              <td class="gl-col-wrap hidden-print gl-col-bl-desc" title="{{ item.budget_line_description }}">{{ item.budget_line_description }}</td>
               <td class="gl-col-wrap print-only" title="{{ item.donor }}">{{ item.donor }}</td>
-              <td class="gl-col-wrap print-only">{{ item.budget_line }}</td>
-              <td class="gl-col-wrap print-only gl-col-bl-desc">{{ item.budget_line_description }}</td>
+              <td class="gl-col-wrap print-only">{{ item.budget_code }}</td>
+              <td class="gl-col-wrap print-only" title="{{ item.budget_line }}">{{ item.budget_line }}</td>
               <td class="gl-col-desc">{{ item.memo }}</td>
               <td class="gl-col-num text-right tabular-nums gl-screen-amount">{% if item.debit %}{{ item.debit|floatformat:2 }}{% else %}—{% endif %}</td>
               <td class="gl-col-num text-right tabular-nums gl-screen-amount">{% if item.credit %}{{ item.credit|floatformat:2 }}{% else %}—{% endif %}</td>
               <td class="gl-col-num text-right tabular-nums gl-screen-balance">{{ item.running_balance|floatformat:2 }}</td>
               <td class="print-only">{{ item.currency }}</td>
+              <td class="print-only">{{ item.payee }}</td>
               <td class="print-only">{{ item.document_reference }}</td>
             </tr>
             {% endif %}
           {% endfor %}
           <tr class="gl-total-row gl-ledger-grand-total hidden-print">
-            <td colspan="7" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
+            <td colspan="5" class="text-right px-3 py-2">{% trans "Grand total" %}</td>
             <td class="gl-col-num text-right px-2 py-2">{{ grand_total_debit|floatformat:2 }}</td>
             <td class="gl-col-num text-right px-2 py-2">{{ grand_total_credit|floatformat:2 }}</td>
             <td class="gl-col-num text-right px-2 py-2 font-bold">{{ closing_balance|floatformat:2 }}</td>
@@ -698,11 +730,12 @@
             <td class="gl-col-num gl-print-gt-debit text-right px-2 py-2">{{ grand_total_debit|floatformat:2 }}</td>
             <td class="gl-col-num gl-print-gt-credit text-right px-2 py-2">{{ grand_total_credit|floatformat:2 }}</td>
             <td class="gl-col-num gl-print-gt-balance text-right px-2 py-2 font-bold">{{ closing_balance|floatformat:2 }}</td>
-            <td colspan="2"></td>
+            <td colspan="3" class="px-2 py-2"></td>
           </tr>
         {% else %}
           <tr>
-            <td colspan="14" class="px-4 py-8 text-center text-[#605e5c]">{% trans "No posted lines match the selected filters." %}</td>
+            <td colspan="8" class="hidden-print px-4 py-8 text-center text-[#605e5c]">{% trans "No posted lines match the selected filters." %}</td>
+            <td colspan="15" class="print-only px-4 py-8 text-center text-[#605e5c]">{% trans "No posted lines match the selected filters." %}</td>
           </tr>
         {% endif %}
       </tbody>

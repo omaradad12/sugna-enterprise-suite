@@ -9,52 +9,55 @@ def forwards_backfill(apps, schema_editor):
     Project = apps.get_model("tenant_grants", "Project")
     BudgetLine = apps.get_model("tenant_grants", "BudgetLine")
     ChartAccount = apps.get_model("tenant_finance", "ChartAccount")
+    db = schema_editor.connection.alias
 
     # Grant.project_id: from related budget lines, else first project
-    for g in Grant.objects.filter(project__isnull=True).iterator():
+    for g in Grant.objects.using(db).filter(project__isnull=True).iterator():
         bl = (
-            BudgetLine.objects.filter(grant_id=g.pk)
+            BudgetLine.objects.using(db)
+            .filter(grant_id=g.pk)
             .exclude(project__isnull=True)
             .order_by("pk")
             .first()
         )
         if bl and bl.project_id:
-            Grant.objects.filter(pk=g.pk).update(project_id=bl.project_id)
+            Grant.objects.using(db).filter(pk=g.pk).update(project_id=bl.project_id)
 
-    first_project = Project.objects.order_by("pk").first()
+    first_project = Project.objects.using(db).order_by("pk").first()
     if first_project:
-        Grant.objects.filter(project__isnull=True).update(project_id=first_project.pk)
+        Grant.objects.using(db).filter(project__isnull=True).update(project_id=first_project.pk)
 
-    if Grant.objects.filter(project__isnull=True).exists():
+    if Grant.objects.using(db).filter(project__isnull=True).exists():
         raise RuntimeError(
             "Cannot require Grant.project_id: at least one grant has no project and no Project "
             "row exists to assign. Create a project, link grants, then re-run migrations."
         )
 
     # BudgetLine.project_id: align with grant.project_id
-    for bl in BudgetLine.objects.filter(project__isnull=True).select_related("grant"):
+    for bl in BudgetLine.objects.using(db).filter(project__isnull=True).select_related("grant"):
         gid = getattr(bl, "grant_id", None)
         if not gid:
             continue
-        g = Grant.objects.filter(pk=gid).values_list("project_id", flat=True).first()
+        g = Grant.objects.using(db).filter(pk=gid).values_list("project_id", flat=True).first()
         if g:
-            BudgetLine.objects.filter(pk=bl.pk).update(project_id=g)
+            BudgetLine.objects.using(db).filter(pk=bl.pk).update(project_id=g)
 
-    if BudgetLine.objects.filter(project__isnull=True).exists():
+    if BudgetLine.objects.using(db).filter(project__isnull=True).exists():
         raise RuntimeError(
             "Cannot require BudgetLine.project_id: some budget lines could not be linked to a project."
         )
 
     # BudgetLine.account_id: default to first posting expense account
     exp = (
-        ChartAccount.objects.filter(type="EXPENSE", is_active=True, allow_posting=True)
+        ChartAccount.objects.using(db)
+        .filter(type="EXPENSE", is_active=True, allow_posting=True)
         .order_by("pk")
         .first()
     )
     if exp:
-        BudgetLine.objects.filter(account__isnull=True).update(account_id=exp.pk)
+        BudgetLine.objects.using(db).filter(account__isnull=True).update(account_id=exp.pk)
 
-    if BudgetLine.objects.filter(account__isnull=True).exists():
+    if BudgetLine.objects.using(db).filter(account__isnull=True).exists():
         raise RuntimeError(
             "Cannot require BudgetLine.account: add at least one active posting expense account "
             "to the chart, or map all budget lines to an expense account, then re-run migrations."
@@ -69,6 +72,9 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("tenant_grants", "0041_budgetline_project_posting_status"),
+        # ChartAccount.allow_posting is introduced in 0055; RunPython filters on it — historical
+        # state must include that field (and column must exist on the tenant DB).
+        ("tenant_finance", "0055_chartaccount_allow_posting"),
     ]
 
     operations = [

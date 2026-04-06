@@ -30,16 +30,25 @@
         {% trans "Source document" %}
       </a>
       {% endif %}
+      {% if can_access_audit_risk_portal %}
       <a href="{{ audit_trail_url }}"
          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[13px] font-semibold" style="border-color:#edebe9;">
         <i data-feather="shield" class="w-4 h-4"></i>
         {% trans "Audit trail" %}
       </a>
+      {% endif %}
       <a href="{% url 'tenant_portal:finance_journal_detail' entry.id %}?print=1" onclick="window.print();return false;"
          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[13px] font-semibold" style="border-color:#edebe9;">
         <i data-feather="printer" class="w-4 h-4"></i>
         {% trans "Print" %}
       </a>
+      {% if payment_voucher_edit_url %}
+      <a href="{{ payment_voucher_edit_url }}"
+         class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[13px] font-semibold" style="border-color:#0078D4; color:#0078D4;">
+        <i data-feather="edit-2" class="w-4 h-4"></i>
+        {% trans "Edit payment voucher" %}
+      </a>
+      {% endif %}
       {% if can_reverse_journal %}
       <form method="post" action="{% url 'tenant_portal:finance_journal_action' entry.id %}" class="flex flex-wrap items-end gap-2"
             onsubmit="if(!(this.reversal_reason.value||'').trim()){alert('{% trans "Justification is required." %}');return false;} return confirm('{% trans "Create reversing journal?" %}');">
@@ -58,6 +67,24 @@
       {% endif %}
     </div>
   </div>
+
+  {% if can_revise_posted_payment_voucher %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px] flex gap-2 items-start" style="border-color:#fde68a; background:#fffbeb;">
+    <i data-feather="alert-triangle" class="w-4 h-4 text-[#b45309] shrink-0 mt-0.5"></i>
+    <div>
+      <strong class="text-[#323130]">{% trans "Posted payment voucher" %}</strong>
+      <p class="text-[#605e5c] mt-0.5">{% trans "Authorized users can apply an in-place correction from Payments (same journal number). Changes update GL and cash/budget totals; a reason is required and all corrections are logged. Reverse below remains available if you need a visible reversing entry." %}</p>
+    </div>
+  </div>
+  {% elif posted_payment_voucher_no_direct_edit %}
+  <div class="mb-4 rounded-lg border px-4 py-3 text-[13px] flex gap-2 items-start" style="border-color:#c8e6fc; background:#f3f9fd;">
+    <i data-feather="info" class="w-4 h-4 text-[#0078d4] shrink-0 mt-0.5"></i>
+    <div>
+      <strong class="text-[#323130]">{% trans "Posted payment voucher" %}</strong>
+      <p class="text-[#605e5c] mt-0.5">{% trans "You cannot edit this posted voucher. To correct the accounting impact, use Reverse below (if permitted), or ask a Finance Manager." %}</p>
+    </div>
+  </div>
+  {% endif %}
 
   {% if is_system_generated %}
   <div class="mb-4 rounded-lg border px-4 py-3 text-[13px] flex gap-2 items-start" style="border-color:#e1dfdd; background:#faf9f8;">
@@ -165,6 +192,48 @@
     {% endif %}
   </div>
 
+  {% if journal_revision_rows %}
+  <div class="mb-6 rounded-xl border bg-white shadow-sm overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-5 py-3 border-b font-semibold text-[#323130]" style="border-color:#edebe9; background:#faf9f8;">
+      {% trans "Change history" %}
+      <span class="text-[12px] font-normal text-[#605e5c] ml-2">{% trans "edited_by / edited_date / change_log" %}</span>
+    </div>
+    <div class="divide-y" style="border-color:#edebe9;">
+      {% for row in journal_revision_rows %}
+      <div class="px-5 py-4 text-[13px]">
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-[#323130]">
+          <span class="font-semibold">{{ row.edited_by }}</span>
+          <span class="text-[#605e5c] font-mono text-[12px]">{{ row.edited_date|date:"Y-m-d H:i" }}</span>
+          <span class="text-[11px] uppercase text-[#605e5c]">{{ row.action }}</span>
+        </div>
+        {% if row.summary %}
+        <p class="text-[#605e5c] mt-1">{{ row.summary }}</p>
+        {% endif %}
+        {% if row.change_log_before or row.change_log_after %}
+        <details class="mt-2">
+          <summary class="cursor-pointer text-[12px] font-semibold text-[#0078d4]">{% trans "View change log (before / after)" %}</summary>
+          <div class="grid md:grid-cols-2 gap-3 mt-2">
+            {% if row.change_log_before %}
+            <div>
+              <p class="text-[11px] font-semibold text-[#605e5c] mb-1">{% trans "Before" %}</p>
+              <pre class="text-[11px] leading-snug p-3 rounded border overflow-x-auto max-h-64" style="border-color:#edebe9; background:#faf9f8;">{{ row.change_log_before }}</pre>
+            </div>
+            {% endif %}
+            {% if row.change_log_after %}
+            <div>
+              <p class="text-[11px] font-semibold text-[#605e5c] mb-1">{% trans "After" %}</p>
+              <pre class="text-[11px] leading-snug p-3 rounded border overflow-x-auto max-h-64" style="border-color:#edebe9; background:#faf9f8;">{{ row.change_log_after }}</pre>
+            </div>
+            {% endif %}
+          </div>
+        </details>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="bg-white border rounded-xl overflow-hidden shadow-sm" style="border-color:#edebe9;">
     <div class="px-5 py-3 border-b font-semibold text-[#323130] flex justify-between items-center" style="border-color:#edebe9; background:#faf9f8;">
       <span>{% trans "Journal lines" %}</span>
@@ -188,7 +257,7 @@
         <tbody>
           {% for line in lines %}
           <tr class="border-b" style="border-color:#edebe9;">
-            <td class="px-4 py-3 font-mono text-[#323130]">{{ line.account.code }} — {{ line.account.name }}</td>
+            <td class="px-4 py-3 font-mono text-[#323130]">{% if line.account %}{{ line.account.code }} — {{ line.account.name }}{% else %}—{% endif %}</td>
             {% if journal_schema_0040 %}
             <td class="px-4 py-3 text-[#605e5c] text-xs whitespace-nowrap">
               {% if line.grant %}<span class="font-mono">{{ line.grant.code }}</span>{% else %}—{% endif %}

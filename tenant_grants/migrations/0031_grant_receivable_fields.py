@@ -8,8 +8,9 @@ def forwards_copy_award_to_ceiling(apps, schema_editor):
     from django.db import DatabaseError
 
     Grant = apps.get_model("tenant_grants", "Grant")
+    db = schema_editor.connection.alias
     try:
-        Grant.objects.all().update(
+        Grant.objects.using(db).all().update(
             grant_ceiling=F("award_amount"),
             eligible_receivable_amount=F("award_amount"),
         )

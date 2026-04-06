@@ -1,0 +1,83 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Announcements{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto animate-fade-in">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading">Announcements</h1>
+      <p class="text-slate-500 mt-1 text-sm">Broadcast messages to tenants (control plane)</p>
+    </div>
+    <a href="{% url 'platform_dashboard:announcement_create' %}" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">
+      <i data-feather="plus" class="w-4 h-4"></i> New announcement
+    </a>
+  </div>
+
+  <div class="dynamics-card overflow-hidden">
+    {% if rows %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left data-table">
+        <thead class="border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
+          <tr>
+            <th class="px-6 py-4">Title</th>
+            <th class="px-6 py-4">Type</th>
+            <th class="px-6 py-4">Priority</th>
+            <th class="px-6 py-4">Start</th>
+            <th class="px-6 py-4">End</th>
+            <th class="px-6 py-4">Status</th>
+            <th class="px-6 py-4 text-right w-64">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in rows %}
+          {% with a=row.obj %}
+          <tr class="group">
+            <td class="px-6 py-4 font-semibold text-slate-900">{{ a.title }}</td>
+            <td class="px-6 py-4 text-slate-700">{{ a.get_category_display }}</td>
+            <td class="px-6 py-4">{{ a.get_priority_display }}</td>
+            <td class="px-6 py-4 text-slate-600 whitespace-nowrap">{{ a.start_at|date:"Y-m-d H:i" }}</td>
+            <td class="px-6 py-4 text-slate-600 whitespace-nowrap">{% if a.end_at %}{{ a.end_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium
+                {% if row.display_status == 'Draft' %}bg-slate-100 text-slate-700
+                {% elif row.display_status == 'Scheduled' %}bg-amber-50 text-amber-800
+                {% elif row.display_status == 'Expired' %}bg-slate-100 text-slate-500
+                {% else %}bg-emerald-50 text-emerald-800{% endif %}">
+                {{ row.display_status }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex flex-wrap justify-end gap-2">
+                <a href="{% url 'platform_dashboard:announcement_edit' a.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded border text-xs font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Edit</a>
+                {% if a.status != 'published' %}
+                <form method="post" action="{% url 'platform_dashboard:announcement_publish' a.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white bg-primary-500 hover:bg-primary-600">Publish</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'platform_dashboard:announcement_unpublish' a.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded border text-xs font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Unpublish</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{% url 'platform_dashboard:announcement_delete' a.pk %}" class="inline" onsubmit="return confirm('Delete this announcement?');">
+                  {% csrf_token %}
+                  <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-red-700 hover:bg-red-50 border border-red-200">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-8 py-16 text-center text-slate-500 text-sm">
+      No announcements yet. Create one to notify tenants.
+    </div>
+    {% endif %}
+  </div>
+</div>
+<script>if (typeof feather !== 'undefined') feather.replace({ 'stroke-width': 1.6 });</script>
+{% endblock %}

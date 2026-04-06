@@ -1,0 +1,69 @@
+{% load i18n %}
+<section class="pv-draft-excel__panel" aria-labelledby="pv-draft-excel-panel-title">
+  <div class="pv-draft-excel__panel-body">
+    <div class="pv-draft-excel__panel-head">
+      <div>
+        <p class="pv-draft-excel__panel-eyebrow">{% trans "Import" %}</p>
+        <h2 id="pv-draft-excel-panel-title" class="pv-draft-excel__panel-title">{% trans "Draft entry — import Excel" %}</h2>
+      </div>
+      <p class="pv-draft-excel__panel-hint">{% trans "Each row becomes one draft voucher; nothing posts until you run the normal workflow." %}</p>
+    </div>
+
+    <div class="pv-draft-excel__tiles" role="list" aria-label="{% trans 'Import guide' %}">
+      <div class="pv-draft-excel__tile pv-draft-excel__tile--req" role="listitem">
+        <div class="pv-draft-excel__tile-head">
+          <span class="pv-draft-excel__tile-icon pv-draft-excel__tile-icon--req" aria-hidden="true">
+            <i data-feather="check-circle" stroke-width="1.75"></i>
+          </span>
+          <p class="pv-draft-excel__tile-kicker">{% trans "Required" %}</p>
+        </div>
+        <p class="pv-draft-excel__tile-body">{% blocktrans trimmed %}Use the same column titles as the Payment Entry form. For each non-empty row, Payment date and Amount are required. Amount must be a plain number only (e.g. 1000, 1000.00, 250.50) — no currency text. Rows with blank or invalid amounts are skipped and listed after import.{% endblocktrans %}</p>
+      </div>
+      <div class="pv-draft-excel__tile pv-draft-excel__tile--opt" role="listitem">
+        <div class="pv-draft-excel__tile-head">
+          <span class="pv-draft-excel__tile-icon pv-draft-excel__tile-icon--opt" aria-hidden="true">
+            <i data-feather="layers" stroke-width="1.75"></i>
+          </span>
+          <p class="pv-draft-excel__tile-kicker">{% trans "Optional" %}</p>
+        </div>
+        <p class="pv-draft-excel__tile-body">{% blocktrans trimmed %}Download the template for the exact column order. Fields other than Payment date and Amount may be left empty for draft shells. Supporting attachment is not imported from Excel—attach documents in the payment screen.{% endblocktrans %}</p>
+      </div>
+      <div class="pv-draft-excel__tile pv-draft-excel__tile--val" role="listitem">
+        <div class="pv-draft-excel__tile-head">
+          <span class="pv-draft-excel__tile-icon pv-draft-excel__tile-icon--val" aria-hidden="true">
+            <i data-feather="shield" stroke-width="1.75"></i>
+          </span>
+          <p class="pv-draft-excel__tile-kicker">{% trans "Validation & ledger" %}</p>
+        </div>
+        <p class="pv-draft-excel__tile-body">{% blocktrans trimmed %}Duplicate rows and rows matching posted payments (same type, date, amount, payee, reference, project) are rejected. GL, bank, and budget change only after posting in an open period.{% endblocktrans %}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pv-draft-excel__actions">
+    <div class="pv-draft-excel__actions-row">
+      <a href="{% url 'tenant_portal:pay_pv_draft_excel_template' %}" class="sns-btn sns-btn--secondary shrink-0">
+        <i data-feather="download" class="h-4 w-4" stroke-width="2"></i>
+        {% trans "Download template" %}
+      </a>
+      <form method="post" enctype="multipart/form-data" action="{% url 'tenant_portal:pay_pv_draft_excel_import' %}" class="pv-draft-excel__form">
+        {% csrf_token %}
+        <div class="pv-draft-excel__file-field">
+          <label for="pv-draft-excel-file" class="pv-draft-excel__file-label">{% trans "Excel file (.xlsx)" %}</label>
+          <input
+            id="pv-draft-excel-file"
+            type="file"
+            name="draft_excel_file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            required
+            class="pv-draft-excel__file-input"
+          />
+        </div>
+        <button type="submit" class="sns-btn sns-btn--primary shrink-0">
+          <i data-feather="upload-cloud" class="h-4 w-4" stroke-width="2"></i>
+          {% trans "Import drafts" %}
+        </button>
+      </form>
+    </div>
+  </div>
+</section>

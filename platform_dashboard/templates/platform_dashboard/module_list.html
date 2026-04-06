@@ -14,39 +14,111 @@
   </div>
 
   <div class="dynamics-card overflow-hidden">
+    <div class="px-6 py-5 border-b border-slate-200 bg-white">
+      <form method="get" class="flex flex-col lg:flex-row lg:items-end gap-4">
+        <div class="flex-1">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Search</label>
+          <input name="q" value="{{ filters.q }}" placeholder="Search code, name, description…"
+                 class="w-full px-3 py-2 rounded-lg border bg-white text-sm"
+                 style="border-color:#edebe9;" />
+        </div>
+        <div class="w-full lg:w-56">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Category</label>
+          <select name="category" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="">All categories</option>
+            {% for c in categories %}
+              <option value="{{ c }}" {% if filters.category == c %}selected{% endif %}>{{ c|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="w-full lg:w-48">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Status</label>
+          <select name="status" class="w-full px-3 py-2 rounded-lg border bg-white text-sm" style="border-color:#edebe9;">
+            <option value="all" {% if filters.status == "all" %}selected{% endif %}>All</option>
+            <option value="active" {% if filters.status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if filters.status == "inactive" %}selected{% endif %}>Inactive</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm hover:shadow" style="background:#0078D4;">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            Apply
+          </button>
+          <a href="{% url 'platform_dashboard:module_list' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">
+            <i data-feather="x" class="w-4 h-4"></i>
+            Clear
+          </a>
+        </div>
+      </form>
+    </div>
+
     {% if modules %}
     <div class="overflow-x-auto">
       <table class="w-full text-sm text-left data-table">
         <thead class="border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
           <tr>
-            <th class="px-6 py-4">Code</th>
-            <th class="px-6 py-4">Name</th>
+            <th class="px-6 py-4">Module</th>
+            <th class="px-6 py-4">Category</th>
+            <th class="px-6 py-4">Description</th>
             <th class="px-6 py-4">Status</th>
             <th class="px-6 py-4 text-right">Tenants</th>
-            <th class="px-6 py-4 text-right w-48">Actions</th>
+            <th class="px-6 py-4 text-right w-56">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           {% for m in modules %}
           <tr class="group">
             <td class="px-6 py-4">
-              <span class="font-mono font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg text-xs">{{ m.code }}</span>
+              <div class="flex items-center gap-3 min-w-[240px]">
+                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg border bg-white" style="border-color:#edebe9;">
+                  <i data-feather="{{ m.icon }}" class="w-4 h-4" style="color:#0078D4;"></i>
+                </span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-slate-900 truncate">{{ m.name }}</div>
+                  <div class="mt-0.5">
+                    <span class="font-mono font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg text-xs">{{ m.code }}</span>
+                  </div>
+                </div>
+              </div>
             </td>
-            <td class="px-6 py-4 font-semibold text-slate-900">{{ m.name }}</td>
             <td class="px-6 py-4">
-              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium {% if m.is_active %}bg-success-50 text-success-700 border border-success-200/60{% else %}bg-slate-100 text-slate-600 border border-slate-200/60{% endif %}">
-                <span class="w-2 h-2 rounded-full {% if m.is_active %}bg-success-500{% else %}bg-slate-400{% endif %}"></span>
+              {% if m.category %}
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-50 text-slate-700" style="border-color:#edebe9;">
+                  {{ m.category|title }}
+                </span>
+              {% else %}
+                <span class="text-slate-400 text-sm">—</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4 text-slate-600">
+              {% if m.description %}
+                <span class="line-clamp-2">{{ m.description }}</span>
+              {% else %}
+                <span class="text-slate-400">—</span>
+              {% endif %}
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border {% if m.is_active %}bg-success-50 text-success-800 border-success-200/60{% else %}bg-rose-50 text-rose-800 border-rose-200/60{% endif %}">
+                <span class="w-2 h-2 rounded-full {% if m.is_active %}bg-success-600{% else %}bg-rose-600{% endif %}"></span>
                 {{ m.is_active|yesno:"Active,Inactive" }}
               </span>
             </td>
             <td class="px-6 py-4 text-right text-slate-600 tabular-nums font-medium">{{ m.tenant_count }}</td>
-            <td class="px-6 py-4 text-right space-x-2">
-              <a href="/admin/tenants/module/{{ m.id }}/change/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-primary-600 hover:bg-primary-50 hover:text-primary-700 font-medium text-xs transition-colors">
-                <i data-feather="edit-2" class="w-3.5 h-3.5"></i> Edit
-              </a>
-              <a href="{% url 'platform_dashboard:module_workplace_preview' %}?module={{ m.code }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-700 hover:bg-slate-100 font-medium text-xs transition-colors">
-                <i data-feather="monitor" class="w-3.5 h-3.5"></i> Workplace
-              </a>
+            <td class="px-6 py-4 text-right">
+              <div class="inline-flex items-center gap-2">
+                <a href="{% url 'platform_dashboard:module_workplace_go' %}?module={{ m.code }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-xs font-semibold shadow-sm hover:shadow transition"
+                   style="background:#0078D4;">
+                  <i data-feather="monitor" class="w-3.5 h-3.5"></i>
+                  Workplace
+                </a>
+                <a href="/admin/tenants/module/{{ m.id }}/change/"
+                   class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                   style="border-color:#edebe9;">
+                  <i data-feather="edit-2" class="w-3.5 h-3.5"></i>
+                  Edit
+                </a>
+              </div>
             </td>
           </tr>
           {% endfor %}

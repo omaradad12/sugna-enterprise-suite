@@ -1,0 +1,35 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Import payment drafts (Excel)" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="sns-transaction-workspace pv-draft-excel sns-ds-root -mx-4 px-4 py-6 sm:mx-0 sm:px-6 sm:py-8">
+  <div class="pv-draft-excel__inner mx-auto pb-8">
+    <nav class="pv-draft-excel__breadcrumb" aria-label="{% trans 'Breadcrumb' %}">
+      <a href="{% url 'tenant_portal:finance_post_transaction' %}">{% trans "Post transaction" %}</a>
+      <span class="pv-draft-excel__breadcrumb-sep" aria-hidden="true">/</span>
+      <a href="{% url 'tenant_portal:finance_draft_entry_hub' %}">{% trans "Draft entry" %}</a>
+      <span class="pv-draft-excel__breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="pv-draft-excel__breadcrumb-current">{% trans "Import payment drafts (Excel)" %}</span>
+    </nav>
+
+    <header class="pv-draft-excel__hero">
+      <h1 class="pv-draft-excel__title">{% trans "Import payment drafts (Excel)" %}</h1>
+      <p class="pv-draft-excel__lede">{% trans "Create multiple draft payment vouchers from one spreadsheet, then complete and post them from Payments." %}</p>
+    </header>
+
+    {% include "tenant_portal/pay/_payment_voucher_draft_excel_panel.html" %}
+
+    <p class="pv-draft-excel__footer">
+      <a href="{% url 'tenant_portal:finance_draft_entry_hub' %}">{% trans "Draft entry hub" %}</a>
+      <span class="pv-draft-excel__footer-sep" aria-hidden="true">·</span>
+      <a href="{% url 'tenant_portal:pay_payment_vouchers' %}">{% trans "Payments form" %}</a>
+    </p>
+  </div>
+</div>
+<script>
+  if (window.feather) {
+    feather.replace();
+  }
+</script>
+{% endblock %}

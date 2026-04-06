@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from . import views
 from . import views_adjusting as vaj
@@ -7,6 +7,7 @@ from . import views_customer_portal as vcp
 from . import views_users as vu
 from . import views_roles as vr
 from . import views_documents as vdm
+from . import draft_excel_import_views as dxi
 
 app_name = "tenant_portal"
 
@@ -32,6 +33,8 @@ urlpatterns = [
     path("portal/", vcp.customer_portal_hub_view, name="customer_portal_hub"),
     path("portal/<slug:section>/", vcp.customer_portal_section_view, name="customer_portal_section"),
     path("portal/<slug:section>/<slug:page>/", vcp.customer_portal_page_view, name="customer_portal_page"),
+    # Hospital Management (URL names remain tenant_portal:hospital_*)
+    path("hospital/", include("tenant_hospital.urls")),
     # Finance
     path("finance/", views.finance_home_view, name="finance_home"),
     path("finance/core-accounting/", views.core_accounting_center_view, name="finance_core_accounting_center"),
@@ -39,6 +42,16 @@ urlpatterns = [
     path("finance/accounts/<int:pk>/edit/", views.finance_account_edit_view, name="finance_account_edit"),
     path("finance/account-categories/", views.finance_account_categories_view, name="finance_account_categories"),
     path("finance/journals/", views.finance_journals_view, name="finance_journals"),
+    path(
+        "finance/journals/import-draft-excel/",
+        dxi.finance_journal_draft_excel_import_view,
+        name="finance_journal_draft_excel_import",
+    ),
+    path(
+        "finance/journals/import-draft-excel/template.xlsx",
+        dxi.finance_journal_draft_excel_template_view,
+        name="finance_journal_draft_excel_template",
+    ),
     path("finance/journals/create/", views.finance_journal_create_view, name="finance_journal_create"),
     path("finance/journals/<int:entry_id>/", views.finance_journal_detail_view, name="finance_journal_detail"),
     path("finance/journals/<int:entry_id>/action/", views.finance_journal_action_view, name="finance_journal_action"),
@@ -195,6 +208,12 @@ urlpatterns = [
     path("finance/recent-transactions/", views.finance_recent_transactions_view, name="finance_recent_transactions"),
     path("finance/financial-alerts/", views.finance_financial_alerts_view, name="finance_financial_alerts"),
     path("finance/post-transaction/", views.finance_post_transaction_view, name="finance_post_transaction"),
+    path("finance/draft-entry/", views.finance_draft_entry_hub_view, name="finance_draft_entry_hub"),
+    path(
+        "finance/draft-entry/bulk-submit/",
+        views.finance_draft_entry_hub_bulk_submit_view,
+        name="finance_draft_entry_hub_bulk_submit",
+    ),
     path("reporting/", views.reporting_center_view, name="reporting_center"),
     # Document Management (central repository)
     path("documents/", vdm.documents_dashboard_view, name="documents_dashboard"),
@@ -329,6 +348,16 @@ urlpatterns = [
     # Receivables (incoming_fund URLs)
     path("recv/receipt-vouchers/", views.recv_receipt_vouchers_view, name="recv_receipt_vouchers"),
     path("recv/receipt-entry/", views.recv_receipt_entry_view, name="recv_receipt_entry"),
+    path(
+        "recv/receipt-entry/import-draft-excel/",
+        dxi.recv_receipt_draft_excel_import_view,
+        name="recv_receipt_draft_excel_import",
+    ),
+    path(
+        "recv/receipt-entry/import-draft-excel/template.xlsx",
+        dxi.recv_receipt_draft_excel_template_view,
+        name="recv_receipt_draft_excel_template",
+    ),
     path("recv/donor-receipts/", views.recv_donor_receipts_view, name="recv_donor_receipts"),
     path("recv/bank-cash-receipts/", views.recv_bank_cash_receipts_view, name="recv_bank_cash_receipts"),
     path("recv/income-register/", views.recv_income_register_view, name="recv_income_register"),
@@ -351,9 +380,25 @@ urlpatterns = [
         views.pay_pv_budget_lines_for_grant_json,
         name="pay_pv_budget_lines_json",
     ),
+    path(
+        "pay/payment-vouchers/import-draft-excel/",
+        dxi.pay_payment_voucher_draft_excel_import_view,
+        name="pay_pv_draft_excel_import",
+    ),
+    path(
+        "pay/payment-vouchers/import-draft-excel/template.xlsx",
+        dxi.pay_payment_voucher_draft_excel_template_view,
+        name="pay_pv_draft_excel_template",
+    ),
     path("pay/payment-vouchers/<int:entry_id>/", views.pay_payment_voucher_detail_view, name="pay_payment_voucher_detail"),
     path("pay/payment-vouchers/<int:entry_id>/approve/", views.pay_payment_voucher_approve_view, name="pay_payment_voucher_approve"),
+    path(
+        "pay/payment-vouchers/pending-approval-queue/",
+        views.pay_pending_approval_queue_view,
+        name="pay_pending_approval_queue",
+    ),
     path("pay/payment-vouchers/approvals/bulk/", views.pay_payment_voucher_bulk_approval_view, name="pay_payment_voucher_bulk_approval"),
+    path("pay/payment-vouchers/post-approved/bulk/", views.pay_payment_voucher_bulk_post_view, name="pay_payment_voucher_bulk_post"),
     path("pay/vendor-payments/", views.pay_vendor_payments_view, name="pay_vendor_payments"),
     path("pay/non-vendor-payments/", views.pay_non_vendor_payments_view, name="pay_non_vendor_payments"),
     path("pay/disbursement-form/", views.pay_disbursement_list_view, name="pay_disbursement_list"),

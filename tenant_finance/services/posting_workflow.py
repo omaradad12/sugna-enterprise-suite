@@ -197,6 +197,7 @@ def post_transaction_to_journal(
             entry_date=entry_date,
             memo=(description or "").strip(),
             grant=grant,
+            project=project,
             cost_center=cost_center or (mapping.cost_center if mapping else None),
             currency=currency,
             status=JournalEntry.Status.DRAFT,  # create draft first; POSTED transition enforces controls

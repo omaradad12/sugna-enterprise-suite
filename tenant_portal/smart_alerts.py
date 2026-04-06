@@ -40,20 +40,29 @@ PETTY_CASH_THRESHOLD = Decimal("500")
 BUDGET_NEARING_PCT = Decimal("80")
 
 
-def get_smart_alerts(tenant_db: str) -> list[dict]:
+def get_smart_alerts(tenant_db: str, *, tenant=None) -> list[dict]:
     """
     Return a list of alert dicts, each with:
     - category, priority, title, message, link_url, link_label (optional)
+
+    When ``tenant`` is provided, Audit & Risk alerts are omitted unless the tenant
+    has an enabled ``audit_risk`` module subscription.
     """
     alerts = []
     today = timezone.now().date()
+    include_audit_risk = True
+    if tenant is not None:
+        from tenants.services.tenant_modules import tenant_enabled_module_codes
+
+        include_audit_risk = "audit_risk" in tenant_enabled_module_codes(tenant)
 
     try:
         _cash_bank_alerts(tenant_db, today, alerts)
         _budget_alerts(tenant_db, alerts)
         _payables_alerts(tenant_db, today, alerts)
         _receivables_alerts(tenant_db, today, alerts)
-        _audit_risk_alerts(tenant_db, alerts)
+        if include_audit_risk:
+            _audit_risk_alerts(tenant_db, alerts)
         _project_end_alerts(tenant_db, today, alerts)
     except Exception:
         # Avoid breaking layout if any query fails (e.g. missing app/migration)
@@ -319,7 +328,7 @@ def _payables_alerts(tenant_db: str, today, alerts: list):
             PRIORITY_WARNING,
             "Payments pending approval",
             f"{pending_payment_vouchers} payment(s) awaiting approval.",
-            reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
+            reverse("tenant_portal:pay_pending_approval_queue"),
             "Approve payments",
         )
     pending_approvals = GrantApproval.objects.using(tenant_db).filter(status=GrantApproval.Status.PENDING).count()

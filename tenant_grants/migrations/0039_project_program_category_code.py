@@ -6,8 +6,9 @@ from django.db import migrations, models
 def forwards_move_dimension_codes_from_funding_type(apps, schema_editor):
     """Older forms stored program dimension codes in funding_type; move to program_category_code."""
     Project = apps.get_model("tenant_grants", "Project")
+    db = schema_editor.connection.alias
     ft_allowed = {"project", "core", "emergency", "institutional", "other"}
-    for p in Project.objects.all().only("id", "funding_type", "program_category_code"):
+    for p in Project.objects.using(db).all().only("id", "funding_type", "program_category_code"):
         ft = (p.funding_type or "").strip()
         if not ft or ft in ft_allowed:
             continue

@@ -123,6 +123,8 @@ INSTALLED_APPS = [
     # Platform apps
     'tenants',
     'platform_dashboard',
+    'platform_announcements',
+    'platform_email_templates',
     'website',
     'help_center',
 
@@ -135,6 +137,7 @@ INSTALLED_APPS = [
     'tenant_grants',
     'tenant_integrations',
     'tenant_audit_risk',
+    'tenant_hospital',
 
     # Domain apps (ai_auditor not yet implemented)
     "diagnostics",
@@ -168,9 +171,9 @@ JAZZMIN_UI_TWEAKS = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    # Resolve tenant by Host header (domain/subdomain)
+    # Must run before CommonMiddleware so /t/<tenant_slug>/… is rewritten to /t/… before URL resolve.
     'sugna_core.middleware.TenantResolutionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # Tenant-scoped RBAC context (permission cache)
@@ -197,8 +200,12 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'tenant_portal.context_processors.org_settings',
+                'tenant_portal.tenant_theme.tenant_theme',
+                'tenant_portal.context_processors.tenant_entitlements',
+                'tenant_portal.context_processors.hospital_workspace',
                 'tenant_portal.context_processors.smart_alerts',
                 'tenant_portal.context_processors.erp_alerting',
+                'tenant_portal.context_processors.platform_announcements',
             ],
         },
     },
@@ -232,7 +239,7 @@ if os.environ.get("DB_EXTRA_TENANTS", _db_extra_tenants_default).lower() in ("tr
 TENANT_APP_LABELS = (
     os.environ.get("TENANT_APP_LABELS", "").split(",")
     if os.environ.get("TENANT_APP_LABELS")
-    else ["tenant_users", "rbac", "tenant_finance", "tenant_documents", "tenant_grants", "tenant_integrations", "tenant_audit_risk"]
+    else ["tenant_users", "rbac", "tenant_finance", "tenant_documents", "tenant_grants", "tenant_integrations", "tenant_audit_risk", "tenant_hospital"]
 )
 DATABASE_ROUTERS = ["sugna_core.db_router.TenantDatabaseRouter"]
 

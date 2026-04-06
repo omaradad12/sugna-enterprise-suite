@@ -3,22 +3,24 @@
 {% block title %}{% trans "Bulk payment approval" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto pb-10">
-  <div class="mb-6 rounded-xl border border-[#e5e7eb] bg-gradient-to-br from-white via-[#f8fafc] to-[#eff6ff] px-5 py-5 shadow-sm">
-    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-      <div class="min-w-0">
-        <div class="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#0078d4]">
-          <span class="inline-block h-1 w-6 rounded-full bg-[#0078d4]"></span>
-          {% trans "Payables" %} · {% trans "Approval queue" %}
-        </div>
-        <h1 class="mt-2 text-2xl font-semibold text-[#0f172a] tracking-tight">{% trans "Bulk payment approval" %}</h1>
-        <p class="mt-2 text-[13px] text-[#64748b] max-w-2xl leading-relaxed">
-          {% trans "Open a voucher to review payee, accounts, and amount before you approve. Bulk actions apply to selected rows." %}
+<div class="sns-transaction-workspace">
+  <div class="sns-page-hero mb-4 hidden-print">
+    <p class="sns-page-hero__eyebrow">{% trans "Payables" %} · {% trans "Approval queue" %}</p>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="sns-page-hero__title">{% trans "Bulk payment approval" %}</h1>
+        <p class="sns-page-hero__desc">
+          {% trans "Approve to move vouchers to Approved (no GL impact yet). Post to the general ledger separately when lines, period, and bank balance are valid." %}
         </p>
       </div>
-      <div class="flex flex-wrap items-center gap-2 shrink-0">
-        <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
-           class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#e2e8f0] bg-white text-[13px] font-semibold text-[#334155] hover:bg-[#f8fafc] shadow-sm">
+      <div class="flex flex-wrap gap-2 shrink-0">
+        <a href="{% url 'tenant_portal:finance_draft_entry_hub' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          {% trans "Draft entry" %}
+        </a>
+        <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_post' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          {% trans "Post approved" %}
+        </a>
+        <a href="{% url 'tenant_portal:pay_payment_vouchers' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
           <i data-feather="arrow-left" class="w-4 h-4"></i>
           {% trans "Payments" %}
         </a>
@@ -26,48 +28,131 @@
     </div>
   </div>
 
-  <form method="post" class="space-y-6">
+  {% include "tenant_portal/includes/sns_workflow_strip.html" with active="approval" %}
+
+  <div class="sns-erp-filter-panel hidden-print mb-4">
+    <div class="sns-erp-filter-panel__head">{% trans "Filters & search" %}</div>
+    <div class="sns-erp-filter-panel__body">
+      <form method="get" action="" class="sns-erp-filter-grid">
+        <div>
+          <label class="sns-filter-label">{% trans "From" %}</label>
+          <input type="date" name="period_start" value="{{ pv_filter_period_start }}" />
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "To" %}</label>
+          <input type="date" name="period_end" value="{{ pv_filter_period_end }}" />
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Accounting period" %}</label>
+          <select name="accounting_period_id">
+            <option value="">{% trans "All (use date range)" %}</option>
+            {% for p in pv_accounting_periods %}
+            <option value="{{ p.pk }}" {% if pv_filter_accounting_period_id == p.pk|stringformat:'s' %}selected{% endif %}>
+              {{ p.period_name|default:p.name }} ({{ p.start_date }} – {{ p.end_date }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Transaction type" %}</label>
+          <input type="text" value="{% trans 'Payment voucher' %}" readonly class="bg-[#f3f2f1] text-[#605e5c]" style="cursor:default;" />
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Status" %}</label>
+          <input type="text" value="{% trans 'Pending approval' %}" readonly class="bg-[#f3f2f1] text-[#605e5c]" style="cursor:default;" />
+        </div>
+        {% if pv_projects %}
+        <div>
+          <label class="sns-filter-label">{% trans "Project" %}</label>
+          <select name="project_id">
+            <option value="">{% trans "All" %}</option>
+            {% for p in pv_projects %}
+            <option value="{{ p.pk }}" {% if pv_filter_project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:4 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% if pv_grants %}
+        <div>
+          <label class="sns-filter-label">{% trans "Grant" %}</label>
+          <select name="grant_id">
+            <option value="">{% trans "All" %}</option>
+            {% for g in pv_grants %}
+            <option value="{{ g.pk }}" {% if pv_filter_grant_id == g.pk|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:3 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% if pv_donors %}
+        <div>
+          <label class="sns-filter-label">{% trans "Donor" %}</label>
+          <select name="donor_id">
+            <option value="">{% trans "All" %}</option>
+            {% for d in pv_donors %}
+            <option value="{{ d.pk }}" {% if pv_filter_donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="md:col-span-2">
+          <label class="sns-filter-label">{% trans "Search" %}</label>
+          <input type="search" name="q" value="{{ pv_filter_q }}" placeholder="{% trans 'Voucher, payee, memo…' %}" />
+        </div>
+        <div class="md:col-span-2 flex flex-wrap gap-2">
+          <button type="submit" class="sns-btn sns-btn--primary inline-flex items-center gap-2">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            {% trans "Apply" %}
+          </button>
+          <a href="." class="sns-btn sns-btn--secondary inline-flex items-center gap-2">{% trans "Clear" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <form method="post" class="space-y-4">
     {% csrf_token %}
 
-    <div class="rounded-xl border border-[#e5e7eb] bg-white shadow-sm overflow-hidden">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-[#eef2f7] bg-[#fafbfc]">
-        <h2 class="text-[15px] font-semibold text-[#0f172a]">{% trans "Pending payments" %}</h2>
-        <span class="text-[12px] text-[#64748b]">
-          {% blocktrans count counter=pending_vouchers|length %}{{ counter }} voucher pending{% plural %}{{ counter }} vouchers pending{% endblocktrans %}
+    <div class="sns-ledger-shell">
+      <div class="sns-ledger-shell__head hidden-print">
+        <span>{% trans "Pending payments" %}</span>
+        <span class="text-[12px] font-normal" style="color: var(--sns-fabric-gray-90, #605e5c);">
+          {% blocktrans count counter=pending_vouchers|length %}{{ counter }} voucher{% plural %}{{ counter }} vouchers{% endblocktrans %}
         </span>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-[13px] border-collapse min-w-[56rem]">
+        <table class="sns-ledger-table min-w-[56rem] w-full">
           <thead>
-            <tr class="text-left text-[11px] font-semibold uppercase tracking-wide text-[#64748b] bg-[#f8fafc] border-b border-[#eef2f7]">
-              <th class="pl-4 pr-2 py-3 w-10">
+            <tr>
+              <th class="w-10">
                 <input type="checkbox"
-                       class="rounded border-[#cbd5e1] text-[#0078d4] focus:ring-[#0078d4]"
+                       class="rounded"
+                       style="border-color:#cbd5e1;"
                        onclick="document.querySelectorAll('.pv-select').forEach(cb => { cb.checked = this.checked; });"
                        aria-label="{% trans 'Select all' %}" />
               </th>
-              <th class="px-2 py-3">{% trans "Voucher" %}</th>
-              <th class="px-2 py-3 whitespace-nowrap">{% trans "Date" %}</th>
-              <th class="px-2 py-3 min-w-[8rem]">{% trans "Payee" %}</th>
-              <th class="px-2 py-3 min-w-[12rem]">{% trans "Project / grant" %}</th>
-              <th class="px-2 py-3 text-right">{% trans "Amount" %}</th>
-              <th class="px-2 py-3 min-w-[7rem]">{% trans "Created by" %}</th>
-              <th class="px-2 py-3">{% trans "Status" %}</th>
-              <th class="px-2 py-3">{% trans "Budget" %}</th>
-              <th class="pr-4 pl-2 py-3 text-right">{% trans "Review" %}</th>
+              <th>{% trans "Voucher" %}</th>
+              <th>{% trans "Date" %}</th>
+              <th>{% trans "Payee" %}</th>
+              <th>{% trans "Grant" %}</th>
+              <th class="text-right">{% trans "Amount" %}</th>
+              <th>{% trans "Created by" %}</th>
+              <th>{% trans "Status" %}</th>
+              <th>{% trans "Budget" %}</th>
+              <th class="text-right">{% trans "Review" %}</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-[#f1f5f9]">
+          <tbody>
             {% for entry in pending_vouchers %}
-            <tr class="hover:bg-[#fafbfc] transition-colors">
-              <td class="pl-4 pr-2 py-3 align-top">
+            <tr>
+              <td class="sns-ledger-table__text">
                 <input type="checkbox"
-                       class="pv-select rounded border-[#cbd5e1] text-[#0078d4] focus:ring-[#0078d4]"
+                       class="pv-select rounded"
+                       style="border-color:#cbd5e1;"
                        name="entry_ids"
                        value="{{ entry.id }}" />
               </td>
-              <td class="px-2 py-3 align-top">
-                <span class="font-mono text-[13px] font-semibold text-[#0f172a]">
+              <td class="sns-ledger-table__text">
+                <span class="font-mono font-semibold">
                   {% if entry.reference %}
                     {{ entry.reference }}
                   {% elif entry.source_document_no %}
@@ -77,60 +162,54 @@
                   {% endif %}
                 </span>
                 {% if entry.memo %}
-                <p class="mt-1 text-[11px] text-[#64748b] line-clamp-2 max-w-[14rem]" title="{{ entry.memo|escape }}">{{ entry.memo }}</p>
+                <p class="mt-0.5 truncate max-w-[14rem] opacity-90" title="{{ entry.memo|escape }}">{{ entry.memo }}</p>
                 {% endif %}
               </td>
-              <td class="px-2 py-3 align-top whitespace-nowrap text-[#334155]">{{ entry.entry_date|date:"Y-m-d" }}</td>
-              <td class="px-2 py-3 align-top text-[#334155]">
-                {{ entry.payee_name|default:"—" }}
-              </td>
-              <td class="px-2 py-3 align-top text-[#334155]">
+              <td class="whitespace-nowrap date">{{ entry.entry_date|date:"Y-m-d" }}</td>
+              <td class="sns-ledger-table__text">{{ entry.payee_name|default:"—" }}</td>
+              <td class="sns-ledger-table__text">
                 {% if entry.grant %}
-                  <span class="font-medium">{{ entry.grant.code }}</span>
-                  <span class="text-[#64748b]"> — {{ entry.grant.title }}</span>
+                  <span class="font-mono">{{ entry.grant.code }}</span>
+                  <span class="opacity-80"> — {{ entry.grant.title|truncatewords:4 }}</span>
                 {% else %}
-                  <span class="text-[#94a3b8]">—</span>
+                  —
                 {% endif %}
               </td>
-              <td class="px-2 py-3 align-top text-right tabular-nums font-semibold text-[#0f172a]">
+              <td class="text-right tabular-nums">
                 {% if entry.pv_total is not None %}
                   {{ entry.pv_total|floatformat:2 }}
                 {% else %}
                   —
                 {% endif %}
                 {% if entry.currency %}
-                <span class="font-normal text-[#64748b] text-[12px] ml-0.5">{{ entry.currency.code }}</span>
+                <span class="font-normal opacity-80 ml-0.5">{{ entry.currency.code }}</span>
                 {% elif entry.grant.currency %}
-                <span class="font-normal text-[#64748b] text-[12px] ml-0.5">{{ entry.grant.currency.code }}</span>
+                <span class="font-normal opacity-80 ml-0.5">{{ entry.grant.currency.code }}</span>
                 {% endif %}
               </td>
-              <td class="px-2 py-3 align-top text-[#475569] text-[12px]">
+              <td class="sns-ledger-table__text max-w-[8rem] truncate">
                 {{ entry.created_by.get_full_name|default:entry.created_by.email|default:"—" }}
               </td>
-              <td class="px-2 py-3 align-top">
-                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
-                  {{ entry.get_status_display }}
-                </span>
+              <td class="whitespace-nowrap">
+                <span class="sns-status-chip sns-status-chip--pending">{{ entry.get_status_display }}</span>
               </td>
-              <td class="px-2 py-3 align-top">
+              <td class="sns-ledger-table__text">
                 {% if entry.has_pending_budget_override %}
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-orange-50 text-orange-900 border border-orange-200" title="{% trans 'Pending Finance Manager approval for over-budget payment' %}">
-                    {% trans "Override pending" %}
-                  </span>
+                  <span class="sns-status-chip" style="background:#ffedd5;color:#9a3412;">{% trans "Override pending" %}</span>
                 {% else %}
-                  <span class="text-[#94a3b8]">—</span>
+                  —
                 {% endif %}
               </td>
-              <td class="pr-4 pl-2 py-3 align-top text-right whitespace-nowrap">
+              <td class="text-right whitespace-nowrap sns-ledger-table__text">
                 <a href="{% url 'tenant_portal:pay_payment_voucher_detail' entry.id %}"
                    target="_blank" rel="noopener noreferrer"
-                   class="inline-flex items-center gap-1 text-[12px] font-semibold text-[#0078d4] hover:underline">
+                   class="inline-flex items-center gap-1 font-semibold" style="color:#0078d4;">
                   <i data-feather="eye" class="w-3.5 h-3.5"></i>
                   {% trans "View" %}
                 </a>
-                <span class="text-[#cbd5e1] mx-1">|</span>
+                <span class="opacity-40 mx-1">|</span>
                 <a href="{% url 'tenant_portal:pay_payment_voucher_approve' entry.id %}"
-                   class="inline-flex items-center gap-1 text-[12px] font-semibold text-[#0f766e] hover:underline">
+                   class="inline-flex items-center gap-1 font-semibold" style="color:#107c10;">
                   <i data-feather="check-circle" class="w-3.5 h-3.5"></i>
                   {% trans "Act" %}
                 </a>
@@ -138,13 +217,13 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="10" class="px-6 py-14 text-center">
+              <td colspan="10" class="px-5 py-10 text-center sns-ledger-table__text">
                 <div class="inline-flex flex-col items-center gap-2 max-w-md mx-auto">
-                  <div class="w-12 h-12 rounded-full bg-[#f1f5f9] flex items-center justify-center">
-                    <i data-feather="inbox" class="w-6 h-6 text-[#94a3b8]"></i>
+                  <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background:#f3f2f1;">
+                    <i data-feather="inbox" class="w-6 h-6 opacity-50"></i>
                   </div>
-                  <p class="text-[15px] font-semibold text-[#334155]">{% trans "No vouchers pending approval" %}</p>
-                  <p class="text-[13px] text-[#64748b]">{% trans "Submitted payments will appear here for review." %}</p>
+                  <p class="font-semibold">{% trans "No vouchers pending approval" %}</p>
+                  <p>{% trans "Submitted payments will appear here for review. Clear or widen filters if you expected to see rows." %}</p>
                 </div>
               </td>
             </tr>
@@ -154,34 +233,28 @@
       </div>
     </div>
 
-    <div class="rounded-xl border border-[#e5e7eb] bg-white shadow-sm overflow-hidden max-w-2xl">
-      <div class="px-4 py-3 border-b border-[#eef2f7] bg-[#fafbfc]">
-        <h2 class="text-[15px] font-semibold text-[#0f172a]">{% trans "Bulk action" %}</h2>
-        <p class="text-[12px] text-[#64748b] mt-0.5">{% trans "Applies only to vouchers selected in the table above." %}</p>
-      </div>
-      <div class="p-4 space-y-4">
+    <div class="sns-erp-filter-panel max-w-2xl hidden-print">
+      <div class="sns-erp-filter-panel__head">{% trans "Bulk action" %}</div>
+      <div class="sns-erp-filter-panel__body space-y-3">
+        <p class="text-[12px] m-0" style="color: var(--sns-fabric-gray-90, #605e5c);">{% trans "Applies only to vouchers selected in the table above." %}</p>
         <div>
-          <label class="block text-xs font-semibold text-[#475569] mb-1.5" for="id_bulk_action">{% trans "Action" %}</label>
-          <select name="bulk_action" id="id_bulk_action"
-                  class="w-full max-w-md rounded-lg border border-[#e2e8f0] bg-white px-3 py-2.5 text-[13px] text-[#0f172a] shadow-sm focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]">
+          <label class="sns-filter-label" for="id_bulk_action">{% trans "Action" %}</label>
+          <select name="bulk_action" id="id_bulk_action" class="w-full max-w-md">
             <option value="">{% trans "Select action" %}</option>
-            <option value="approve">{% trans "Approve & post" %}</option>
+            <option value="approve">{% trans "Approve (await GL post)" %}</option>
             <option value="return">{% trans "Return for correction" %}</option>
             <option value="reject">{% trans "Reject" %}</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-[#475569] mb-1.5" for="id_bulk_comment">{% trans "Comment" %}</label>
+          <label class="sns-filter-label" for="id_bulk_comment">{% trans "Comment" %}</label>
           <textarea name="bulk_comment" id="id_bulk_comment" rows="3" placeholder="{% trans 'Required when returning or rejecting' %}"
-                    class="w-full rounded-lg border border-[#e2e8f0] bg-white px-3 py-2.5 text-[13px] text-[#0f172a] shadow-sm placeholder:text-[#94a3b8] focus:border-[#0078d4] focus:ring-1 focus:ring-[#0078d4]"></textarea>
+                    class="w-full rounded border px-2 py-2" style="border-color:#edebe9; font-size:13px;"></textarea>
         </div>
-        <div class="flex flex-wrap items-center gap-3 pt-1">
-          <button type="submit"
-                  class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-semibold text-white bg-[#0078d4] hover:bg-[#106ebe] shadow-sm transition-colors">
-            <i data-feather="check-square" class="w-4 h-4"></i>
-            {% trans "Apply bulk action" %}
-          </button>
-        </div>
+        <button type="submit" class="sns-btn sns-btn--primary inline-flex items-center gap-2">
+          <i data-feather="check-square" class="w-4 h-4"></i>
+          {% trans "Apply bulk action" %}
+        </button>
       </div>
     </div>
   </form>

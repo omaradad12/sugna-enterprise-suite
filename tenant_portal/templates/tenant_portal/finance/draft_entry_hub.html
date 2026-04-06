@@ -1,0 +1,233 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Draft Entry" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="sns-transaction-workspace draft-entry-dynamics sns-ds-root -mx-4 px-4 py-6 sm:mx-0 sm:px-6 sm:py-8">
+  <div class="draft-entry-dynamics__inner mx-auto">
+
+    <header class="draft-entry-dynamics__page-head">
+      <p class="draft-entry-dynamics__eyebrow">{% trans "Post transaction" %}</p>
+      <h1 class="draft-entry-dynamics__title">{% trans "Draft Entry" %}</h1>
+    </header>
+
+    <div class="flex flex-col gap-5 sm:gap-6">
+
+      {# Fluent-style payment workflow stepper #}
+      <section class="draft-entry-dynamics__workflow" aria-label="{% trans 'Payment voucher workflow' %}">
+        <div class="draft-entry-stepper" role="list">
+          <div role="listitem" class="draft-entry-stepper__step draft-entry-stepper__step--current">
+            <span class="draft-entry-stepper__dot" aria-hidden="true">1</span>
+            <span class="draft-entry-stepper__steplabel">{% trans "Draft" %}</span>
+          </div>
+          <div role="listitem" class="draft-entry-stepper__step">
+            <span class="draft-entry-stepper__dot" aria-hidden="true">2</span>
+            <span class="draft-entry-stepper__steplabel">{% trans "Pending approval" %}</span>
+          </div>
+          <div role="listitem" class="draft-entry-stepper__step">
+            <span class="draft-entry-stepper__dot" aria-hidden="true">3</span>
+            <span class="draft-entry-stepper__steplabel">{% trans "Approved" %}</span>
+          </div>
+          <div role="listitem" class="draft-entry-stepper__step">
+            <span class="draft-entry-stepper__dot" aria-hidden="true">4</span>
+            <span class="draft-entry-stepper__steplabel">{% trans "Posted" %}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="draft-entry-dynamics__actions-panel" aria-label="{% trans 'Actions and shortcuts' %}">
+        {% if can_import_excel or can_save_draft_payment %}
+        <div id="draft-actions-heading" class="draft-entry-dynamics__actions-head">{% trans "Quick actions" %}</div>
+        <div class="draft-entry-dynamics__actions-grid" aria-labelledby="draft-actions-heading">
+          {% if can_import_excel %}
+          <a href="{% url 'tenant_portal:pay_pv_draft_excel_import' %}" class="draft-entry-dynamics__action">
+            <span class="draft-entry-dynamics__action-icon" aria-hidden="true">
+              <i data-feather="upload" class="h-5 w-5" stroke-width="1.75"></i>
+            </span>
+            <span class="draft-entry-dynamics__action-body">
+              <span class="draft-entry-dynamics__action-title">{% trans "Import Excel" %}</span>
+            </span>
+            <span class="draft-entry-dynamics__action-arrow" aria-hidden="true">
+              <i data-feather="chevron-right" class="h-5 w-5" stroke-width="2"></i>
+            </span>
+          </a>
+          {% endif %}
+          {% if can_save_draft_payment %}
+          <a href="{% url 'tenant_portal:pay_payment_entry' %}" class="draft-entry-dynamics__action">
+            <span class="draft-entry-dynamics__action-icon" aria-hidden="true">
+              <i data-feather="edit-3" class="h-5 w-5" stroke-width="1.75"></i>
+            </span>
+            <span class="draft-entry-dynamics__action-body">
+              <span class="draft-entry-dynamics__action-title">{% trans "Save draft" %}</span>
+            </span>
+            <span class="draft-entry-dynamics__action-arrow" aria-hidden="true">
+              <i data-feather="chevron-right" class="h-5 w-5" stroke-width="2"></i>
+            </span>
+          </a>
+          <a href="{{ submit_for_approval_list_url }}" class="draft-entry-dynamics__action">
+            <span class="draft-entry-dynamics__action-icon" aria-hidden="true">
+              <i data-feather="send" class="h-5 w-5" stroke-width="1.75"></i>
+            </span>
+            <span class="draft-entry-dynamics__action-body">
+              <span class="draft-entry-dynamics__action-title">{% trans "Submit for approval" %}</span>
+            </span>
+            <span class="draft-entry-dynamics__action-arrow" aria-hidden="true">
+              <i data-feather="chevron-right" class="h-5 w-5" stroke-width="2"></i>
+            </span>
+          </a>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="draft-entry-dynamics__related">
+          <span class="draft-entry-dynamics__related-label">{% trans "Related" %}</span>
+          <a href="{% url 'tenant_portal:pay_payment_vouchers' %}">{% trans "Payment register" %}</a>
+          <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}">{% trans "Pending approval queue" %}</a>
+          <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_post' %}">{% trans "Post approved" %}</a>
+        </div>
+      </section>
+
+      <section class="draft-entry-dynamics__list-panel" aria-labelledby="draft-list-heading">
+        <div class="draft-entry-dynamics__list-head">
+          <div>
+            <h2 id="draft-list-heading" class="draft-entry-dynamics__list-title">{% trans "Draft transactions" %}</h2>
+          </div>
+          {% if draft_entries %}
+          <span class="draft-entry-dynamics__count-pill">{{ draft_entries|length }} {% trans "shown" %}</span>
+          {% endif %}
+        </div>
+
+        {% if can_bulk_submit_for_approval %}
+        <div class="flex flex-wrap items-center gap-3 mb-3 px-0.5">
+          <button type="submit" form="draft-bulk-submit-form" class="sns-btn sns-btn--primary inline-flex items-center gap-2 text-[13px] font-semibold px-4 py-2 rounded-lg">
+            <i data-feather="send" class="h-4 w-4" stroke-width="2"></i>
+            {% trans "Submit selected for approval" %}
+          </button>
+          <span class="text-[12px] text-[#605e5c] max-w-xl">{% trans "Tick the boxes for draft vouchers you want to send to the approval queue, then click Submit. Approved or pending rows are skipped." %}</span>
+        </div>
+        {% endif %}
+
+        {% if can_bulk_submit_for_approval %}
+        <form id="draft-bulk-submit-form" method="post" action="{% url 'tenant_portal:finance_draft_entry_hub_bulk_submit' %}">
+          {% csrf_token %}
+        {% endif %}
+        <div class="overflow-x-auto">
+          <table class="draft-entry-dynamics__grid">
+            <thead>
+              <tr>
+                {% if can_bulk_submit_for_approval %}
+                <th scope="col" class="w-10 text-center align-middle">
+                  <label class="sr-only" for="draft-select-all">{% trans "Select all draft rows" %}</label>
+                  <input type="checkbox" id="draft-select-all" class="rounded border-[#c8c6c4]" title="{% trans 'Select all drafts' %}" />
+                </th>
+                {% endif %}
+                <th scope="col">{% trans "Voucher" %}</th>
+                <th scope="col">{% trans "Date" %}</th>
+                <th scope="col">{% trans "Payee" %}</th>
+                <th scope="col" class="text-right">{% trans "Amount" %}</th>
+                <th scope="col">{% trans "Payment account" %}</th>
+                <th scope="col">{% trans "Expense account" %}</th>
+                <th scope="col">{% trans "Status" %}</th>
+                <th scope="col">{% trans "Missing fields" %}</th>
+                <th scope="col">{% trans "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in draft_hub_rows %}
+              {% with e=row.entry %}
+              <tr class="{% if row.status_key == 'incomplete' %}draft-entry-dynamics__row--warn{% endif %}">
+                {% if can_bulk_submit_for_approval %}
+                <td class="text-center align-middle">
+                  {% if e.status == "draft" %}
+                  <input type="checkbox" name="entry_ids" value="{{ e.id }}" class="draft-submit-cb rounded border-[#c8c6c4]" aria-label="{% trans 'Select' %} {{ e.reference|default:e.id }}" />
+                  {% endif %}
+                </td>
+                {% endif %}
+                <td class="ref font-mono">{{ e.reference|default:e.id }}</td>
+                <td class="draft-entry-dynamics__cell-date whitespace-nowrap">{{ e.entry_date }}</td>
+                <td class="max-w-[8rem] truncate" title="{{ e.payee_name|escape }}">{{ e.payee_name|default:"—" }}</td>
+                <td class="text-right tabular-nums">{{ row.amount_display|floatformat:2 }}</td>
+                <td class="max-w-[10rem] text-[12px] leading-snug" title="{{ row.payment_account }}">{{ row.payment_account }}</td>
+                <td class="max-w-[10rem] text-[12px] leading-snug" title="{{ row.expense_account }}">{{ row.expense_account }}</td>
+                <td>
+                  {% if row.status_key == "incomplete" %}
+                  <span class="draft-entry-dynamics__badge" style="background:#fff4ce;color:#92400e;">{% trans "Incomplete draft" %}</span>
+                  {% elif row.status_key == "draft" %}
+                  <span class="draft-entry-dynamics__badge draft-entry-dynamics__badge--draft">{% trans "Draft" %}</span>
+                  {% elif row.status_key == "pending" %}
+                  <span class="draft-entry-dynamics__badge draft-entry-dynamics__badge--pending">{% trans "Pending" %}</span>
+                  {% elif row.status_key == "approved" %}
+                  <span class="draft-entry-dynamics__badge draft-entry-dynamics__badge--approved">{% trans "Approved" %}</span>
+                  {% else %}
+                  {{ row.status_label }}
+                  {% endif %}
+                </td>
+                <td class="max-w-[12rem] text-[11px] text-[#605e5c] leading-snug" title="{{ row.missing_short }}">
+                  {% if row.missing %}<span class="text-[#b45309] font-medium">{{ row.missing_short }}</span>{% else %}—{% endif %}
+                </td>
+                <td class="text-right whitespace-nowrap text-[12px]">
+                  <a href="{% url 'tenant_portal:pay_payment_voucher_detail' e.id %}" class="link">{% trans "View" %}</a>
+                  {% if e.status == "draft" or e.status == "incomplete_draft" %}
+                  <span class="mx-1.5 text-[#c8c6c4]" aria-hidden="true">|</span>
+                  <a href="{{ pay_payment_edit_base }}?edit={{ e.id }}" class="link font-semibold">{% trans "Edit" %}</a>
+                  {% endif %}
+                  {% if e.status == "draft" %}
+                  <span class="mx-1.5 text-[#c8c6c4]" aria-hidden="true">|</span>
+                  <a href="{% url 'tenant_portal:finance_journal_detail' e.id %}" class="link">{% trans "Submit" %}</a>
+                  {% elif e.status == "pending_approval" or e.status == "approved" %}
+                  <span class="mx-1.5 text-[#c8c6c4]" aria-hidden="true">|</span>
+                  <a href="{% url 'tenant_portal:pay_payment_voucher_approve' e.id %}" class="link link--go">{% trans "Review" %}</a>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% empty %}
+              <tr>
+                <td colspan="{% if can_bulk_submit_for_approval %}11{% else %}10{% endif %}" class="p-0">
+                  <div class="draft-entry-dynamics__empty">
+                    <div class="draft-entry-dynamics__empty-icon">
+                      <i data-feather="inbox" class="h-6 w-6" stroke-width="1.5"></i>
+                    </div>
+                    <p class="draft-entry-dynamics__empty-title">{% trans "No draft transactions yet" %}</p>
+                    <p class="draft-entry-dynamics__empty-hint">
+                      {% if can_import_excel or can_save_draft_payment %}
+                      {% trans "Use Quick actions above to import or create a draft." %}
+                      {% else %}
+                      {% trans "Drafts you can access will appear here." %}
+                      {% endif %}
+                    </p>
+                    {% if can_import_excel %}
+                    <a href="{% url 'tenant_portal:pay_pv_draft_excel_import' %}" class="sns-btn sns-btn--primary mt-6 inline-flex items-center gap-2">
+                      <i data-feather="upload" class="h-4 w-4"></i>
+                      {% trans "Import Excel" %}
+                    </a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if can_bulk_submit_for_approval %}
+        </form>
+        {% endif %}
+      </section>
+
+    </div>
+  </div>
+</div>
+<script>
+  if (window.feather) {
+    feather.replace();
+  }
+  (function () {
+    var all = document.getElementById("draft-select-all");
+    if (!all) return;
+    all.addEventListener("change", function () {
+      document.querySelectorAll(".draft-submit-cb").forEach(function (cb) {
+        cb.checked = all.checked;
+      });
+    });
+  })();
+</script>
+{% endblock %}

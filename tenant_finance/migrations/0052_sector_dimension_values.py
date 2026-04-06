@@ -4,6 +4,7 @@ from django.db import migrations
 def seed_sector_dimension_values(apps, schema_editor):
     from django.db import DatabaseError
 
+    db = schema_editor.connection.alias
     FinancialDimension = apps.get_model("tenant_finance", "FinancialDimension")
     FinancialDimensionValue = apps.get_model("tenant_finance", "FinancialDimensionValue")
     try:
@@ -14,7 +15,7 @@ def seed_sector_dimension_values(apps, schema_editor):
         ):
             return
 
-        sector_dim, _ = FinancialDimension.objects.get_or_create(
+        sector_dim, _ = FinancialDimension.objects.using(db).get_or_create(
             dimension_code="SECTOR",
             defaults={
                 "dimension_name": "Program sector",
@@ -40,9 +41,10 @@ def seed_sector_dimension_values(apps, schema_editor):
             ("SEC-13", "Multi-sector"),
             ("SEC-14", "Other"),
         ]
+        sid = sector_dim.pk
         for code, name in defaults:
-            FinancialDimensionValue.objects.get_or_create(
-                dimension=sector_dim,
+            FinancialDimensionValue.objects.using(db).get_or_create(
+                dimension_id=sid,
                 code=code,
                 defaults={"name": name, "description": "", "status": "active"},
             )

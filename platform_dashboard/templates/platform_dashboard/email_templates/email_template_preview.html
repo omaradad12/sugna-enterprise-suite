@@ -1,0 +1,55 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Preview: {{ template_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto animate-fade-in">
+  <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <a href="{% url 'platform_dashboard:email_template_list' %}" class="text-sm font-medium text-primary-600 hover:underline">← Email templates</a>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading mt-2">Preview</h1>
+      <p class="text-slate-500 mt-1 text-sm">{{ template_obj.name }} · {{ template_obj.get_category_display }}</p>
+    </div>
+    <a href="{% url 'platform_dashboard:email_template_edit' template_obj.pk %}" class="inline-flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Edit template</a>
+  </div>
+
+  <div class="dynamics-card p-6 sm:p-8 mb-6">
+    <h2 class="text-sm font-semibold text-slate-800 mb-4">Merge fields &amp; test send</h2>
+    <p class="text-xs text-slate-500 mb-4">Adjust sample values, then update the preview or send a test email. Placeholders use the merge field names below (wrapped in double braces in the template editor).</p>
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% for field in ctx_form %}
+        <div class="{% if field.name == 'announcement_message' %}sm:col-span-2{% endif %}">
+          <label for="{{ field.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<p class="text-red-600 text-xs mt-1">{{ field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="border-t border-slate-200 pt-4 flex flex-col sm:flex-row sm:items-end gap-4">
+        <div class="flex-1">
+          <label for="{{ test_form.test_email.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{{ test_form.test_email.label }}</label>
+          {{ test_form.test_email }}
+          {% if test_form.test_email.errors %}<p class="text-red-600 text-xs mt-1">{{ test_form.test_email.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="submit" name="action" value="preview" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">Update preview</button>
+          <button type="submit" name="action" value="send_test" class="inline-flex items-center gap-2 px-5 py-2.5 rounded border text-sm font-semibold text-slate-800 hover:bg-slate-50" style="border-color:#edebe9;">Send test email</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="dynamics-card overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+      <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Rendered subject</p>
+      <p class="text-sm font-semibold text-slate-900 mt-1">{{ rendered_subject }}</p>
+    </div>
+    <div class="px-6 py-5">
+      <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Rendered body</p>
+      <pre class="text-sm text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">{{ rendered_body }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

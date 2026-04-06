@@ -1,0 +1,13 @@
+{% load static %}
+{% comment %}
+Loads tenant-branding.css (defaults), then injects favicon and :root overrides:
+--tenant-primary, --tenant-secondary, --tenant-accent, --tenant-on-primary, --tenant-on-secondary,
+--tenant-page-bg, --tenant-surface-page, plus legacy --tenant-brand-* aliases.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'css/tenant-branding.css' %}" />
+{% if tenant_theme %}
+  {% if tenant_theme.favicon_url %}
+  <link rel="icon" href="{{ tenant_theme.favicon_url }}" type="image/png" />
+  {% endif %}
+  <style id="tenant-brand-css-vars">:root{ {{ tenant_brand_css_vars|safe }} }</style>
+{% endif %}

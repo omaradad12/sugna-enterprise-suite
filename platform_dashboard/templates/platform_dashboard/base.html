@@ -41,39 +41,10 @@
   <style>
     [x-cloak] { display: none !important; }
     /* Sidebar: professional nav with clear hierarchy */
-    .sidebar-wrap { background: #f3f2f1; border-right: 1px solid #edebe9; box-shadow: 1px 0 0 rgba(255,255,255,0.6) inset; }
-    .sidebar-brand { border-bottom: 1px solid #edebe9; background: linear-gradient(180deg, #faf9f8 0%, #f3f2f1 100%); }
-    .sidebar-link {
-      transition: background-color 0.15s ease, color 0.15s ease;
-      border-left: 3px solid transparent;
-      margin-left: 0;
-    }
-    .sidebar-link:hover:not(.active) { background: #e8e6e4; color: #201f1e; }
-    .sidebar-link.active {
-      background: linear-gradient(90deg, #deecf9 0%, #e8f2fa 100%);
-      color: #0078D4;
-      border-left-color: #0078D4;
-      font-weight: 600;
-    }
-    .sidebar-link.active i { color: #0078D4; }
-    .sidebar-group-title {
-      color: #605e5c;
-      font-size: 0.6875rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 0 0.75rem;
-      margin-top: 1.25rem;
-      margin-bottom: 0.375rem;
-    }
-    .sidebar-group-title:first-of-type { margin-top: 0; }
-    .sidebar-nav::-webkit-scrollbar { width: 6px; }
-    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-    .sidebar-nav::-webkit-scrollbar-thumb { background: #d2d0ce; border-radius: 3px; }
-    .sidebar-nav::-webkit-scrollbar-thumb:hover { background: #a19f9d; }
-    .sidebar-footer { border-top: 1px solid #edebe9; background: #edebe9; }
-    .sidebar-collapse-btn { transition: background-color 0.15s ease, color 0.15s ease; }
-    .sidebar-collapse-btn:hover { background: #e1dfdd; color: #323130; }
+    .platform-sidebar-nav::-webkit-scrollbar { width: 6px; }
+    .platform-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+    .platform-sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .platform-sidebar-nav::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     .animate-fade-in { animation: fadeIn 0.2s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
     .skeleton { background: linear-gradient(90deg, #f3f2f1 25%, #edebe9 50%, #f3f2f1 75%); background-size: 200% 100%; animation: skeleton 1.2s ease-in-out infinite; border-radius: 4px; }
@@ -110,139 +81,38 @@
   </style>
   {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-[#F8FAFC] font-sans text-[#111827] antialiased min-h-full" style="--ms-primary: #0F5BA7;">
-  <div class="flex min-h-screen" x-data="{ sidebarOpen: true }">
-    <!-- Sidebar: professional nav pane -->
+<body class="bg-[#F5F7FA] font-sans text-[#111827] antialiased min-h-full">
+  <div
+    class="flex min-h-screen"
+    x-data="{
+      sidebarOpen: true,
+      sidebarCollapsed: false,
+      toggleCollapse() {
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        try { localStorage.setItem('platform_sidebar_collapsed', this.sidebarCollapsed ? '1' : '0'); } catch (e) {}
+        this.$nextTick(() => { if (window.feather) window.feather.replace({ 'stroke-width': 1.6 }); });
+      }
+    }"
+    x-init="
+      try { if (localStorage.getItem('platform_sidebar_collapsed') === '1') sidebarCollapsed = true; } catch (e) {}
+      $nextTick(() => { if (window.feather) feather.replace({ 'stroke-width': 1.6 }); });
+    "
+  >
     <aside
-      class="fixed inset-y-0 left-0 z-40 w-64 flex flex-col transition-all duration-300 ease-in-out sidebar-wrap"
-      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+      class="fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-slate-200/90 bg-[#F7F9FC] shadow-[1px_0_0_rgba(255,255,255,0.9)_inset] transition-all duration-300 ease-out lg:translate-x-0"
+      :class="[
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        sidebarCollapsed ? 'lg:w-16' : 'lg:w-[240px]'
+      ]"
     >
-      <div class="flex items-center min-h-[4.25rem] px-4 py-3 sidebar-brand">
-        <a href="{% url 'platform_dashboard:dashboard' %}" class="flex items-center gap-2.5 min-w-0 group">
-          <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-11 w-auto flex-shrink-0 object-contain transition-transform group-hover:scale-[1.02]" style="min-height: 44px;" />
-          <span class="flex flex-col min-w-0 leading-tight">
-            <span class="font-semibold text-[15px] text-[#323130] truncate">Sugna</span>
-            <span class="text-[11px] font-medium tracking-widest text-[#605e5c] truncate uppercase">Enterprise Suite</span>
-          </span>
-        </a>
-      </div>
-      <nav class="flex-1 overflow-y-auto py-3 px-2 sidebar-nav">
-        <p class="sidebar-group-title">Platform</p>
-        <a href="{% url 'platform_dashboard:dashboard' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'dashboard_home' %}active{% endif %}">
-          <i data-feather="layout" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Dashboard</span>
-        </a>
-
-        <p class="sidebar-group-title">Tenants</p>
-        <a href="{% url 'platform_dashboard:tenant_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'tenant_list' %}active{% endif %}">
-          <i data-feather="building" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Tenant Directory</span>
-        </a>
-        <a href="{% url 'platform_dashboard:platform_users' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'platform_users' %}active{% endif %}">
-          <i data-feather="users" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Tenant Users</span>
-        </a>
-        <a href="{% url 'platform_dashboard:tenant_register' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md mb-0.5 {% if request.resolver_match.url_name == 'tenant_register' %}active{% endif %} text-[#323130]">
-          <i data-feather="file-plus" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Register Tenant</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="globe" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Tenant Domains</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="bar-chart-2" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Tenant Usage</span>
-        </a>
-
-        <p class="sidebar-group-title">Subscriptions</p>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="package" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Plans</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="credit-card" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Tenant Subscriptions</span>
-        </a>
-        <a href="{% url 'platform_dashboard:module_list' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'module_list' %}active{% endif %}">
-          <i data-feather="grid" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Modules</span>
-        </a>
-        <a href="{% url 'platform_dashboard:diagnostics' %}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5 {% if request.resolver_match.url_name == 'diagnostics' %}active{% endif %}">
-          <i data-feather="activity" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Diagnostics</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="clock" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Trials</span>
-        </a>
-
-        <p class="sidebar-group-title">Billing</p>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="file-text" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Invoices</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="dollar-sign" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Payments</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="trending-up" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Revenue Reports</span>
-        </a>
-
-        <p class="sidebar-group-title">Support</p>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="message-circle" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Tickets</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="alert-circle" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Complaints</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="zap" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Feature Requests</span>
-        </a>
-
-        <p class="sidebar-group-title">Monitoring</p>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="activity" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>System Health</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="list" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Logs</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="hard-drive" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Backup Monitor</span>
-        </a>
-
-        <p class="sidebar-group-title">Settings</p>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="settings" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Platform Settings</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="mail" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Email Templates</span>
-        </a>
-        <a href="/admin/" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-md text-[#323130] mb-0.5">
-          <i data-feather="bell" class="w-5 h-5 flex-shrink-0 opacity-90"></i>
-          <span>Notifications</span>
-        </a>
-      </nav>
-      <div class="px-3 py-2.5 sidebar-footer">
-        <button type="button" @click="sidebarOpen = !sidebarOpen" class="sidebar-collapse-btn w-full flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium text-[#605e5c]">
-          <span x-show="sidebarOpen"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></span>
-          <span x-show="!sidebarOpen" x-cloak><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></span>
-          <span x-text="sidebarOpen ? 'Collapse' : 'Expand'">Collapse</span>
-        </button>
-      </div>
+      {% load platform_navigation %}
+      {% render_platform_sidebar %}
     </aside>
 
-    <div class="flex-1 flex flex-col min-h-screen transition-all duration-300" :class="sidebarOpen ? 'lg:ml-64' : 'ml-0'">
+    <div
+      class="flex min-h-screen w-full min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-out"
+      :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-[240px]'"
+    >
       <!-- Dynamics-style top bar: dark blue header -->
       <header class="sticky top-0 z-30 h-14 flex items-center justify-between px-4 sm:px-6" style="background: #0078D4;">
         <div class="flex items-center gap-3 min-w-0">
@@ -295,7 +165,7 @@
         </div>
       </header>
 
-      <main class="flex-1 p-4 sm:p-6 overflow-auto" style="background: #faf9f8;">
+      <main class="flex-1 overflow-auto bg-[#F5F7FA] p-4 sm:p-6">
         {% if messages %}
         <div class="max-w-6xl mx-auto mb-4 space-y-2" role="status" aria-live="polite">
           {% for message in messages %}

@@ -1,0 +1,45 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Lab orders{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Lab orders</h1>
+      <p class="text-sm text-[#605e5c] mt-1">All lab requests and results.</p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_home' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]" style="border-color:#edebe9;">
+      <i data-feather="arrow-left" class="w-4 h-4"></i>
+      Hospital
+    </a>
+  </div>
+
+  <div class="space-y-4">
+    {% for o in lab_orders %}
+      <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+        <div class="flex flex-wrap justify-between gap-2 mb-2">
+          <div class="font-semibold">{{ o.order_number }} · {{ o.patient.full_name }} ({{ o.patient.mrn }})</div>
+          <div class="text-sm text-[#605e5c]">{{ o.ordered_at }} · {{ o.get_status_display }}</div>
+        </div>
+        {% for line in o.lines.all %}
+          <div class="border-t pt-2 mt-2 text-sm" style="border-color:#edebe9;">
+            <div><span class="font-medium">{{ line.test_name }}</span> <span class="text-[#605e5c]">{{ line.test_code }}</span> · {{ line.get_status_display }}</div>
+            {% if line.result_text %}
+              <div class="mt-1 text-[#323130]">{{ line.result_text }}</div>
+            {% elif can_manage_lab %}
+              <form method="post" action="{% url_tenant 'tenant_portal:hospital_lab_line_result' line.id %}" class="mt-2 flex flex-wrap gap-2 items-end">
+                {% csrf_token %}
+                <input name="result_text" placeholder="Enter result" class="flex-1 min-w-[200px] px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+                <button type="submit" class="px-3 py-1.5 rounded-md text-sm text-white" style="background:#0078D4;">Save result</button>
+              </form>
+            {% endif %}
+          </div>
+        {% empty %}
+          <p class="text-sm text-[#605e5c]">No line items.</p>
+        {% endfor %}
+      </div>
+    {% empty %}
+      <p class="text-sm text-[#605e5c]">No lab orders yet.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -50,14 +50,17 @@
 
   <div class="mb-5">
     <h1 class="!text-2xl !font-bold !tracking-tight text-[#323130]">{% trans "Internal Control" %}</h1>
-    <p class="text-sm mt-1.5 text-[#605e5c] max-w-2xl leading-relaxed">{% trans "Control approvals, permissions, audit trail, and compliance documentation." %}</p>
+    <p class="text-sm mt-1.5 text-[#605e5c] max-w-2xl leading-relaxed">{% trans "Control approvals, permissions, and workflow policies. Audit & Risk monitoring is available when your organization subscribes to that module." %}</p>
   </div>
 
   <div class="mb-5 flex flex-wrap gap-2">
+    <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Pending approval queue" %}</a>
     <a href="{% url 'tenant_portal:finance_journal_approval' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Journal approvals" %}</a>
+    {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
     <a href="{% url 'tenant_portal:finance_audit_trail' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Audit trail" %}</a>
-    <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Workflow setup" %}</a>
     <a href="{% url 'tenant_portal:audit_risk_compliance' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Compliance" %}</a>
+    {% endif %}
+    <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium text-[#323130] bg-white hover:bg-[#faf9f8] transition-colors" style="border-color:#edebe9;">{% trans "Workflow setup" %}</a>
   </div>
 
   <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
@@ -99,6 +102,16 @@
           </span>
           <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
         </a>
+        <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group">
+          <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+            <i data-feather="inbox" class="w-5 h-5"></i>
+          </span>
+          <span class="min-w-0 flex-1 pt-0.5">
+            <span class="block text-sm font-semibold text-[#323130]">{% trans "Pending approval queue" %}</span>
+            <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Payment vouchers in Draft or Pending approval." %}</span>
+          </span>
+          <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+        </a>
         <a href="{% url 'tenant_portal:finance_journal_approval' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group sm:col-span-2 lg:col-span-1">
           <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
             <i data-feather="users" class="w-5 h-5"></i>
@@ -113,6 +126,7 @@
     </div>
   </div>
 
+  {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
   <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
     <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Audit & monitoring" %}</div>
     <div class="p-4">
@@ -168,6 +182,23 @@
       </div>
     </div>
   </div>
+  {% else %}
+  <div class="bg-white border rounded-lg overflow-hidden mb-5" style="border-color:#edebe9;">
+    <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Documents" %}</div>
+    <div class="p-4">
+      <a href="{% url 'tenant_portal:documents_dashboard' %}" class="gvc-nav-tile flex items-start gap-4 p-4 no-underline text-inherit group max-w-xl">
+        <span class="gvc-nav-icon flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center">
+          <i data-feather="archive" class="w-5 h-5"></i>
+        </span>
+        <span class="min-w-0 flex-1 pt-0.5">
+          <span class="block text-sm font-semibold text-[#323130]">{% trans "Document Management" %}</span>
+          <span class="block text-xs text-[#605e5c] mt-1 leading-relaxed">{% trans "Central document repository for your organization." %}</span>
+        </span>
+        <span class="flex-shrink-0 text-[#c8c6c4] group-hover:text-[#0078d4] transition-colors pt-2" aria-hidden="true"><i data-feather="chevron-right" class="w-4 h-4"></i></span>
+      </a>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
     <div class="px-4 py-3 border-b font-semibold text-[#323130] text-sm" style="border-color:#edebe9; background:#faf9f8;">{% trans "Recent approval activity" %}</div>
@@ -193,9 +224,11 @@
     {% else %}
     <p class="px-4 py-6 text-center text-sm text-[#605e5c]">{% trans "No recent approval-related audit entries match the current filter." %}</p>
     {% endif %}
+    {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
     <div class="px-4 py-3 border-t text-sm" style="border-color:#edebe9; background:#faf9f8;">
       <a href="{% url 'tenant_portal:finance_audit_trail' %}" class="font-semibold text-[#0078d4] hover:underline">{% trans "Open full audit trail" %}</a>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

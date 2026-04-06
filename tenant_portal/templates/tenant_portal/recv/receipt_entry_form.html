@@ -1,6 +1,6 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
 {% load i18n %}
-{% block title %}Receipt entry | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+{% block title %}{% trans "Receipt entry" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 {{ grant_meta|json_script:"recv-grant-meta" }}

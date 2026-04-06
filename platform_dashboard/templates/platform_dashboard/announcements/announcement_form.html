@@ -1,0 +1,94 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}{% if mode == 'create' %}New announcement{% else %}Edit announcement{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto animate-fade-in">
+  <div class="mb-8">
+    <a href="{% url 'platform_dashboard:announcement_list' %}" class="text-sm font-medium text-primary-600 hover:underline">← Back to list</a>
+    <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading mt-2">
+      {% if mode == 'create' %}New announcement{% else %}Edit announcement{% endif %}
+    </h1>
+    <p class="text-slate-500 mt-1 text-sm">Targeting uses the control-plane tenant and module registry.</p>
+  </div>
+
+  <div class="dynamics-card p-6 sm:p-8">
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div>
+        <label for="{{ form.title.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Title</label>
+        {{ form.title }}
+        {% if form.title.errors %}<p class="text-red-600 text-xs mt-1">{{ form.title.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label for="{{ form.message.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Message</label>
+        {{ form.message }}
+        {% if form.message.errors %}<p class="text-red-600 text-xs mt-1">{{ form.message.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.category.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Announcement type</label>
+          {{ form.category }}
+        </div>
+        <div>
+          <label for="{{ form.priority.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Priority</label>
+          {{ form.priority }}
+        </div>
+      </div>
+
+      <div>
+        <label for="{{ form.targeting_mode.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Target tenants</label>
+        {{ form.targeting_mode }}
+        <p class="text-xs text-slate-500 mt-1">Choose all tenants, a specific list, or any tenant that has selected modules enabled.</p>
+      </div>
+      <div>
+        <label for="{{ form.target_tenants.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Selected tenants</label>
+        {{ form.target_tenants }}
+      </div>
+      <div>
+        <label for="{{ form.target_modules.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Target modules</label>
+        {{ form.target_modules }}
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.start_at.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Start date</label>
+          {{ form.start_at }}
+          {% if form.start_at.errors %}<p class="text-red-600 text-xs mt-1">{{ form.start_at.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.end_at.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">End date</label>
+          {{ form.end_at }}
+          {% if form.end_at.errors %}<p class="text-red-600 text-xs mt-1">{{ form.end_at.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3 border-t border-slate-200 pt-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Delivery &amp; display</p>
+        <label class="inline-flex items-center gap-2 text-sm text-slate-800 cursor-pointer">{{ form.send_email }} Send email when published</label>
+        <div>
+          <label for="{{ form.email_template.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Email template</label>
+          {{ form.email_template }}
+          <p class="text-xs text-slate-500 mt-1">Used when «Send email» is checked. Leave empty to use the default «Platform announcement» template from Email templates.</p>
+        </div>
+        <label class="inline-flex items-center gap-2 text-sm text-slate-800 cursor-pointer">{{ form.show_popup }} Show popup message</label>
+        <label class="inline-flex items-center gap-2 text-sm text-slate-800 cursor-pointer">{{ form.show_dashboard_banner }} Show dashboard banner</label>
+      </div>
+
+      <div>
+        <label for="{{ form.status.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Status</label>
+        {{ form.status }}
+      </div>
+
+      <div class="flex flex-wrap gap-3 pt-2">
+        <button type="submit" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">Save</button>
+        <a href="{% url 'platform_dashboard:announcement_list' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded border text-sm font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 
 from django.core.management import call_command
 from django.db import connection
+
+from sugna_core.tenant_context import set_current_tenant
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from tenants.models import Tenant
@@ -81,16 +86,65 @@ def run_tenant_migrations(tenant: Tenant) -> None:
 
     register_tenant_connection(tenant)
     alias = tenant_db_alias(tenant)
-    call_command("migrate", database=alias, interactive=False)
+    logger.info(
+        "tenant provisioning: migrate start slug=%s database_alias=%s",
+        tenant.slug,
+        alias,
+    )
+    try:
+        set_current_tenant(tenant)
+        call_command("migrate", database=alias, interactive=False)
+    finally:
+        set_current_tenant(None)
+    logger.info("tenant provisioning: migrate done slug=%s database_alias=%s", tenant.slug, alias)
 
 
-def run_tenant_initialization(tenant: Tenant) -> dict[str, bool]:
+def run_tenant_initialization(tenant: Tenant) -> dict[str, bool | str]:
     from tenants.db import tenant_db_alias
     from tenants.services.tenant_init import initialize_tenant_defaults
 
     register_tenant_connection(tenant)
     alias = tenant_db_alias(tenant)
-    return initialize_tenant_defaults(using=alias)
+    logger.info(
+        "tenant provisioning: finance defaults start slug=%s database_alias=%s",
+        tenant.slug,
+        alias,
+    )
+    try:
+        set_current_tenant(tenant)
+        summary = initialize_tenant_defaults(using=alias)
+        try:
+            from tenants.services.branding_sync import sync_tenant_branding_to_organization_settings
+
+            sync_tenant_branding_to_organization_settings(tenant, alias)
+        except Exception:
+            logger.exception("tenant provisioning: branding sync failed slug=%s", tenant.slug)
+    finally:
+        set_current_tenant(None)
+    logger.info(
+        "tenant provisioning: finance defaults done slug=%s database_alias=%s summary=%s",
+        tenant.slug,
+        alias,
+        summary,
+    )
+    try:
+        codes = list(
+            tenant.modules.filter(tenant_modules__is_enabled=True)
+            .values_list("code", flat=True)
+            .distinct()
+        )
+        logger.info(
+            "tenant provisioning: control-plane module entitlements slug=%s enabled_codes=%s",
+            tenant.slug,
+            codes,
+        )
+    except Exception as exc:
+        logger.warning(
+            "tenant provisioning: could not log module entitlements slug=%s err=%s",
+            tenant.slug,
+            exc,
+        )
+    return summary
 
 
 def default_tenant_db_credentials(tenant: Tenant) -> tuple[str, str, str]:

@@ -30,10 +30,14 @@
                 <span class="inline-flex items-center justify-center w-8 h-8 rounded-md" style="background:#fff;">
                   {% if m.code == "finance" %}
                     <i data-feather="dollar-sign" class="w-4 h-4" style="color:#107c10;"></i>
-                  {% elif m.code == "grants" %}
-                    <i data-feather="clipboard" class="w-4 h-4" style="color:#d83b01;"></i>
+                  {% elif m.code == "finance_grants" %}
+                    <i data-feather="layers" class="w-4 h-4" style="color:#107c10;"></i>
                   {% elif m.code == "integrations" %}
                     <i data-feather="link" class="w-4 h-4" style="color:#0078D4;"></i>
+                  {% elif m.code == "audit_risk" %}
+                    <i data-feather="shield" class="w-4 h-4" style="color:#d83b01;"></i>
+                  {% elif m.code == "hospital" %}
+                    <i data-feather="activity" class="w-4 h-4" style="color:#0078D4;"></i>
                   {% else %}
                     <i data-feather="grid" class="w-4 h-4" style="color:#605e5c;"></i>
                   {% endif %}

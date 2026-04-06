@@ -1,0 +1,29 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Choose tenant — {{ module.name }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto animate-fade-in">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Choose a workspace</h1>
+    <p class="text-slate-500 mt-1 text-sm">
+      Multiple tenants have <span class="font-semibold">{{ module.name }}</span> enabled. Select where to open the workplace.
+    </p>
+  </div>
+  <ul class="space-y-3">
+    {% for row in tenant_links %}
+    <li>
+      <a href="{{ row.url }}"
+         class="flex items-center justify-between gap-4 dynamics-card px-5 py-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:shadow-sm transition">
+        <div class="min-w-0 text-left">
+          <div class="font-semibold text-slate-900 truncate">{{ row.tenant.name }}</div>
+          <div class="text-xs font-mono text-slate-500 mt-0.5">{{ row.tenant.slug }}</div>
+        </div>
+        <span class="text-sm font-semibold shrink-0" style="color:#0078D4;">Open →</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="mt-8 text-center">
+    <a href="{% url 'platform_dashboard:module_list' %}" class="text-sm text-slate-600 hover:text-slate-900 underline">Back to modules</a>
+  </p>
+</div>
+{% endblock %}

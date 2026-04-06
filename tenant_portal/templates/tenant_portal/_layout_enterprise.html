@@ -1,0 +1,2337 @@
+<!DOCTYPE html>
+{# Master enterprise shell: primary topbar, secondary module bar, sidebar + main. All modules extend this layout. #}
+{% load i18n %}
+{% load static %}
+{% load tenant_urls %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ tenant_theme.display_full_name|default:tenant_display_name|default:tenant.name }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/sugna_design_system.css' %}" />
+  {% include "tenant_portal/includes/tenant_theme_head.html" %}
+  <style>
+    [x-cloak]{display:none!important}
+
+    /* Primary topbar pills, module tabs, content buttons: static/css/tenant-branding.css */
+
+    /* ERP-style section + table shell (layout chrome; sizes in static/css/erp-typography.css) */
+    .erp-section {
+      border: 1px solid #edebe9;
+      margin-bottom: var(--erp-space-section, 1.125rem);
+      border-radius: 4px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .erp-section-header {
+      background: #f3f2f1;
+      color: #323130;
+      border-bottom: 1px solid #edebe9;
+    }
+    .erp-section-body {
+      background: #ffffff;
+    }
+    .erp-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .erp-table th {
+      background: #f3f2f1;
+      color: #323130;
+      padding: 6px 8px;
+      border: 1px solid #edebe9;
+      text-align: left;
+    }
+    .erp-table td {
+      background: #ffffff;
+      padding: 6px 8px;
+      border: 1px solid #edebe9;
+    }
+    .erp-table tfoot td {
+      background: #f3f2f1;
+    }
+
+    /*
+     * Financial & Grant Management — left navigation (single source for all submodules).
+     * Same structure and tokens for: Dashboard, Core Accounting, Funds & Donors, Budgeting,
+     * Cash & Bank, Receivables, Payables, Cost Allocation, Reports, Internal Control, Financial Setup.
+     * Document Management: user Account menu (top-right), not the finance topbar.
+     */
+    aside.tenant-sidebar {
+      --ts-surface: #f8fafc;
+      --ts-border: #e6eaf0;
+      --ts-edge: rgba(15, 23, 42, 0.07);
+      --ts-sep: rgba(15, 23, 42, 0.06);
+      --ts-pane-x: 0.4rem;
+      --ts-nav-inset: 10px;
+      --ts-group-gap: 1.25rem;
+      --ts-item-gap: 0.5rem;
+      --ts-text: #1f2937;
+      --ts-muted: #6b7280;
+      --ts-hover: #f3f2f1;
+      --ts-active-bg: color-mix(in srgb, var(--tenant-secondary, #0063b1) 12%, #ffffff);
+      --ts-active-bar: var(--tenant-secondary, #0063b1);
+      --ts-active-text: #111827;
+      background: var(--ts-surface) !important;
+      border-right: 1px solid var(--ts-edge) !important;
+      box-shadow: none !important;
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .tenant-sidebar-header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--ts-sep);
+      min-height: 44px;
+    }
+    /* Module title (e.g. Dashboard) */
+    .sidebar-header-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      color: #111827;
+    }
+    .sidebar-header-title--muted {
+      font-size: 12px;
+      font-weight: 500;
+      color: #9ca3af;
+      letter-spacing: 0.02em;
+    }
+    .tenant-sidebar-pane {
+      display: flex;
+      flex-direction: column;
+      gap: var(--ts-group-gap);
+      padding: 0.3rem var(--ts-pane-x) 0.5rem;
+    }
+    /* Submenu panes below the first (module switch): hairline only, no heavy rule */
+    .tenant-sidebar-pane--submenu {
+      border-top: 1px solid var(--ts-sep);
+      padding-top: 0.5rem;
+    }
+    /* Label + links stacks — consistent 8px between rows */
+    aside.tenant-sidebar .tenant-sidebar-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--ts-item-gap);
+    }
+    /* Cash & Bank: multiple section blocks in one scroll stack — use group gap, not extra section margins */
+    aside.tenant-sidebar .tenant-sidebar-group--stack {
+      gap: var(--ts-group-gap);
+    }
+    aside.tenant-sidebar .tenant-sidebar-group--stack > .tenant-sidebar-section {
+      margin-top: 0;
+    }
+    /* Between sidebar section groups: ~18–22px above hairline (nested blocks use margin; pane uses gap) */
+    aside.tenant-sidebar .tenant-sidebar-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--ts-item-gap);
+      margin-top: var(--ts-group-gap);
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--ts-sep);
+    }
+    aside.tenant-sidebar .tenant-sidebar-pane > .tenant-sidebar-section {
+      margin-top: 0;
+    }
+    aside.tenant-sidebar .tenant-sidebar-pane > .tenant-sidebar-section:first-child {
+      padding-top: 0.5rem;
+      border-top: none;
+    }
+    /* Section titles — align with nav icon column (pane pad + link margin + link pl = 22px) */
+    .tenant-sidebar-section-label {
+      display: block;
+      margin: 0;
+      padding: 0.45rem 0.5rem 0.1rem var(--ts-nav-inset);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ts-muted);
+    }
+    .tenant-sidebar-pane > div:first-child .tenant-sidebar-section-label {
+      padding-top: 0.35rem;
+    }
+    .tenant-sidebar nav a.tenant-nav-link,
+    .tenant-sidebar nav button.tenant-nav-link {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      width: 100%;
+      gap: 9px;
+      padding: 8px 12px;
+      margin: 0 4px 0 4px;
+      box-sizing: border-box;
+      max-width: calc(100% - 8px);
+      border-radius: 6px;
+      border-left: 0;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      text-align: left;
+      color: var(--ts-text);
+      text-decoration: none;
+      background: transparent;
+      cursor: pointer;
+      transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease, font-weight 0.08s ease;
+    }
+    .tenant-sidebar nav button.tenant-nav-link {
+      -webkit-appearance: none;
+      appearance: none;
+      border-right: 0;
+      border-top: 0;
+      border-bottom: 0;
+      font-family: inherit;
+    }
+    .tenant-sidebar nav a.tenant-nav-link:hover,
+    .tenant-sidebar nav button.tenant-nav-link:hover {
+      background: var(--ts-hover);
+      color: var(--ts-text);
+    }
+    .tenant-sidebar nav a.tenant-nav-link.tenant-nav-link--active,
+    .tenant-sidebar nav button.tenant-nav-link.tenant-nav-link--active {
+      background: var(--ts-active-bg);
+      color: var(--ts-active-text);
+      font-size: 13px;
+      font-weight: 600;
+      border-left-color: transparent;
+      border-left-width: 0;
+      box-shadow: inset 3px 0 0 var(--ts-active-bar);
+    }
+    .tenant-nav-link:focus-visible {
+      outline: 2px solid var(--ts-active-bar);
+      outline-offset: 1px;
+    }
+    /* Nav icons: subtle, text-first; no strong accent colors */
+    .tenant-nav-link__ico {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      color: #64748b;
+      opacity: 0.72;
+    }
+    .tenant-nav-link__ico svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.35;
+    }
+    .tenant-sidebar nav a.tenant-nav-link:hover .tenant-nav-link__ico,
+    .tenant-sidebar nav button.tenant-nav-link:hover .tenant-nav-link__ico {
+      color: #475569;
+      opacity: 0.82;
+    }
+    .tenant-sidebar nav .tenant-nav-link--active .tenant-nav-link__ico {
+      color: var(--tenant-secondary, #0063b1);
+      opacity: 0.95;
+    }
+    .tenant-sidebar-header button i[data-feather] {
+      opacity: 0.55;
+    }
+    .tenant-sidebar-header button:hover i[data-feather] {
+      opacity: 0.75;
+    }
+    aside.tenant-sidebar.w-14 .tenant-nav-link {
+      justify-content: center;
+      margin-left: 3px;
+      margin-right: 3px;
+      padding-left: 5px;
+      padding-right: 5px;
+      max-width: calc(100% - 6px);
+    }
+    /* Module tab strip: static/css/tenant-branding.css */
+    /* Letterheads / print-only blocks: must stay off-screen (Tailwind CDN can override a plain display:none). */
+    html body .print-only {
+      display: none !important;
+    }
+
+    /* Print page setup: landscape for reports like GL */
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    /* Print layout: hide app chrome, show only document content (letterhead + report body) */
+    @media print {
+      html body .print-only {
+        display: block !important;
+      }
+      body {
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* Entire screen top area: identity row + module tabs row + border under tabs (do not use bare `header` — pages use <header> for report heroes) */
+      .tenant-portal-screen-chrome {
+        display: none !important;
+      }
+      aside.tenant-sidebar,
+      .hidden-print,
+      #recent-payment-vouchers {
+        display: none !important;
+      }
+      .voucher-details-break {
+        page-break-before: always;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      /* Main column: full width, no app padding from flex shell */
+      .sns-ds-root.h-screen,
+      .h-full.flex.flex-col {
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+      .flex.flex-1.min-h-0 {
+        display: block !important;
+        min-height: 0 !important;
+      }
+      .print-area,
+      .flex.flex-1.min-h-0 > div:last-child {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 12mm !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      /* Query-string filter summary (see _print_query_filters_summary.html) */
+      .erp-print-filters {
+        font-size: 10px !important;
+        color: #605e5c !important;
+        margin: 0 0 10px !important;
+        padding: 0 0 8px !important;
+        border-bottom: 1px solid #e1dfdd !important;
+      }
+      .erp-print-filters__label {
+        font-weight: 600 !important;
+        color: #323130 !important;
+        font-size: 10px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.04em !important;
+        margin-bottom: 4px !important;
+      }
+      .erp-print-filters__row {
+        line-height: 1.35 !important;
+        margin: 2px 0 !important;
+      }
+      .erp-print-filters:not(:has(.erp-print-filters__row)) {
+        display: none !important;
+      }
+    }
+
+    /* Global filter UX standard */
+    .global-filter-toggle-row {
+      margin-top: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: flex-start;
+    }
+    .global-filter-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      color: #374151;
+      line-height: 1;
+    }
+    .global-filter-toggle-btn:hover { background: #f8fafc; }
+    .global-filter-toggle-btn i[data-feather] { width: 14px; height: 14px; }
+    .global-filter-collapsible {
+      overflow: hidden;
+      transition: max-height 200ms ease, opacity 200ms ease;
+      opacity: 1;
+      margin-bottom: 10px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 10px;
+    }
+    .global-filter-collapsible.is-collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      border-top-width: 0;
+      pointer-events: none;
+    }
+  </style>
+  {% block enterprise_extra_head %}{% endblock %}
+</head>
+<body class="sns-ds-root h-screen overflow-hidden text-[#323130]" style="background-color:var(--tenant-surface-page, #faf9f8);">
+  <div class="h-full flex flex-col" {% block enterprise_shell_attributes %}x-data="{ subMenu: '{{ active_submenu|default:'dashboard' }}', userOpen: false, notifOpen: false, alertFilter: 'all', sidebarCollapsed: false, activeItem: '{% if active_item %}{{ active_item }}{% endif %}' }"{% endblock %}>
+
+    <!-- Screen-only chrome: hidden when printing (see .tenant-portal-screen-chrome + @media print) -->
+    <div class="tenant-portal-screen-chrome">
+    <!-- Microsoft Dynamics-style top bar: identity + search + actions -->
+    <header class="tenant-chrome-topbar h-14 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30">
+      <!-- Left: organization identity + module (tenant theme → Organization Settings → control-plane fallback) -->
+      <div class="flex items-center gap-3 min-w-0">
+        {% if tenant_theme and tenant_theme.logo_url %}
+        <img src="{{ tenant_theme.logo_url }}" alt="{{ tenant_theme.display_full_name|default:tenant.name }} logo"
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% elif org_settings and org_settings.organization_logo %}
+        <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% elif tenant.brand_logo_url %}
+        <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }} logo"
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% else %}
+        <img src="{% url 'platform_dashboard:logo' %}" alt=""
+             class="h-8 w-auto object-contain bg-white rounded shadow-sm" />
+        {% endif %}
+        <div class="flex flex-col leading-tight min-w-0">
+          <span class="erp-topbar-org whitespace-nowrap overflow-hidden text-ellipsis max-w-[280px]">
+            {% if tenant_theme %}{{ tenant_theme.display_full_name }}{% else %}{{ tenant_display_name|default:tenant.name }}{% endif %}
+          </span>
+          {% block enterprise_identity_tagline %}
+          <span class="erp-topbar-tagline opacity-90">
+            Financial &amp; Grant Management
+          </span>
+          {% endblock %}
+        </div>
+        {% block enterprise_identity_trailing %}{% endblock %}
+      </div>
+
+      <!-- Center: global search -->
+      {% block enterprise_topbar_center %}
+      <div class="flex-1 flex items-center justify-end pl-4 pr-2 md:pr-3 min-w-0">
+        <form class="hidden md:block w-full max-w-lg mr-2 md:mr-3" action="#" method="get">
+          <label for="tenant-search-fw" class="sr-only">Search</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--tenant-accent, #0078D4);">
+              <i data-feather="search" class="w-4 h-4"></i>
+            </span>
+            <input id="tenant-search-fw" name="q" type="search"
+                   placeholder="Search vouchers, journals, donors, grants, reports…"
+                   class="w-full pl-9 pr-3 py-1.5 rounded-full border border-white/90 text-xs bg-white text-[#323130] placeholder-[#605e5c] focus:outline-none focus:ring-1 focus:ring-white shadow-sm" />
+          </div>
+        </form>
+      </div>
+      {% endblock %}
+
+      <!-- Right: quick actions, notifications, user -->
+      {% block enterprise_topbar_right %}
+      <div class="flex items-center gap-3 shrink-0 pl-1 md:pl-2">
+        <!-- Create Project → Project Setup Wizard (primary action; paired metrics with Post transaction) -->
+        <a href="{% url 'tenant_portal:grants_project_setup_wizard' %}"
+           class="erp-topbar-pill hidden md:inline-flex no-underline"
+           title="{% trans 'Create Project' %}">
+          <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="plus"></i></span>
+          <span class="erp-topbar-pill__label">{% trans "Create Project" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:grants_project_setup_wizard' %}"
+           class="md:hidden erp-topbar-pill erp-topbar-pill--compact inline-flex items-center justify-center"
+           title="{% trans 'Create Project' %}">
+          <span class="erp-topbar-pill__icon"><i data-feather="plus"></i></span>
+        </a>
+
+        <!-- Post transaction: Payments / Receipts (same pill metrics; outline icons + chevron) -->
+        <div class="relative hidden md:block" x-data="{ postTxnOpen: false }">
+          <button type="button" @click="postTxnOpen = !postTxnOpen"
+                  class="erp-topbar-pill cursor-pointer"
+                  aria-haspopup="true"
+                  x-bind:aria-expanded="postTxnOpen">
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="receipt"></i></span>
+            <span class="erp-topbar-pill__label">{% trans "Post transaction" %}</span>
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="chevron-down"></i></span>
+          </button>
+          <div x-show="postTxnOpen" x-cloak @click.outside="postTxnOpen = false"
+               class="absolute right-0 mt-2 w-64 rounded-xl border bg-white shadow-xl py-1 z-40 text-left"
+               style="border-color:#edebe9;">
+            {% if can_draft_entry_menu %}
+            <a href="{% url 'tenant_portal:finance_draft_entry_hub' %}" @click="postTxnOpen = false; activeItem = 'dashboard_post_transaction'"
+               class="block px-3 py-2 text-[13px] font-semibold text-[#323130] hover:bg-[#faf9f8] border-b" style="border-color:#edebe9;">{% trans "Draft Entry" %}</a>
+            {% endif %}
+            <a href="{% url 'tenant_portal:pay_payment_entry' %}" @click="postTxnOpen = false" class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Payments" %}</a>
+            <a href="{% url 'tenant_portal:recv_receipt_entry' %}?receipt_type=grant_funding"
+               @click="postTxnOpen = false; subMenu = 'receivables'; activeItem = 'recv_center_home'"
+               class="block px-3 py-2 text-[13px] text-[#323130] hover:bg-[#faf9f8]">{% trans "Receipts" %}</a>
+          </div>
+        </div>
+        <a href="{% url 'tenant_portal:finance_post_transaction' %}"
+           class="md:hidden erp-topbar-pill erp-topbar-pill--compact inline-flex items-center justify-center"
+           title="{% trans 'Post transaction' %}">
+          <span class="erp-topbar-pill__icon"><i data-feather="receipt"></i></span>
+        </a>
+
+        <!-- Platform announcements (megaphone) -->
+        <div class="relative">
+          <button type="button"
+                  @click="announceOpen = !announceOpen; notifOpen = false; userOpen = false"
+                  class="erp-topbar-pill erp-topbar-pill--compact inline-flex relative cursor-pointer"
+                  aria-label="{% trans 'Platform announcements' %}"
+                  title="{% trans 'Platform announcements' %}">
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="volume-2"></i></span>
+            {% if platform_announcements_count|default:0 %}
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#0078D4] text-white shadow-sm">{{ platform_announcements_count }}</span>
+            {% endif %}
+          </button>
+          <div x-show="announceOpen" x-cloak
+               @click.outside="announceOpen = false"
+               class="absolute right-0 mt-2 w-[min(420px,calc(100vw-2rem))] max-h-[min(85vh,560px)] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-40 flex flex-col text-left">
+            <div class="px-4 py-3 border-b shrink-0 flex items-center justify-between" style="border-color:#e5e7eb;">
+              <span class="text-[13px] font-semibold text-[#111827]">{% trans "Platform announcements" %}</span>
+            </div>
+            <div class="overflow-y-auto flex-1 p-2">
+              {% if platform_announcements %}
+                {% for ann in platform_announcements %}
+                <div class="px-3 py-3 rounded-lg mb-1 border border-transparent hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+                  <p class="text-[13px] font-semibold text-[#111827]">{{ ann.title }}</p>
+                  <p class="text-[12px] text-[#605e5c] mt-1 line-clamp-4 whitespace-pre-wrap">{{ ann.message }}</p>
+                  <p class="text-[11px] text-slate-500 mt-2">{{ ann.get_category_display }} · {{ ann.get_priority_display }}</p>
+                </div>
+                {% endfor %}
+              {% else %}
+                <p class="px-3 py-6 text-center text-[13px] text-slate-500">{% trans "No active announcements." %}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Alerts / Notifications dropdown -->
+        <div class="relative">
+          <button type="button"
+                  @click="notifOpen = !notifOpen; userOpen = false; announceOpen = false"
+                  class="erp-topbar-pill erp-topbar-pill--compact hidden sm:inline-flex relative cursor-pointer"
+                  aria-label="{% trans 'Alerts and notifications' %}">
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="bell"></i></span>
+            {% if notification_center_count|default:smart_alerts_count > 0 %}
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ea580c] text-white shadow-sm">{{ notification_center_count|default:smart_alerts_count }}</span>
+            {% endif %}
+          </button>
+          <div x-show="notifOpen" x-cloak
+               @click.outside="notifOpen = false"
+               class="absolute right-0 mt-2 w-[min(440px,calc(100vw-2rem))] max-h-[min(90vh,640px)] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col text-left">
+            <div class="px-4 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#e5e7eb;">
+              <span class="text-[13px] font-semibold text-[#111827]">{% trans "Alerts & Warnings" %}</span>
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:var(--tenant-accent, #0078D4);">{% trans "View all" %}</a>
+            </div>
+            {% with panel_alerts=notification_center_items|default:smart_alerts %}
+            {% include "tenant_portal/includes/smart_alerts_items.html" with alerts=panel_alerts compact=1 bell_close=1 %}
+            {% endwith %}
+          </div>
+        </div>
+
+        <!-- User profile dropdown (same pill shell as other top-right actions) -->
+        <div class="relative">
+          <button type="button"
+                  @click="userOpen = !userOpen; announceOpen = false; notifOpen = false"
+                  class="erp-topbar-pill erp-topbar-pill--user cursor-pointer">
+            <span class="hidden sm:inline erp-topbar-pill__label truncate max-w-[160px]">{{ tenant_user.position|default:tenant_user.full_name|default:tenant_user.email }}</span>
+            {% if tenant_user.profile_photo %}
+            <img src="{{ tenant_user.profile_photo.url }}" alt="" class="erp-topbar-pill__avatar" />
+            {% else %}
+            <span class="erp-topbar-pill__avatar-fallback">
+              {{ tenant_user.email|default:'?'|slice:':1'|upper }}
+            </span>
+            {% endif %}
+            <span class="erp-topbar-pill__icon" aria-hidden="true"><i data-feather="chevron-down"></i></span>
+          </button>
+          <div x-show="userOpen" x-cloak
+               x-transition:enter="transition ease-out duration-150"
+               x-transition:enter-start="opacity-0 scale-95"
+               x-transition:enter-end="opacity-100 scale-100"
+               x-transition:leave="transition ease-in duration-100"
+               x-transition:leave-start="opacity-100 scale-100"
+               x-transition:leave-end="opacity-0 scale-95"
+               @click.outside="userOpen = false"
+               class="absolute right-0 mt-2 w-[260px] bg-white rounded-lg z-30 overflow-hidden"
+               style="border: 1px solid #e5e7eb; box-shadow: 0 10px 40px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);">
+            <div class="px-4 py-3 border-b" style="background: #f9fafb; border-color: #e5e7eb;">
+              <p class="text-[11px] font-semibold uppercase tracking-widest" style="color: #6b7280; letter-spacing: 0.08em;">ACCOUNT</p>
+            </div>
+            <div class="py-2 max-h-[320px] overflow-y-auto">
+              <a href="{% url 'tenant_portal:profile' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="user" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>My Profile</span>
+              </a>
+              <a href="{% url 'tenant_portal:organization_settings' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="sliders" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Organization Settings</span>
+              </a>
+              <a href="{% url 'tenant_portal:user_management' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="users" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>User Management</span>
+              </a>
+              <a href="{% url 'tenant_portal:customer_portal_hub' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="grid" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Customer portal</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_dashboard' %}"
+                 @click="userOpen = false"
+                 class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]"
+                 style="color: #323130; font-size: 13px;">
+                <i data-feather="archive" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>{% trans "Document Management" %}</span>
+              </a>
+              {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
+              <a href="{% url 'tenant_portal:audit_risk_home' %}"
+                 @click="userOpen = false"
+                 class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]"
+                 style="color: #323130; font-size: 13px;">
+                <i data-feather="shield" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>{% trans "Audit & Risk Management" %}</span>
+              </a>
+              {% endif %}
+            </div>
+            <div class="border-t py-2" style="border-color: #e5e7eb;">
+              <a href="{% url 'tenant_portal:logout' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors no-underline hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;">
+                <i data-feather="log-out" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Log Out</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endblock %}
+    </header>
+
+    {% block enterprise_module_bar %}
+    <!-- Secondary bar: module navigation -->
+    <div class="tenant-chrome-modulebar h-8 flex items-center min-w-0 px-4 md:px-6 shadow-sm">
+      <nav class="topbar-modules flex-1 min-w-0" role="navigation" aria-label="{% trans 'Financial and grant management' %}">
+        <a href="{% url 'tenant_portal:finance_home' %}"
+           @click="subMenu = 'dashboard'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'dashboard' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="layout"></i>
+          <span>{% trans "Dashboard" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:finance_core_accounting_center' %}"
+           @click="subMenu = 'core'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'core' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="briefcase"></i>
+          <span>{% trans "Core Accounting" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:grants_home' %}"
+           @click="subMenu = 'funds'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'funds' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="folder"></i>
+          <span>{% trans "Funds & Donors" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:budgeting_center' %}"
+           @click="subMenu = 'budget'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'budget' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="trending-up"></i>
+          <span>{% trans "Budgeting" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:cash_dashboard' %}"
+           @click="subMenu = 'cash'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'cash' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="credit-card"></i>
+          <span>{% trans "Cash & Bank" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:incoming_fund_center' %}"
+           @click="subMenu = 'receivables'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'receivables' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="arrow-down-circle"></i>
+          <span>{% trans "Receivables" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:outgoing_fund_center' %}"
+           @click="subMenu = 'payables'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'payables' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="arrow-up-circle"></i>
+          <span>{% trans "Payables" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:cost_home' %}"
+           @click="subMenu = 'cost'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'cost' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="share-2"></i>
+          <span>{% trans "Cost Allocation" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:reporting_center' %}"
+           @click="subMenu = 'reports'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'reports' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="bar-chart-2"></i>
+          <span>{% trans "Reports" %}</span>
+        </a>
+        {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
+        <a href="{% url 'tenant_portal:audit_risk_home' %}"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'audit_risk' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="alert-octagon"></i>
+          <span>{% trans "Audit & Risk" %}</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'tenant_portal:controls_home' %}"
+           @click="subMenu = 'controls'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'controls' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="shield"></i>
+          <span>{% trans "Internal Control" %}</span>
+        </a>
+        <a href="{% url 'tenant_portal:setup_home' %}"
+           @click="subMenu = 'setup'"
+           class="topbar-module rounded-full transition-colors {% if active_submenu == 'setup' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">
+          <i data-feather="settings"></i>
+          <span>{% trans "Financial Setup" %}</span>
+        </a>
+      </nav>
+    </div>
+    {% endblock %}
+    {% include "tenant_portal/includes/platform_announcements_banner.html" %}
+    </div>
+    <!-- end .tenant-portal-screen-chrome -->
+
+    <!-- Body: sidebar + main content -->
+    <div class="flex flex-1 min-h-0">
+      {% block enterprise_sidebar %}
+      <!-- Left sidebar: Financial & Grant Management submenus -->
+      <aside
+        class="tenant-sidebar flex-shrink-0 flex flex-col h-full overflow-hidden transition-all duration-200"
+        :class="sidebarCollapsed ? 'w-14' : 'w-[250px]'">
+        <!-- Sidebar header: active module name + collapse toggle -->
+        <div class="tenant-sidebar-header flex items-center justify-between px-3 py-2">
+          <div class="min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-[#605e5c] truncate leading-tight mb-1" x-show="!sidebarCollapsed">
+              {% if tenant_theme %}{{ tenant_theme.display_short_name }}{% else %}{{ tenant_display_name|default:tenant.name }}{% endif %}
+            </p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'dashboard'">{% trans "Dashboard" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'core'">{% trans "Core Accounting" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'funds'">{% trans "Funds & Donors" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'budget'">{% trans "Budgeting" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'cash'">{% trans "Cash & Bank" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'receivables'">{% trans "Receivables" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'payables'">{% trans "Payables" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'cost'">{% trans "Cost Allocation" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'controls'">{% trans "Internal Control" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'documents'">{% trans "Document Management" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'reports'">{% trans "Reports" %}</p>
+            <p class="sidebar-header-title truncate" x-show="subMenu === 'setup'">{% trans "Financial Setup" %}</p>
+            <p class="sidebar-header-title sidebar-header-title--muted truncate" x-show="!subMenu">{% trans "Select a module above" %}</p>
+          </div>
+          <button type="button"
+                  class="inline-flex items-center justify-center w-7 h-7 rounded-sm text-[#605e5c] hover:bg-[#edebe9] hover:text-[#323130] transition-colors"
+                  @click="sidebarCollapsed = !sidebarCollapsed"
+                  :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+            <i data-feather="chevron-left" class="w-3 h-3" x-show="!sidebarCollapsed"></i>
+            <i data-feather="chevron-right" class="w-3 h-3" x-show="sidebarCollapsed"></i>
+          </button>
+        </div>
+
+        <nav class="py-2 flex-1 overflow-y-auto overflow-x-hidden text-[#323130]" aria-label="Module submenu">
+          <!-- Helper: base classes for menu items -->
+          <!-- Dashboard submenu -->
+          <div class="tenant-sidebar-pane" x-show="subMenu === 'dashboard'" x-cloak>
+            <!-- Management dashboard -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Overview" %}
+              </p>
+              <a href="{% url 'tenant_portal:finance_home' %}"
+                 @click="activeItem = 'dashboard_overview'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_overview' }">
+                <i data-feather="activity" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Executive dashboard" %}</span>
+              </a>
+            </div>
+
+            <!-- Cash & fund position -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Cash & fund position" %}
+              </p>
+              <a href="{% url 'tenant_portal:finance_cash_position' %}"
+                 @click="activeItem = 'dashboard_cash'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_cash' }">
+                <i data-feather="dollar-sign" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash position</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+                 @click="activeItem = 'core_ngo_fund_balance'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_fund_balance' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balance</span>
+              </a>
+            </div>
+
+            <!-- Grants & donors -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Grants & donors" %}
+              </p>
+              <a href="{% url 'tenant_portal:finance_grant_utilization' %}"
+                 @click="activeItem = 'dashboard_grant_util'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_grant_util' }">
+                <i data-feather="pie-chart" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_project_financial_status' %}"
+                 @click="activeItem = 'dashboard_project_status'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_project_status' }">
+                <i data-feather="briefcase" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Project financial status</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'core_ngo_donor_contributions'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_donor_contributions' }">
+                <i data-feather="users" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contributions</span>
+              </a>
+            </div>
+
+            <!-- Budget performance -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Budget performance" %}
+              </p>
+              <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
+                 @click="activeItem = 'core_ngo_budget_vs_actual'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_budget_vs_actual' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_expense_trend' %}"
+                 @click="activeItem = 'core_ngo_activity_expenses'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_activity_expenses' }">
+                <i data-feather="trending-down" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Activity expenses</span>
+              </a>
+            </div>
+
+            <!-- Approvals & alerts -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Approvals & alerts" %}
+              </p>
+              <a href="{% url 'tenant_portal:finance_pending_approvals' %}"
+                 @click="activeItem = 'dashboard_approvals'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_approvals' }">
+                <i data-feather="check-circle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Pending approvals</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_recent_transactions' %}"
+                 @click="activeItem = 'dashboard_recent_txn'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_recent_txn' }">
+                <i data-feather="clock" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Recent financial transactions</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}"
+                 @click="activeItem = 'dashboard_alerts'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_alerts' }">
+                <i data-feather="alert-triangle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Financial alerts &amp; risks</span>
+              </a>
+            </div>
+          </div>
+          <!-- Core Accounting submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'core'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <a href="{% url 'tenant_portal:finance_core_accounting_center' %}"
+                 @click="activeItem = 'core_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_center_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Core Accounting Center" %}</span>
+              </a>
+            </div>
+            <!-- Account setup -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Account setup
+              </p>
+              <a href="{% url 'tenant_portal:finance_accounts' %}"
+                 @click="activeItem = 'core_chart'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_chart' }">
+                <i data-feather="book-open" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Chart of accounts</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_account_categories' %}"
+                 @click="activeItem = 'core_categories'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_categories' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Account categories</span>
+              </a>
+            </div>
+
+            <!-- Journal management -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Journal management
+              </p>
+              <a href="{% url 'tenant_portal:finance_journals' %}"
+                 @click="activeItem = 'core_journals'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_journals' }">
+                <i data-feather="edit-3" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "General journal" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_recurring_journals' %}"
+                 @click="activeItem = 'core_recurring'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_recurring' }">
+                <i data-feather="rotate-cw" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Recurring journals</span>
+              </a>
+              {% if can_access_adjusting_journals %}
+              <a href="{% url 'tenant_portal:finance_adjusting_journals' %}"
+                 @click="activeItem = 'core_adjusting'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_adjusting' }">
+                <i data-feather="sliders" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Adjusting journals</span>
+              </a>
+              {% endif %}
+              <a href="{% url 'tenant_portal:finance_journal_approval' %}"
+                 @click="activeItem = 'core_approval'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_approval' }">
+                <i data-feather="user-check" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Journal approval</span>
+              </a>
+            </div>
+
+            <!-- Ledgers & trial balance -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Ledgers
+              </p>
+              <a href="{% url 'tenant_portal:finance_trial_balance' %}"
+                 @click="activeItem = 'core_tb'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_tb' }">
+                <i data-feather="columns" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Trial balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_general_ledger' %}"
+                 @click="activeItem = 'core_gl'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_gl' }">
+                <i data-feather="file-text" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">General ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_account_ledger' %}"
+                 @click="activeItem = 'core_account_ledger'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_account_ledger' }">
+                <i data-feather="list" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Account ledger</span>
+              </a>
+            </div>
+
+            <!-- Financial statements (short labels; full titles on report pages) -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Financial statements
+              </p>
+              <a href="{% url 'tenant_portal:finance_statement_financial_position' %}"
+                 @click="activeItem = 'core_sfp'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_sfp' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Balance sheet</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_statement_of_activities' %}"
+                 @click="activeItem = 'core_soa'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_soa' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Income &amp; expenditure</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_cash_flow_statement' %}"
+                 @click="activeItem = 'core_cfs'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_cfs' }">
+                <i data-feather="trending-up" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash flow</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_opening_balances' %}"
+                 @click="activeItem = 'core_fs'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_fs' }">
+                <i data-feather="file" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Opening balances</span>
+              </a>
+            </div>
+
+            <!-- Grant & donor reports -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Grant &amp; donor reports
+              </p>
+              <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
+                 @click="activeItem = 'core_ngo_budget_vs_actual'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_budget_vs_actual' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_reports' %}"
+                 @click="activeItem = 'report_grant'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'report_grant' }">
+                <i data-feather="briefcase" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant report</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+                 @click="activeItem = 'core_ngo_fund_balance'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_fund_balance' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_expense_trend' %}"
+                 @click="activeItem = 'core_ngo_activity_expenses'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_activity_expenses' }">
+                <i data-feather="trending-down" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Activity expenses</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'core_ngo_donor_contributions'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_donor_contributions' }">
+                <i data-feather="users" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contributions</span>
+              </a>
+            </div>
+
+            <!-- Posting & transactions -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Posting &amp; transactions
+              </p>
+              <a href="{% url 'tenant_portal:finance_post_transaction' %}"
+                 @click="activeItem = 'dashboard_post_transaction'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_post_transaction' }">
+                <i data-feather="edit-3" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Post transaction</span>
+              </a>
+            </div>
+
+          </div>
+          <!-- Funds & Donors submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'funds'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <a href="{% url 'tenant_portal:grants_home' %}"
+                 @click="activeItem = 'funds_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_center_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Funds & Donors Center" %}</span>
+              </a>
+            </div>
+            <!-- Donor management -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Donor management
+              </p>
+              <a href="{% url 'tenant_portal:grants_donor_register' %}"
+                 @click="activeItem = 'funds_donor_register'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_donor_register' }">
+                <i data-feather="users" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor register</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_agreements' %}"
+                 @click="activeItem = 'funds_donor_agreements'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_donor_agreements' }">
+                <i data-feather="file-text" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contracts</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_conditions' %}"
+                 @click="activeItem = 'funds_donor_conditions'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_donor_conditions' }">
+                <i data-feather="shield" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor conditions &amp; restrictions</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_funding_sources' %}"
+                 @click="activeItem = 'funds_funding_sources'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_funding_sources' }">
+                <i data-feather="database" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Funding modalities" %}</span>
+              </a>
+            </div>
+
+            <!-- Project grants -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Project grants
+              </p>
+              <a href="{% url 'tenant_portal:grants_grants' %}"
+                 @click="activeItem = 'funds_grant_agreements'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_agreements' }">
+                <i data-feather="file-plus" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Project grants</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_projects_list' %}"
+                 @click="activeItem = 'funds_projects_list'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_projects_list' }">
+                <i data-feather="folder" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Project list" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
+                 @click="activeItem = 'funds_grant_allocation'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_allocation' }">
+                <i data-feather="share-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Grant allocation (shared funding)" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_workplan' %}"
+                 @click="activeItem = 'funds_grant_workplan'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_workplan' }">
+                <i data-feather="list" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant workplan</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_tracking' %}"
+                 @click="activeItem = 'funds_grant_tracking'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_tracking' }">
+                <i data-feather="map" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant tracking</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_utilization' %}"
+                 @click="activeItem = 'funds_grant_utilization'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_utilization' }">
+                <i data-feather="pie-chart" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_grant_income_tracking' %}"
+                 @click="activeItem = 'funds_grant_income_tracking'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_income_tracking' }">
+                <i data-feather="trending-up" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Grant income tracking (Receivables)" %}</span>
+              </a>
+            </div>
+
+            <!-- Procurement & implementation -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Procurement & implementation" %}
+              </p>
+              <a href="{% url 'tenant_portal:grants_pr_list' %}"
+                 @click="activeItem = 'funds_pr'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_pr' }">
+                <i data-feather="clipboard" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Purchase requisitions</span>
+              </a>
+            </div>
+
+            <!-- Compliance & reporting -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Compliance &amp; reporting
+              </p>
+              <a href="{% url 'tenant_portal:grants_reporting_requirements' %}"
+                 @click="activeItem = 'funds_reporting_reqs'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_reporting_reqs' }">
+                <i data-feather="clipboard-list" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor reporting requirements</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_financial_reports' %}"
+                 @click="activeItem = 'funds_grant_reports'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_reports' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant financial reports</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donor_compliance' %}"
+                 @click="activeItem = 'funds_donor_compliance'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_donor_compliance' }">
+                <i data-feather="alert-circle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor compliance monitoring</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_reporting_deadlines' %}"
+                 @click="activeItem = 'funds_reporting_deadlines'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_reporting_deadlines' }">
+                <i data-feather="clock" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor reporting deadlines</span>
+              </a>
+            </div>
+          </div>
+          <!-- Budgeting submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'budget'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <a href="{% url 'tenant_portal:budgeting_center' %}"
+                 @click="activeItem = 'budget_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_center_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Budgeting Center" %}</span>
+              </a>
+            </div>
+            <!-- Budget setup -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Budget setup
+              </p>
+              <a href="{% url 'tenant_portal:budget_creation' %}"
+                 @click="activeItem = 'budget_creation'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_creation' }">
+                <i data-feather="file-plus" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget Entry</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_templates' %}"
+                 @click="activeItem = 'budget_templates'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_templates' }">
+                <i data-feather="copy" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget templates</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_versions' %}"
+                 @click="activeItem = 'budget_versions'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_versions' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget versions</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_structures' %}"
+                 @click="activeItem = 'budget_structures'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_structures' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget Setup</span>
+              </a>
+            </div>
+
+            <!-- Budget approval -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Budget approval
+              </p>
+              <a href="{% url 'tenant_portal:budget_approval_workflow' %}"
+                 @click="activeItem = 'budget_approval_workflow'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_approval_workflow' }">
+                <i data-feather="check-square" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget approval workflow</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_approvals' %}"
+                 @click="activeItem = 'budget_approval'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_approval' }">
+                <i data-feather="thumbs-up" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget approvals</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_revisions' %}"
+                 @click="activeItem = 'budget_revisions'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_revisions' }">
+                <i data-feather="edit-3" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget revisions</span>
+              </a>
+            </div>
+
+            <!-- Budget monitoring -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Budget monitoring
+              </p>
+              <a href="{% url 'tenant_portal:budget_monitoring' %}"
+                 @click="activeItem = 'budget_monitoring'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_monitoring' }">
+                <i data-feather="eye" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget monitoring</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_bva' %}"
+                 @click="activeItem = 'budget_vs_actual'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_vs_actual' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual analysis</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_variance' %}"
+                 @click="activeItem = 'budget_variance'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_variance' }">
+                <i data-feather="activity" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Variance analysis</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_control_warnings' %}"
+                 @click="activeItem = 'budget_control_warnings'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_control_warnings' }">
+                <i data-feather="alert-triangle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget control warnings</span>
+              </a>
+            </div>
+
+            <!-- Forecasting & adjustments -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Forecasting &amp; adjustments
+              </p>
+              <a href="{% url 'tenant_portal:budget_forecasting' %}"
+                 @click="activeItem = 'budget_forecasting'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_forecasting' }">
+                <i data-feather="trending-up" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget forecasting</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_adjustments' %}"
+                 @click="activeItem = 'budget_adjustments'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'budget_adjustments' }">
+                <i data-feather="refresh-ccw" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget adjustments</span>
+              </a>
+              <button type="button"
+                      @click="activeItem = 'budget_multi_year'"
+                      class="tenant-nav-link group"
+                      :class="{ 'tenant-nav-link--active': activeItem === 'budget_multi_year' }">
+                <i data-feather="calendar" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Multi-year budgets</span>
+              </button>
+            </div>
+          </div>
+          <!-- Cash & Bank submenu (compact ERP spacing) -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu overflow-y-auto" x-show="subMenu === 'cash'" x-cloak>
+            <div class="tenant-sidebar-group tenant-sidebar-group--stack pb-1">
+              <!-- 1. Account Setup -->
+              <div class="pt-1.5 first:pt-0">
+                <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">{% trans "Account setup" %}</p>
+                <div class="tenant-sidebar-group">
+                  <a href="{% url 'tenant_portal:cash_bank_accounts' %}"
+                     @click="activeItem = 'cash_bank_accounts'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_bank_accounts' }">
+                    <i data-feather="credit-card" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Accounts</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_accounts' %}"
+                     @click="activeItem = 'cash_cash_accounts'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_cash_accounts' }">
+                    <i data-feather="dollar-sign" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Accounts</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_petty_accounts' %}"
+                     @click="activeItem = 'cash_petty_accounts'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_petty_accounts' }">
+                    <i data-feather="pocket" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Petty Cash Accounts</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 2. Transactions -->
+              <div class="tenant-sidebar-section">
+                <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">{% trans "Transactions" %}</p>
+                <div class="tenant-sidebar-group">
+                  <a href="{% url 'tenant_portal:cash_main_cashbook' %}"
+                     @click="activeItem = 'cash_main_cashbook'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_main_cashbook' }">
+                    <i data-feather="book-open" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cashbook</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:recv_bank_cash_receipts' %}"
+                     @click="activeItem = 'recv_bank_cash_receipts'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'recv_bank_cash_receipts' }">
+                    <i data-feather="download" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Receipts</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+                     @click="activeItem = 'pay_payment_vouchers'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'pay_payment_vouchers' }">
+                    <i data-feather="upload" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Payments</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_bank_transfers' %}"
+                     @click="activeItem = 'cash_bank_transfers'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_bank_transfers' }">
+                    <i data-feather="shuffle" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Transfers</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_transfers' %}"
+                     @click="activeItem = 'cash_cash_transfers'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_cash_transfers' }">
+                    <i data-feather="repeat" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Transfers</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:finance_interfund_transfers' %}"
+                     @click="activeItem = 'finance_interfund_transfers'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'finance_interfund_transfers' }">
+                    <i data-feather="git-merge" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Inter-Fund Transfers</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_petty_topup' %}"
+                     @click="activeItem = 'cash_petty_topup'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_petty_topup' }">
+                    <i data-feather="plus-circle" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Petty Cash Top-Up</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_petty_expenses' %}"
+                     @click="activeItem = 'cash_petty_expenses'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_petty_expenses' }">
+                    <i data-feather="file-minus" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Petty Cash Expenses</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 3. Reconciliation -->
+              <div class="tenant-sidebar-section">
+                <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">{% trans "Reconciliation" %}</p>
+                <div class="tenant-sidebar-group">
+                  <a href="{% url 'tenant_portal:cash_bank_import' %}"
+                     @click="activeItem = 'cash_bank_import'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_bank_import' }">
+                    <i data-feather="download-cloud" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Statement Import</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_bank_recon' %}"
+                     @click="activeItem = 'cash_bank_recon'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_bank_recon' }">
+                    <i data-feather="clipboard-check" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Bank Reconciliation</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_count' %}"
+                     @click="activeItem = 'cash_cash_count'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_cash_count' }">
+                    <i data-feather="check-circle" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Count &amp; Verification</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:cash_cash_recon' %}"
+                     @click="activeItem = 'cash_cash_recon'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'cash_cash_recon' }">
+                    <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Reconciliation Reports</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- 4. Controls -->
+              <div class="tenant-sidebar-section">
+                <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">{% trans "Controls" %}</p>
+                <div class="tenant-sidebar-group">
+                  <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}"
+                     @click="activeItem = 'setup_budget_control_rules_list'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'setup_budget_control_rules_list' }">
+                    <i data-feather="shield" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Cash Limits</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}"
+                     @click="activeItem = 'setup_approval_workflows_list'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'setup_approval_workflows_list' }">
+                    <i data-feather="check-square" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Approval Rules</span>
+                  </a>
+                  <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}"
+                     @click="activeItem = 'setup_posting_permissions_list'"
+                     class="tenant-nav-link group"
+                     :class="{ 'tenant-nav-link--active': activeItem === 'setup_posting_permissions_list' }">
+                    <i data-feather="lock" class="tenant-nav-link__ico"></i>
+                    <span x-show="!sidebarCollapsed" class="truncate">Account Restrictions</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Receivables submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'receivables'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <a href="{% url 'tenant_portal:incoming_fund_center' %}"
+                 @click="activeItem = 'recv_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_center_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Receivables home" %}</span>
+              </a>
+            </div>
+            <!-- Receipts -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Receipts
+              </p>
+              <a href="{% url 'tenant_portal:recv_receipt_vouchers' %}"
+                 @click="activeItem = 'recv_receipt_vouchers'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_receipt_vouchers' }">
+                <i data-feather="file-plus" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Receipts" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_donor_receipts' %}"
+                 @click="activeItem = 'recv_donor_receipts'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_donor_receipts' }">
+                <i data-feather="award" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant funding receipts</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_bank_cash_receipts' %}"
+                 @click="activeItem = 'recv_bank_cash_receipts'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_bank_cash_receipts' }">
+                <i data-feather="credit-card" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cashbook receipts</span>
+              </a>
+            </div>
+
+            <!-- Income tracking -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Income tracking
+              </p>
+              <a href="{% url 'tenant_portal:recv_income_register' %}"
+                 @click="activeItem = 'recv_income_register'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_income_register' }">
+                <i data-feather="list" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Income register</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_incoming_fund_register' %}"
+                 @click="activeItem = 'recv_incoming_fund_register'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_incoming_fund_register' }">
+                <i data-feather="arrow-down-circle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Receivables register" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_grant_income_tracking' %}"
+                 @click="activeItem = 'recv_grant_income_tracking'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_grant_income_tracking' }">
+                <i data-feather="pie-chart" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant income tracking</span>
+              </a>
+            </div>
+
+            <!-- Receivables -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Receivables
+              </p>
+              <a href="{% url 'tenant_portal:recv_receivable_ledger' %}"
+                 @click="activeItem = 'recv_ledger'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_ledger' }">
+                <i data-feather="book-open" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Receivable ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:recv_outstanding_receivables' %}"
+                 @click="activeItem = 'recv_outstanding'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'recv_outstanding' }">
+                <i data-feather="alert-circle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Outstanding receivables</span>
+              </a>
+            </div>
+          </div>
+          <!-- Payables submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'payables'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <a href="{% url 'tenant_portal:outgoing_fund_center' %}"
+                 @click="activeItem = 'pay_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_center_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Payables home" %}</span>
+              </a>
+            </div>
+            <!-- Payments -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Payments
+              </p>
+              <a href="{% url 'tenant_portal:pay_payment_vouchers' %}"
+                 @click="activeItem = 'pay_payment_vouchers'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_payment_vouchers' }">
+                <i data-feather="file-minus" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Payments" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}"
+                 @click="activeItem = 'pay_pending_approval_queue'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_pending_approval_queue' }">
+                <i data-feather="inbox" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Pending approval queue" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_vendor_payments' %}"
+                 @click="activeItem = 'pay_vendor_payments'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_vendor_payments' }">
+                <i data-feather="truck" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Vendor payments</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_non_vendor_payments' %}"
+                 @click="activeItem = 'pay_non_vendor_payments'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_non_vendor_payments' }">
+                <i data-feather="file-text" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Non-vendor payments</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_disbursement_list' %}"
+                 @click="activeItem = 'pay_disbursement_form'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_disbursement_form' }">
+                <i data-feather="credit-card" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Disbursement form</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_supporting_documents' %}"
+                 @click="activeItem = 'pay_supporting_documents'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_supporting_documents' }">
+                <i data-feather="paperclip" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Supporting documents</span>
+              </a>
+            </div>
+
+            <!-- Expense tracking -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Expense tracking
+              </p>
+              <a href="{% url 'tenant_portal:pay_expense_register' %}"
+                 @click="activeItem = 'pay_expense_register'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_expense_register' }">
+                <i data-feather="clipboard-list" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense register</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_expense_allocation' %}"
+                 @click="activeItem = 'pay_expense_allocation'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_expense_allocation' }">
+                <i data-feather="share-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense allocation (project &amp; grant)</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_budget_checks' %}"
+                 @click="activeItem = 'pay_budget_checks'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_budget_checks' }">
+                <i data-feather="shield" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget control checks</span>
+              </a>
+            </div>
+
+            <!-- Payables -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Payables
+              </p>
+              <a href="{% url 'tenant_portal:pay_ledger' %}"
+                 @click="activeItem = 'pay_ledger'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_ledger' }">
+                <i data-feather="book-open" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Payables ledger</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_outstanding' %}"
+                 @click="activeItem = 'pay_outstanding'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_outstanding' }">
+                <i data-feather="alert-circle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Outstanding payables</span>
+              </a>
+            </div>
+          </div>
+          <!-- Cost allocation submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'cost'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <a href="{% url 'tenant_portal:cost_home' %}"
+                 @click="activeItem = 'cost_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_center_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Cost allocation home" %}</span>
+              </a>
+            </div>
+            <!-- Cost allocation -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Cost allocation
+              </p>
+              <a href="{% url 'tenant_portal:pay_expense_allocation' %}"
+                 @click="activeItem = 'cost_expense_allocation'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_expense_allocation' }">
+                <i data-feather="share-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Expense allocation</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_grant_utilization' %}"
+                 @click="activeItem = 'cost_shared_costs'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_shared_costs' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Shared cost distribution</span>
+              </a>
+            </div>
+
+            <!-- Donor & shared funding -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Donor & shared funding" %}
+              </p>
+              <a href="{% url 'tenant_portal:grants_grant_allocation' %}"
+                 @click="activeItem = 'cost_multi_donor_allocation'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_multi_donor_allocation' }">
+                <i data-feather="git-branch" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Cross-donor allocation" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'cost_donor_cost_sharing'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_donor_cost_sharing' }">
+                <i data-feather="users" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor cost sharing</span>
+              </a>
+            </div>
+
+            <!-- Allocation setup -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Allocation setup
+              </p>
+              <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}"
+                 @click="activeItem = 'cost_allocation_rules'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_allocation_rules' }">
+                <i data-feather="sliders" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Allocation rules</span>
+              </a>
+              <a href="{% url 'tenant_portal:budget_templates' %}"
+                 @click="activeItem = 'cost_allocation_templates'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'cost_allocation_templates' }">
+                <i data-feather="copy" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Allocation templates</span>
+              </a>
+            </div>
+          </div>
+          <!-- Internal control submenu -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'controls'" x-cloak>
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Overview
+              </p>
+              <a href="{% url 'tenant_portal:controls_home' %}"
+                 @click="activeItem = 'controls_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'controls_home' }">
+                <i data-feather="layout" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Internal control home" %}</span>
+              </a>
+            </div>
+            <!-- Approval control -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Approval control
+              </p>
+              <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}"
+                 @click="activeItem = 'gov_approval_workflows'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'gov_approval_workflows' }">
+                <i data-feather="check-square" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Approval workflows</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}"
+                 @click="activeItem = 'gov_authorization_levels'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'gov_authorization_levels' }">
+                <i data-feather="user-check" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Authorization levels</span>
+              </a>
+              <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}"
+                 @click="activeItem = 'pay_pending_approval_queue'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'pay_pending_approval_queue' }">
+                <i data-feather="inbox" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Pending approval queue" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_journal_approval' %}"
+                 @click="activeItem = 'gov_maker_checker'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'gov_maker_checker' }">
+                <i data-feather="users" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Maker-checker approval</span>
+              </a>
+            </div>
+
+            {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                {% trans "Audit & Risk" %}
+              </p>
+              <a href="{% url 'tenant_portal:audit_risk_home' %}"
+                 class="tenant-nav-link group">
+                <i data-feather="alert-octagon" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Open Audit & Risk workspace" %}</span>
+              </a>
+            </div>
+            {% endif %}
+          </div>
+          <!-- Document Management: standalone workspace (single sidebar; routes in tenant_portal.views_documents + urls documents_*) -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'documents'" x-cloak>
+            <div class="tenant-sidebar-group pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">{% trans "Document Management" %}</p>
+              <a href="{% url 'tenant_portal:documents_dashboard' %}"
+                 @click="activeItem = 'dm_dashboard'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_dashboard' }">
+                <i data-feather="layout" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Dashboard" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_all' %}"
+                 @click="activeItem = 'dm_all'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_all' || activeItem === 'dm_versions' }">
+                <i data-feather="folder" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "All documents" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_upload' %}"
+                 @click="activeItem = 'dm_upload'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_upload' }">
+                <i data-feather="upload" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Upload document" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_categories' %}"
+                 @click="activeItem = 'dm_categories'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_categories' }">
+                <i data-feather="tag" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Categories" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_linked' %}"
+                 @click="activeItem = 'dm_linked'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_linked' }">
+                <i data-feather="link" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Linked documents" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_templates' %}"
+                 @click="activeItem = 'dm_templates'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_templates' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Templates" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_expiring' %}"
+                 @click="activeItem = 'dm_expiring'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_expiring' }">
+                <i data-feather="clock" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Expiring documents" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_approvals' %}"
+                 @click="activeItem = 'dm_approvals'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_approvals' }">
+                <i data-feather="check-square" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Document approvals" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_audit_files' %}"
+                 @click="activeItem = 'dm_audit'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_audit' }">
+                <i data-feather="shield" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Audit files" %}</span>
+              </a>
+              <a href="{% url 'tenant_portal:documents_storage_settings' %}"
+                 @click="activeItem = 'dm_storage'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dm_storage' }">
+                <i data-feather="hard-drive" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Storage settings" %}</span>
+              </a>
+            </div>
+          </div>
+          <!-- Reports submenu: statements → budget → grants → donors → export -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'reports'" x-cloak>
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Overview
+              </p>
+              <a href="{% url 'tenant_portal:reporting_center' %}"
+                 @click="activeItem = 'report_center_home'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'report_center_home' }">
+                <i data-feather="layout" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">{% trans "Reports home" %}</span>
+              </a>
+            </div>
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Financial statements
+              </p>
+              <a href="{% url 'tenant_portal:finance_statement_financial_position' %}"
+                 @click="activeItem = 'core_sfp'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_sfp' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Balance sheet</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_statement_of_activities' %}"
+                 @click="activeItem = 'core_soa'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_soa' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Income &amp; expenditure</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_cash_flow_statement' %}"
+                 @click="activeItem = 'core_cfs'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_cfs' }">
+                <i data-feather="trending-up" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cash flow</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_trial_balance' %}"
+                 @click="activeItem = 'core_tb'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_tb' }">
+                <i data-feather="columns" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Trial balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_general_ledger' %}"
+                 @click="activeItem = 'core_gl'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_gl' }">
+                <i data-feather="file-text" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">General ledger</span>
+              </a>
+            </div>
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Budget reports
+              </p>
+              <a href="{% url 'tenant_portal:finance_budget_vs_actual' %}"
+                 @click="activeItem = 'core_ngo_budget_vs_actual'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_budget_vs_actual' }">
+                <i data-feather="bar-chart-2" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget vs actual</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_grant_financial_reports' %}"
+                 @click="activeItem = 'funds_grant_reports'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'funds_grant_reports' }">
+                <i data-feather="clipboard" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget summary</span>
+              </a>
+            </div>
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Grant reports
+              </p>
+              <a href="{% url 'tenant_portal:grants_reports' %}"
+                 @click="activeItem = 'report_grant'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'report_grant' }">
+                <i data-feather="briefcase" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant report</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_grant_utilization' %}"
+                 @click="activeItem = 'dashboard_grant_util'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'dashboard_grant_util' }">
+                <i data-feather="activity" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant utilization</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_fund_balances' %}"
+                 @click="activeItem = 'core_ngo_fund_balance'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_fund_balance' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fund balance</span>
+              </a>
+              <a href="{% url 'tenant_portal:finance_expense_trend' %}"
+                 @click="activeItem = 'core_ngo_activity_expenses'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_activity_expenses' }">
+                <i data-feather="trending-down" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Activity expenses</span>
+              </a>
+            </div>
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Donor reports
+              </p>
+              <a href="{% url 'tenant_portal:finance_donor_funding_status' %}"
+                 @click="activeItem = 'core_ngo_donor_contributions'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'core_ngo_donor_contributions' }">
+                <i data-feather="users" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor contributions</span>
+              </a>
+              <a href="{% url 'tenant_portal:grants_donors' %}?report_nav=1"
+                 @click="activeItem = 'report_donor_summary'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'report_donor_summary' }">
+                <i data-feather="list" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Donor summary</span>
+              </a>
+            </div>
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Export tools
+              </p>
+              <a href="{% url 'tenant_portal:reporting_export_tools' %}"
+                 @click="activeItem = 'report_export_tools'"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'report_export_tools' }">
+                <i data-feather="download" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Export PDF &amp; Excel</span>
+              </a>
+            </div>
+          </div>
+          <!-- Financial Setup submenu (Dynamics-style grouping) -->
+          <div class="tenant-sidebar-pane tenant-sidebar-pane--submenu" x-show="subMenu === 'setup'" x-cloak>
+            <!-- Overview -->
+            <div class="tenant-sidebar-group">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Overview
+              </p>
+              <a href="{% url 'tenant_portal:setup_home' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_home' }">
+                <i data-feather="grid" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Setup overview</span>
+              </a>
+            </div>
+
+            <!-- Dimensions -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Dimensions
+              </p>
+              <a href="{% url 'tenant_portal:setup_dimensions_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_dimensions' }">
+                <i data-feather="layers" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Dimensions</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_cost_centers_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_cost_centers' }">
+                <i data-feather="tag" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Cost centers</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_grant_dimensions_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_project_grant_dims' }">
+                <i data-feather="briefcase" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Projects &amp; grants</span>
+              </a>
+            </div>
+
+            <!-- Currency management -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Currency management
+              </p>
+              <a href="{% url 'tenant_portal:setup_currencies_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_currencies' }">
+                <i data-feather="dollar-sign" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Currencies</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_exchange_rates_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_exchange_rates' }">
+                <i data-feather="trending-up" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Exchange rates</span>
+              </a>
+            </div>
+
+            <!-- Document numbering -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Document numbering
+              </p>
+              <a href="{% url 'tenant_portal:setup_voucher_numbering_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_voucher_numbering' }">
+                <i data-feather="file-text" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Voucher numbering</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_numbering_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_numbering' }">
+                <i data-feather="hash" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Document series</span>
+              </a>
+            </div>
+
+            <!-- Accounting rules -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Accounting rules
+              </p>
+              <a href="{% url 'tenant_portal:setup_posting_rules_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_posting_rules' }">
+                <i data-feather="sliders" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Posting rules</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_default_accounts_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_default_accounts' }">
+                <i data-feather="map" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Default mapping</span>
+              </a>
+            </div>
+
+            <!-- Controls & approvals -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Controls &amp; approvals
+              </p>
+              <a href="{% url 'tenant_portal:setup_posting_permissions_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_posting_permissions' }">
+                <i data-feather="user-check" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Posting controls</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_approval_workflows_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_approval_workflows' }">
+                <i data-feather="check-square" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Approval workflows</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_budget_control_rules_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_budget_control_rules' }">
+                <i data-feather="shield" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Budget control rules</span>
+              </a>
+            </div>
+
+            <!-- Compliance & operations -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Compliance &amp; operations
+              </p>
+              <a href="{% url 'tenant_portal:setup_reversal_rules' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_reversal_rules' }">
+                <i data-feather="rotate-ccw" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Reversal &amp; corrections</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_interfund_rules_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_interfund_rules' }">
+                <i data-feather="shuffle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Inter-fund transfers</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_grant_compliance_rules_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_grant_compliance_rules' }">
+                <i data-feather="check-circle" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Grant compliance</span>
+              </a>
+            </div>
+
+            <!-- Fiscal structure (fiscal years + accounting periods) -->
+            <div class="tenant-sidebar-section pb-1">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Fiscal structure
+              </p>
+              <a href="{% url 'tenant_portal:setup_fiscal_years_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_fiscal_years' }">
+                <i data-feather="calendar" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Fiscal years</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_accounting_periods_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_accounting_periods' }">
+                <i data-feather="calendar" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Accounting periods</span>
+              </a>
+            </div>
+
+            <!-- Security & audit -->
+            <div class="tenant-sidebar-section">
+              <p class="tenant-sidebar-section-label" x-show="!sidebarCollapsed">
+                Security &amp; audit
+              </p>
+              <a href="{% url 'tenant_portal:roles_permissions_list' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_roles_permissions' }">
+                <i data-feather="shield-off" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Roles &amp; permissions</span>
+              </a>
+              <a href="{% url 'tenant_portal:setup_audit_trail_settings' %}"
+                 class="tenant-nav-link group"
+                 :class="{ 'tenant-nav-link--active': activeItem === 'setup_audit_trail_settings' }">
+                <i data-feather="activity" class="tenant-nav-link__ico"></i>
+                <span x-show="!sidebarCollapsed" class="truncate">Audit trail settings</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Audit & Risk is a separate workplace: open via user menu (Audit & Risk) or URL /t/audit-risk/ -->
+        </nav>
+      </aside>
+      {% endblock %}
+      <main class="{% block enterprise_main_class %}min-w-0 flex-1 px-6 py-8 overflow-y-auto erp-main-scroll{% endblock %}">
+      {% include "tenant_portal/includes/erp_alert_layer.html" %}
+      {% block enterprise_messages %}
+      {% if messages %}
+        <div class="mb-5 space-y-2" role="status">
+          {% for message in messages %}
+            {% if 'error' in message.tags %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#fde7e9;background:#fde7e9;color:#a4262c;">
+              {{ message|linebreaksbr }}
+            </div>
+            {% elif 'warning' in message.tags %}
+            <div class="text-sm px-3 py-2 rounded border text-left" style="border-color:#fff4ce;background:#fff4ce;color:#8a6116;">
+              {{ message|linebreaksbr }}
+            </div>
+            {% elif 'success' in message.tags %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#dff6dd;background:#dff6dd;color:#0b5a0b;">
+              {{ message }}
+            </div>
+            {% else %}
+            <div class="text-sm px-3 py-2 rounded border" style="border-color:#deecf9;background:#f3f9ff;color:#004578;">
+              {{ message }}
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% endblock %}
+
+      {% block breadcrumbs %}{% endblock %}
+      {% block content %}{% endblock %}
+    </main>
+    </div>
+    {% include "tenant_portal/includes/platform_announcements_popup.html" %}
+  </div>
+
+  <script>
+    feather.replace({ 'stroke-width': 1.6 });
+
+    (function initGlobalFilterToggles() {
+      const main = document.querySelector("main");
+      if (!main) return;
+
+      const candidates = Array.from(main.querySelectorAll("form[method='get'], form[method='GET'], .dynamics-filter-pane"));
+      const seen = new Set();
+
+      const targets = candidates.filter((el) => {
+        let panel = el;
+        if (el.matches("form")) {
+          if (el.closest(".global-filter-collapsible")) return false;
+          const controls = el.querySelectorAll("input, select");
+          if (controls.length < 2) return false;
+          const hasSubmit = !!el.querySelector("button[type='submit'], input[type='submit']");
+          if (!hasSubmit) return false;
+          if (el.id === "tenant-search-fw" || el.closest("header")) return false;
+          panel = el;
+        } else {
+          const form = el.querySelector("form[method='get'], form[method='GET']");
+          if (!form) return false;
+          panel = el;
+        }
+
+        // Respect pages that already implement their own single toggle state/button.
+        if (panel.matches("[x-show*='filtersOpen']")) return false;
+        const localScope = panel.closest("[x-data]");
+        if (localScope) {
+          const existingToggle = localScope.querySelector(
+            "button[\\@click*='filtersOpen'], button[x-text*='filtersOpen'], button [x-text*='filtersOpen']"
+          );
+          if (existingToggle) return false;
+        }
+        const nearbyToggle = panel.previousElementSibling;
+        if (
+          nearbyToggle &&
+          nearbyToggle.querySelector &&
+          nearbyToggle.querySelector("[x-text*='filtersOpen'], button[\\@click*='filtersOpen']")
+        ) {
+          return false;
+        }
+
+        if (panel.hasAttribute("data-no-global-filter-toggle")) return false;
+        if (seen.has(panel)) return false;
+        seen.add(panel);
+        return true;
+      });
+
+      targets.forEach((target, idx) => {
+        if (target.classList.contains("global-filter-collapsible")) return;
+
+        const toggleRow = document.createElement("div");
+        toggleRow.className = "global-filter-toggle-row hidden-print";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "global-filter-toggle-btn";
+        button.setAttribute("aria-expanded", "false");
+        button.innerHTML = '<i data-feather="filter"></i><span>Show filters</span>';
+        toggleRow.appendChild(button);
+
+        target.classList.add("global-filter-collapsible", "is-collapsed");
+        target.style.maxHeight = "0px";
+
+        target.parentNode.insertBefore(toggleRow, target);
+
+        const setState = (expanded) => {
+          button.setAttribute("aria-expanded", expanded ? "true" : "false");
+          button.querySelector("span").textContent = expanded ? "Hide filters" : "Show filters";
+          if (expanded) {
+            target.classList.remove("is-collapsed");
+            target.style.maxHeight = target.scrollHeight + "px";
+            window.setTimeout(() => {
+              if (!target.classList.contains("is-collapsed")) target.style.maxHeight = "none";
+            }, 220);
+          } else {
+            target.style.maxHeight = target.scrollHeight + "px";
+            requestAnimationFrame(() => {
+              target.classList.add("is-collapsed");
+              target.style.maxHeight = "0px";
+            });
+          }
+        };
+
+        button.addEventListener("click", () => {
+          const expanded = button.getAttribute("aria-expanded") === "true";
+          setState(!expanded);
+        });
+      });
+
+      feather.replace({ 'stroke-width': 1.6 });
+    })();
+  </script>
+</body>
+</html>
+

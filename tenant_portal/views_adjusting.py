@@ -10,7 +10,6 @@ from django.db.models import Q
 from tenant_portal.decorators import tenant_view
 from tenant_portal.views import (
     _accounting_period_label_for_date,
-    _finance_assert_open_period,
     _finance_export_csv_url,
     _finance_generate_adjusting_journal_number,
     _finance_journal_gl_date,
@@ -330,12 +329,6 @@ def finance_adjusting_journal_create_view(request: HttpRequest) -> HttpResponse:
             messages.error(request, "Please select a valid adjustment type.")
             return redirect(reverse("tenant_portal:finance_adjusting_journal_create"))
 
-        try:
-            _finance_assert_open_period(posting_date, tenant_db, request.tenant_user_id)
-        except ValueError as e:
-            messages.error(request, str(e))
-            return redirect(reverse("tenant_portal:finance_adjusting_journal_create"))
-
         accounts_post = request.POST.getlist("line_account")
         debits = request.POST.getlist("line_debit")
         credits = request.POST.getlist("line_credit")
@@ -390,6 +383,7 @@ def finance_adjusting_journal_create_view(request: HttpRequest) -> HttpResponse:
                 reference=reference,
                 adjustment_type=adjustment_type,
                 grant=grant,
+                project=(grant.project if grant and getattr(grant, "project_id", None) else None),
                 donor=donor,
                 status=JournalEntry.Status.DRAFT,
                 created_by=request.tenant_user,

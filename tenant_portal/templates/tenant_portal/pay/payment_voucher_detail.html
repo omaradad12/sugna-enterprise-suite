@@ -1,9 +1,16 @@
 {% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
 {% block title %}Payment Voucher {{ reference }} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto bg-white border rounded-lg shadow-sm p-6 print-area" style="border-color:#edebe9;">
-  <div class="flex items-center justify-between border-b pb-4 mb-4" style="border-color:#edebe9;">
+  {% if draft_missing_fields %}
+  <div class="rounded-lg border px-4 py-3 mb-4" style="border-color:#fbbf24; background:#fffbeb;" role="status">
+    <p class="text-[13px] font-semibold text-[#92400e]">{% trans "Incomplete draft — missing fields" %}</p>
+    <p class="text-[13px] text-[#78350f] mt-1">{{ draft_missing_fields|join:", " }}</p>
+  </div>
+  {% endif %}
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-4 mb-4" style="border-color:#edebe9;">
     <div class="flex items-center gap-3">
       {% if org_settings and org_settings.organization_logo %}
       <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }} logo" class="h-10 w-auto object-contain bg-white rounded" />
@@ -20,6 +27,12 @@
     <div class="text-right">
       <p class="text-[11px] text-[#605e5c] uppercase tracking-wide">Voucher no.</p>
       <p class="font-mono text-sm font-semibold">{{ reference }}</p>
+      {% if payment_voucher_edit_url %}
+      <a href="{{ payment_voucher_edit_url }}" class="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-md text-[13px] font-semibold text-white" style="background:#0078d4;">
+        <i data-feather="edit-2" class="w-4 h-4"></i>
+        {% trans "Edit voucher" %}
+      </a>
+      {% endif %}
     </div>
   </div>
 
@@ -29,13 +42,17 @@
       <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.entry_date|date:"Y-m-d" }}</p>
     </div>
     <div>
-      <p class="text-xs font-semibold text-[#605e5c]">Project / Grant</p>
-      <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.grant.code }} — {{ entry.grant.title }}</p>
+      <p class="text-xs font-semibold text-[#605e5c]">{% trans "Project" %}</p>
+      <p class="border-b pb-1" style="border-color:#edebe9;">{% if entry.project %}{{ entry.project.code }}{% else %}—{% endif %}</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold text-[#605e5c]">{% trans "Grant" %}</p>
+      <p class="border-b pb-1" style="border-color:#edebe9;">{% if entry.grant %}{{ entry.grant.code }} — {{ entry.grant.title }}{% else %}—{% endif %}</p>
     </div>
     <div>
       <p class="text-xs font-semibold text-[#605e5c]">Payment account</p>
       <p class="border-b pb-1" style="border-color:#edebe9;">
-        {% if payment_line %}
+        {% if payment_line and payment_line.account %}
           {{ payment_line.account.code }} — {{ payment_line.account.name }}
         {% else %}
           —
@@ -45,15 +62,27 @@
     <div>
       <p class="text-xs font-semibold text-[#605e5c]">Expense account</p>
       <p class="border-b pb-1" style="border-color:#edebe9;">
-        {% if expense_line %}
+        {% if expense_line and expense_line.account %}
           {{ expense_line.account.code }} — {{ expense_line.account.name }}
         {% else %}
           —
         {% endif %}
       </p>
     </div>
+    <div>
+      <p class="text-xs font-semibold text-[#605e5c]">{% trans "Payee" %}</p>
+      <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.payee_name|default:"—" }}</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold text-[#605e5c]">{% trans "Payment method" %}</p>
+      <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.payment_method|default:"—" }}</p>
+    </div>
+    <div>
+      <p class="text-xs font-semibold text-[#605e5c]">{% trans "Reference" %}</p>
+      <p class="border-b pb-1 font-mono text-[13px]" style="border-color:#edebe9;">{{ entry.source_document_no|default:"—" }}</p>
+    </div>
     <div class="sm:col-span-2">
-      <p class="text-xs font-semibold text-[#605e5c]">Description</p>
+      <p class="text-xs font-semibold text-[#605e5c]">{% trans "Description" %}</p>
       <p class="border-b pb-1" style="border-color:#edebe9;">{{ entry.memo|default:"—" }}</p>
     </div>
     <div>
@@ -80,6 +109,9 @@
     </div>
   </div>
 
+  <script>
+    if (window.feather) { feather.replace(); }
+  </script>
   <div class="mt-6 flex justify-end hidden-print">
     <button type="button"
             onclick="window.print()"
@@ -112,8 +144,8 @@
     <tbody>
       {% for line in lines %}
       <tr>
-        <td>{{ line.account.code }}</td>
-        <td>{{ line.account.name }}</td>
+        <td>{% if line.account %}{{ line.account.code }}{% else %}—{% endif %}</td>
+        <td>{% if line.account %}{{ line.account.name }}{% else %}—{% endif %}</td>
         <td>{{ line.description|default:"—" }}</td>
         <td>{{ line.debit }}</td>
         <td>{{ line.credit }}</td>

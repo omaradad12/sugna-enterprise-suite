@@ -1,0 +1,19 @@
+{% comment %}
+Compact letterhead for @media print or PDF. Uses .print-only (see _layout_fullwidth.html).
+Relies on tenant_print_header from tenant_theme context processor.
+{% endcomment %}
+{% if tenant_print_header %}
+<div class="print-only tenant-theme-print-head border-b border-[#e1dfdd] pb-3 mb-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    {% if tenant_print_header.logo_url %}
+    <img src="{{ tenant_print_header.logo_url }}" alt="" class="h-10 w-auto max-w-[200px] object-contain" />
+    {% endif %}
+    <div class="text-right flex-1 min-w-[200px]">
+      <div class="text-base font-semibold text-[#201f1e]">{{ tenant_print_header.organization_name }}</div>
+      {% if tenant_print_header.footer_text %}
+      <div class="text-[11px] text-[#605e5c] mt-1">{{ tenant_print_header.footer_text }}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}

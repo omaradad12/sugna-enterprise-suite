@@ -3,174 +3,217 @@
 {% block title %}{% trans "Journal approval" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-[1600px] mx-auto">
-  <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
-    <div>
-      <h1 class="page-title">{% trans "Journal approval" %}</h1>
+<div class="sns-transaction-workspace hidden-print">
+  <div class="sns-page-hero mb-4">
+    <p class="sns-page-hero__eyebrow">{% trans "Core accounting" %} · {% trans "Approval queue" %}</p>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="sns-page-hero__title">{% trans "Journal approval" %}</h1>
+        <p class="sns-page-hero__desc">
+          {% trans "Review submitted journals, approve or return to draft, then post approved entries to the general ledger. Payment vouchers (PV-…) are approved under Payables." %}
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2 shrink-0">
+        {% if export_csv_url %}
+        <a href="{{ export_csv_url }}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          <i data-feather="download" class="w-4 h-4"></i>
+          {% trans "Export CSV" %}
+        </a>
+        {% endif %}
+        <a href="{% url 'tenant_portal:finance_journals' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          <i data-feather="book" class="w-4 h-4"></i>
+          {% trans "General journal" %}
+        </a>
+        <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          <i data-feather="credit-card" class="w-4 h-4"></i>
+          {% trans "Payment approvals" %}
+        </a>
+      </div>
     </div>
-    {% if export_csv_url %}
-    <a href="{{ export_csv_url }}"
-       class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[13px] font-semibold hover:bg-[#faf9f8]"
-       style="border-color:#edebe9;">
-      <i data-feather="download" class="w-4 h-4"></i>
-      {% trans "Export CSV" %}
-    </a>
-    {% endif %}
   </div>
 
-  <div class="bg-white border rounded-xl p-4 mb-4 shadow-sm" style="border-color:#edebe9;">
-    <form method="get" action="" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 text-[13px]">
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "From date" %}</label>
-        <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}"
-               class="w-full rounded border px-2 py-1.5" style="border-color:#edebe9;">
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "To date" %}</label>
-        <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}"
-               class="w-full rounded border px-2 py-1.5" style="border-color:#edebe9;">
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "Journal type" %}</label>
-        <select name="journal_category" class="w-full rounded border px-2 py-1.5 bg-white" style="border-color:#edebe9;">
-          <option value="">{% trans "All types" %}</option>
-          <option value="general" {% if journal_category == 'general' %}selected{% endif %}>{% trans "General" %}</option>
-          <option value="recurring" {% if journal_category == 'recurring' %}selected{% endif %}>{% trans "Recurring" %}</option>
-          <option value="adjusting" {% if journal_category == 'adjusting' %}selected{% endif %}>{% trans "Adjusting" %}</option>
-          <option value="system" {% if journal_category == 'system' %}selected{% endif %}>{% trans "System" %}</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "Status" %}</label>
-        <select name="status" class="w-full rounded border px-2 py-1.5 bg-white" style="border-color:#edebe9;">
-          <option value="" {% if not status_filter %}selected{% endif %}>{% trans "Submitted (default)" %}</option>
-          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{% trans "All statuses" %}</option>
-          {% for value, label in journal_statuses.choices %}
-          <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "Project / grant" %}</label>
-        <select name="grant_id" class="w-full rounded border px-2 py-1.5 bg-white" style="border-color:#edebe9;">
-          <option value="">{% trans "All" %}</option>
-          {% for g in grants %}
-          <option value="{{ g.id }}" {% if filters.grant_id == g.id|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:3 }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "Created by" %}</label>
-        <select name="created_by_id" class="w-full rounded border px-2 py-1.5 bg-white" style="border-color:#edebe9;">
-          <option value="">{% trans "All" %}</option>
-          {% for u in created_by_users %}
-          <option value="{{ u.id }}" {% if created_by_id == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "Amount min" %}</label>
-        <input type="text" name="amount_min" value="{{ amount_min }}" inputmode="decimal" placeholder="0.00"
-               class="w-full rounded border px-2 py-1.5" style="border-color:#edebe9;">
-      </div>
-      <div>
-        <label class="block text-[11px] font-semibold uppercase text-[#605e5c] mb-1">{% trans "Amount max" %}</label>
-        <input type="text" name="amount_max" value="{{ amount_max }}" inputmode="decimal" placeholder="0.00"
-               class="w-full rounded border px-2 py-1.5" style="border-color:#edebe9;">
-      </div>
-      <div class="md:col-span-2 flex flex-wrap items-end gap-2">
-        <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm"
-                style="background:#0078D4;">
-          <i data-feather="filter" class="w-4 h-4"></i>
-          {% trans "Apply filters" %}
-        </button>
-        <a href="." class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-semibold hover:bg-[#faf9f8]"
-           style="border-color:#edebe9;">{% trans "Reset" %}</a>
-      </div>
-    </form>
-  </div>
+  {% if status_filter == "draft" %}
+    {% include "tenant_portal/includes/sns_workflow_strip.html" with active="draft" %}
+  {% elif status_filter == "posted" or status_filter == "reversed" %}
+    {% include "tenant_portal/includes/sns_workflow_strip.html" with active="posted" %}
+  {% elif status_filter == "all" %}
+    {% include "tenant_portal/includes/sns_workflow_strip.html" with active="" %}
+  {% else %}
+    {% include "tenant_portal/includes/sns_workflow_strip.html" with active="approval" %}
+  {% endif %}
 
-  <div class="bg-white border rounded-xl overflow-hidden shadow-sm" style="border-color:#edebe9;">
-    <div class="px-5 py-3 border-b font-semibold text-[#323130] flex items-center justify-between" style="border-color:#edebe9; background:#faf9f8;">
+  <div class="sns-erp-filter-panel mb-4">
+    <div class="sns-erp-filter-panel__head">{% trans "Filters" %}</div>
+    <div class="sns-erp-filter-panel__body">
+      <form method="get" action="" class="sns-erp-filter-grid">
+        <div>
+          <label class="sns-filter-label">{% trans "From date" %}</label>
+          <input type="date" name="period_start" value="{{ filters.period_start|date:'Y-m-d' }}" />
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "To date" %}</label>
+          <input type="date" name="period_end" value="{{ filters.period_end|date:'Y-m-d' }}" />
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Journal category" %}</label>
+          <select name="journal_category">
+            <option value="">{% trans "All types" %}</option>
+            <option value="general" {% if journal_category == 'general' %}selected{% endif %}>{% trans "General" %}</option>
+            <option value="recurring" {% if journal_category == 'recurring' %}selected{% endif %}>{% trans "Recurring" %}</option>
+            <option value="adjusting" {% if journal_category == 'adjusting' %}selected{% endif %}>{% trans "Adjusting" %}</option>
+            <option value="system" {% if journal_category == 'system' %}selected{% endif %}>{% trans "System" %}</option>
+          </select>
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Status" %}</label>
+          <select name="status">
+            <option value="" {% if not status_filter %}selected{% endif %}>{% trans "Submitted (default)" %}</option>
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>{% trans "All statuses" %}</option>
+            {% for value, label in journal_statuses.choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if projects %}
+        <div>
+          <label class="sns-filter-label">{% trans "Project" %}</label>
+          <select name="project_id">
+            <option value="">{% trans "All" %}</option>
+            {% for p in projects %}
+            <option value="{{ p.pk }}" {% if project_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.code }} — {{ p.name|truncatewords:4 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% if grants %}
+        <div>
+          <label class="sns-filter-label">{% trans "Grant" %}</label>
+          <select name="grant_id">
+            <option value="">{% trans "All" %}</option>
+            {% for g in grants %}
+            <option value="{{ g.id }}" {% if filters.grant_id == g.id|stringformat:'s' %}selected{% endif %}>{{ g.code }} — {{ g.title|truncatewords:3 }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% if donors %}
+        <div>
+          <label class="sns-filter-label">{% trans "Donor" %}</label>
+          <select name="donor_id">
+            <option value="">{% trans "All" %}</option>
+            {% for d in donors %}
+            <option value="{{ d.pk }}" {% if donor_id == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div>
+          <label class="sns-filter-label">{% trans "Created by" %}</label>
+          <select name="created_by_id">
+            <option value="">{% trans "All" %}</option>
+            {% for u in created_by_users %}
+            <option value="{{ u.id }}" {% if created_by_id == u.id|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name|default:u.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Amount min" %}</label>
+          <input type="text" name="amount_min" value="{{ amount_min }}" inputmode="decimal" placeholder="0.00" />
+        </div>
+        <div>
+          <label class="sns-filter-label">{% trans "Amount max" %}</label>
+          <input type="text" name="amount_max" value="{{ amount_max }}" inputmode="decimal" placeholder="0.00" />
+        </div>
+        <div class="md:col-span-2 flex flex-wrap items-end gap-2">
+          <button type="submit" class="sns-btn sns-btn--primary inline-flex items-center gap-2">
+            <i data-feather="filter" class="w-4 h-4"></i>
+            {% trans "Apply" %}
+          </button>
+          <a href="." class="sns-btn sns-btn--secondary inline-flex items-center gap-2">{% trans "Reset" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="sns-transaction-workspace">
+  <div class="sns-ledger-shell">
+    <div class="sns-ledger-shell__head hidden-print">
       <span>{% trans "Journals" %}</span>
-      <span class="text-[12px] font-normal text-[#605e5c]">{{ rows|length }} {% trans "rows" %}</span>
+      <span class="text-[12px] font-normal" style="color: var(--sns-fabric-gray-90, #605e5c);">{{ rows|length }} {% trans "rows" %}</span>
     </div>
     <div class="overflow-x-auto">
-      <table class="min-w-full text-[13px]">
-        <thead style="background:#f3f2f1;">
-          <tr class="text-left text-[#605e5c] border-b" style="border-color:#edebe9;">
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Journal no" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Type" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Journal date" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Posting date" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Accounting period" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Reference" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold min-w-[140px]">{% trans "Description" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Project / grant" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold text-right whitespace-nowrap">{% trans "Total" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Created by" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Submitted" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Status" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Approved by" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold whitespace-nowrap">{% trans "Approved date" %}</th>
-            <th class="px-3 py-3 text-xs font-semibold text-right min-w-[200px]">{% trans "Actions" %}</th>
+      <table class="sns-ledger-table min-w-[1180px] w-full">
+        <thead>
+          <tr>
+            <th>{% trans "Journal no" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Journal date" %}</th>
+            <th>{% trans "Posting date" %}</th>
+            <th>{% trans "Acct. period" %}</th>
+            <th>{% trans "Reference" %}</th>
+            <th>{% trans "Description" %}</th>
+            <th>{% trans "Grant" %}</th>
+            <th class="text-right">{% trans "Total" %}</th>
+            <th>{% trans "Created by" %}</th>
+            <th>{% trans "Submitted" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Approved by" %}</th>
+            <th>{% trans "Approved at" %}</th>
+            <th class="text-right min-w-[200px]">{% trans "Actions" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for row in rows %}
           {% with e=row.entry %}
-          <tr class="border-b hover:bg-[#faf9f8]" style="border-color:#edebe9;">
-            <td class="px-3 py-2.5 whitespace-nowrap">
-              <a href="{% url 'tenant_portal:finance_journal_detail' e.id %}" class="text-[#0078D4] font-mono font-medium hover:underline">{{ row.journal_no }}</a>
+          <tr>
+            <td class="whitespace-nowrap sns-ledger-table__text">
+              <a href="{% url 'tenant_portal:finance_journal_detail' e.id %}" class="font-mono font-semibold" style="color: var(--sns-dynamics-blue, #0078d4);">{{ row.journal_no }}</a>
             </td>
-            <td class="px-3 py-2.5 text-[#323130]">{{ row.category_label }}</td>
-            <td class="px-3 py-2.5 whitespace-nowrap">{{ e.entry_date|date:"M d, Y" }}</td>
-            <td class="px-3 py-2.5 whitespace-nowrap">{{ row.posting_date|date:"M d, Y" }}</td>
-            <td class="px-3 py-2.5 text-[#605e5c] text-xs">{{ row.accounting_period_label }}</td>
-            <td class="px-3 py-2.5 font-mono text-xs">{{ e.reference|default:"—" }}</td>
-            <td class="px-3 py-2.5 text-[#605e5c] max-w-[200px] truncate" title="{{ e.memo }}">{{ e.memo|default:"—" }}</td>
-            <td class="px-3 py-2.5 text-xs">
-              {% if e.grant %}<span class="font-mono">{{ e.grant.code }}</span>{% else %}—{% endif %}
-            </td>
-            <td class="px-3 py-2.5 text-right tabular-nums font-medium">{{ row.total_amount|floatformat:2 }}</td>
-            <td class="px-3 py-2.5 text-xs whitespace-nowrap">
+            <td class="sns-ledger-table__text">{{ row.category_label }}</td>
+            <td class="whitespace-nowrap date">{{ e.entry_date|date:"Y-m-d" }}</td>
+            <td class="whitespace-nowrap date">{{ row.posting_date|date:"Y-m-d" }}</td>
+            <td class="max-w-[120px] truncate sns-ledger-table__text" title="{{ row.accounting_period_label }}">{{ row.accounting_period_label }}</td>
+            <td class="font-mono sns-ledger-table__text">{{ e.reference|default:"—" }}</td>
+            <td class="max-w-[200px] truncate sns-ledger-table__text" title="{{ e.memo }}">{{ e.memo|default:"—" }}</td>
+            <td class="sns-ledger-table__text">{% if e.grant %}<span class="font-mono">{{ e.grant.code }}</span>{% else %}—{% endif %}</td>
+            <td class="text-right tabular-nums">{{ row.total_amount|floatformat:2 }}</td>
+            <td class="max-w-[120px] truncate sns-ledger-table__text whitespace-nowrap">
               {% if e.created_by %}{{ e.created_by.get_full_name|default:e.created_by.email }}{% else %}—{% endif %}
             </td>
-            <td class="px-3 py-2.5 text-xs text-[#605e5c] whitespace-nowrap">
+            <td class="whitespace-nowrap date sns-ledger-table__text">
               {% if e.submitted_at %}
                 <div>{{ e.submitted_at|date:"Y-m-d H:i" }}</div>
-                {% if e.submitted_by %}<div class="text-[11px]">{{ e.submitted_by.get_full_name|default:e.submitted_by.email }}</div>{% endif %}
-              {% else %}
-                —
-              {% endif %}
+                {% if e.submitted_by %}<div class="sns-ledger-table__text opacity-90">{{ e.submitted_by.get_full_name|default:e.submitted_by.email }}</div>{% endif %}
+              {% else %}—{% endif %}
             </td>
-            <td class="px-3 py-2.5 whitespace-nowrap">
+            <td class="whitespace-nowrap">
               {% if e.status == 'posted' %}
-              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#e7f5e8] text-[#107c10]">{{ e.get_status_display }}</span>
+              <span class="sns-status-chip sns-status-chip--posted">{{ e.get_status_display }}</span>
               {% elif e.status == 'approved' %}
-              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#deecf9] text-[#005a9e]">{{ e.get_status_display }}</span>
+              <span class="sns-status-chip sns-status-chip--approved">{{ e.get_status_display }}</span>
               {% elif e.status == 'pending_approval' %}
-              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#fff4ce] text-[#8a6d1a]">{% trans "Submitted" %}</span>
+              <span class="sns-status-chip sns-status-chip--pending">{% trans "Submitted" %}</span>
               {% elif e.status == 'draft' %}
-              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#323130]">{{ e.get_status_display }}</span>
+              <span class="sns-status-chip sns-status-chip--draft">{{ e.get_status_display }}</span>
+              {% elif e.status == 'reversed' %}
+              <span class="sns-status-chip sns-status-chip--reversed">{{ e.get_status_display }}</span>
               {% else %}
-              <span class="inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#f3f2f1] text-[#323130]">{{ e.get_status_display }}</span>
+              <span class="sns-status-chip sns-status-chip--draft">{{ e.get_status_display }}</span>
               {% endif %}
             </td>
-            <td class="px-3 py-2.5 text-xs whitespace-nowrap">
+            <td class="max-w-[120px] truncate sns-ledger-table__text whitespace-nowrap">
               {% if e.approved_by %}{{ e.approved_by.get_full_name|default:e.approved_by.email }}{% else %}—{% endif %}
             </td>
-            <td class="px-3 py-2.5 text-xs whitespace-nowrap">
-              {% if e.approved_at %}{{ e.approved_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
-            </td>
-            <td class="px-3 py-2.5 text-right">
+            <td class="whitespace-nowrap date">{% if e.approved_at %}{{ e.approved_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+            <td class="text-right sns-ledger-table__text">
               <div class="inline-flex flex-col gap-1.5 items-end">
                 {% if row.can_approve_row %}
                 <form method="post" action="{% url 'tenant_portal:finance_journal_action' e.id %}" class="inline">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="approve">
                   <input type="hidden" name="next" value="approval">
-                  <button type="submit" class="text-[12px] font-semibold text-[#107c10] hover:underline">{% trans "Approve" %}</button>
+                  <button type="submit" class="text-[12px] font-semibold" style="color:#107c10;">{% trans "Approve" %}</button>
                 </form>
                 {% endif %}
                 {% if row.can_reject_row %}
@@ -179,8 +222,8 @@
                   <input type="hidden" name="action" value="reject">
                   <input type="hidden" name="next" value="approval">
                   <textarea name="correction_comment" rows="2" placeholder="{% trans 'Return reason (optional)' %}"
-                            class="w-full text-[11px] border rounded px-2 py-1 mb-1" style="border-color:#edebe9;"></textarea>
-                  <button type="submit" class="text-[12px] font-semibold text-[#a4262c] hover:underline">{% trans "Reject → draft" %}</button>
+                            class="w-full rounded border px-2 py-1 mb-1" style="border-color:#edebe9; font-size:12px;"></textarea>
+                  <button type="submit" class="text-[12px] font-semibold" style="color:#a4262c;">{% trans "Reject → draft" %}</button>
                 </form>
                 {% endif %}
                 {% if row.can_post_row %}
@@ -189,11 +232,11 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="post">
                   <input type="hidden" name="next" value="approval">
-                  <button type="submit" class="text-[12px] font-semibold text-[#0078D4] hover:underline">{% trans "Post" %}</button>
+                  <button type="submit" class="text-[12px] font-semibold" style="color:#0078D4;">{% trans "Post" %}</button>
                 </form>
                 {% endif %}
                 {% if not row.can_approve_row and not row.can_reject_row and not row.can_post_row %}
-                <span class="text-[11px] text-[#605e5c]">—</span>
+                <span style="color:#605e5c; font-size:12px;">—</span>
                 {% endif %}
               </div>
             </td>
@@ -201,15 +244,13 @@
           {% endwith %}
           {% empty %}
           <tr>
-            <td colspan="15" class="px-5 py-10 text-center text-[#605e5c]">
-              <p class="font-medium text-[#323130]">{% trans "No journals match the current filters." %}</p>
-              <p class="mt-3 text-[12px] max-w-lg mx-auto leading-relaxed">
+            <td colspan="15" class="px-5 py-8 text-center sns-ledger-table__text">
+              <p class="font-semibold mb-2">{% trans "No journals match the current filters." %}</p>
+              <p class="max-w-lg mx-auto leading-relaxed">
                 {% trans "This queue lists general, recurring, and adjusting journals only. Payments (PV-…) are approved under Payables." %}
-                <a href="{% url 'tenant_portal:pay_payment_voucher_bulk_approval' %}" class="text-[#0078d4] font-semibold hover:underline">{% trans "Approve payments" %}</a>
+                <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="font-semibold" style="color:#0078d4;">{% trans "Approve payments" %}</a>
               </p>
-              <p class="mt-2 text-[12px] max-w-lg mx-auto">
-                {% trans "If a pending journal uses a journal date outside the range above, expand the period or clear filters." %}
-              </p>
+              <p class="mt-2">{% trans "If a pending journal uses a journal date outside the range above, expand the period or clear filters." %}</p>
             </td>
           </tr>
           {% endfor %}

@@ -3,8 +3,8 @@
 
 {% block content %}
 <div class="mb-4">
-  <h1 class="text-2xl font-bold tracking-tight">Approve Payment Voucher</h1>
-  <p class="text-sm mt-1 text-[#605e5c]">Review and approve or return this payment voucher for correction.</p>
+  <h1 class="text-2xl font-bold tracking-tight">Payment voucher workflow</h1>
+  <p class="text-sm mt-1 text-[#605e5c]">Draft → Pending approval → Approved → Posted to GL. Approval does not post; use Post to GL when the voucher is complete and the period is open.</p>
 </div>
 
 <div class="erp-section mb-4">
@@ -90,8 +90,8 @@
       <tbody>
         {% for line in lines %}
         <tr>
-          <td>{{ line.account.code }}</td>
-          <td>{{ line.account.name }}</td>
+          <td>{% if line.account %}{{ line.account.code }}{% else %}—{% endif %}</td>
+          <td>{% if line.account %}{{ line.account.name }}{% else %}—{% endif %}</td>
           <td>{{ line.description|default:"—" }}</td>
           <td class="tabular-nums">{{ line.debit|floatformat:2 }}</td>
           <td class="tabular-nums">{{ line.credit|floatformat:2 }}</td>
@@ -165,11 +165,12 @@
 
 <form method="post" class="erp-section max-w-2xl">
   {% csrf_token %}
-  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">Approval decision</div>
+  <div class="erp-section-header" style="background:#0078D4;color:#ffffff;">{% if entry.status == "pending_approval" %}Approval decision{% elif entry.status == "approved" %}Post to general ledger{% else %}Status{% endif %}</div>
   <div class="erp-section-body space-y-3">
+    {% if entry.status == "pending_approval" %}
     <p class="text-xs text-[#605e5c]">
-      To return for correction or reject, you must enter a comment. Approved vouchers will be posted and locked.
-      {% if pending_budget_override %}If this voucher is over budget, your approval records the authorization to post.{% endif %}
+      Approve moves this voucher to <strong>Approved</strong> (still no GL, bank, or budget impact). To return for correction or reject, enter a comment.
+      {% if pending_budget_override %}If this voucher is over budget, your approval records the authorization to post later.{% endif %}
     </p>
     <div>
       <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Approver comment (optional for approve; required for rejection / correction)</label>
@@ -183,7 +184,7 @@
               name="action"
               value="approve"
               class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-[#107c10] text-white hover:bg-[#0b5a0b]">
-        Approve &amp; Post
+        Approve
       </button>
       <button type="submit"
               name="action"
@@ -198,6 +199,28 @@
         Reject
       </button>
     </div>
+    {% elif entry.status == "approved" and can_post_to_gl %}
+    <p class="text-xs text-[#605e5c]">
+      Posting runs checks for open accounting period, balanced lines with accounts, duplicate control, budget rules, and sufficient bank balance.
+    </p>
+    <div>
+      <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Comment (optional)</label>
+      <textarea name="comment"
+                rows="2"
+                class="w-full text-xs border rounded px-2 py-1"
+                style="border-color:#edebe9;"></textarea>
+    </div>
+    <button type="submit"
+            name="action"
+            value="post_to_gl"
+            class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-[#323130] text-white hover:bg-[#1a1a1a]">
+      Post to general ledger
+    </button>
+    {% elif entry.status == "approved" %}
+    <p class="text-xs text-amber-900">You do not have permission to post this voucher. Ask a user with voucher posting rights.</p>
+    {% else %}
+    <p class="text-xs text-[#605e5c]">No actions available for status &ldquo;{{ entry.get_status_display }}&rdquo;.</p>
+    {% endif %}
   </div>
 </form>
 {% endblock %}

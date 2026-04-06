@@ -1,0 +1,32 @@
+{% load i18n %}
+<div class="pay-entry-shell space-y-3 mb-4">
+  <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <h2 class="text-sm font-semibold text-[#323130]">{% trans "Draft entry — import Excel" %}</h2>
+    <p class="text-[12px] text-[#605e5c]">{% trans "Each row becomes one draft receipt voucher; nothing posts until you run the normal workflow." %}</p>
+  </div>
+  <div class="grid grid-cols-1 gap-2 sm:grid-cols-3" role="list" aria-label="{% trans 'Import guide' %}">
+    <div class="rounded-lg border border-[#eef2f7] bg-[#fcfdff] px-3 py-2.5 shadow-sm border-l-[3px] border-l-[#0078d4]" role="listitem">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-[#605e5c] mb-1">{% trans "Required" %}</p>
+      <p class="text-[12px] text-[#323130] leading-snug">{% trans "Date, project (code or ID), description, amount (plain number: 1000, 1000.00 — no currency text)" %}</p>
+    </div>
+    <div class="rounded-lg border border-[#eef2f7] bg-[#fcfdff] px-3 py-2.5 shadow-sm border-l-[3px] border-l-[#8764b8]" role="listitem">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-[#605e5c] mb-1">{% trans "Optional" %}</p>
+      <p class="text-[12px] text-[#323130] leading-snug">{% trans "Received from, deposit/credit GL, grant, budget code, status (Draft or blank)" %}</p>
+    </div>
+    <div class="rounded-lg border border-[#eef2f7] bg-[#fcfdff] px-3 py-2.5 shadow-sm border-l-[3px] border-l-[#107c10]" role="listitem">
+      <p class="text-[10px] font-semibold uppercase tracking-wide text-[#605e5c] mb-1">{% trans "Receipt type & ledger" %}</p>
+      <p class="text-[12px] text-[#323130] leading-snug">{% blocktrans trimmed %}Set receipt_type to grant_funding, other_income, or cashbook per row. GL and bank are unaffected until posting in an open period.{% endblocktrans %}</p>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-end gap-3">
+    <a href="{% url 'tenant_portal:recv_receipt_draft_excel_template' %}" class="inline-flex items-center px-3 py-2 rounded border text-[13px] font-medium border-[#edebe9] text-[#323130] hover:bg-[#faf9f8]">{% trans "Download template" %}</a>
+    <form method="post" enctype="multipart/form-data" action="{% url 'tenant_portal:recv_receipt_draft_excel_import' %}" class="flex flex-wrap items-end gap-2">
+      {% csrf_token %}
+      <div>
+        <label class="block text-[11px] font-semibold text-[#605e5c] mb-1">{% trans "Excel file (.xlsx)" %}</label>
+        <input type="file" name="draft_excel_file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required class="text-[13px]" />
+      </div>
+      <button type="submit" class="px-4 py-2 rounded text-[13px] font-semibold text-white bg-[#323130] hover:bg-[#1a1a1a]">{% trans "Import drafts" %}</button>
+    </form>
+  </div>
+</div>

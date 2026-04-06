@@ -1,0 +1,18 @@
+{% if platform_announcements_banners %}
+<div class="hidden-print border-b px-4 py-2.5 flex flex-col gap-2" style="background: linear-gradient(90deg, color-mix(in srgb, var(--tenant-accent, #0078D4) 12%, #f0f9ff), #ffffff); border-color: #e5e7eb;">
+  {% for ann in platform_announcements_banners %}
+  <div class="flex items-start gap-3 text-sm text-[#323130]">
+    <span class="shrink-0 mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-md bg-white border shadow-sm" style="border-color:#edebe9;">
+      <i data-feather="volume-2" class="w-4 h-4" style="color:var(--tenant-accent, #0078D4);"></i>
+    </span>
+    <div class="min-w-0 flex-1">
+      <p class="font-semibold text-[#111827]">{{ ann.title }}</p>
+      <p class="mt-0.5 text-[13px] leading-snug text-[#605e5c] whitespace-pre-wrap">{{ ann.message }}</p>
+      <p class="mt-1 text-[11px] text-slate-500">
+        {{ ann.get_category_display }} · {{ ann.get_priority_display }}
+      </p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

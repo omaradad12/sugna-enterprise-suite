@@ -1,0 +1,21 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Hospital billing{% endblock %}
+
+{% block content %}
+  <div class="mb-6">
+    <h1 class="page-title">Billing &amp; insurance</h1>
+    <p class="text-sm text-[#605e5c] mt-1">Insurance plans and patient invoices.</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
+    <a href="{% url_tenant 'tenant_portal:hospital_insurance_plans' %}" class="bg-white border rounded-lg p-5 block hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+      <h2 class="font-semibold mb-1">Insurance plans</h2>
+      <p class="text-sm text-[#605e5c]">Payer catalog and plan codes.</p>
+    </a>
+    <a href="{% url_tenant 'tenant_portal:hospital_invoices' %}" class="bg-white border rounded-lg p-5 block hover:bg-[#faf9f8]" style="border-color:#edebe9;">
+      <h2 class="font-semibold mb-1">Invoices</h2>
+      <p class="text-sm text-[#605e5c]">Create and review patient invoices.</p>
+    </a>
+  </div>
+{% endblock %}

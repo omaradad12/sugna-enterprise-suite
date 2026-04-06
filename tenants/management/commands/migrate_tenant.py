@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
+from sugna_core.tenant_context import set_current_tenant
 from tenants.db import ensure_tenant_db_configured, tenant_db_alias
 from tenants.models import Tenant
 
@@ -41,6 +42,10 @@ class Command(BaseCommand):
             kw["fake_initial"] = True
         if options.get("plan"):
             kw["plan"] = True
-        call_command("migrate", **kw)
+        try:
+            set_current_tenant(tenant)
+            call_command("migrate", **kw)
+        finally:
+            set_current_tenant(None)
         self.stdout.write(self.style.SUCCESS(f"Migrated tenant DB '{alias}'."))  # noqa: T201
 

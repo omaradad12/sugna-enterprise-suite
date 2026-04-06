@@ -1,0 +1,13 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Integrations{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto animate-fade-in dynamics-card p-8">
+  <h1 class="text-2xl font-bold text-slate-900 mb-2">Integrations &amp; API</h1>
+  <p class="text-slate-600 text-sm mb-6">
+    This is the platform-level integrations overview. Tenant-specific connectors and webhooks are managed inside each tenant workspace under Integrations.
+  </p>
+  <p class="text-sm text-slate-500">
+    Use the tenant directory to open a tenant, or assign the Integrations module and use Workplace from <a href="{% url 'platform_dashboard:module_list' %}" class="underline font-medium" style="color:#0078D4;">Modules</a>.
+  </p>
+</div>
+{% endblock %}

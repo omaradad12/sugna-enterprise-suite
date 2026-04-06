@@ -1,0 +1,290 @@
+/**
+ * Tenant branding hierarchy (all modules: Finance, Hospital, HR, Procurement, Inventory, etc.)
+ *
+ * Primary (--tenant-*): top header, logo strip, global search container, quick actions, user menu, login hero.
+ * Secondary: module navigation row, active tab / hover on module chrome, section strips, workflow accents.
+ * Workspace: neutral surfaces only — use --tenant-surface-page / white cards; avoid strong brand fills in content.
+ *
+ * Per-tenant values are injected after this file (see tenant_theme_head.html) and override these defaults.
+ */
+
+:root {
+  --tenant-primary: #0078d4;
+  --tenant-secondary: #0063b1;
+  --tenant-accent: #0078d4;
+  --tenant-on-primary: #ffffff;
+  --tenant-on-secondary: #ffffff;
+  --tenant-page-bg: #faf9f8;
+  --tenant-surface-page: #faf9f8;
+  --tenant-workspace-muted: #f8fafc;
+  /* Legacy aliases (some templates still reference) */
+  --tenant-brand-primary: var(--tenant-primary);
+  --tenant-brand-secondary: var(--tenant-secondary);
+  --tenant-brand-accent: var(--tenant-accent);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chrome: primary top bar                                                       */
+/* -------------------------------------------------------------------------- */
+
+.tenant-chrome-topbar {
+  background: var(--tenant-primary, #0078d4);
+  color: var(--tenant-on-primary, #ffffff);
+}
+
+.tenant-portal-screen-chrome > header.tenant-chrome-topbar {
+  color: var(--tenant-on-primary, #ffffff);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chrome: secondary module navigation (Finance tabs, Hospital tabs, etc.)     */
+/* -------------------------------------------------------------------------- */
+
+.tenant-chrome-modulebar {
+  background: var(--tenant-secondary, #0063b1);
+  color: var(--tenant-on-secondary, #ffffff);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Workspace shell (neutral)                                                   */
+/* -------------------------------------------------------------------------- */
+
+.tenant-workspace-main {
+  background-color: var(--tenant-surface-page, #faf9f8);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dynamics-style topbar pills (primary chrome only)                           */
+/* -------------------------------------------------------------------------- */
+
+.erp-topbar-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2rem;
+  min-height: 2rem;
+  box-sizing: border-box;
+  padding-left: 0.875rem;
+  padding-right: 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--tenant-on-primary, #ffffff);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.erp-topbar-pill:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.erp-topbar-pill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.erp-topbar-pill .erp-topbar-pill__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  color: inherit;
+}
+
+.erp-topbar-pill .erp-topbar-pill__icon svg {
+  width: 1rem !important;
+  height: 1rem !important;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.erp-topbar-pill .erp-topbar-pill__label {
+  white-space: nowrap;
+  color: inherit;
+}
+
+.erp-topbar-pill--compact {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding-left: 0;
+  padding-right: 0;
+  gap: 0;
+}
+
+.erp-topbar-pill--user {
+  max-width: 220px;
+  min-width: 0;
+}
+
+.erp-topbar-pill--user .erp-topbar-pill__avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.erp-topbar-pill--user .erp-topbar-pill__avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+a.erp-topbar-pill,
+a.erp-topbar-pill:visited {
+  color: var(--tenant-on-primary, #ffffff);
+  text-decoration: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Module tab strip (horizontal scroll)                                        */
+/* -------------------------------------------------------------------------- */
+
+.topbar-modules {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+}
+
+.topbar-modules::-webkit-scrollbar {
+  height: 5px;
+}
+
+.topbar-modules::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+}
+
+.topbar-modules::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.topbar-modules a.topbar-module {
+  flex-shrink: 0;
+  padding: 4px 11px;
+  white-space: nowrap;
+  text-decoration: none;
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+
+.topbar-modules a.topbar-module--idle {
+  color: var(--tenant-on-secondary, #ffffff);
+  background: transparent;
+  opacity: 0.94;
+}
+
+.topbar-modules a.topbar-module--idle:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--tenant-on-secondary, #ffffff);
+  opacity: 1;
+}
+
+.topbar-modules a.topbar-module--active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #111827;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(0, 0, 0, 0.06);
+  opacity: 1;
+}
+
+.topbar-modules a i[data-feather],
+.topbar-modules a.topbar-module svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  opacity: 0.82;
+}
+
+.topbar-modules a.topbar-module--active i[data-feather],
+.topbar-modules a.topbar-module--active svg {
+  opacity: 0.88;
+  color: var(--tenant-secondary, #0063b1);
+}
+
+.topbar-modules a.topbar-module svg {
+  stroke-width: 1.3;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Content action buttons (optional; neutral preferred inside workspace)       */
+/* -------------------------------------------------------------------------- */
+
+.tenant-btn-primary {
+  background: var(--tenant-primary, #0078d4) !important;
+  color: var(--tenant-on-primary, #fff) !important;
+  border: 1px solid transparent !important;
+}
+
+.tenant-btn-primary:hover {
+  filter: brightness(0.96);
+}
+
+.tenant-btn-secondary {
+  background: var(--tenant-secondary, #0063b1) !important;
+  color: var(--tenant-on-secondary, #fff) !important;
+  border: 1px solid transparent !important;
+}
+
+.tenant-btn-secondary:hover {
+  filter: brightness(0.96);
+}
+
+.tenant-btn-neutral {
+  background: #ffffff !important;
+  color: #323130 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Left sidebar: active item uses secondary accent (neutral surface)           */
+/* -------------------------------------------------------------------------- */
+
+.tenant-sidebar-link-active {
+  background: var(--ts-active-bg) !important;
+  color: #111827 !important;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tenant-secondary, #0063b1) 28%, transparent);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Workflow strip (section navigation inside content) — secondary accent       */
+/* -------------------------------------------------------------------------- */
+
+.sns-workflow-strip__step--active {
+  color: var(--tenant-secondary, var(--sns-dynamics-blue, #0078d4));
+  font-weight: 600;
+}
+
+.sns-workflow-strip__step--active .sns-workflow-strip__dot {
+  background: var(--tenant-secondary, var(--sns-dynamics-blue, #0078d4));
+  color: #ffffff;
+  border-color: var(--tenant-secondary, var(--sns-dynamics-blue, #0078d4));
+}

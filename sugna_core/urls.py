@@ -27,7 +27,8 @@ from website import views as website_views
 handler404 = website_views.page_not_found_view
 
 urlpatterns = [
-    path("", include("website.urls")),
+    # Platform and admin must come before path("", include("website.urls")) so /platform/
+    # hits platform_dashboard (staff UI), not website.PlatformView.
     path("platform/login/", auth_views.LoginView.as_view(template_name="platform_dashboard/platform_login.html"), name="platform_login"),
     # Reuse the platform login UI for Django admin login as well, so the
     # look-and-feel is identical across "Admin" and "Platform".
@@ -67,6 +68,7 @@ urlpatterns = [
     path("t/", include("tenant_portal.urls")),
     path("api/diagnostics/", include("diagnostics.api.urls")),
     # path("api/ai-auditor/", include("ai_auditor.api.urls")),  # enable when ai_auditor app exists
+    path("", include("website.urls")),
 ]
 
 if settings.DEBUG:

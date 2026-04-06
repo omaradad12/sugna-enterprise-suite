@@ -1,0 +1,108 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Patients{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Patients</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Search by MRN or name.</p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="{% url_tenant 'tenant_portal:hospital_home' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="arrow-left" class="w-4 h-4"></i>
+        <span>Hospital</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_patient_create' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white"
+         style="background:#0078D4;">
+        <i data-feather="user-plus" class="w-4 h-4"></i>
+        <span>New patient</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_opd_visit_create' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#0078D4]"
+         style="border-color:#0078D4;">
+        <span>New OPD visit</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_admissions' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <span>Admit patient</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_emergency_visit_create' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border"
+         style="border-color:#c2410c;color:#c2410c;">
+        <span>Emergency visit</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg p-5 mb-5" style="border-color:#edebe9;">
+    <form method="get" class="flex flex-col md:flex-row md:items-end gap-3">
+      <div class="flex-1">
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Search</label>
+        <input name="q" value="{{ q }}" placeholder="e.g. MRN-000123 or Amina"
+               class="w-full px-3 py-2 rounded-md border"
+               style="border-color:#edebe9;" />
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white"
+                style="background:#0078D4;">
+          <i data-feather="search" class="w-4 h-4"></i>
+          <span>Search</span>
+        </button>
+        <a href="{% url_tenant 'tenant_portal:hospital_patients' %}"
+           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+           style="border-color:#edebe9;">
+          <i data-feather="x" class="w-4 h-4"></i>
+          <span>Clear</span>
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-5 py-3 border-b" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">
+        Results
+        <span class="text-[#605e5c] normal-case font-normal">({{ patients|length }})</span>
+      </h2>
+    </div>
+    {% if patients %}
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-[#faf9f8] text-[#605e5c]">
+            <tr>
+              <th class="text-left px-5 py-2">MRN</th>
+              <th class="text-left px-5 py-2">Name</th>
+              <th class="text-left px-5 py-2">DOB</th>
+              <th class="text-left px-5 py-2">Sex</th>
+              <th class="text-left px-5 py-2">Phone</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y" style="border-color:#edebe9;">
+            {% for p in patients %}
+              <tr class="hover:bg-[#faf9f8]">
+                <td class="px-5 py-2 font-medium">
+                  <a href="{% url_tenant 'tenant_portal:hospital_patient_detail' patient_id=p.id %}" class="text-[#0078D4] hover:underline">{{ p.mrn }}</a>
+                </td>
+                <td class="px-5 py-2">
+                  <a href="{% url_tenant 'tenant_portal:hospital_patient_detail' patient_id=p.id %}" class="text-[#0078D4] hover:underline">{{ p.full_name }}</a>
+                </td>
+                <td class="px-5 py-2">{{ p.date_of_birth|default:"—" }}</td>
+                <td class="px-5 py-2">{{ p.get_gender_display }}</td>
+                <td class="px-5 py-2">{{ p.phone|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="p-5 text-sm text-[#605e5c]">No patients found.</div>
+    {% endif %}
+  </div>
+{% endblock %}
+

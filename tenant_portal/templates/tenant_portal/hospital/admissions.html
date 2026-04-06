@@ -1,0 +1,109 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Admissions{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Admissions</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Active inpatients and bed assignment.</p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_wards' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]" style="border-color:#edebe9;">
+      Wards &amp; beds
+    </a>
+  </div>
+
+  {% if can_manage_inpatient %}
+    <div class="bg-white border rounded-lg p-5 mb-6" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Admit patient</h2>
+      <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="admit" />
+        <div>
+          <label class="block text-xs font-semibold uppercase mb-1">Patient</label>
+          <select name="patient_id" required class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            {% for p in patients %}
+              <option value="{{ p.id }}">{{ p.full_name }} ({{ p.mrn }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase mb-1">Available bed</label>
+          <select name="bed_id" required class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            {% for b in beds %}
+              <option value="{{ b.id }}">{{ b.ward.code }} {{ b.room_label }}-{{ b.bed_label }}</option>
+            {% empty %}
+              <option value="">No beds available</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase mb-1">Attending doctor</label>
+          <select name="attending_provider_id" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for pr in providers %}
+              <option value="{{ pr.id }}">{{ pr.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold uppercase mb-1">Chief complaint</label>
+          <input name="chief_complaint" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-semibold uppercase mb-1">Admission diagnosis</label>
+          <textarea name="admission_diagnosis" rows="2" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" placeholder="Working diagnosis at admission"></textarea>
+        </div>
+        <div>
+          <button type="submit" class="px-3 py-2 rounded-md text-sm text-white" style="background:#0078D4;" {% if not beds %}disabled{% endif %}>Admit</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+    <div class="px-5 py-3 border-b" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">Active admissions</h2>
+    </div>
+    {% if admissions %}
+      <table class="min-w-full text-sm">
+        <thead class="bg-[#faf9f8] text-[#605e5c]">
+          <tr>
+            <th class="text-left px-5 py-2">Patient</th>
+            <th class="text-left px-5 py-2">Bed</th>
+            <th class="text-left px-5 py-2">Admitted</th>
+            <th class="text-left px-5 py-2">Attending</th>
+            <th class="text-left px-5 py-2">Complaint</th>
+            <th class="text-left px-5 py-2">Admission diagnosis</th>
+            {% if can_manage_inpatient %}<th class="text-left px-5 py-2">Discharge</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody class="divide-y" style="border-color:#edebe9;">
+          {% for a in admissions %}
+            <tr>
+              <td class="px-5 py-2">{{ a.patient.full_name }} ({{ a.patient.mrn }})</td>
+              <td class="px-5 py-2">{{ a.bed.ward.code }} {{ a.bed.room_label }}-{{ a.bed.bed_label }}</td>
+              <td class="px-5 py-2">{{ a.admitted_at }}</td>
+              <td class="px-5 py-2">{{ a.attending_provider.full_name|default:"—" }}</td>
+              <td class="px-5 py-2">{{ a.chief_complaint|default:"—" }}</td>
+              <td class="px-5 py-2 max-w-xs truncate" title="{{ a.admission_diagnosis }}">{{ a.admission_diagnosis|default:"—"|truncatewords:12 }}</td>
+              {% if can_manage_inpatient %}
+                <td class="px-5 py-2 align-top">
+                  <form method="post" class="space-y-2 max-w-md" onsubmit="return confirm('Discharge this patient?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="discharge" />
+                    <input type="hidden" name="admission_id" value="{{ a.id }}" />
+                    <textarea name="discharge_summary" rows="2" class="w-full px-2 py-1.5 rounded border text-xs" style="border-color:#edebe9;" placeholder="Discharge summary"></textarea>
+                    <button type="submit" class="text-sm text-[#0078D4] hover:underline">Discharge</button>
+                  </form>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="p-5 text-sm text-[#605e5c]">No active admissions.</div>
+    {% endif %}
+  </div>
+{% endblock %}

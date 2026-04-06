@@ -10,8 +10,9 @@ from typing import Any
 # (code, name, extra_field_dict)
 PLATFORM_MODULE_DEFINITIONS: list[tuple[str, str, dict[str, Any]]] = [
     ("finance_grants", "Financial & Grant Management", {"category": "core", "sort_order": 10}),
+    ("hospital", "Hospital Management System", {"category": "core", "sort_order": 15}),
     ("integrations", "Integrations & API", {"category": "platform", "sort_order": 20}),
-    ("audit_risk", "Audit & Risk", {"category": "governance", "sort_order": 30}),
+    ("audit_risk", "Audit & Risk Management", {"category": "governance", "sort_order": 30}),
     ("help_center", "Help Center", {"category": "platform", "sort_order": 40}),
     ("diagnostics", "System Diagnostics", {"category": "platform", "sort_order": 50}),
 ]

@@ -1,0 +1,36 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Pharmacy orders{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Pharmacy orders</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Medication orders by patient.</p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_home' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]" style="border-color:#edebe9;">
+      <i data-feather="arrow-left" class="w-4 h-4"></i>
+      Hospital
+    </a>
+  </div>
+
+  <div class="space-y-4">
+    {% for o in pharmacy_orders %}
+      <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+        <div class="flex flex-wrap justify-between gap-2 mb-2">
+          <div class="font-semibold">{{ o.order_number }} · {{ o.patient.full_name }} ({{ o.patient.mrn }})</div>
+          <div class="text-sm text-[#605e5c]">{{ o.ordered_at }} · {{ o.get_status_display }}</div>
+        </div>
+        <ul class="list-disc ml-5 text-sm">
+          {% for line in o.lines.all %}
+            <li>{{ line.medication_name }} — {{ line.dose }} {{ line.route }} {{ line.frequency }} {% if line.instructions %}({{ line.instructions }}){% endif %}</li>
+          {% empty %}
+            <li class="text-[#605e5c]">No lines</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% empty %}
+      <p class="text-sm text-[#605e5c]">No pharmacy orders yet.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

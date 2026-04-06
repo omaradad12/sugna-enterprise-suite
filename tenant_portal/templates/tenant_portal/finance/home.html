@@ -58,6 +58,14 @@
       <i data-feather="edit-3" class="w-4 h-4"></i>
       <span>{% trans "New general journal" %}</span>
     </a>
+    <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}"
+       class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white hover:bg-[#faf9f8]"
+       style="border-color:#edebe9;">
+      <i data-feather="inbox" class="w-4 h-4" style="color:#0078D4;"></i>
+      <span>{% trans "Pending approval queue" %}</span>
+      <span class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+            style="background:{% if pv_payment_queue_count|default:0 > 0 %}#fff4ce{% else %}#edebe9{% endif %}; color:#323130;">{{ pv_payment_queue_count|default:0 }}</span>
+    </a>
     <a href="{% url 'tenant_portal:grants_project_budget' %}"
        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs sm:text-sm font-medium bg-white hover:bg-[#faf9f8]"
        style="border-color:#edebe9;">
@@ -141,6 +149,14 @@
     </div>
     <p class="text-xl font-bold mt-1">{{ pending_financial_approvals }}</p>
     <p class="text-[11px] text-[#605e5c]">Open grant approval requests</p>
+  </div>
+  <div class="bg-white border rounded-lg p-4 flex flex-col gap-1.5" style="border-color:#edebe9;">
+    <div class="flex items-center justify-between">
+      <p class="text-xs text-[#605e5c]">{% trans "Payment vouchers (draft + pending)" %}</p>
+      <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="text-[11px] font-semibold" style="color:#0078D4;">{% trans "Open queue" %}</a>
+    </div>
+    <p class="text-xl font-bold mt-1 tabular-nums">{{ pv_payment_queue_count|default:0 }}</p>
+    <p class="text-[11px] text-[#605e5c]">{% trans "PVs in Draft or Pending approval" %}</p>
   </div>
 </div>
 

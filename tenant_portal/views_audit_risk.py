@@ -24,7 +24,10 @@ def _audit_risk_context(request: HttpRequest, active_item: str, **extra):
     return ctx
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_home_view(request: HttpRequest) -> HttpResponse:
     """Audit Dashboard: KPIs, trend, findings lifecycle, risk by grant."""
     from decimal import Decimal
@@ -135,7 +138,10 @@ def audit_risk_home_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/dashboard.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_screening_upload_view(request: HttpRequest) -> HttpResponse:
     """
     Audit Screening Upload: temporary upload of external documents for screening.
@@ -275,7 +281,10 @@ def audit_risk_screening_upload_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/screening_upload.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_fraud_alerts_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = RiskAlert.objects.using(request.tenant_db).select_related("assessment").order_by("-created_at")[:100]
@@ -283,7 +292,10 @@ def audit_risk_fraud_alerts_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/fraud_alerts.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import TransactionRiskAssessment
     from tenant_grants.models import Grant
@@ -353,7 +365,10 @@ def audit_risk_high_risk_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/high_risk_transactions.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_view_transaction(
     request: HttpRequest, assessment_id: int
 ) -> HttpResponse:
@@ -369,7 +384,10 @@ def audit_risk_high_risk_view_transaction(
     return redirect(reverse("tenant_portal:audit_risk_high_risk"))
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_assign_view(
     request: HttpRequest, assessment_id: int
 ) -> HttpResponse:
@@ -391,7 +409,10 @@ def audit_risk_high_risk_assign_view(
     return redirect(request.META.get("HTTP_REFERER") or reverse("tenant_portal:audit_risk_high_risk"))
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_clear_view(
     request: HttpRequest, assessment_id: int
 ) -> HttpResponse:
@@ -408,7 +429,10 @@ def audit_risk_high_risk_clear_view(
     return redirect(request.META.get("HTTP_REFERER") or reverse("tenant_portal:audit_risk_high_risk"))
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_close_view(
     request: HttpRequest, assessment_id: int
 ) -> HttpResponse:
@@ -425,7 +449,10 @@ def audit_risk_high_risk_close_view(
     return redirect(request.META.get("HTTP_REFERER") or reverse("tenant_portal:audit_risk_high_risk"))
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_convert_to_finding_view(
     request: HttpRequest, assessment_id: int
 ) -> HttpResponse:
@@ -450,7 +477,10 @@ def audit_risk_high_risk_convert_to_finding_view(
     return redirect(reverse("tenant_portal:audit_risk_findings"))
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_high_risk_request_correction_view(
     request: HttpRequest, assessment_id: int
 ) -> HttpResponse:
@@ -493,7 +523,10 @@ def audit_risk_high_risk_request_correction_view(
     )
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_control_violations_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = (
@@ -505,7 +538,10 @@ def audit_risk_control_violations_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/control_violations.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_suspicious_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import TransactionRiskAssessment
     list_qs = (
@@ -517,7 +553,10 @@ def audit_risk_suspicious_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/suspicious_transactions.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_duplicate_payments_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = (
@@ -529,7 +568,10 @@ def audit_risk_duplicate_payments_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/duplicate_payments.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_budget_violations_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = (
@@ -541,7 +583,10 @@ def audit_risk_budget_violations_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/budget_violations.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_backdated_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = (
@@ -553,7 +598,10 @@ def audit_risk_backdated_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/backdated_entries.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_unusual_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import TransactionRiskAssessment
     list_qs = (
@@ -565,37 +613,55 @@ def audit_risk_unusual_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/unusual_activity.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_scanner_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_scanner")
     return render(request, "tenant_portal/audit_risk/fraud_scanner.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_vendor_risk_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_vendor_risk")
     return render(request, "tenant_portal/audit_risk/vendor_risk.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_payroll_fraud_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_payroll_fraud")
     return render(request, "tenant_portal/audit_risk/payroll_fraud.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_procurement_fraud_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_procurement_fraud")
     return render(request, "tenant_portal/audit_risk/procurement_fraud.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_master_data_log_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_master_log")
     return render(request, "tenant_portal/audit_risk/master_data_log.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_user_activity_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.models import AuditLog
     logs = AuditLog.objects.using(request.tenant_db).order_by("-changed_at")[:200]
@@ -603,7 +669,10 @@ def audit_risk_user_activity_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/user_activity_log.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_approval_history_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.models import AuditLog
     logs = (
@@ -615,7 +684,10 @@ def audit_risk_approval_history_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/approval_history.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_exception_register_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = RiskAlert.objects.using(request.tenant_db).order_by("-created_at")[:100]
@@ -623,7 +695,10 @@ def audit_risk_exception_register_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/exception_register.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_risk_alerts_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = RiskAlert.objects.using(request.tenant_db).select_related("assessment").order_by("-created_at")[:100]
@@ -631,7 +706,10 @@ def audit_risk_risk_alerts_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/risk_alerts.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_control_breaches_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import RiskAlert
     alerts = (
@@ -643,7 +721,10 @@ def audit_risk_control_breaches_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/control_breaches.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_investigations_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import InvestigationCase
     cases = InvestigationCase.objects.using(request.tenant_db).order_by("-created_at")[:100]
@@ -651,19 +732,28 @@ def audit_risk_investigations_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/investigations.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_evidence_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_evidence")
     return render(request, "tenant_portal/audit_risk/evidence.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_investigator_notes_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_notes")
     return render(request, "tenant_portal/audit_risk/investigator_notes.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_case_status_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import InvestigationCase
     cases = InvestigationCase.objects.using(request.tenant_db).order_by("-created_at")[:100]
@@ -671,7 +761,10 @@ def audit_risk_case_status_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/case_status.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_control_rules_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import ControlRule
     rules = ControlRule.objects.using(request.tenant_db).filter(is_active=True).order_by("name")
@@ -679,19 +772,28 @@ def audit_risk_control_rules_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/control_rules.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_compliance_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_compliance")
     return render(request, "tenant_portal/audit_risk/compliance.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_policy_violations_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_policy_violations")
     return render(request, "tenant_portal/audit_risk/policy_violations.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_findings_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import AuditFinding
     findings = AuditFinding.objects.using(request.tenant_db).order_by("-created_at")[:100]
@@ -699,7 +801,10 @@ def audit_risk_findings_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/audit_findings.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_confirmed_findings_view(request: HttpRequest) -> HttpResponse:
     """Register of confirmed findings (validated; lifecycle stage = confirmed)."""
     from tenant_audit_risk.models import AuditFinding
@@ -713,7 +818,10 @@ def audit_risk_confirmed_findings_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/confirmed_findings.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_realized_findings_view(request: HttpRequest) -> HttpResponse:
     """Register of realized findings (impact materialized; financial impact and recovery)."""
     from tenant_audit_risk.models import AuditFinding
@@ -727,7 +835,10 @@ def audit_risk_realized_findings_view(request: HttpRequest) -> HttpResponse:
     return render(request, "tenant_portal/audit_risk/realized_findings.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_finding_promote_view(
     request: HttpRequest, finding_id: int
 ) -> HttpResponse:
@@ -763,13 +874,19 @@ def audit_risk_finding_promote_view(
     return redirect(reverse("tenant_portal:audit_risk_findings"))
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_management_letter_view(request: HttpRequest) -> HttpResponse:
     ctx = _audit_risk_context(request, "audit_risk_management_letter")
     return render(request, "tenant_portal/audit_risk/management_letter.html", ctx)
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def audit_risk_recommendations_view(request: HttpRequest) -> HttpResponse:
     from tenant_audit_risk.models import AuditFinding
     findings = AuditFinding.objects.using(request.tenant_db).filter(status="open").order_by("due_date")[:100]

@@ -4,25 +4,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ tenant_display_name|default:tenant.name }} | Sign in</title>
+  <title>{% if tenant_theme %}{{ tenant_theme.login_title }}{% else %}{{ tenant_display_name|default:tenant.name }}{% endif %} | Sign in</title>
+  {% include "tenant_portal/includes/tenant_theme_head.html" %}
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
 </head>
-<body class="erp-page min-h-screen text-[#323130]" style="background-color: {{ tenant.brand_background_color|default:'#f3f4f6' }};">
+<body class="erp-page min-h-screen text-[#323130]" style="background-color:var(--tenant-surface-page, #faf9f8);">
   <div class="min-h-screen grid lg:grid-cols-[1.1fr_0.9fr]">
-    <section class="hidden lg:flex items-center justify-center px-12 py-16 text-white"
-             style="background: linear-gradient(140deg, #0f172a 0%, {{ tenant.brand_primary_color|default:'#0078D4' }} 100%);">
-      <div class="max-w-md">
-        {% if org_settings and org_settings.organization_logo %}
+    <section class="hidden lg:flex items-center justify-center px-12 py-16 relative overflow-hidden"
+             style="color:var(--tenant-on-primary,#ffffff);{% if tenant_theme and tenant_theme.login_background_url %}background-image:url('{{ tenant_theme.login_background_url }}');background-size:cover;background-position:center;{% endif %}">
+      <div class="absolute inset-0" style="background: linear-gradient(140deg, rgba(15,23,42,0.92) 0%, {% if tenant_theme %}{{ tenant_theme.primary_color }}{% else %}{{ tenant.brand_primary_color|default:'#0078D4' }}{% endif %} 100%);"></div>
+      <div class="max-w-md relative z-10">
+        {% if tenant_theme and tenant_theme.logo_url %}
+          <img src="{{ tenant_theme.logo_url }}" alt="{{ tenant_theme.display_full_name }}" class="h-14 w-auto object-contain mb-6 bg-white/90 rounded-md px-3 py-2" />
+        {% elif org_settings and org_settings.organization_logo %}
           <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-14 w-auto object-contain mb-6 bg-white/90 rounded-md px-3 py-2" />
         {% elif tenant.brand_logo_url %}
           <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-14 w-auto object-contain mb-6 bg-white/90 rounded-md px-3 py-2" />
         {% else %}
           <div class="h-14 w-14 mb-6 bg-white/90 rounded-md flex items-center justify-center">
-            <!-- Inline logo mark -->
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none">
               <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(0,120,212,0.95)"/>
               <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(16,110,190,0.95)"/>
@@ -31,9 +34,11 @@
             </svg>
           </div>
         {% endif %}
-        <h1 class="erp-type-page-title text-white leading-tight">{{ tenant_display_name|default:tenant.name }}</h1>
+        <h1 class="erp-type-page-title text-white leading-tight">{% if tenant_theme %}{{ tenant_theme.login_title }}{% else %}{{ tenant_display_name|default:tenant.name }}{% endif %}</h1>
         <p class="mt-4 erp-type-helper text-white/90">
-          {% if tenant.brand_login_subtitle %}
+          {% if tenant_theme and tenant_theme.welcome_text %}
+            {{ tenant_theme.welcome_text }}
+          {% elif tenant.brand_login_subtitle %}
             {{ tenant.brand_login_subtitle }}
           {% else %}
             Enterprise tenant portal for finance, grant management, and controls.
@@ -44,13 +49,14 @@
     <section class="flex items-center justify-center p-6 sm:p-8">
       <div class="w-full max-w-md bg-white border rounded-2xl shadow-xl p-7" style="border-color: #e5e7eb;">
         <div class="flex items-center gap-3 mb-6">
-          {% if org_settings and org_settings.organization_logo %}
+          {% if tenant_theme and tenant_theme.logo_url %}
+            <img src="{{ tenant_theme.logo_url }}" alt="{{ tenant_theme.display_full_name }}" class="h-11 w-auto object-contain" />
+          {% elif org_settings and org_settings.organization_logo %}
             <img src="{{ org_settings.organization_logo.url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-11 w-auto object-contain" />
           {% elif tenant.brand_logo_url %}
             <img src="{{ tenant.brand_logo_url }}" alt="{{ tenant_display_name|default:tenant.name }}" class="h-11 w-auto object-contain" />
           {% else %}
             <div class="h-11 w-11 bg-white/10 rounded-md flex items-center justify-center">
-              <!-- Inline logo mark -->
               <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 28 28" fill="none">
                 <rect x="3.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(255,255,255,0.95)"/>
                 <rect x="14.5" y="3.5" width="10" height="10" rx="2.2" fill="rgba(255,255,255,0.85)"/>
@@ -60,7 +66,7 @@
             </div>
           {% endif %}
           <div class="min-w-0">
-            <p class="text-base font-semibold truncate">{{ tenant_display_name|default:tenant.name }}</p>
+            <p class="text-base font-semibold truncate">{% if tenant_theme %}{{ tenant_theme.display_full_name }}{% else %}{{ tenant_display_name|default:tenant.name }}{% endif %}</p>
             <p class="text-xs text-[#605e5c] truncate">Tenant Sign In</p>
           </div>
         </div>
@@ -77,9 +83,12 @@
 
         <form method="post" class="space-y-4">
           {% csrf_token %}
+          {% if next %}
+          <input type="hidden" name="next" value="{{ next }}" />
+          {% endif %}
           <div>
             <label class="block text-xs font-semibold mb-1 text-[#605e5c]">Email</label>
-            <input name="email" type="email" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#d1d5db;" placeholder="admin@tenant.com" />
+            <input name="email" type="email" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-opacity-30" style="border-color:#d1d5db;--tw-ring-color:var(--tenant-accent, #0078D4);" placeholder="admin@tenant.com" />
           </div>
           <div>
             <div class="flex items-center justify-between mb-1">
@@ -92,10 +101,10 @@
                 Forgot password?
               </a>
             </div>
-            <input name="password" type="password" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#0078D4]/30" style="border-color:#d1d5db;" placeholder="••••••••" />
+            <input name="password" type="password" required class="w-full px-3 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-opacity-30" style="border-color:#d1d5db;--tw-ring-color:var(--tenant-accent, #0078D4);" placeholder="••••••••" />
           </div>
-          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium shadow-sm hover:shadow transition-all"
-                  style="background: {{ tenant.brand_primary_color|default:'#0078D4' }};">
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium shadow-sm hover:shadow transition-all"
+                  style="background:{% if tenant_theme %}{{ tenant_theme.primary_color }}{% else %}{{ tenant.brand_primary_color|default:'#0078D4' }}{% endif %};color:{% if tenant_theme %}{{ tenant_theme.text_on_primary }}{% else %}#ffffff{% endif %};">
             Sign in
           </button>
         </form>
@@ -106,4 +115,3 @@
   </div>
 </body>
 </html>
-

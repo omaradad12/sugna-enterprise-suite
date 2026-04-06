@@ -1,0 +1,162 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load i18n %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | {{ patient.full_name }}{% endblock %}
+
+{% block content %}
+  <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">{{ patient.full_name }}</h1>
+      <p class="text-sm text-[#605e5c] mt-1">MRN <span class="font-mono font-medium">{{ patient.mrn }}</span></p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url_tenant 'tenant_portal:hospital_patients' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]" style="border-color:#edebe9;">← {% trans "Patients" %}</a>
+      {% if can_manage_patient %}
+      <a href="{% url_tenant 'tenant_portal:hospital_opd_visit_create' %}?patient_id={{ patient.id }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white" style="background:#0078D4;">{% trans "New OPD visit" %}</a>
+      <a href="{% url_tenant 'tenant_portal:hospital_admissions' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border" style="border-color:#0078D4;color:#0078D4;">{% trans "Admit patient" %}</a>
+      <a href="{% url_tenant 'tenant_portal:hospital_emergency_visit_create' %}?patient_id={{ patient.id }}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border" style="border-color:#c2410c;color:#c2410c;">{% trans "Emergency visit" %}</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+    <div class="lg:col-span-2 bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-[#323130] mb-3">{% trans "Demographics" %}</h2>
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div><dt class="text-[#605e5c]">{% trans "Gender" %}</dt><dd>{{ patient.get_gender_display }}</dd></div>
+        <div><dt class="text-[#605e5c]">{% trans "Date of birth" %}</dt><dd>{{ patient.date_of_birth|default:"—" }}</dd></div>
+        <div><dt class="text-[#605e5c]">{% trans "Phone" %}</dt><dd>{{ patient.phone|default:"—" }}</dd></div>
+        <div><dt class="text-[#605e5c]">{% trans "Email" %}</dt><dd>{{ patient.email|default:"—" }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-[#605e5c]">{% trans "Address" %}</dt><dd class="whitespace-pre-wrap">{{ patient.address|default:"—" }}</dd></div>
+        <div><dt class="text-[#605e5c]">{% trans "Next of kin" %}</dt><dd>{{ patient.emergency_contact_name|default:"—" }}</dd></div>
+        <div><dt class="text-[#605e5c]">{% trans "Kin phone" %}</dt><dd>{{ patient.emergency_contact_phone|default:"—" }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-[#605e5c]">{% trans "Allergies" %}</dt><dd class="whitespace-pre-wrap">{{ patient.allergies|default:"—" }}</dd></div>
+      </dl>
+    </div>
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-[#323130] mb-3">{% trans "Insurance" %}</h2>
+      {% if insurance %}
+        <ul class="text-sm space-y-2">
+          {% for pol in insurance %}
+            <li class="border-b pb-2" style="border-color:#edebe9;">
+              <span class="font-medium">{{ pol.plan.name }}</span>
+              <span class="text-[#605e5c]"> — {{ pol.policy_number }}</span>
+              {% if pol.is_primary %}<span class="text-xs text-teal-700">({% trans "Primary" %})</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-[#605e5c]">{% trans "No policies on file." %}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="space-y-8">
+    <section class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b bg-[#faf9f8]" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">{% trans "Outpatient visits (OPD)" %}</h2>
+      </div>
+      {% if opd_visits %}
+      <div class="overflow-x-auto text-sm">
+        <table class="min-w-full">
+          <thead class="text-[#605e5c]"><tr><th class="text-left px-5 py-2">{% trans "Date" %}</th><th class="text-left px-5 py-2">{% trans "Department" %}</th><th class="text-left px-5 py-2">{% trans "Doctor" %}</th><th class="text-left px-5 py-2">{% trans "Diagnosis" %}</th></tr></thead>
+          <tbody class="divide-y" style="border-color:#edebe9;">
+            {% for v in opd_visits %}
+            <tr>
+              <td class="px-5 py-2">{{ v.visit_date }}</td>
+              <td class="px-5 py-2">{{ v.department.name|default:"—" }}</td>
+              <td class="px-5 py-2">{{ v.doctor.full_name|default:"—" }}</td>
+              <td class="px-5 py-2 max-w-md truncate">{{ v.diagnosis|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<p class="p-5 text-sm text-[#605e5c]">{% trans "No OPD visits recorded." %}</p>{% endif %}
+    </section>
+
+    <section class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b bg-[#faf9f8]" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">{% trans "Admissions (IPD)" %}</h2>
+      </div>
+      {% if admissions %}
+      <div class="overflow-x-auto text-sm">
+        <table class="min-w-full">
+          <thead class="text-[#605e5c]"><tr><th class="text-left px-5 py-2">{% trans "Admitted" %}</th><th class="text-left px-5 py-2">{% trans "Bed" %}</th><th class="text-left px-5 py-2">{% trans "Status" %}</th><th class="text-left px-5 py-2">{% trans "Discharged" %}</th></tr></thead>
+          <tbody class="divide-y" style="border-color:#edebe9;">
+            {% for a in admissions %}
+            <tr>
+              <td class="px-5 py-2">{{ a.admitted_at }}</td>
+              <td class="px-5 py-2">{{ a.bed.ward.code }} {{ a.bed.room_label }}-{{ a.bed.bed_label }}</td>
+              <td class="px-5 py-2">{{ a.get_status_display }}</td>
+              <td class="px-5 py-2">{{ a.discharged_at|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<p class="p-5 text-sm text-[#605e5c]">{% trans "No admissions." %}</p>{% endif %}
+    </section>
+
+    <section class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b bg-[#faf9f8]" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">{% trans "Emergency visits" %}</h2>
+      </div>
+      {% if er_visits %}
+      <div class="overflow-x-auto text-sm">
+        <table class="min-w-full">
+          <thead class="text-[#605e5c]"><tr><th class="text-left px-5 py-2">{% trans "Arrival" %}</th><th class="text-left px-5 py-2">{% trans "Triage" %}</th><th class="text-left px-5 py-2">{% trans "Outcome" %}</th></tr></thead>
+          <tbody class="divide-y" style="border-color:#edebe9;">
+            {% for e in er_visits %}
+            <tr>
+              <td class="px-5 py-2">{{ e.encounter.started_at }}</td>
+              <td class="px-5 py-2">{{ e.triage_level|default:"—" }}</td>
+              <td class="px-5 py-2">{{ e.get_outcome_display }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<p class="p-5 text-sm text-[#605e5c]">{% trans "No emergency visits." %}</p>{% endif %}
+    </section>
+
+    <section class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b bg-[#faf9f8]" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">{% trans "Laboratory" %}</h2>
+      </div>
+      {% if lab_orders %}
+      <ul class="divide-y text-sm" style="border-color:#edebe9;">
+        {% for lo in lab_orders %}
+        <li class="px-5 py-2 flex justify-between gap-4"><span>{{ lo.order_number }}</span><span class="text-[#605e5c]">{{ lo.ordered_at }} — {{ lo.get_status_display }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="p-5 text-sm text-[#605e5c]">{% trans "No lab orders." %}</p>{% endif %}
+    </section>
+
+    <section class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b bg-[#faf9f8]" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">{% trans "Billing" %}</h2>
+      </div>
+      {% if invoices %}
+      <ul class="divide-y text-sm" style="border-color:#edebe9;">
+        {% for inv in invoices %}
+        <li class="px-5 py-2 flex justify-between gap-4"><span>{{ inv.invoice_number }}</span><span>{{ inv.total_amount }} {{ inv.currency }} — {{ inv.get_status_display }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="p-5 text-sm text-[#605e5c]">{% trans "No invoices." %}</p>{% endif %}
+    </section>
+
+    <section class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+      <div class="px-5 py-3 border-b bg-[#faf9f8]" style="border-color:#edebe9;">
+        <h2 class="text-sm font-semibold uppercase tracking-wide">{% trans "Documents" %}</h2>
+      </div>
+      {% if documents %}
+      <ul class="divide-y text-sm" style="border-color:#edebe9;">
+        {% for d in documents %}
+        <li class="px-5 py-2"><a href="{{ d.file.url }}" class="text-[#0078D4] hover:underline" target="_blank" rel="noopener">{{ d.title }}</a> — {{ d.uploaded_at }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="p-5 text-sm text-[#605e5c]">{% trans "No documents uploaded." %}</p>{% endif %}
+    </section>
+  </div>
+{% endblock %}

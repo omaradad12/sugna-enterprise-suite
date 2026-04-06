@@ -1,0 +1,35 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Import receipt drafts (Excel)" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto pb-8">
+  <style>
+    .pay-entry-shell {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      padding: 18px;
+    }
+  </style>
+
+  <nav class="mb-4 text-[13px]" aria-label="{% trans 'Breadcrumb' %}">
+    <a href="{% url 'tenant_portal:finance_post_transaction' %}" class="font-semibold text-[#0078d4] hover:underline">{% trans "Post transaction" %}</a>
+    <span class="text-[#a19f9d] mx-1.5" aria-hidden="true">/</span>
+    <span class="text-[#605e5c]">{% trans "Import receipt drafts (Excel)" %}</span>
+  </nav>
+
+  <div class="mb-4" style="border: 1px solid #e5e7eb; border-radius: 12px; background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%); padding: 16px 18px; position: relative; overflow: hidden;">
+    <span class="absolute left-0 top-0 bottom-0 w-[3px] bg-[#0078d4]" aria-hidden="true"></span>
+    <h1 class="text-2xl font-semibold text-[#323130] pl-1">{% trans "Import receipt drafts (Excel)" %}</h1>
+    <p class="text-[13px] text-[#605e5c] mt-1 pl-1">{% trans "Create multiple draft receipt vouchers from one spreadsheet, then complete and post them from Receipt entry." %}</p>
+  </div>
+
+  {% include "tenant_portal/recv/_receipt_voucher_draft_excel_panel.html" %}
+
+  <p class="text-[12px] text-[#605e5c]">
+    <a href="{% url 'tenant_portal:recv_receipt_entry' %}" class="font-semibold text-[#0078d4] hover:underline">{% trans "Open Receipt entry" %}</a>
+  </p>
+</div>
+{% endblock %}

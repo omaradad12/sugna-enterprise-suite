@@ -1,0 +1,66 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Email templates{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto animate-fade-in">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading">Email templates</h1>
+      <p class="text-slate-500 mt-1 text-sm">Platform communication — subject, body, and merge fields</p>
+    </div>
+    <a href="{% url 'platform_dashboard:email_template_create' %}" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">
+      <i data-feather="plus" class="w-4 h-4"></i> New template
+    </a>
+  </div>
+
+  <div class="dynamics-card overflow-hidden">
+    {% if rows %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left data-table">
+        <thead class="border-b border-slate-200 text-slate-600 font-semibold sticky top-0 z-10">
+          <tr>
+            <th class="px-6 py-4">Name</th>
+            <th class="px-6 py-4">Category</th>
+            <th class="px-6 py-4">Subject</th>
+            <th class="px-6 py-4">Status</th>
+            <th class="px-6 py-4 text-right w-72">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in rows %}
+          <tr>
+            <td class="px-6 py-4 font-semibold text-slate-900">
+              {{ t.name }}
+              {% if t.is_system %}<span class="ml-2 text-[10px] font-semibold uppercase text-slate-500">System</span>{% endif %}
+            </td>
+            <td class="px-6 py-4">{{ t.get_category_display }}</td>
+            <td class="px-6 py-4 text-slate-600 max-w-xs truncate" title="{{ t.subject }}">{{ t.subject }}</td>
+            <td class="px-6 py-4">
+              <span class="inline-flex px-2.5 py-1 rounded text-xs font-medium {% if t.status == 'active' %}bg-emerald-50 text-emerald-800{% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ t.get_status_display }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex flex-wrap justify-end gap-2">
+                <a href="{% url 'platform_dashboard:email_template_preview' t.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded border text-xs font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Preview</a>
+                <a href="{% url 'platform_dashboard:email_template_edit' t.pk %}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded border text-xs font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Edit</a>
+                {% if not t.is_system %}
+                <form method="post" action="{% url 'platform_dashboard:email_template_delete' t.pk %}" class="inline" onsubmit="return confirm('Delete this template?');">
+                  {% csrf_token %}
+                  <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-red-700 hover:bg-red-50 border border-red-200">Delete</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-8 py-16 text-center text-slate-500 text-sm">No templates yet.</div>
+    {% endif %}
+  </div>
+</div>
+<script>if (typeof feather !== 'undefined') feather.replace({ 'stroke-width': 1.6 });</script>
+{% endblock %}

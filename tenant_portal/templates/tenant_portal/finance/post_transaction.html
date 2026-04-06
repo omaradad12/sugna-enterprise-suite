@@ -3,70 +3,69 @@
 {% block title %}{% trans "Post transaction" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
 
 {% block content %}
-<div class="post-txn-hub -mx-4 px-4 py-6 sm:mx-0 sm:px-0 sm:py-2">
-  <div class="max-w-6xl mx-auto">
-    <header class="mb-8 sm:mb-10 pb-6 sm:pb-8 border-b border-[#edebe9]">
-      <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#605e5c] mb-2">
-        {% trans "Operational transactions" %}
-      </p>
-      <h1 class="text-[1.65rem] sm:text-[1.75rem] font-semibold text-[#323130] leading-tight tracking-tight">
-        {% trans "Post transaction" %}
-      </h1>
-    </header>
+<div class="sns-transaction-workspace -mx-4 px-4 py-4 sm:mx-0 sm:px-0 sm:py-2">
+  <div class="sns-page-hero mb-5">
+    <p class="sns-page-hero__eyebrow">{% trans "Operational transactions" %}</p>
+    <h1 class="sns-page-hero__title">{% trans "Post transaction" %}</h1>
+    <p class="sns-page-hero__desc">
+      {% trans "Choose a workflow to record payments, receipts, cash and bank movements, and fund transfers. Manual journals remain under Core Accounting when enabled for your role." %}
+    </p>
+  </div>
 
-    {% for item in post_txn_links %}
-      {% ifchanged item.section %}
-        {% if not forloop.first %}
-            </div>
-          </section>
-        {% endif %}
-        <section class="mb-10 last:mb-0">
-          <h2 id="section-{{ item.section }}" class="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#605e5c] mb-4">
-            <span class="h-px flex-1 max-w-[2rem] bg-[#c8c6c4] rounded-full" aria-hidden="true"></span>
-            {% if item.section == "vouchers" %}
-              {% trans "Vouchers" %}
-            {% elif item.section == "cash_bank" %}
-              {% trans "Cash & bank" %}
-            {% elif item.section == "fund_transfers" %}
-              {% trans "Fund transfers" %}
-            {% elif item.section == "manual_optional" %}
-              {% trans "Optional" %}
-            {% else %}
-              {% trans "Other" %}
-            {% endif %}
-            <span class="h-px flex-1 bg-[#edebe9]" aria-hidden="true"></span>
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-      {% endifchanged %}
+  {% include "tenant_portal/includes/sns_workflow_strip.html" with active="draft" %}
 
-      <a href="{{ item.url }}"
-         class="post-txn-card group relative flex items-stretch gap-4 rounded border bg-white pl-4 pr-12 py-4
-                border-[#edebe9] shadow-[0_1px_2px_rgba(0,0,0,0.04)]
-                transition-all duration-200 ease-out
-                hover:border-[#0078D4] hover:bg-[#faf9f8] hover:shadow-[0_4px_12px_rgba(0,0,0,0.07)]
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4] focus-visible:ring-offset-2">
-        <span class="absolute left-0 top-0 bottom-0 w-[3px] rounded-l bg-[#0078D4] opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"></span>
-        <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#f3f2f1] text-[#0078D4] ring-1 ring-[#edebe9] transition-colors group-hover:bg-[#deecf9] group-hover:ring-[#c7e0f4]">
-          <i data-feather="{{ item.icon }}" class="w-[22px] h-[22px]" stroke-width="1.75"></i>
-        </span>
-        <div class="min-w-0 flex-1 pt-0.5">
-          <h3 class="text-[15px] font-semibold text-[#323130] leading-snug group-hover:text-[#0078D4] transition-colors">
-            {{ item.label }}
-          </h3>
-          <p class="mt-1.5 text-[13px] leading-relaxed text-[#605e5c]">
-            {{ item.description }}
-          </p>
-        </div>
-        <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-[#a19f9d] transition-colors group-hover:bg-white group-hover:text-[#0078D4] group-hover:shadow-sm">
-          <i data-feather="chevron-right" class="w-5 h-5" stroke-width="2"></i>
-        </span>
-      </a>
-
-      {% if forloop.last %}
+  {% for item in post_txn_links %}
+    {% ifchanged item.section %}
+      {% if not forloop.first %}
           </div>
         </section>
       {% endif %}
-    {% endfor %}
-  </div>
+      <section class="mb-8 last:mb-0">
+        <h2 id="section-{{ item.section }}" class="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] mb-3" style="color: var(--sns-fabric-gray-90, #605e5c);">
+          <span class="h-px flex-1 max-w-[2rem] rounded-full" style="background:#c8c6c4;" aria-hidden="true"></span>
+          {% if item.section == "vouchers" %}
+            {% trans "Vouchers" %}
+          {% elif item.section == "cash_bank" %}
+            {% trans "Cash & bank" %}
+          {% elif item.section == "fund_transfers" %}
+            {% trans "Fund transfers" %}
+          {% elif item.section == "manual_optional" %}
+            {% trans "Optional" %}
+          {% else %}
+            {% trans "Other" %}
+          {% endif %}
+          <span class="h-px flex-1" style="background: var(--sns-card-border, #edebe9);" aria-hidden="true"></span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+    {% endifchanged %}
+
+    <a href="{{ item.url }}"
+       class="post-txn-card group relative flex items-stretch gap-4 rounded-xl border border-[#edebe9] bg-white pl-4 pr-12 py-4 no-underline text-inherit shadow-[0_1px_2px_rgba(0,0,0,0.04)]
+              transition-all duration-200 ease-out
+              hover:border-[#0078D4] hover:bg-[#faf9f8] hover:shadow-[0_4px_12px_rgba(0,0,0,0.07)]
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4] focus-visible:ring-offset-2">
+      <span class="absolute left-0 top-0 bottom-0 w-[3px] rounded-l bg-[#0078D4] opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true"></span>
+      <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#f3f2f1] text-[#0078D4] ring-1 ring-[#edebe9] transition-colors group-hover:bg-[#deecf9] group-hover:ring-[#c7e0f4]">
+        <i data-feather="{{ item.icon }}" class="w-[22px] h-[22px]" stroke-width="1.75"></i>
+      </span>
+      <div class="min-w-0 flex-1 pt-0.5">
+        <h3 class="text-[15px] font-semibold leading-snug transition-colors group-hover:text-[#0078d4]" style="color:#323130;">
+          {{ item.label }}
+        </h3>
+        <p class="mt-1.5 leading-relaxed" style="font-size:13px; color:#605e5c;">
+          {{ item.description }}
+        </p>
+      </div>
+      <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full transition-colors group-hover:bg-white group-hover:shadow-sm"
+            style="color:#a19f9d;">
+        <i data-feather="chevron-right" class="w-5 h-5" stroke-width="2"></i>
+      </span>
+    </a>
+
+    {% if forloop.last %}
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
 </div>
 {% endblock %}

@@ -111,3 +111,22 @@ def fiscal_year_containing(using: str, d):
         .order_by("-start_date")
         .first()
     )
+
+
+def journal_entry_user_document_reference(entry) -> str:
+    """
+    Reference typed on the source transaction (payment/receipt/journal form).
+    Prefer source_document_no; otherwise entry.reference when it is not the internal voucher/journal id.
+    """
+    import re
+
+    ext = (getattr(entry, "source_document_no", "") or "").strip()
+    if ext:
+        return ext
+    ref = (getattr(entry, "reference", "") or "").strip()
+    if not ref:
+        return ""
+    u = ref.upper().replace(" ", "")
+    if re.match(r"^(PV|RV|JE|ADJ|IF|CT|BT|FT)-\d+$", u):
+        return ""
+    return ref

@@ -58,10 +58,10 @@
   --erp-section-margin-bottom: var(--erp-space-section);
   --erp-block-gap: var(--erp-space-card-gap);
 
-  /* Enterprise palette (Dynamics-like) */
-  --erp-color-primary: #0f5ba7;
+  /* Enterprise palette (Fluent / Dynamics 365 blue as suite primary) */
+  --erp-color-primary: #0078d4;
   --erp-color-border: #e5e7eb;
-  --erp-color-bg: #f8fafc;
+  --erp-color-bg: #faf9f8;
 
   --erp-color-text: #111827;
   --erp-color-text-secondary: #6b7280;
@@ -917,6 +917,13 @@ main input[type="time"] {
   font-size: var(--erp-date) !important;
   font-weight: 400;
   line-height: var(--erp-leading-snug);
+}
+
+/* Unified numeric entry (match table figure size) */
+main input[inputmode="decimal"],
+main input[inputmode="numeric"] {
+  font-size: var(--erp-figure-size) !important;
+  font-variant-numeric: tabular-nums;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -13,20 +13,35 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.db import IntegrityError, utils as db_utils
-from django.http import HttpResponse, HttpResponseRedirect
+from django.db import IntegrityError, transaction, utils as db_utils
+from django.utils.dateparse import parse_date
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
 from tenants.branding import extract_brand_colors
 from tenants.db import ensure_tenant_db_configured
-from tenants.models import Module, SubscriptionPlan, Tenant, TenantDomain
+from tenants.models import Module, SubscriptionPlan, Tenant, TenantBrandingProfile, TenantDomain
 from tenants.services.onboarding import run_full_tenant_provisioning
 from tenants.services.registration_cleanup import cleanup_failed_registration_tenant
 from tenants.services.tenant_modules import replace_tenant_modules
+from tenants.workplace import PLATFORM_MODULE_ROUTE, is_platform_module, tenant_module_home_relpath
 
 logger = logging.getLogger(__name__)
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def platform_coming_soon_view(request, slug: str):
+    """Placeholder for platform admin areas that are not built yet (scalable menu targets)."""
+    page_title = slug.replace("-", " ").replace("_", " ").strip().title() or "Coming soon"
+    return render(
+        request,
+        "platform_dashboard/coming_soon.html",
+        {"page_title": page_title, "feature_slug": slug},
+    )
 
 
 def logo_view(request):
@@ -228,63 +243,140 @@ def _tenant_summary_stats():
 @staff_member_required(login_url="/platform/login/")
 def module_list_view(request):
     """List all modules with counts."""
-    modules = (
-        Module.objects.all()
-        .annotate(tenant_count=Count("tenants"))
-        .order_by("code")
+    q = (request.GET.get("q") or "").strip()
+    category = (request.GET.get("category") or "").strip()
+    status = (request.GET.get("status") or "").strip().lower()  # active|inactive|all
+
+    qs = Module.objects.all().annotate(tenant_count=Count("tenants"))
+    if q:
+        qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(description__icontains=q))
+    if category:
+        qs = qs.filter(category__iexact=category)
+    if status == "active":
+        qs = qs.filter(is_active=True)
+    elif status == "inactive":
+        qs = qs.filter(is_active=False)
+
+    modules = qs.order_by("sort_order", "code")
+    categories = list(
+        Module.objects.exclude(category__isnull=True)
+        .exclude(category__exact="")
+        .values_list("category", flat=True)
+        .distinct()
+        .order_by("category")
     )
-    return render(request, "platform_dashboard/module_list.html", {"modules": modules})
+
+    def _module_icon(code: str) -> str:
+        m = {
+            "finance_grants": "layers",
+            "integrations": "link",
+            "audit_risk": "shield",
+            "hospital": "activity",
+            "help_center": "book-open",
+            "diagnostics": "activity",
+        }
+        return m.get((code or "").strip().lower(), "grid")
+
+    module_rows = []
+    for m in modules:
+        module_rows.append(
+            {
+                "id": m.id,
+                "code": m.code,
+                "name": m.name,
+                "description": (m.description or "").strip(),
+                "category": (m.category or "").strip(),
+                "is_active": bool(m.is_active),
+                "tenant_count": getattr(m, "tenant_count", 0) or 0,
+                "icon": _module_icon(m.code),
+            }
+        )
+
+    return render(
+        request,
+        "platform_dashboard/module_list.html",
+        {
+            "modules": module_rows,
+            "categories": categories,
+            "filters": {"q": q, "category": category, "status": status or "all"},
+        },
+    )
 
 
 @login_required(login_url="/platform/login/")
 @staff_member_required(login_url="/platform/login/")
 def module_workplace_preview_view(request):
+    """Backward-compatible alias for the smart workplace router."""
+    target = reverse("platform_dashboard:module_workplace_go")
+    if request.GET:
+        target = f"{target}?{request.GET.urlencode()}"
+    return HttpResponseRedirect(target)
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def module_workplace_dispatch_view(request):
     """
-    Let platform admin choose a module + tenant and open that tenant's module dashboard.
-    This is a design/preview tool; it just redirects the browser to the tenant URL.
+    Resolve Workplace destination from module + tenant subscriptions.
+    Platform-category modules open on /platform/…; tenant modules use /t/<tenant_slug>/…/ .
     """
-    all_modules = list(Module.objects.filter(is_active=True).order_by("code"))
-    selected_code = request.GET.get("module") or (all_modules[0].code if all_modules else "")
+    code = (request.GET.get("module") or "").strip()
+    if not code:
+        messages.error(request, "Choose a module from the list.")
+        return redirect("platform_dashboard:module_list")
 
-    # For this screen we lock to the selected module (no switching between modules here).
-    modules = [m for m in all_modules if m.code == selected_code] if selected_code else all_modules
+    module = Module.objects.filter(code=code, is_active=True).first()
+    if not module:
+        messages.error(request, "Unknown or inactive module.")
+        return redirect("platform_dashboard:module_list")
 
-    tenants_qs = Tenant.objects.all()
-    if selected_code:
-        tenants_qs = tenants_qs.filter(modules__code=selected_code)
-    tenants = tenants_qs.order_by("name").distinct()
+    if is_platform_module(module):
+        dest = PLATFORM_MODULE_ROUTE.get(module.code)
+        if dest:
+            return redirect(dest)
+        messages.warning(request, "No platform workplace route is configured for this module.")
+        return redirect("platform_dashboard:module_list")
 
-    if request.method == "POST":
-        module_code = request.POST.get("module_code") or ""
-        tenant_id = request.POST.get("tenant_id") or ""
+    tenants = (
+        Tenant.objects.filter(tenant_modules__module=module, tenant_modules__is_enabled=True)
+        .order_by("name")
+        .distinct()
+    )
+    if not tenants.exists():
+        return render(
+            request,
+            "platform_dashboard/module_workplace_no_tenants.html",
+            {"module": module},
+        )
 
-        tenant = Tenant.objects.filter(pk=tenant_id).first()
-        module = Module.objects.filter(code=module_code).first()
+    rel = tenant_module_home_relpath(module.code)
+    if tenants.count() == 1:
+        t = tenants.first()
+        return HttpResponseRedirect(f"/t/{t.slug}/{rel}")
 
-        if not tenant or not module:
-            messages.error(request, "Please select a valid module and tenant.")
-            return redirect("platform_dashboard:module_workplace_preview")
+    tenant_links = [{"tenant": t, "url": f"/t/{t.slug}/{rel}"} for t in tenants]
+    return render(
+        request,
+        "platform_dashboard/module_workplace_pick_tenant.html",
+        {
+            "module": module,
+            "tenant_links": tenant_links,
+        },
+    )
 
-        module_path_map = {
-            "finance": "/t/finance/",
-            "grants": "/t/grants/",
-            "integrations": "/t/integrations/",
-            # Audit & Risk workplace (tenant portal) lives under /t/audit-risk/
-            "audit_risk": "/t/audit-risk/",
-        }
-        path = module_path_map.get(module.code, "/t/")
 
-        # For preview, always open on the current host/port instead of tenant.domain
-        host = request.get_host()
-        target = f"http://{host}{path}"
-        return HttpResponseRedirect(target)
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def platform_help_center_view(request):
+    """Platform Help Center (staff)."""
+    return render(request, "platform_dashboard/help_center.html", {})
 
-    context = {
-        "modules": modules,
-        "tenants": tenants,
-        "selected_code": selected_code,
-    }
-    return render(request, "platform_dashboard/module_workplace_preview.html", context)
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def platform_integrations_hub_view(request):
+    """Platform integrations overview (staff); tenant API usage is per-tenant."""
+    return render(request, "platform_dashboard/integrations_hub.html", {})
 
 
 @login_required(login_url="/platform/login/")
@@ -452,28 +544,150 @@ def _resolve_subscription_plan_label(raw: str) -> str:
 
 
 def _apply_tenant_branding_from_request(request, tenant: Tenant, slug: str) -> None:
+    from django.core.files import File
+
+    from tenants.models import TenantBrandingProfile
+
+    profile, _ = TenantBrandingProfile.objects.get_or_create(tenant=tenant)
+
+    logo_file = request.FILES.get("logo")
+    saved_logo_path = None
+    if logo_file:
+        try:
+            ext = os.path.splitext(logo_file.name)[1] or ".png"
+            relative_path = f"tenant_logos/{slug}{ext}"
+            saved_logo_path = default_storage.save(relative_path, logo_file)
+            tenant.brand_logo_url = settings.MEDIA_URL + saved_logo_path.replace("\\", "/")
+            primary, bg = extract_brand_colors(default_storage.open(saved_logo_path, "rb"))
+            if primary and not tenant.brand_primary_color:
+                tenant.brand_primary_color = primary
+            if bg and not tenant.brand_background_color:
+                tenant.brand_background_color = bg
+            with default_storage.open(saved_logo_path, "rb") as fh:
+                profile.logo.save(f"logo_{slug}{ext}", File(fh), save=False)
+        except Exception:
+            logger.warning("Logo upload/branding extraction skipped for slug=%s", slug, exc_info=True)
+    brand_primary = (request.POST.get("brand_primary_color") or "").strip()
+    brand_secondary = (request.POST.get("brand_secondary_color") or "").strip()
+    brand_accent = (request.POST.get("brand_accent_color") or "").strip()
+    brand_on_primary = (request.POST.get("brand_text_on_primary") or "").strip()
+    brand_on_secondary = (request.POST.get("brand_text_on_secondary") or "").strip()
+    if brand_primary:
+        tenant.brand_primary_color = brand_primary
+    if not tenant.brand_login_title:
+        tenant.brand_login_title = tenant.name
+
+    legal = (request.POST.get("organization_legal_name") or "").strip()
+    short = (request.POST.get("organization_short_name") or "").strip()
+    report_header = (request.POST.get("report_header_name") or "").strip()
+    report_footer = (request.POST.get("report_footer_text") or "").strip()
+    welcome = (request.POST.get("brand_welcome_text") or "").strip()
+    post_login = (request.POST.get("post_login_mode") or "auto").strip()
+    default_mod = (request.POST.get("default_module_code") or "").strip()
+
+    if legal:
+        profile.display_full_name = legal[:255]
+    if short:
+        profile.display_short_name = short[:120]
+    if brand_primary:
+        profile.primary_color = brand_primary[:20]
+    if brand_secondary:
+        profile.secondary_color = brand_secondary[:20]
+    if brand_accent:
+        profile.accent_color = brand_accent[:20]
+    if brand_on_primary:
+        profile.text_on_primary_color = brand_on_primary[:20]
+    if brand_on_secondary:
+        profile.text_on_secondary_color = brand_on_secondary[:20]
+    if report_header:
+        profile.print_header_organization_name = report_header[:255]
+    if report_footer:
+        profile.report_footer_text = report_footer[:500]
+    if welcome:
+        profile.welcome_text = welcome
+    if post_login in dict(TenantBrandingProfile.PostLoginMode.choices):
+        profile.post_login_mode = post_login
+    if default_mod:
+        profile.default_module_code = default_mod[:80]
+
+    fav = request.FILES.get("brand_favicon")
+    if fav:
+        profile.favicon.save(f"favicon_{slug}{os.path.splitext(fav.name)[1] or '.ico'}", fav, save=False)
+    login_bg = request.FILES.get("brand_login_background")
+    if login_bg:
+        profile.login_background.save(f"loginbg_{slug}{os.path.splitext(login_bg.name)[1] or '.jpg'}", login_bg, save=False)
+    print_logo = request.FILES.get("brand_print_logo")
+    if print_logo:
+        profile.print_header_logo.save(f"print_{slug}{os.path.splitext(print_logo.name)[1] or '.png'}", print_logo, save=False)
+
+    profile.save()
+
+
+def _tenant_domain_available_for_edit(domain: str, tenant: Tenant) -> bool:
+    """True if domain is non-empty and not used by another tenant or domain row."""
+    d = (domain or "").strip().lower()
+    if not d:
+        return False
+    if Tenant.objects.exclude(pk=tenant.pk).filter(domain__iexact=d).exists():
+        return False
+    if TenantDomain.objects.exclude(tenant_id=tenant.pk).filter(domain__iexact=d).exists():
+        return False
+    return True
+
+
+def _apply_tenant_branding_edit(request, tenant: Tenant) -> None:
+    """Persist branding from platform tenant edit form; updates profile and tenant login/URL fields."""
+    from django.core.files import File
+
+    profile, _ = TenantBrandingProfile.objects.get_or_create(tenant=tenant)
+    slug = tenant.slug
+
     logo_file = request.FILES.get("logo")
     if logo_file:
         try:
             ext = os.path.splitext(logo_file.name)[1] or ".png"
             relative_path = f"tenant_logos/{slug}{ext}"
-            saved_path = default_storage.save(relative_path, logo_file)
-            tenant.brand_logo_url = settings.MEDIA_URL + saved_path.replace("\\", "/")
-            primary, bg = extract_brand_colors(default_storage.open(saved_path, "rb"))
-            if primary and not tenant.brand_primary_color:
+            saved_logo_path = default_storage.save(relative_path, logo_file)
+            tenant.brand_logo_url = settings.MEDIA_URL + saved_logo_path.replace("\\", "/")
+            primary, bg = extract_brand_colors(default_storage.open(saved_logo_path, "rb"))
+            if primary:
                 tenant.brand_primary_color = primary
-            if bg and not tenant.brand_background_color:
+            if bg:
                 tenant.brand_background_color = bg
+            with default_storage.open(saved_logo_path, "rb") as fh:
+                profile.logo.save(f"logo_{slug}{ext}", File(fh), save=False)
         except Exception:
-            logger.warning("Logo upload/branding extraction skipped for slug=%s", slug, exc_info=True)
-    brand_primary = (request.POST.get("brand_primary_color") or "").strip()
-    brand_bg = (request.POST.get("brand_secondary_color") or "").strip()
-    if brand_primary:
-        tenant.brand_primary_color = brand_primary
-    if brand_bg:
-        tenant.brand_background_color = brand_bg
-    if not tenant.brand_login_title:
-        tenant.brand_login_title = tenant.name
+            logger.warning("tenant_edit logo upload failed slug=%s", slug, exc_info=True)
+
+    tenant.brand_login_title = (request.POST.get("brand_login_title") or "").strip()[:120]
+    tenant.brand_login_subtitle = (request.POST.get("brand_login_subtitle") or "").strip()[:255]
+    tenant.brand_primary_color = (request.POST.get("tenant_brand_primary") or "").strip()[:20]
+    tenant.brand_background_color = (request.POST.get("tenant_brand_background") or "").strip()[:20]
+
+    profile.display_full_name = (request.POST.get("display_full_name") or "").strip()[:255]
+    profile.display_short_name = (request.POST.get("display_short_name") or "").strip()[:120]
+    profile.primary_color = (request.POST.get("profile_primary_color") or "").strip()[:20]
+    profile.secondary_color = (request.POST.get("profile_secondary_color") or "").strip()[:20]
+    profile.accent_color = (request.POST.get("profile_accent_color") or "").strip()[:20]
+    profile.text_on_primary_color = (request.POST.get("text_on_primary_color") or "").strip()[:20]
+    profile.text_on_secondary_color = (request.POST.get("text_on_secondary_color") or "").strip()[:20]
+    profile.report_footer_text = (request.POST.get("report_footer_text") or "").strip()[:500]
+    plm = (request.POST.get("post_login_mode") or "").strip()
+    if plm in dict(TenantBrandingProfile.PostLoginMode.choices):
+        profile.post_login_mode = plm
+    profile.default_module_code = (request.POST.get("default_module_code") or "").strip()[:80]
+
+    fav = request.FILES.get("brand_favicon")
+    if fav:
+        profile.favicon.save(f"favicon_{slug}{os.path.splitext(fav.name)[1] or '.ico'}", fav, save=False)
+    login_bg = request.FILES.get("brand_login_background")
+    if login_bg:
+        profile.login_background.save(f"loginbg_{slug}{os.path.splitext(login_bg.name)[1] or '.jpg'}", login_bg, save=False)
+    print_logo = request.FILES.get("brand_print_logo")
+    if print_logo:
+        profile.print_header_logo.save(f"print_{slug}{os.path.splitext(print_logo.name)[1] or '.png'}", print_logo, save=False)
+
+    profile.save()
 
 
 def _log_tenant_provisioning(request, tenant: Tenant, message: str) -> None:
@@ -522,10 +736,19 @@ def tenant_register_view(request):
     modules = Module.objects.filter(is_active=True).order_by("code")
     subscription_plans = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
     if request.method != "POST":
+        workspace_suffix = getattr(
+            settings,
+            "PLATFORM_WORKSPACE_DOMAIN_SUFFIX",
+            os.environ.get("PLATFORM_WORKSPACE_DOMAIN_SUFFIX", "sugnaerp.com"),
+        )
         return render(
             request,
             "platform_dashboard/tenant_register.html",
-            {"modules": modules, "subscription_plans": subscription_plans},
+            {
+                "modules": modules,
+                "subscription_plans": subscription_plans,
+                "workspace_domain_suffix": workspace_suffix,
+            },
         )
 
     action = (request.POST.get("registration_action") or request.POST.get("action") or "create").strip()
@@ -533,6 +756,8 @@ def tenant_register_view(request):
 
     name = (request.POST.get("organization_legal_name") or request.POST.get("organization_short_name") or "").strip()
     tenant_code = (request.POST.get("tenant_code") or "").strip()
+    if not tenant_code:
+        tenant_code = slugify((request.POST.get("organization_short_name") or "").strip() or name)[:50]
     subdomain = (request.POST.get("preferred_subdomain") or "").strip()
     custom_domain = (request.POST.get("custom_domain") or "").strip()
     domain = (custom_domain or (f"{subdomain}.sugna.org" if subdomain else "")).strip()
@@ -581,7 +806,7 @@ def tenant_register_view(request):
         messages.error(
             request,
             "The form did not submit a valid action (create / create & send link). "
-            "Complete all steps and submit from step 8 (Review), or refresh and try again.",
+            "Complete all steps and submit from step 6 (Review & Create), or refresh and try again.",
         )
         return redirect("platform_dashboard:tenant_register")
 
@@ -604,7 +829,7 @@ def tenant_register_view(request):
         messages.error(request, "Preferred subdomain or custom domain is required.")
         return redirect("platform_dashboard:tenant_register")
 
-    if Tenant.objects.filter(domain=domain).exists():
+    if Tenant.objects.filter(domain=domain).exists() or TenantDomain.objects.filter(domain=domain).exists():
         messages.error(request, f"Domain '{domain}' is already in use.")
         return redirect("platform_dashboard:tenant_register")
 
@@ -725,6 +950,24 @@ def tenant_register_view(request):
 
 @login_required(login_url="/platform/login/")
 @staff_member_required(login_url="/platform/login/")
+def tenant_domain_availability_view(request):
+    """
+    Lightweight AJAX check for preferred subdomain/custom domain uniqueness.
+    Returns: { ok: bool, domain: str, message: str }
+    """
+    subdomain = (request.GET.get("preferred_subdomain") or "").strip()
+    custom_domain = (request.GET.get("custom_domain") or "").strip()
+    domain = (custom_domain or (f"{subdomain}.sugna.org" if subdomain else "")).strip().lower()
+    if not domain:
+        return JsonResponse({"ok": False, "domain": "", "message": "Enter a preferred subdomain or a custom domain."})
+    in_use = Tenant.objects.filter(domain__iexact=domain).exists() or TenantDomain.objects.filter(domain__iexact=domain).exists()
+    if in_use:
+        return JsonResponse({"ok": False, "domain": domain, "message": f"Domain '{domain}' is already in use."})
+    return JsonResponse({"ok": True, "domain": domain, "message": f"Domain '{domain}' is available."})
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
 def tenant_detail_view(request, pk):
     """Tenant profile: organization, domain, modules, subscription, billing placeholder, usage, audit placeholder."""
     tenant = get_object_or_404(Tenant.objects.prefetch_related("modules"), pk=pk)
@@ -779,6 +1022,126 @@ def tenant_detail_view(request, pk):
         "user_filters": {"uq": user_q, "upage": user_page_num, "uper_page": user_per_page},
     }
     return render(request, "platform_dashboard/tenant_detail.html", context)
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def tenant_edit_view(request, pk):
+    """
+    Edit tenant organization, subscription, modules, and branding in the platform UI
+    (control-plane database). For DB credentials and provisioning diagnostics, use Django admin.
+    """
+    tenant = get_object_or_404(Tenant.objects.prefetch_related("modules"), pk=pk)
+    modules_all = Module.objects.filter(is_active=True).order_by("sort_order", "code")
+    plans = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
+    profile, _ = TenantBrandingProfile.objects.get_or_create(tenant=tenant)
+    selected_ids = set(tenant.modules.values_list("id", flat=True))
+
+    plan_code_current = ""
+    if plans.exists():
+        for sp in plans:
+            if sp.name == (tenant.plan or "").strip() or sp.code == (tenant.plan or "").strip():
+                plan_code_current = sp.code
+                break
+
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()
+        slug_raw = (request.POST.get("slug") or "").strip()
+        slug = slugify(slug_raw)[:100] if slug_raw else ""
+        domain = (request.POST.get("domain") or "").strip().lower()
+        country = (request.POST.get("country") or "").strip()
+        status = (request.POST.get("status") or "").strip()
+        plan_code = (request.POST.get("plan_code") or "").strip()
+        is_active = request.POST.get("is_active") == "on"
+        user_count_raw = (request.POST.get("user_count") or "").strip()
+        storage_mb_raw = (request.POST.get("storage_mb") or "").strip()
+        exp_raw = (request.POST.get("subscription_expiry") or "").strip()
+
+        if not name or not slug or not domain:
+            messages.error(request, "Organization name, tenant code, and domain are required.")
+        elif Tenant.objects.exclude(pk=tenant.pk).filter(slug__iexact=slug).exists():
+            messages.error(request, "That tenant code is already in use.")
+        elif Tenant.objects.exclude(pk=tenant.pk).filter(name__iexact=name).exists():
+            messages.error(request, "Another tenant already uses this organization name.")
+        elif not _tenant_domain_available_for_edit(domain, tenant):
+            messages.error(
+                request,
+                f"The domain «{domain}» is already in use. Choose another domain or subdomain.",
+            )
+        elif status and status not in dict(Tenant.Status.choices):
+            messages.error(request, "Invalid status.")
+        else:
+            try:
+                user_count = max(0, int(user_count_raw)) if user_count_raw.isdigit() else tenant.user_count
+            except (TypeError, ValueError):
+                user_count = tenant.user_count
+            try:
+                storage_mb = max(0, int(storage_mb_raw)) if storage_mb_raw.isdigit() else tenant.storage_mb
+            except (TypeError, ValueError):
+                storage_mb = tenant.storage_mb
+            sub_exp = tenant.subscription_expiry
+            if exp_raw:
+                parsed = parse_date(exp_raw)
+                if parsed:
+                    sub_exp = parsed
+                else:
+                    messages.warning(request, "Subscription expiry date was not recognized; left unchanged.")
+
+            plan_label = tenant.plan
+            if plan_code:
+                sp = SubscriptionPlan.objects.filter(code=plan_code).first()
+                if sp:
+                    plan_label = sp.name
+
+            raw_mids = request.POST.getlist("module_ids")
+            mod_ids = [int(x) for x in raw_mids if str(x).isdigit()]
+
+            old_domain = tenant.domain
+            with transaction.atomic():
+                tenant.name = name[:255]
+                tenant.slug = slug
+                tenant.domain = domain[:255]
+                tenant.country = country[:100]
+                tenant.is_active = is_active
+                if status:
+                    tenant.status = status
+                tenant.plan = plan_label[:100] if plan_label else ""
+                tenant.subscription_expiry = sub_exp
+                tenant.user_count = user_count
+                tenant.storage_mb = storage_mb
+                _apply_tenant_branding_edit(request, tenant)
+                tenant.save()
+                replace_tenant_modules(tenant, list(Module.objects.filter(pk__in=mod_ids)))
+                if old_domain != domain:
+                    TenantDomain.objects.filter(tenant=tenant, is_primary=True).update(domain=domain)
+
+            if tenant.db_name:
+                try:
+                    alias = ensure_tenant_db_configured(tenant)
+                    if alias and alias != "default":
+                        from tenants.services.branding_sync import sync_tenant_branding_to_organization_settings
+
+                        sync_tenant_branding_to_organization_settings(tenant, alias)
+                except Exception:
+                    logger.warning("tenant_edit: branding sync to tenant DB failed slug=%s", tenant.slug, exc_info=True)
+
+            messages.success(request, f"Saved changes for «{tenant.name}».")
+            return redirect("platform_dashboard:tenant_detail", pk=tenant.pk)
+
+        selected_ids = {int(x) for x in request.POST.getlist("module_ids") if str(x).isdigit()}
+        plan_code_current = (request.POST.get("plan_code") or "").strip()
+
+    context = {
+        "tenant": tenant,
+        "modules_all": modules_all,
+        "selected_module_ids": selected_ids,
+        "plans": plans,
+        "profile": profile,
+        "plan_code_current": plan_code_current,
+        "status_choices": Tenant.Status.choices,
+        "post_login_choices": TenantBrandingProfile.PostLoginMode.choices,
+    }
+    return render(request, "platform_dashboard/tenant_edit.html", context)
 
 
 @login_required(login_url="/platform/login/")
@@ -990,14 +1353,6 @@ def platform_set_tenant_user_password_view(request):
         "platform_dashboard/set_tenant_user_password.html",
         {"tenant": tenant, "email": email, "next": next_url},
     )
-
-
-@login_required(login_url="/platform/login/")
-@staff_member_required(login_url="/platform/login/")
-def module_list_view(request):
-    """Module list in platform design."""
-    modules = Module.objects.annotate(tenant_count=Count("tenants")).order_by("code")
-    return render(request, "platform_dashboard/module_list.html", {"modules": modules})
 
 
 @login_required(login_url="/platform/login/")

@@ -30,6 +30,12 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
       <div class="min-w-0">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <div class="text-xs font-semibold uppercase tracking-wide" style="color:#605e5c;">
+            <span id="wizard-progress-text">Step 1 of 7</span>
+          </div>
+          <div class="text-xs" style="color:#a19f9d;">Fields marked required must be completed.</div>
+        </div>
         <!-- Stepper -->
         <div class="mb-6">
           <ol class="wizard-stepper flex flex-col sm:flex-row gap-3 sm:gap-4 overflow-x-auto pb-2">
@@ -59,11 +65,7 @@
             </li>
             <li class="wizard-stepper-item flex items-center gap-3 whitespace-nowrap" data-stepper-item="7">
               <span class="wizard-stepper-dot">7</span>
-              <span class="wizard-stepper-label">Templates</span>
-            </li>
-            <li class="wizard-stepper-item flex items-center gap-3 whitespace-nowrap" data-stepper-item="8">
-              <span class="wizard-stepper-dot">8</span>
-              <span class="wizard-stepper-label">Review</span>
+              <span class="wizard-stepper-label">Review &amp; provision</span>
             </li>
           </ol>
         </div>
@@ -86,25 +88,30 @@
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">
                   Organization Short Name <span class="text-xs font-semibold" style="color:#605e5c;">(Required if Legal Name empty)</span>
                 </label>
-                <input type="text" name="organization_short_name" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Short name">
+                <input type="text" name="organization_short_name" id="org-short-name" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Short name">
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">Tenant Code</label>
-                <input type="text" name="tenant_code" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Unique code/slug (optional)">
+                <input type="text" name="tenant_code" id="tenant-code" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Auto-generated from short name (editable)">
+                <p class="mt-1 text-xs" style="color:#605e5c;">Used to generate the tenant slug if provided. Leave empty to auto-generate.</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">Organization Type</label>
                 <select name="organization_type" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
                   <option value="">Select</option>
-                  <option value="ngo">NGO</option>
-                  <option value="corporate">Corporate</option>
+                  <option value="ngo_nonprofit">NGO / Non-profit</option>
+                  <option value="hospital_clinic">Hospital / Clinic</option>
+                  <option value="company">Company</option>
+                  <option value="foundation">Foundation</option>
                   <option value="government">Government</option>
+                  <option value="school_university">School / University</option>
                   <option value="other">Other</option>
                 </select>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">Country</label>
-                <input type="text" name="country" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Country">
+                <input type="text" name="country" id="country" list="country_list" value="Somalia" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Start typing…">
+                <datalist id="country_list"></datalist>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">Region / State</label>
@@ -150,7 +157,7 @@
                 Save Draft
               </button>
               <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Continue
+                Save &amp; Continue
               </button>
             </div>
           </div>
@@ -198,7 +205,7 @@
                 Save Draft
               </button>
               <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Continue
+                Save &amp; Continue
               </button>
             </div>
           </div>
@@ -216,13 +223,19 @@
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">
                   Preferred Subdomain <span class="text-xs font-semibold" style="color:#d83b01;">(Required if Custom Domain empty)</span>
                 </label>
-                <input type="text" name="preferred_subdomain" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="e.g. acme">
+                <input type="text" name="preferred_subdomain" id="preferred-subdomain" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="e.g. acme">
+                <p id="subdomain-validation" class="mt-1 text-xs hidden"></p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">
                   Custom Domain <span class="text-xs font-semibold" style="color:#d83b01;">(Required if Preferred Subdomain empty)</span>
                 </label>
-                <input type="text" name="custom_domain" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="app.yourorg.org">
+                <input type="text" name="custom_domain" id="custom-domain" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="app.yourorg.org">
+              </div>
+              <div class="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Workspace URL preview</p>
+                <p class="mt-1 break-all font-mono text-sm text-primary-600" id="workspace-url-preview">https://<span id="workspace-preview-host">your-org</span>.{{ workspace_domain_suffix|default:"sugnaerp.com" }}</p>
+                <p class="mt-1 text-xs text-slate-500">Sign-in and workspace traffic use this host (custom domain replaces subdomain when set).</p>
               </div>
               <div class="sm:col-span-2">
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">Workspace Name</label>
@@ -276,7 +289,7 @@
                 Save Draft
               </button>
               <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Continue
+                Save &amp; Continue
               </button>
             </div>
           </div>
@@ -343,13 +356,16 @@
                       <div class="module-card-ui">
                         <div class="module-icon-wrap">
                           <i
-                            data-feather="{% if m.code == 'finance' or m.code == 'tenant_finance' %}credit-card{% elif m.code == 'rbac' %}shield{% elif m.code == 'grants' %}file-text{% elif m.code == 'audit_risk' %}alert-triangle{% else %}grid{% endif %}"
+                            data-feather="{% if m.code == 'finance_grants' %}layers{% elif m.code == 'hospital' %}activity{% elif m.code == 'audit_risk' %}shield{% elif m.code == 'integrations' %}link{% elif m.code == 'help_center' %}book-open{% elif m.code == 'diagnostics' %}activity{% else %}grid{% endif %}"
                             class="w-5 h-5"
                           ></i>
                         </div>
                         <div class="min-w-0 flex-1">
                           <div class="module-name">{{ m.name }}</div>
-                          <div class="module-code">{{ m.code }}</div>
+                          <div class="module-code">{{ m.code }}{% if m.category %} · {{ m.category|title }}{% endif %}</div>
+                          {% if m.description %}
+                            <div class="text-xs mt-1" style="color:#605e5c;">{{ m.description|truncatechars:90 }}</div>
+                          {% endif %}
                         </div>
                         <div class="module-check">
                           <i data-feather="check" class="w-4 h-4"></i>
@@ -373,7 +389,7 @@
                 Save Draft
               </button>
               <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Continue
+                Save &amp; Continue
               </button>
             </div>
           </div>
@@ -398,6 +414,20 @@
                     <label class="block text-sm font-medium mb-1" style="color: #323130;">Brand Secondary Color</label>
                     <input type="color" name="brand_secondary_color" value="#106EBE" class="h-10 w-full rounded-xl border border-surface-200 cursor-pointer bg-white shadow-sm">
                   </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Accent Color</label>
+                    <input type="color" name="brand_accent_color" value="#8764B8" class="h-10 w-full rounded-xl border border-surface-200 cursor-pointer bg-white shadow-sm">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Text on primary (header)</label>
+                    <input type="color" name="brand_text_on_primary" value="#ffffff" class="h-10 w-full rounded-xl border border-surface-200 cursor-pointer bg-white shadow-sm">
+                    <p class="mt-1 text-xs" style="color:#605e5c;">Foreground on top bar and primary actions.</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Text on secondary (module bar)</label>
+                    <input type="color" name="brand_text_on_secondary" value="#ffffff" class="h-10 w-full rounded-xl border border-surface-200 cursor-pointer bg-white shadow-sm">
+                    <p class="mt-1 text-xs" style="color:#605e5c;">Labels on the module navigation strip.</p>
+                  </div>
                   <div class="sm:col-span-2">
                     <label class="block text-sm font-medium mb-1" style="color: #323130;">Report Header Name</label>
                     <input type="text" name="report_header_name" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Organization name on reports">
@@ -405,6 +435,28 @@
                   <div class="sm:col-span-2">
                     <label class="block text-sm font-medium mb-1" style="color: #323130;">Report Footer Text</label>
                     <input type="text" name="report_footer_text" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Footer text">
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Welcome text (login &amp; launcher)</label>
+                    <textarea name="brand_welcome_text" rows="2" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Short message shown after sign-in and on the workspace home"></textarea>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">After sign-in</label>
+                    <select name="post_login_mode" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
+                      <option value="auto" selected>Auto (one module → open it; else launcher)</option>
+                      <option value="launcher">Always show module launcher</option>
+                      <option value="default_module">Open default module (below)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Default module</label>
+                    <select name="default_module_code" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
+                      <option value="">—</option>
+                      {% for m in modules %}
+                      <option value="{{ m.code }}">{{ m.name }} ({{ m.code }})</option>
+                      {% endfor %}
+                    </select>
+                    <p class="mt-1 text-xs" style="color:#605e5c;">Used when «After sign-in» is «Open default module».</p>
                   </div>
                 </div>
               </div>
@@ -426,6 +478,20 @@
                   </div>
                   <input type="file" name="logo" accept="image/*" class="hidden" id="logo-upload">
                 </div>
+                <div class="mt-4 space-y-3">
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Favicon</label>
+                    <input type="file" name="brand_favicon" accept=".ico,.png,.svg,image/*" class="block w-full text-xs text-surface-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary-50 file:text-primary-700">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Login background</label>
+                    <input type="file" name="brand_login_background" accept="image/*" class="block w-full text-xs text-surface-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary-50 file:text-primary-700">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1" style="color: #323130;">Print header logo</label>
+                    <input type="file" name="brand_print_logo" accept="image/*" class="block w-full text-xs text-surface-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary-50 file:text-primary-700">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -439,7 +505,7 @@
                 Save Draft
               </button>
               <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Continue
+                Save &amp; Continue
               </button>
             </div>
           </div>
@@ -452,6 +518,15 @@
               <i data-feather="shield" class="w-5 h-5" style="color: #0078D4;"></i>
               6. Administrator
             </h2>
+            <div class="mb-5 rounded-xl border border-surface-200 bg-surface-50 p-4">
+              <label class="block text-sm font-medium mb-1" style="color: #323130;">Approval &amp; provisioning</label>
+              <p class="text-xs mb-2" style="color:#605e5c;">Choose whether to provision the workspace database now or only save the tenant as pending.</p>
+              <select name="approval_decision" class="w-full max-w-xl px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
+                <option value="approved" selected>Approved — provision workspace now</option>
+                <option value="pending">Pending — save tenant only (no database provisioning)</option>
+                <option value="rejected">Rejected — block create</option>
+              </select>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium mb-1" style="color: #323130;">Admin Full Name</label>
@@ -499,87 +574,21 @@
                 Save Draft
               </button>
               <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Continue
+                Continue to review
               </button>
             </div>
           </div>
         </section>
 
-        <!-- 7. Templates -->
+        <!-- 7. Review & provision -->
         <section class="wizard-step" data-step="7" hidden>
-          <div class="bg-white border border-surface-200 rounded-2xl shadow-sm p-6">
-            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
-              <i data-feather="file-text" class="w-5 h-5" style="color: #0078D4;"></i>
-              7. Templates
-            </h2>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium mb-1" style="color: #323130;">Chart of Accounts Template</label>
-                <select name="coa_template" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                  <option value="">Default</option>
-                  <option value="ifrs">IFRS</option>
-                  <option value="gaap">GAAP</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1" style="color: #323130;">Budget Template</label>
-                <select name="budget_template" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                  <option value="">Default</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1" style="color: #323130;">Donor Template</label>
-                <select name="donor_template" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                  <option value="">Default</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1" style="color: #323130;">Project Template</label>
-                <select name="project_template" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                  <option value="">Default</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1" style="color: #323130;">Procurement Template</label>
-                <select name="procurement_template" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                  <option value="">Default</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-1" style="color: #323130;">HR Template</label>
-                <select name="hr_template" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                  <option value="">Default</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 flex items-center justify-between gap-4">
-            <button type="button" data-nav="prev" class="px-5 py-2.5 rounded-xl border border-surface-200 text-sm font-medium text-surface-800 hover:border-primary-200 hover:shadow-sm transition">
-              Back
-            </button>
-            <div class="flex items-center gap-3">
-              <button type="submit" name="action" value="draft" class="px-5 py-2.5 rounded-xl border border-surface-200 text-sm font-medium text-surface-800 hover:border-primary-200 hover:shadow-sm transition">
-                Save Draft
-              </button>
-              <button type="button" data-nav="next" class="px-6 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition shadow-sm">
-                Review
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <!-- 8. Review & Create -->
-        <section class="wizard-step" data-step="8" hidden>
           <div class="bg-white border border-surface-200 rounded-2xl shadow-sm p-6">
             <h2 class="text-lg font-semibold mb-3 flex items-center gap-2" style="color: #323130;">
               <i data-feather="check-circle" class="w-5 h-5" style="color: #0078D4;"></i>
-              8. Review & Create Tenant
+              7. Review &amp; provision
             </h2>
-            <p class="text-sm mb-6" style="color:#605e5c;">Confirm all details before provisioning.</p>
-
-            <div class="space-y-6">
+            <p class="text-sm mb-5" style="color:#605e5c;">Confirm the details below. The summary updates automatically.</p>
+            <div class="space-y-5">
               <div class="rounded-2xl border border-surface-200 p-5 bg-white">
                 <div class="text-sm font-semibold mb-3" style="color:#323130;">Organization</div>
                 <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -588,39 +597,7 @@
                   <div><dt class="text-xs font-medium" style="color:#605e5c;">Tenant Code</dt><dd class="mt-1 text-surface-800"><span id="review_tenant_code">-</span></dd></div>
                   <div><dt class="text-xs font-medium" style="color:#605e5c;">Org Type</dt><dd class="mt-1 text-surface-800"><span id="review_org_type">-</span></dd></div>
                   <div><dt class="text-xs font-medium" style="color:#605e5c;">Country</dt><dd class="mt-1 text-surface-800"><span id="review_country">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Region/State</dt><dd class="mt-1 text-surface-800"><span id="review_region_state">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">City</dt><dd class="mt-1 text-surface-800"><span id="review_city">-</span></dd></div>
-                  <div class="sm:col-span-1"><dt class="text-xs font-medium" style="color:#605e5c;">Address</dt><dd class="mt-1 text-surface-800"><span id="review_address">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Official Email</dt><dd class="mt-1 text-surface-800"><span id="review_official_email">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Phone</dt><dd class="mt-1 text-surface-800"><span id="review_phone_number">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Website</dt><dd class="mt-1 text-surface-800"><span id="review_website">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Registration Number</dt><dd class="mt-1 text-surface-800"><span id="review_registration_number">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Tax ID</dt><dd class="mt-1 text-surface-800"><span id="review_tax_id">-</span></dd></div>
-                </dl>
-              </div>
-
-              <div class="rounded-2xl border border-surface-200 p-5 bg-white">
-                <div class="text-sm font-semibold mb-3" style="color:#323130;">Contact</div>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Full Name</dt><dd class="mt-1 font-medium text-surface-800"><span id="review_contact_full_name">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Position</dt><dd class="mt-1 text-surface-800"><span id="review_contact_position">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Email</dt><dd class="mt-1 text-surface-800"><span id="review_contact_email">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Phone</dt><dd class="mt-1 text-surface-800"><span id="review_contact_phone">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Alt Phone</dt><dd class="mt-1 text-surface-800"><span id="review_contact_alt_phone">-</span></dd></div>
-                </dl>
-              </div>
-
-              <div class="rounded-2xl border border-surface-200 p-5 bg-white">
-                <div class="text-sm font-semibold mb-3" style="color:#323130;">Workspace</div>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Preferred Subdomain</dt><dd class="mt-1 text-surface-800"><span id="review_preferred_subdomain">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Custom Domain</dt><dd class="mt-1 text-surface-800"><span id="review_custom_domain">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Domain Preview</dt><dd class="mt-1 font-semibold text-surface-800"><span id="review_domain_preview">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Workspace Name</dt><dd class="mt-1 text-surface-800"><span id="review_workspace_name">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Time Zone</dt><dd class="mt-1 text-surface-800"><span id="review_time_zone">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Base Currency</dt><dd class="mt-1 text-surface-800"><span id="review_base_currency">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Language</dt><dd class="mt-1 text-surface-800"><span id="review_language">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Fiscal Year Start</dt><dd class="mt-1 text-surface-800"><span id="review_fiscal_year_start">-</span></dd></div>
+                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Workspace URL</dt><dd class="mt-1 font-semibold text-surface-800"><span id="review_domain_preview">-</span></dd></div>
                 </dl>
               </div>
 
@@ -629,77 +606,34 @@
                 <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                   <div><dt class="text-xs font-medium" style="color:#605e5c;">Plan Name</dt><dd class="mt-1 font-semibold text-surface-800"><span id="review_plan_name">-</span></dd></div>
                   <div><dt class="text-xs font-medium" style="color:#605e5c;">Billing Cycle</dt><dd class="mt-1 text-surface-800"><span id="review_billing_cycle">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Trial Period</dt><dd class="mt-1 text-surface-800"><span id="review_trial_period">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Max Users</dt><dd class="mt-1 text-surface-800"><span id="review_max_users">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Storage Limit (GB)</dt><dd class="mt-1 text-surface-800"><span id="review_storage_limit_gb">-</span></dd></div>
                   <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Modules</dt><dd class="mt-1 text-surface-800"><span id="review_modules_list">-</span></dd></div>
                 </dl>
               </div>
 
               <div class="rounded-2xl border border-surface-200 p-5 bg-white">
-                <div class="text-sm font-semibold mb-3" style="color:#323130;">Branding</div>
+                <div class="text-sm font-semibold mb-3" style="color:#323130;">Branding &amp; workplace</div>
                 <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Primary Color</dt><dd class="mt-1 text-surface-800 flex items-center gap-2"><span class="inline-block w-4 h-4 rounded" id="review_color_primary_box" style="background:#ccc;"></span><span id="review_brand_primary_color">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Secondary Color</dt><dd class="mt-1 text-surface-800 flex items-center gap-2"><span class="inline-block w-4 h-4 rounded" id="review_color_secondary_box" style="background:#ccc;"></span><span id="review_brand_secondary_color">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Report Header</dt><dd class="mt-1 text-surface-800"><span id="review_report_header_name">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Report Footer</dt><dd class="mt-1 text-surface-800"><span id="review_report_footer_text">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Logo</dt><dd class="mt-1 font-semibold text-surface-800"><span id="review_logo_status">-</span></dd></div>
-                </dl>
-              </div>
-
-              <div class="rounded-2xl border border-surface-200 p-5 bg-white">
-                <div class="text-sm font-semibold mb-3" style="color:#323130;">Administrator</div>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Full Name</dt><dd class="mt-1 text-surface-800"><span id="review_admin_full_name">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Email</dt><dd class="mt-1 text-surface-800"><span id="review_admin_email">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Username</dt><dd class="mt-1 text-surface-800"><span id="review_admin_username">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Setup Method</dt><dd class="mt-1 text-surface-800"><span id="review_setup_method">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Temporary Password</dt><dd class="mt-1 text-surface-800"><span id="review_admin_temporary_password">-</span></dd></div>
-                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Default Role</dt><dd class="mt-1 text-surface-800"><span id="review_default_role">-</span></dd></div>
-                </dl>
-              </div>
-
-              <div class="rounded-2xl border border-surface-200 p-5 bg-white">
-                <div class="text-sm font-semibold mb-3" style="color:#323130;">Templates</div>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">COA Template</dt><dd class="mt-1 text-surface-800"><span id="review_coa_template">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Budget Template</dt><dd class="mt-1 text-surface-800"><span id="review_budget_template">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Donor Template</dt><dd class="mt-1 text-surface-800"><span id="review_donor_template">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Project Template</dt><dd class="mt-1 text-surface-800"><span id="review_project_template">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Procurement Template</dt><dd class="mt-1 text-surface-800"><span id="review_procurement_template">-</span></dd></div>
-                  <div><dt class="text-xs font-medium" style="color:#605e5c;">HR Template</dt><dd class="mt-1 text-surface-800"><span id="review_hr_template">-</span></dd></div>
-                </dl>
-              </div>
-
-              <div class="rounded-2xl border border-surface-200 p-5 bg-white">
-                <div class="text-sm font-semibold mb-3" style="color:#323130;">Notes (Optional)</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium mb-1" style="color:#323130;">Remarks</label>
-                    <textarea name="remarks" rows="2" class="w-full px-3 py-2 border rounded-xl text-sm shadow-sm border-surface-200 outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Optional remarks"></textarea>
+                  <div class="sm:col-span-2 flex flex-wrap items-center gap-4">
+                    <div class="flex items-center gap-2"><span class="text-xs font-medium" style="color:#605e5c;">Primary</span><span id="review_color_primary_box" class="inline-block w-8 h-8 rounded border border-surface-200" style="background:#ccc;"></span><span id="review_brand_primary_color" class="text-xs">-</span></div>
+                    <div class="flex items-center gap-2"><span class="text-xs font-medium" style="color:#605e5c;">Secondary</span><span id="review_color_secondary_box" class="inline-block w-8 h-8 rounded border border-surface-200" style="background:#ccc;"></span><span id="review_brand_secondary_color" class="text-xs">-</span></div>
+                    <div class="flex items-center gap-2"><span class="text-xs font-medium" style="color:#605e5c;">Accent</span><span id="review_color_accent_box" class="inline-block w-8 h-8 rounded border border-surface-200" style="background:#ccc;"></span><span id="review_brand_accent_color" class="text-xs">-</span></div>
                   </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-1" style="color:#323130;">Approval Decision</label>
-                    <select name="approval_decision" class="w-full px-3 py-2.5 rounded-xl border border-surface-200 bg-white text-sm shadow-sm outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600">
-                      <option value="pending">Pending</option>
-                      <option value="approved" selected>Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                  </div>
-                  <div class="sm:col-span-2">
-                    <label class="block text-sm font-medium mb-1" style="color:#323130;">Internal Notes</label>
-                    <textarea name="internal_notes" rows="2" class="w-full px-3 py-2 border rounded-xl text-sm shadow-sm border-surface-200 outline-none focus:ring-4 focus:ring-primary-200/50 focus:border-primary-600" placeholder="Internal only"></textarea>
-                  </div>
-                </div>
+                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Report header name</dt><dd class="mt-1 text-surface-800"><span id="review_report_header_name">-</span></dd></div>
+                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Report footer</dt><dd class="mt-1 text-surface-800"><span id="review_report_footer_text">-</span></dd></div>
+                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Welcome text</dt><dd class="mt-1 text-surface-800"><span id="review_brand_welcome_text">-</span></dd></div>
+                  <div><dt class="text-xs font-medium" style="color:#605e5c;">After sign-in</dt><dd class="mt-1 text-surface-800"><span id="review_post_login_mode">-</span></dd></div>
+                  <div><dt class="text-xs font-medium" style="color:#605e5c;">Default module</dt><dd class="mt-1 text-surface-800"><span id="review_default_module_code">-</span></dd></div>
+                  <div class="sm:col-span-2"><dt class="text-xs font-medium" style="color:#605e5c;">Logo</dt><dd class="mt-1 text-surface-800"><span id="review_logo_status">-</span></dd></div>
+                </dl>
               </div>
             </div>
           </div>
 
-          <div class="mt-6 flex items-center justify-between gap-4">
+          <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
             <button type="button" data-nav="prev" class="px-5 py-2.5 rounded-xl border border-surface-200 text-sm font-medium text-surface-800 hover:border-primary-200 hover:shadow-sm transition">
               Back
             </button>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-3">
               <button type="submit" name="action" value="draft" class="px-5 py-2.5 rounded-xl border border-surface-200 text-sm font-medium text-surface-800 hover:border-primary-200 hover:shadow-sm transition">
                 Save Draft
               </button>
@@ -707,7 +641,7 @@
                 Create Tenant
               </button>
               <button type="submit" name="action" value="create_send_link" class="px-6 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition shadow-sm hidden sm:inline-flex">
-                Create & Send Setup Link
+                Create &amp; Send Setup Link
               </button>
             </div>
           </div>
@@ -715,7 +649,7 @@
       </div>
 
       <!-- Sticky Summary Panel -->
-      <aside class="hidden lg:block sticky top-6 h-fit">
+      <aside class="block sticky top-6 h-fit">
         <div class="bg-white border border-surface-200 rounded-2xl shadow-sm p-5">
           <div class="flex items-center justify-between mb-4">
             <div>
@@ -780,6 +714,12 @@
     border-color: rgba(0,120,212,.35);
     box-shadow: 0 10px 24px rgba(0,120,212,.12);
   }
+  .wizard-stepper-item.done .wizard-stepper-dot {
+    background: #dff6dd;
+    color: #107c10;
+    border-color: rgba(16,124,16,.35);
+    font-size: 14px;
+  }
 
   .module-card { display: block; cursor: pointer; position: relative; }
   .module-checkbox { position: absolute; opacity: 0; width: 1px; height: 1px; }
@@ -839,9 +779,13 @@
 
     const steps = Array.from(form.querySelectorAll('.wizard-step'));
     const stepperItems = Array.from(document.querySelectorAll('[data-stepper-item]'));
-    const stepCount = 8;
+    const stepCount = 7;
+    const WORKSPACE_SUFFIX = '{{ workspace_domain_suffix|default:"sugnaerp.com"|escapejs }}';
+    const DRAFT_STORAGE_KEY = 'sugna_tenant_register_draft_v1';
 
     let currentStep = 1;
+    const progressText = document.getElementById('wizard-progress-text');
+    const wizardKey = 'sugna_tenant_register_step';
 
     function getSelectedModules() {
       const checked = Array.from(form.querySelectorAll('input[name="selected_modules"]:checked'));
@@ -859,8 +803,37 @@
       const custom = getVal('custom_domain');
       const preferred = getVal('preferred_subdomain');
       if (custom) return custom;
-      if (preferred) return preferred + '.sugna.org';
+      if (preferred) return preferred + '.' + WORKSPACE_SUFFIX;
       return '-';
+    }
+
+    function updateWorkspacePreviewHost() {
+      const el = document.getElementById('workspace-url-preview');
+      if (!el) return;
+      const custom = getVal('custom_domain');
+      const preferred = (getVal('preferred_subdomain') || 'your-org').trim() || 'your-org';
+      if (custom) {
+        el.textContent = 'https://' + custom;
+      } else {
+        el.textContent = 'https://' + preferred + '.' + WORKSPACE_SUFFIX;
+      }
+    }
+
+    var ORG_TYPE_LABELS = {
+      '': '',
+      ngo_nonprofit: 'NGO / Non-profit',
+      hospital_clinic: 'Hospital / Clinic',
+      company: 'Company',
+      foundation: 'Foundation',
+      government: 'Government',
+      school_university: 'School / University',
+      other: 'Other'
+    };
+
+    function orgTypeLabel() {
+      var v = getVal('organization_type');
+      if (ORG_TYPE_LABELS[v] !== undefined && ORG_TYPE_LABELS[v] !== '') return ORG_TYPE_LABELS[v];
+      return v || '-';
     }
 
     function setText(id, value) {
@@ -901,7 +874,7 @@
       setText('review_org_legal_name', getVal('organization_legal_name'));
       setText('review_org_short_name', getVal('organization_short_name'));
       setText('review_tenant_code', getVal('tenant_code'));
-      setText('review_org_type', getVal('organization_type'));
+      setText('review_org_type', orgTypeLabel());
       setText('review_country', getVal('country'));
       setText('review_region_state', getVal('region_state'));
       setText('review_city', getVal('city'));
@@ -945,14 +918,33 @@
       // Branding
       const primary = getVal('brand_primary_color');
       const secondary = getVal('brand_secondary_color');
+      const accent = getVal('brand_accent_color');
       const primaryBox = document.getElementById('review_color_primary_box');
       const secondaryBox = document.getElementById('review_color_secondary_box');
+      const accentBox = document.getElementById('review_color_accent_box');
       if (primaryBox) primaryBox.style.background = primary || '#ccc';
       if (secondaryBox) secondaryBox.style.background = secondary || '#ccc';
+      if (accentBox) accentBox.style.background = accent || '#ccc';
       setText('review_brand_primary_color', primary);
       setText('review_brand_secondary_color', secondary);
+      setText('review_brand_accent_color', accent);
       setText('review_report_header_name', getVal('report_header_name'));
       setText('review_report_footer_text', getVal('report_footer_text'));
+      setText('review_brand_welcome_text', getVal('brand_welcome_text') || '—');
+      const plm = getVal('post_login_mode');
+      const plmLabels = {
+        auto: 'Auto (one module → open it; else launcher)',
+        launcher: 'Always show module launcher',
+        default_module: 'Open default module',
+      };
+      setText('review_post_login_mode', plmLabels[plm] || plm || '—');
+      const dmSel = document.querySelector('[name="default_module_code"]');
+      let dmText = '—';
+      if (dmSel && dmSel.value) {
+        const opt = dmSel.options[dmSel.selectedIndex];
+        dmText = opt ? opt.text.trim() : dmSel.value;
+      }
+      setText('review_default_module_code', dmText);
 
       const logoImg = document.getElementById('logo-preview');
       const logoStatus = (logoImg && logoImg.getAttribute('src')) ? 'Uploaded' : 'Not provided';
@@ -967,13 +959,7 @@
       setText('review_admin_temporary_password', tmpPw ? 'Provided' : '');
       setText('review_default_role', getVal('default_role'));
 
-      // Templates
-      setText('review_coa_template', getVal('coa_template'));
-      setText('review_budget_template', getVal('budget_template'));
-      setText('review_donor_template', getVal('donor_template'));
-      setText('review_project_template', getVal('project_template'));
-      setText('review_procurement_template', getVal('procurement_template'));
-      setText('review_hr_template', getVal('hr_template'));
+      // (Templates step removed in 6-step wizard)
     }
 
     function setStep(step) {
@@ -984,29 +970,202 @@
       });
       stepperItems.forEach(it => {
         const n = Number(it.getAttribute('data-stepper-item'));
+        const dot = it.querySelector('.wizard-stepper-dot');
         it.classList.toggle('active', n === currentStep);
+        it.classList.toggle('done', n < currentStep);
+        if (dot) dot.textContent = n < currentStep ? '✓' : String(n);
       });
 
-      if (currentStep === 8) updateReview();
+      if (progressText) progressText.textContent = `Step ${currentStep} of ${stepCount}`;
+      try { sessionStorage.setItem(wizardKey, String(currentStep)); } catch (e) {}
+      if (currentStep === 7) updateReview();
       updateSummary();
+      updateWorkspacePreviewHost();
+    }
+
+    function _slugifyClient(s) {
+      return (s || '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/['"]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 50);
+    }
+
+    function ensureTenantCode() {
+      const shortEl = document.getElementById('org-short-name');
+      const codeEl = document.getElementById('tenant-code');
+      if (!shortEl || !codeEl) return;
+      const current = (codeEl.value || '').trim();
+      if (current) return;
+      const base = (shortEl.value || '').trim();
+      if (!base) return;
+      codeEl.value = _slugifyClient(base);
+    }
+
+    // Country datalist (searchable dropdown)
+    const countryList = document.getElementById('country_list');
+    if (countryList) {
+      const countries = [
+        'Somalia','Kenya','Ethiopia','Djibouti','Uganda','Tanzania','Rwanda','Burundi','Sudan','South Sudan',
+        'Nigeria','Ghana','South Africa','Egypt','United States','United Kingdom','United Arab Emirates','Saudi Arabia',
+        'Qatar','Turkey','India','Pakistan','Germany','France','Netherlands','Sweden','Norway','Denmark','Canada','Australia'
+      ];
+      countryList.innerHTML = countries.map(c => `<option value=\"${c}\"></option>`).join('');
+    }
+
+    // Domain availability check
+    const subEl = document.getElementById('preferred-subdomain');
+    const domEl = document.getElementById('custom-domain');
+    const subMsg = document.getElementById('subdomain-validation');
+
+    let _domainCheckTimer = null;
+    async function checkDomainAvailability() {
+      if (!subMsg) return;
+      const sub = subEl ? (subEl.value || '').trim() : '';
+      const dom = domEl ? (domEl.value || '').trim() : '';
+      if (!sub && !dom) {
+        subMsg.classList.add('hidden');
+        return;
+      }
+      const params = new URLSearchParams({ preferred_subdomain: sub, custom_domain: dom });
+      try {
+        const resp = await fetch(`{% url 'platform_dashboard:tenant_check_domain' %}?${params.toString()}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+        const data = await resp.json();
+        subMsg.classList.remove('hidden');
+        subMsg.textContent = data.message || '';
+        subMsg.style.color = data.ok ? '#107c10' : '#d13438';
+      } catch (e) {
+        subMsg.classList.remove('hidden');
+        subMsg.textContent = 'Could not validate domain availability right now.';
+        subMsg.style.color = '#d83b01';
+      }
+    }
+
+    function scheduleDomainCheck() {
+      if (_domainCheckTimer) clearTimeout(_domainCheckTimer);
+      _domainCheckTimer = setTimeout(checkDomainAvailability, 250);
+    }
+
+    if (subEl) subEl.addEventListener('input', scheduleDomainCheck);
+    if (domEl) domEl.addEventListener('input', scheduleDomainCheck);
+
+    // Basic per-step validation
+    function showFieldError(el, msg) {
+      if (!el) return;
+      el.setAttribute('aria-invalid', 'true');
+      el.classList.add('ring-4');
+      el.classList.add('ring-rose-200');
+      el.classList.add('border-rose-300');
+      let p = el.parentElement && el.parentElement.querySelector('.field-error');
+      if (!p) {
+        p = document.createElement('p');
+        p.className = 'field-error mt-1 text-xs';
+        p.style.color = '#d13438';
+        el.parentElement.appendChild(p);
+      }
+      p.textContent = msg;
+    }
+
+    function clearErrors(scope) {
+      const root = scope || form;
+      root.querySelectorAll('[aria-invalid=\"true\"]').forEach(el => {
+        el.removeAttribute('aria-invalid');
+        el.classList.remove('ring-4','ring-rose-200','border-rose-300');
+      });
+      root.querySelectorAll('.field-error').forEach(el => el.remove());
+    }
+
+    function validateStep(stepN) {
+      const stepEl = steps.find(s => Number(s.getAttribute('data-step')) === stepN);
+      if (!stepEl) return true;
+      clearErrors(stepEl);
+      let ok = true;
+      if (stepN === 1) {
+        const legal = form.querySelector('[name=\"organization_legal_name\"]');
+        const shortN = document.getElementById('org-short-name');
+        if (!((legal && (legal.value||'').trim()) || (shortN && (shortN.value||'').trim()))) {
+          ok = false;
+          showFieldError(legal || shortN, 'Enter a legal name or a short name.');
+        }
+        ensureTenantCode();
+      }
+      if (stepN === 3) {
+        const sub = subEl;
+        const dom = domEl;
+        if (!((sub && (sub.value||'').trim()) || (dom && (dom.value||'').trim()))) {
+          ok = false;
+          showFieldError(sub || dom, 'Enter a preferred subdomain or a custom domain.');
+        }
+      }
+      return ok;
+    }
+
+    function validateStep7ForProvision() {
+      const email = form.querySelector('[name=\"admin_email\"]');
+      const fallback = form.querySelector('[name=\"contact_email\"]');
+      clearErrors(form);
+      if (!((email && (email.value||'').trim()) || (fallback && (fallback.value||'').trim()))) {
+        showFieldError(email || fallback, 'Admin email (or contact email) is required before provisioning.');
+        return false;
+      }
+      return true;
     }
 
     document.addEventListener('click', function(e) {
       const btn = e.target.closest('[data-nav]');
       if (!btn) return;
       const nav = btn.getAttribute('data-nav');
-      if (nav === 'next') setStep(currentStep + 1);
+      if (nav === 'next') {
+        if (!validateStep(currentStep)) return;
+        if (currentStep === 3) checkDomainAvailability();
+        setStep(currentStep + 1);
+      }
       if (nav === 'prev') setStep(currentStep - 1);
     });
 
-    // Update summary live
-    form.addEventListener('input', function(e) {
+    // Update summary live + debounced local draft
+    let _draftTimer = null;
+    function saveDraftLocal() {
+      try {
+        const data = {};
+        form.querySelectorAll('input, select, textarea').forEach(function(el) {
+          if (!el.name || el.type === 'file') return;
+          if (el.name === 'csrfmiddlewaretoken' || el.name === 'registration_action') return;
+          if (el.type === 'checkbox') { data[el.name] = el.checked; return; }
+          if (el.type === 'submit' || el.type === 'button') return;
+          data[el.name] = el.value;
+        });
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {}
+    }
+    function loadDraftLocal() {
+      try {
+        const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        Object.keys(data).forEach(function(k) {
+          const els = form.querySelectorAll('[name=\"' + k.replace(/\"/g, '') + '\"]');
+          const el = els.length ? els[0] : null;
+          if (!el || el.type === 'file') return;
+          if (el.type === 'checkbox') { el.checked = !!data[k]; return; }
+          el.value = data[k];
+        });
+        updateSummary();
+        updateWorkspacePreviewHost();
+      } catch (e) {}
+    }
+    function onFormFieldActivity() {
       updateSummary();
-    });
-    form.addEventListener('change', function(e) {
-      updateSummary();
-      if (currentStep === 8) updateReview();
-    });
+      updateWorkspacePreviewHost();
+      if (currentStep === 7) updateReview();
+      clearTimeout(_draftTimer);
+      _draftTimer = setTimeout(saveDraftLocal, 800);
+    }
+    form.addEventListener('input', onFormFieldActivity);
+    form.addEventListener('change', onFormFieldActivity);
 
     // Logo preview + drag & drop
     const dropzone = document.getElementById('logo-dropzone');
@@ -1085,8 +1244,15 @@
       if (hid && sub && sub.getAttribute('name') === 'action' && sub.value) {
         hid.value = sub.value;
       }
+      var act = hid && hid.value ? hid.value : (sub && sub.value ? sub.value : '');
+      if (act === 'create' || act === 'create_send_link') {
+        if (!validateStep7ForProvision()) {
+          ev.preventDefault();
+          setStep(7);
+          return;
+        }
+      }
       steps.forEach(function(s) { s.removeAttribute('hidden'); });
-      var act = hid && hid.value ? hid.value : '';
       var busy = document.getElementById('tenant-register-busy');
       if (busy && (act === 'create' || act === 'create_send_link')) {
         busy.classList.remove('hidden');
@@ -1094,7 +1260,14 @@
     });
 
     // Init
-    setStep(1);
+    let initial = 1;
+    try {
+      const saved = sessionStorage.getItem(wizardKey);
+      if (saved) initial = parseInt(saved, 10) || 1;
+    } catch (e) {}
+    loadDraftLocal();
+    setStep(initial);
+    updateWorkspacePreviewHost();
   })();
 </script>
 {% endblock %}

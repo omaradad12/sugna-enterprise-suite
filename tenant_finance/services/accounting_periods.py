@@ -94,24 +94,46 @@ def get_period_for_date(*, using: str, dt: date):
 
 def assert_can_post(*, using: str, dt: date, user=None) -> PeriodMatch:
     """
-    Enforce:
-    - date must fall within a period range
-    - fiscal year must not be closed
-    - hard-closed periods block posting
-    - soft-closed periods allow limited posting by roles
+    Enforce posting to the GL only when:
+    - ``dt`` falls within an accounting period's date range
+    - fiscal year is not closed
+    - period status is Open (not soft/hard closed or locked) and ``is_closed`` is False
+
+    Draft journal/voucher creation does not call this; it uses calendar presence only.
     """
     from tenant_finance.models import FiscalYear
 
     p = get_period_for_date(using=using, dt=dt)
     fy = p.fiscal_year
     if fy and (fy.is_closed or fy.status == FiscalYear.Status.CLOSED):
-        raise ValueError(f"Fiscal year is closed ({fy.name}).")
+        raise ValueError(
+            f"Fiscal year is closed ({fy.name}). Posting is not allowed for this transaction date."
+        )
     if not p.is_posting_allowed(user=user):
-        if _normalize(p.status) == "soft_closed":
+        label = (p.name or p.period_name or str(p)).strip()
+        suffix = f" ({label})" if label else ""
+        st = _normalize(p.status)
+        if st == "hard_closed":
             raise ValueError(
-                "Accounting period is soft closed. Reopen the period (Financial Setup) before posting."
+                f"Accounting period is closed (hard closed){suffix}. Posting is not allowed."
             )
-        raise ValueError("Accounting period is hard closed; posting is not allowed.")
+        if st == "soft_closed":
+            raise ValueError(
+                f"Accounting period is closed (soft closed){suffix}. "
+                "Reopen the period in Financial Setup before posting."
+            )
+        if st == "locked":
+            raise ValueError(
+                f"Accounting period is locked{suffix}. Posting is not allowed."
+            )
+        if p.is_closed:
+            raise ValueError(
+                f"Accounting period is closed{suffix}. Posting is not allowed."
+            )
+        raise ValueError(
+            f"Accounting period is not open (status: {p.get_status_display()}){suffix}. "
+            "Posting is allowed only when the period status is Open."
+        )
     return PeriodMatch(
         period_id=p.id,
         fiscal_year_id=p.fiscal_year_id,
@@ -205,8 +227,8 @@ def reopen_period(*, using: str, period_id: int, user=None, reason: str = ""):
             raise ValueError("Cannot reopen periods in a closed fiscal year.")
         if p.status == FiscalPeriod.Status.HARD_CLOSED:
             raise ValueError("Cannot reopen a hard-closed period.")
-        if p.status != FiscalPeriod.Status.SOFT_CLOSED:
-            raise ValueError("Only soft-closed periods can be reopened.")
+        if p.status not in (FiscalPeriod.Status.SOFT_CLOSED, FiscalPeriod.Status.LOCKED):
+            raise ValueError("Only soft-closed or locked periods can be reopened.")
 
         from_status = p.status
         p.status = FiscalPeriod.Status.OPEN

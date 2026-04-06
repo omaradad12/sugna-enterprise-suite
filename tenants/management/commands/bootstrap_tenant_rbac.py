@@ -274,8 +274,30 @@ class Command(BaseCommand):
             ),
             # Integrations
             ("module:integrations.manage", "Manage integrations (webhooks and ERP connections)"),
-            # Audit & Risk: full findings and results (Admin + Finance Manager only)
+            # Audit & Risk (subscription module; tenant must also have audit_risk enabled in control plane)
+            ("module:audit_risk.view", "View Audit & Risk Management workspace"),
+            ("module:audit_risk.manage", "Manage Audit & Risk investigations, rules, and escalations"),
             ("module:audit_risk.view_audit_results", "View audit findings and audit results (restricted)"),
+
+            # Hospital Management System (HMS)
+            ("module:hospital.view", "View Hospital workspace"),
+            ("module:hospital.manage", "Manage Hospital master data and operations"),
+            ("hospital:patients.view", "View patients"),
+            ("hospital:patients.manage", "Create and manage patients"),
+            ("hospital:appointments.view", "View appointments"),
+            ("hospital:appointments.manage", "Create and manage appointments"),
+            ("hospital:encounters.view", "View encounters"),
+            ("hospital:encounters.manage", "Create and manage encounters"),
+            ("hospital:emr.view", "View clinical chart (vitals, notes)"),
+            ("hospital:emr.manage", "Record vitals and clinical notes"),
+            ("hospital:lab.view", "View lab orders"),
+            ("hospital:lab.manage", "Order labs and enter results"),
+            ("hospital:pharmacy.view", "View pharmacy orders"),
+            ("hospital:pharmacy.manage", "Order and dispense medications"),
+            ("hospital:inpatient.view", "View wards, beds, and admissions"),
+            ("hospital:inpatient.manage", "Manage wards, beds, admit and discharge patients"),
+            ("hospital:billing.view", "View hospital billing and invoices"),
+            ("hospital:billing.manage", "Manage insurance plans and patient invoices"),
         ]
 
         perms = {}
@@ -345,6 +367,7 @@ class Command(BaseCommand):
             "finance:reconciliation.manage",
             "finance:reconciliation.post",
             "finance:audit.view",
+            "module:audit_risk.view",
             "finance:periods.view",
             "finance:periods.close",
             "finance:periods.reopen",

@@ -1,0 +1,62 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Wards & beds{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Wards &amp; beds</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Configure inpatient capacity.</p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_admissions' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white" style="background:#0078D4;">
+      <i data-feather="users" class="w-4 h-4"></i>
+      Admissions
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">New ward</h2>
+      <form method="post" class="space-y-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_ward" />
+        <input name="ward_code" placeholder="Code" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        <input name="ward_name" placeholder="Name" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        <input name="floor" placeholder="Floor" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        <button type="submit" class="px-3 py-2 rounded-md text-sm text-white" style="background:#0078D4;">Save ward</button>
+      </form>
+    </div>
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">New bed</h2>
+      <form method="post" class="space-y-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_bed" />
+        <select name="ward_id" class="w-full px-3 py-2 rounded border text-sm bg-white" style="border-color:#edebe9;">
+          {% for w in wards %}
+            <option value="{{ w.id }}">{{ w.code }} — {{ w.name }}</option>
+          {% endfor %}
+        </select>
+        <input name="room_label" placeholder="Room" class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        <input name="bed_label" placeholder="Bed label *" required class="w-full px-3 py-2 rounded border text-sm" style="border-color:#edebe9;" />
+        <button type="submit" class="px-3 py-2 rounded-md text-sm text-white" style="background:#0078D4;">Add bed</button>
+      </form>
+    </div>
+  </div>
+
+  {% for w in wards %}
+    <div class="bg-white border rounded-lg p-5 mb-4" style="border-color:#edebe9;">
+      <h3 class="font-semibold mb-2">{{ w.code }} — {{ w.name }} <span class="text-[#605e5c] font-normal text-sm">{{ w.floor }}</span></h3>
+      <div class="flex flex-wrap gap-2">
+        {% for b in w.beds.all %}
+          <span class="inline-flex items-center px-2 py-1 rounded text-xs border" style="border-color:#edebe9;">
+            {{ b.room_label }}-{{ b.bed_label }} · {{ b.get_status_display }}
+          </span>
+        {% empty %}
+          <span class="text-sm text-[#605e5c]">No beds</span>
+        {% endfor %}
+      </div>
+    </div>
+  {% empty %}
+    <p class="text-sm text-[#605e5c]">No wards yet.</p>
+  {% endfor %}
+{% endblock %}

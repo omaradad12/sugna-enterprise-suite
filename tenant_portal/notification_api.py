@@ -19,7 +19,7 @@ def build_notification_poll_payload(request: HttpRequest) -> dict:
     if not tenant_db or not getattr(request, "tenant", None):
         return {"items": [], "bell_count": 0}
     try:
-        items = get_smart_alerts(tenant_db)
+        items = get_smart_alerts(tenant_db, tenant=getattr(request, "tenant", None))
         tenant_user = getattr(request, "tenant_user", None)
         items = _visible_smart_alerts_for_user(items, tenant_user, tenant_db)
         return {"items": items, "bell_count": _bell_alert_count(items)}

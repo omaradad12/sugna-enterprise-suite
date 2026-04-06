@@ -1,0 +1,104 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | New appointment{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">New appointment</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Schedule a visit for a patient.</p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}"
+       class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+       style="border-color:#edebe9;">
+      <i data-feather="arrow-left" class="w-4 h-4"></i>
+      <span>Back to appointments</span>
+    </a>
+  </div>
+
+  <div class="bg-white border rounded-lg p-5 max-w-4xl" style="border-color:#edebe9;">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Patient</label>
+        <select name="patient_id" required
+                class="w-full px-3 py-2 rounded-md border bg-white"
+                style="border-color:#edebe9;">
+          <option value="">Select a patient…</option>
+          {% for p in patients %}
+            <option value="{{ p.id }}" {% if default_patient_id|stringformat:"s" == p.id|stringformat:"s" %}selected{% endif %}>
+              {{ p.full_name }} ({{ p.mrn }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Provider (optional)</label>
+          <select name="provider_id"
+                  class="w-full px-3 py-2 rounded-md border bg-white"
+                  style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for p in providers %}
+              <option value="{{ p.id }}" {% if default_provider_id|stringformat:"s" == p.id|stringformat:"s" %}selected{% endif %}>
+                {{ p.full_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Department (optional)</label>
+          <select name="department_id"
+                  class="w-full px-3 py-2 rounded-md border bg-white"
+                  style="border-color:#edebe9;">
+            <option value="">—</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}" {% if default_department_id|stringformat:"s" == d.id|stringformat:"s" %}selected{% endif %}>
+                {{ d.code }} — {{ d.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Reason</label>
+          <input name="reason" value="{{ default_reason }}" placeholder="Consultation"
+                 class="w-full px-3 py-2 rounded-md border"
+                 style="border-color:#edebe9;" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Start</label>
+          <input type="datetime-local" name="start_at" value="{{ default_start_at }}" required
+                 class="w-full px-3 py-2 rounded-md border"
+                 style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">End</label>
+          <input type="datetime-local" name="end_at" value="{{ default_end_at }}" required
+                 class="w-full px-3 py-2 rounded-md border"
+                 style="border-color:#edebe9;" />
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Schedule</span>
+        </button>
+        <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}"
+           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+           style="border-color:#edebe9;">
+          <i data-feather="x" class="w-4 h-4"></i>
+          <span>Cancel</span>
+        </a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+

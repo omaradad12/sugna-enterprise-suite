@@ -1,0 +1,41 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load i18n %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | {% trans "Emergency" %}{% endblock %}
+{% block content %}
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">{% trans "Emergency visits" %}</h1>
+      <p class="text-sm text-[#605e5c] mt-1">{% trans "Emergency encounters by arrival time." %}</p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_emergency_visit_create' %}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white" style="background:#c2410c;">{% trans "New emergency visit" %}</a>
+  </div>
+  <div class="bg-white border rounded-lg overflow-hidden" style="border-color:#edebe9;">
+    {% if visits %}
+    <div class="overflow-x-auto text-sm">
+      <table class="min-w-full">
+        <thead class="bg-[#faf9f8] text-[#605e5c]"><tr>
+          <th class="text-left px-5 py-2">{% trans "Arrival" %}</th>
+          <th class="text-left px-5 py-2">{% trans "Patient" %}</th>
+          <th class="text-left px-5 py-2">{% trans "Triage" %}</th>
+          <th class="text-left px-5 py-2">{% trans "Outcome" %}</th>
+        </tr></thead>
+        <tbody class="divide-y" style="border-color:#edebe9;">
+          {% for v in visits %}
+          <tr>
+            <td class="px-5 py-2">{{ v.encounter.started_at }}</td>
+            <td class="px-5 py-2">
+              <a href="{% url_tenant 'tenant_portal:hospital_patient_detail' patient_id=v.encounter.patient_id %}" class="text-[#0078D4] hover:underline">{{ v.encounter.patient.full_name }}</a>
+            </td>
+            <td class="px-5 py-2">{{ v.triage_level|default:"—" }}</td>
+            <td class="px-5 py-2">{{ v.get_outcome_display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="p-5 text-sm text-[#605e5c]">{% trans "No emergency visits yet." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

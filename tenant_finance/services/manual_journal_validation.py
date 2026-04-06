@@ -124,9 +124,20 @@ def validate_manual_journal_header(
     posting_date,
     memo: str,
     accounting_period_id: str | None,
+    require_open_posting_calendar: bool = True,
 ) -> list[str]:
-    """Header rules: dates, memo, accounting period matches posting date and is open."""
+    """
+    Header rules: dates, memo, accounting period matches posting date.
+
+    When ``require_open_posting_calendar`` is True (submit/post paths), the calendar
+    period covering journal/posting dates must exist and be **open** for posting.
+
+    When False (e.g. new draft manual journal), only checks that a period row exists
+    for the dates and that the selected period contains the posting date — closed or
+    locked periods do not block draft creation.
+    """
     from tenant_finance.models import FiscalPeriod
+    from tenant_finance.services.accounting_periods import get_period_for_date
     from tenant_finance.services.period_control import get_open_period_for_date
 
     errors: list[str] = []
@@ -140,7 +151,10 @@ def validate_manual_journal_header(
 
     if entry_date:
         try:
-            get_open_period_for_date(using=tenant_db, dt=entry_date)
+            if require_open_posting_calendar:
+                get_open_period_for_date(using=tenant_db, dt=entry_date)
+            else:
+                get_period_for_date(using=tenant_db, dt=entry_date)
         except ValueError as exc:
             errors.append(str(exc))
 
@@ -160,15 +174,26 @@ def validate_manual_journal_header(
             errors.append(str(_("Posting date must fall within the selected accounting period.")))
         elif posting_date and fp:
             try:
-                ctrl = get_open_period_for_date(using=tenant_db, dt=posting_date)
-                if ctrl.accounting_period_id != fp.id:
-                    errors.append(
-                        str(
-                            _(
-                                "The open fiscal calendar for this posting date does not match the selected accounting period."
+                if require_open_posting_calendar:
+                    ctrl = get_open_period_for_date(using=tenant_db, dt=posting_date)
+                    if ctrl.accounting_period_id != fp.id:
+                        errors.append(
+                            str(
+                                _(
+                                    "The open fiscal calendar for this posting date does not match the selected accounting period."
+                                )
                             )
                         )
-                    )
+                else:
+                    p_date = get_period_for_date(using=tenant_db, dt=posting_date)
+                    if p_date.id != fp.id:
+                        errors.append(
+                            str(
+                                _(
+                                    "The fiscal calendar period for this posting date does not match the selected accounting period."
+                                )
+                            )
+                        )
             except ValueError as exc:
                 errors.append(str(exc))
 

@@ -31,6 +31,67 @@ def assert_balanced_line_amounts(
         raise ValueError("Journal total amount must be greater than zero.")
 
 
+def assert_payment_voucher_ready_for_submission(*, using: str, entry) -> None:
+    """
+    Minimum checks for draft → pending approval. Incomplete GL lines are allowed;
+    approvers and post-to-GL still require full lines via assert_payment_voucher_ready_to_post.
+    """
+    from tenant_finance.models import JournalEntry
+
+    if (entry.source_type or "").strip() != JournalEntry.SourceType.PAYMENT_VOUCHER:
+        return
+    if not getattr(entry, "entry_date", None):
+        raise ValueError("Voucher date is required before submitting for approval.")
+    if not (entry.memo or "").strip():
+        raise ValueError("Description (memo) is required before submitting for approval.")
+
+
+def assert_payment_voucher_ready_to_post(*, using: str, entry) -> None:
+    """
+    Block posting payment vouchers that were imported or saved as incomplete drafts
+    (missing GL lines, accounts, or zero amount). Posted activity must never hit the GL incomplete.
+    """
+    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
+
+    if (entry.source_type or "").strip() != JournalEntry.SourceType.PAYMENT_VOUCHER:
+        return
+    lines = list(JournalLine.objects.using(using).filter(entry_id=entry.pk).select_related("account"))
+    if len(lines) < 2:
+        raise ValueError("Payment voucher must have at least two lines with accounts and amounts before posting.")
+    for ln in lines:
+        if not ln.account_id:
+            raise ValueError("Every payment voucher line must have an account before posting.")
+    line_amounts = [(ln.debit or Decimal("0"), ln.credit or Decimal("0")) for ln in lines]
+    assert_balanced_line_amounts(line_amounts=line_amounts)
+    jt = (entry.journal_type or "").strip().lower()
+    if jt == "payment_voucher":
+        has_expense = any(
+            ln.debit > 0 and ln.account and ln.account.type == ChartAccount.Type.EXPENSE for ln in lines
+        )
+        has_bank = any(
+            ln.credit > 0 and ln.account and ln.account.type == ChartAccount.Type.ASSET for ln in lines
+        )
+        if not has_expense or not has_bank:
+            raise ValueError(
+                "Payment voucher must debit an expense account and credit a bank/cash asset account before posting."
+            )
+
+
+def assert_receipt_voucher_ready_to_post(*, using: str, entry) -> None:
+    from tenant_finance.models import JournalEntry, JournalLine
+
+    if (entry.source_type or "").strip() != JournalEntry.SourceType.RECEIPT_VOUCHER:
+        return
+    lines = list(JournalLine.objects.using(using).filter(entry_id=entry.pk).select_related("account"))
+    if len(lines) < 2:
+        raise ValueError("Receipt voucher must have at least two lines before posting.")
+    for ln in lines:
+        if not ln.account_id:
+            raise ValueError("Every receipt voucher line must have an account before posting.")
+    line_amounts = [(ln.debit or Decimal("0"), ln.credit or Decimal("0")) for ln in lines]
+    assert_balanced_line_amounts(line_amounts=line_amounts)
+
+
 def sync_source_pointer(*, entry, using: str) -> None:
     """Default source_id to journal id when unset; preserve external source_id (voucher, interfund, etc.)."""
     from tenant_finance.models import JournalEntry
@@ -68,6 +129,86 @@ def post_payment_voucher(*, using: str, entry, user) -> None:
         apply_posting_user_metadata(entry=entry, user=user, using=using)
 
 
+def _payment_voucher_bank_credit_total(*, using: str, entry) -> Decimal:
+    from tenant_finance.models import ChartAccount, JournalEntry, JournalLine
+
+    if (entry.source_type or "").strip() != JournalEntry.SourceType.PAYMENT_VOUCHER:
+        return Decimal("0")
+    total = Decimal("0")
+    for ln in JournalLine.objects.using(using).filter(entry_id=entry.pk).select_related("account"):
+        if not ln.account_id or not ln.credit or ln.credit <= 0:
+            continue
+        if ln.account.type == ChartAccount.Type.ASSET:
+            total += ln.credit
+    return total
+
+
+def assert_sufficient_bank_balance_for_payment_voucher(*, using: str, entry) -> None:
+    """
+    When a BankAccount master row exists for the credited bank/cash GL leg, ensure
+    posted GL balance (plus opening) covers this payment amount.
+    """
+    from django.db.models import Sum
+
+    from tenant_finance.models import BankAccount, ChartAccount, JournalEntry, JournalLine
+
+    if (entry.source_type or "").strip() != JournalEntry.SourceType.PAYMENT_VOUCHER:
+        return
+    pay_amt = _payment_voucher_bank_credit_total(using=using, entry=entry)
+    if pay_amt <= 0:
+        return
+    lines = list(JournalLine.objects.using(using).filter(entry_id=entry.pk).select_related("account"))
+    for ln in lines:
+        if not ln.credit or ln.credit <= 0 or not ln.account_id:
+            continue
+        if ln.account.type != ChartAccount.Type.ASSET:
+            continue
+        bank_account = (
+            BankAccount.objects.using(using).filter(account_id=ln.account_id, is_active=True).first()
+        )
+        if not bank_account:
+            continue
+        bal = (
+            JournalLine.objects.using(using)
+            .filter(account_id=ln.account_id, entry__status=JournalEntry.Status.POSTED)
+            .aggregate(b=Sum("debit") - Sum("credit"))
+            .get("b")
+            or Decimal("0")
+        )
+        current = (bank_account.opening_balance or Decimal("0")) + bal
+        if current < pay_amt:
+            raise ValueError(
+                f"Insufficient bank balance for account {ln.account.code}. "
+                f"Current balance {current:.2f} is less than payment amount {pay_amt:.2f}."
+            )
+        return
+    # No matching BankAccount row — cannot assert liquidity; GL posting rules still apply.
+
+
+def post_approved_payment_voucher_to_gl(*, using: str, entry, user) -> None:
+    """
+    Transition APPROVED payment voucher → POSTED after liquidity, lines, period, and duplicate checks
+    (handled in JournalEntry.save when status becomes POSTED).
+    """
+    from django.utils import timezone
+
+    from tenant_finance.models import JournalEntry
+
+    if (entry.source_type or "").strip() != JournalEntry.SourceType.PAYMENT_VOUCHER:
+        raise ValueError("Not a payment voucher.")
+    if entry.status != JournalEntry.Status.APPROVED:
+        raise ValueError("Only approved payment vouchers can be posted to the general ledger.")
+    assert_payment_voucher_ready_to_post(using=using, entry=entry)
+    assert_sufficient_bank_balance_for_payment_voucher(using=using, entry=entry)
+    now = timezone.now()
+    entry.status = JournalEntry.Status.POSTED
+    entry.posted_at = now
+    if getattr(user, "id", None):
+        entry.posted_by_id = user.id
+    entry.save(using=using)
+    post_payment_voucher(using=using, entry=entry, user=user)
+
+
 def post_receipt_voucher(
     *,
     using: str,
@@ -84,6 +225,7 @@ def post_receipt_voucher(
     receipt_method: str = "",
     received_from: str = "",
     receipt_stream: str = "",
+    project=None,
 ):
     """
     Create receipt voucher journal + lines (draft or posted).
@@ -101,6 +243,7 @@ def post_receipt_voucher(
             entry_date=entry_date,
             memo=memo,
             grant=grant,
+            project=project,
             status=JournalEntry.Status.DRAFT,
             created_by=user,
             payment_method=(receipt_method or "").strip(),

@@ -582,6 +582,7 @@
           </span>
           <span class="acc-card-chevron"><i data-feather="chevron-right"></i></span>
         </a>
+        {% if tenant_audit_risk_enabled and can_access_audit_risk_portal %}
         <a class="acc-card" href="{% url 'tenant_portal:finance_audit_trail' %}">
           <span class="acc-card-icon-wrap"><i data-feather="eye"></i></span>
           <span class="acc-card-main">
@@ -590,6 +591,7 @@
           </span>
           <span class="acc-card-chevron"><i data-feather="chevron-right"></i></span>
         </a>
+        {% endif %}
       </div>
     </div>
   </section>

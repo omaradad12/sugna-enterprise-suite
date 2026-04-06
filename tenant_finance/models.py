@@ -670,6 +670,7 @@ class JournalEntry(models.Model):
     """
 
     class Status(models.TextChoices):
+        INCOMPLETE_DRAFT = "incomplete_draft", _("Incomplete draft")
         DRAFT = "draft", "Draft"
         PENDING_APPROVAL = "pending_approval", "Pending Approval"
         APPROVED = "approved", "Approved"
@@ -681,6 +682,14 @@ class JournalEntry(models.Model):
     entry_date = models.DateField()
     currency = models.ForeignKey(Currency, on_delete=models.PROTECT, null=True, blank=True)
     grant = models.ForeignKey("tenant_grants.Grant", on_delete=models.PROTECT, null=True, blank=True)
+    project = models.ForeignKey(
+        "tenant_grants.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tagged_journal_entries",
+        help_text=_("Operational project for duplicate detection and reporting (may mirror grant.project)."),
+    )
     dimension = models.ForeignKey(
         "FinancialDimension", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
@@ -935,6 +944,7 @@ class JournalEntry(models.Model):
                     "memo",
                     "reference",
                     "grant_id",
+                    "project_id",
                     "currency_id",
                     "dimension_id",
                     "cost_center_id",
@@ -959,8 +969,10 @@ class JournalEntry(models.Model):
             if original:
                 # Only allow edits when the original journal is in a mutable status
                 if original.status not in (
+                    self.Status.INCOMPLETE_DRAFT,
                     self.Status.DRAFT,
                     self.Status.PENDING_APPROVAL,
+                    self.Status.APPROVED,
                     self.Status.POSTED,
                 ):
                     raise ValidationError(
@@ -993,6 +1005,7 @@ class JournalEntry(models.Model):
                         "memo",
                         "reference",
                         "grant_id",
+                        "project_id",
                         "currency_id",
                         "dimension_id",
                         "cost_center_id",
@@ -1028,6 +1041,15 @@ class JournalEntry(models.Model):
                     )
 
                     assert_bank_line_orientation_on_post_to_gl(self, db)
+
+                    from tenant_finance.services.transaction_duplicate_detection import (
+                        assert_no_posted_duplicate,
+                    )
+
+                    try:
+                        assert_no_posted_duplicate(using=db, entry=self, exclude_entry_id=self.pk)
+                    except ValueError as dup_exc:
+                        raise ValidationError({"status": str(dup_exc)})
 
                     from tenant_finance.services.period_control import assert_can_post_journal
 
@@ -1081,6 +1103,14 @@ class JournalEntry(models.Model):
         else:
             # New record posted directly (common in posting window) must also pass posting controls.
             if self.status == self.Status.POSTED:
+                from tenant_finance.services.transaction_duplicate_detection import assert_no_posted_duplicate
+
+                if self.pk:
+                    try:
+                        assert_no_posted_duplicate(using=db, entry=self, exclude_entry_id=self.pk)
+                    except ValueError as dup_exc:
+                        raise ValidationError({"status": str(dup_exc)})
+
                 from tenant_finance.services.period_control import assert_can_post_journal
 
                 gl_date = self.posting_date or self.entry_date
@@ -1306,6 +1336,7 @@ class JournalEntryAttachment(models.Model):
     @classmethod
     def status_for_entry(cls, entry_status: str) -> str:
         mapping = {
+            JournalEntry.Status.INCOMPLETE_DRAFT: cls.DocumentStatus.DRAFT,
             JournalEntry.Status.DRAFT: cls.DocumentStatus.DRAFT,
             JournalEntry.Status.PENDING_APPROVAL: cls.DocumentStatus.PENDING_APPROVAL,
             JournalEntry.Status.APPROVED: cls.DocumentStatus.PENDING_APPROVAL,
@@ -1380,7 +1411,7 @@ def _sync_journal_attachment_metadata(sender, instance: JournalEntry, **kwargs):
 
 class JournalLine(models.Model):
     entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name="lines")
-    account = models.ForeignKey(ChartAccount, on_delete=models.PROTECT)
+    account = models.ForeignKey(ChartAccount, on_delete=models.PROTECT, null=True, blank=True)
     grant = models.ForeignKey(
         "tenant_grants.Grant",
         on_delete=models.PROTECT,
@@ -1420,12 +1451,27 @@ class JournalLine(models.Model):
 
     def clean(self) -> None:
         errors = {}
-        if self.account_id:
-            # Control account 1200 is a parent/summary account and must not be posted to directly.
-            if (self.account.code or "").strip() == "1200":
-                errors["account"] = _("Transactions cannot be posted directly to 1200 — Bank Accounts.")
-            elif not self.account.allow_posting:
-                errors["account"] = _("Transactions must post to a leaf/sub-account, not a parent account.")
+        if not self.account_id:
+            eid = self.entry_id
+            if eid:
+                st = (
+                    JournalEntry.objects.filter(pk=eid)
+                    .values_list("status", flat=True)
+                    .first()
+                )
+                if st and st not in (
+                    JournalEntry.Status.DRAFT,
+                    JournalEntry.Status.INCOMPLETE_DRAFT,
+                ):
+                    errors["account"] = _("Account is required unless the journal entry is in draft.")
+            if errors:
+                raise ValidationError(errors)
+            return
+        # Control account 1200 is a parent/summary account and must not be posted to directly.
+        if (self.account.code or "").strip() == "1200":
+            errors["account"] = _("Transactions cannot be posted directly to 1200 — Bank Accounts.")
+        elif not self.account.allow_posting:
+            errors["account"] = _("Transactions must post to a leaf/sub-account, not a parent account.")
         if errors:
             raise ValidationError(errors)
 
@@ -1613,6 +1659,7 @@ class FiscalPeriod(models.Model):
         OPEN = "open", "Open"
         SOFT_CLOSED = "soft_closed", "Soft closed"
         HARD_CLOSED = "hard_closed", "Hard closed"
+        LOCKED = "locked", "Locked"
 
     fiscal_year = models.ForeignKey(FiscalYear, on_delete=models.CASCADE, related_name="periods")
     period_number = models.PositiveSmallIntegerField()  # 1-12 or 1-4 for quarters
@@ -1663,16 +1710,16 @@ class FiscalPeriod(models.Model):
 
     def is_posting_allowed(self, *, user=None) -> bool:
         """
-        Posting rules:
-        - OPEN: allowed (including dates in past fiscal years if the period is still open).
-        - SOFT_CLOSED: not allowed — reopen to OPEN first (admin).
-        - HARD_CLOSED: never allowed; cannot be reopened.
+        Posting to the GL is allowed only when status is Open and the period is not flagged closed.
+        Soft closed, hard closed, locked, or is_closed all block posting (draft entry may still exist).
         """
+        if self.is_closed:
+            return False
         if self.status == self.Status.HARD_CLOSED:
             return False
         if self.status == self.Status.SOFT_CLOSED:
             return False
-        if self.is_closed:
+        if self.status == self.Status.LOCKED:
             return False
         return self.status == self.Status.OPEN
 

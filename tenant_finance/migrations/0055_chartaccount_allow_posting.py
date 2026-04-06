@@ -5,26 +5,28 @@ from django.db import migrations, models
 
 def forwards_bank_gl_types_and_allow_posting(apps, schema_editor):
     ChartAccount = apps.get_model("tenant_finance", "ChartAccount")
+    db = schema_editor.connection.alias
     ST_BALANCE = "balance_sheet"
 
     # Common corrupted value (truncated "ASSET")
-    ChartAccount.objects.filter(type__iexact="sset").update(type="ASSET")
+    ChartAccount.objects.using(db).filter(type__iexact="sset").update(type="ASSET")
 
-    bank_root = ChartAccount.objects.filter(code="1200").first()
+    bank_root = ChartAccount.objects.using(db).filter(code="1200").first()
     if bank_root:
-        ChartAccount.objects.filter(parent_id=bank_root.pk).exclude(type="ASSET").update(
+        ChartAccount.objects.using(db).filter(parent_id=bank_root.pk).exclude(type="ASSET").update(
             type="ASSET",
             statement_type=ST_BALANCE,
         )
 
-    for acc in ChartAccount.objects.all().iterator():
-        has_ch = ChartAccount.objects.filter(parent_id=acc.pk).exists()
-        ChartAccount.objects.filter(pk=acc.pk).update(allow_posting=not has_ch)
+    for acc in ChartAccount.objects.using(db).all().iterator():
+        has_ch = ChartAccount.objects.using(db).filter(parent_id=acc.pk).exists()
+        ChartAccount.objects.using(db).filter(pk=acc.pk).update(allow_posting=not has_ch)
 
 
 def backwards_allow_posting_all_true(apps, schema_editor):
     ChartAccount = apps.get_model("tenant_finance", "ChartAccount")
-    ChartAccount.objects.all().update(allow_posting=True)
+    db = schema_editor.connection.alias
+    ChartAccount.objects.using(db).all().update(allow_posting=True)
 
 
 class Migration(migrations.Migration):

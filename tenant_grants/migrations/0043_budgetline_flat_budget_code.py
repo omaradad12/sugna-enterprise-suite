@@ -6,7 +6,8 @@ import django.db.models.deletion
 
 def forwards_remove_headings(apps, schema_editor):
     BudgetLine = apps.get_model("tenant_grants", "BudgetLine")
-    BudgetLine.objects.filter(is_heading=True).delete()
+    db = schema_editor.connection.alias
+    BudgetLine.objects.using(db).filter(is_heading=True).delete()
 
 
 def backwards_noop(apps, schema_editor):

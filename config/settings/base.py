@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     # Platform apps
     "tenants",
     "platform_dashboard",
+    "platform_announcements",
+    "platform_email_templates",
     "website",
     "help_center",
 
@@ -107,8 +109,12 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "tenant_portal.context_processors.org_settings",
+                "tenant_portal.tenant_theme.tenant_theme",
+                "tenant_portal.context_processors.tenant_entitlements",
+                "tenant_portal.context_processors.hospital_workspace",
                 "tenant_portal.context_processors.smart_alerts",
                 "tenant_portal.context_processors.erp_alerting",
+                "tenant_portal.context_processors.platform_announcements",
             ],
         },
     }

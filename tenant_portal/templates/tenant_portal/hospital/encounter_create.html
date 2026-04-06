@@ -1,0 +1,68 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | New encounter{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">New encounter</h1>
+      <p class="text-sm text-[#605e5c] mt-1">
+        {{ appointment.patient.full_name }} ({{ appointment.patient.mrn }})
+      </p>
+    </div>
+    <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}"
+       class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+       style="border-color:#edebe9;">
+      <i data-feather="arrow-left" class="w-4 h-4"></i>
+      <span>Back</span>
+    </a>
+  </div>
+
+  <div class="bg-white border rounded-lg p-5 max-w-4xl" style="border-color:#edebe9;">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div>
+        <div class="text-xs font-semibold tracking-wide text-[#323130] uppercase">Appointment</div>
+        <div class="text-sm mt-1">{{ appointment.start_at }} → {{ appointment.end_at }}</div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold tracking-wide text-[#323130] uppercase">Provider</div>
+        <div class="text-sm mt-1">{% if appointment.provider %}{{ appointment.provider.full_name }}{% else %}—{% endif %}</div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold tracking-wide text-[#323130] uppercase">Department</div>
+        <div class="text-sm mt-1">{% if appointment.department %}{{ appointment.department.code }}{% else %}—{% endif %}</div>
+      </div>
+    </div>
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Chief complaint</label>
+        <input name="chief_complaint"
+               class="w-full px-3 py-2 rounded-md border"
+               style="border-color:#edebe9;" />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Summary</label>
+        <textarea name="summary" rows="5"
+                  class="w-full px-3 py-2 rounded-md border"
+                  style="border-color:#edebe9;"></textarea>
+      </div>
+      <div class="flex items-center gap-2 pt-2">
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Create encounter</span>
+        </button>
+        <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}"
+           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+           style="border-color:#edebe9;">
+          <i data-feather="x" class="w-4 h-4"></i>
+          <span>Cancel</span>
+        </a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+

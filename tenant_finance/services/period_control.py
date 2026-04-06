@@ -24,11 +24,27 @@ def get_open_period_for_date(*, using: str, dt: date) -> PostingControlResult:
     if not p:
         raise ValueError("No accounting period exists for this transaction date.")
     if p.status == FiscalPeriod.Status.HARD_CLOSED:
-        raise ValueError(f"Accounting period is hard closed ({p.name or p.period_name or str(p)}).")
+        raise ValueError(
+            f"Accounting period is closed (hard closed): {p.name or p.period_name or str(p)}. "
+            "Posting is not allowed."
+        )
     if p.status == FiscalPeriod.Status.SOFT_CLOSED:
-        raise ValueError(f"Accounting period is soft closed ({p.name or p.period_name or str(p)}).")
+        raise ValueError(
+            f"Accounting period is closed (soft closed): {p.name or p.period_name or str(p)}. "
+            "Reopen the period before posting."
+        )
+    if p.status == FiscalPeriod.Status.LOCKED:
+        raise ValueError(
+            f"Accounting period is locked: {p.name or p.period_name or str(p)}. Posting is not allowed."
+        )
     if p.is_closed:
-        raise ValueError(f"Accounting period is closed ({p.name or p.period_name or str(p)}).")
+        raise ValueError(
+            f"Accounting period is closed: {p.name or p.period_name or str(p)}. Posting is not allowed."
+        )
+    if p.status != FiscalPeriod.Status.OPEN:
+        raise ValueError(
+            f"Accounting period is not open (status: {p.get_status_display()}). Posting is not allowed."
+        )
     fy = p.fiscal_year
     if fy and (fy.is_closed or fy.status == fy.Status.CLOSED):
         raise ValueError(f"Fiscal year is closed ({fy.name}).")

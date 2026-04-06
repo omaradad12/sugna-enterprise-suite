@@ -46,6 +46,10 @@ def _humanize_validation_error_messages(exc: ValidationError) -> list[str]:
     return out if out else [str(exc)]
 
 
+def _safe_tenant_next_path(path: str) -> bool:
+    return bool(path and path.startswith("/t/") and not path.startswith("//"))
+
+
 def tenant_login_view(request: HttpRequest) -> HttpResponse:
     tenant = getattr(request, "tenant", None)
     tenant_db = get_tenant_db_for_request(request)
@@ -54,15 +58,21 @@ def tenant_login_view(request: HttpRequest) -> HttpResponse:
     if not tenant_db:
         return render(request, "tenant_portal/tenant_not_provisioned.html", {"tenant": tenant}, status=503)
 
+    next_get = (request.GET.get("next") or "").strip()
+
     if request.method == "POST":
         email = (request.POST.get("email") or "").strip().lower()
         password = request.POST.get("password") or ""
+        next_post = (request.POST.get("next") or "").strip()
+        next_target = next_post or next_get
         from tenant_users.models import TenantUser
 
         user = TenantUser.objects.using(tenant_db).filter(email=email, is_active=True).first()
         if user and user.check_password(password):
             if getattr(user, "two_factor_enabled", False) and getattr(user, "totp_secret", None):
                 request.session["pending_2fa_user_id"] = user.id
+                if next_target and _safe_tenant_next_path(next_target):
+                    request.session["tenant_login_next"] = next_target
                 return redirect(reverse("tenant_portal:login_2fa"))
             tenant_login(request, user.id)
             from tenant_users.models import TenantLoginLog
@@ -70,26 +80,38 @@ def tenant_login_view(request: HttpRequest) -> HttpResponse:
             ua = (request.META.get("HTTP_USER_AGENT") or "")[:500]
             TenantLoginLog.objects.using(tenant_db).create(user=user, ip_address=ip, user_agent=ua)
             user.touch_login()
-            return redirect(reverse("tenant_portal:home"))
+            if next_target and _safe_tenant_next_path(next_target):
+                return redirect(next_target)
+            request.tenant_user = user
+            request.tenant_db = tenant_db
+            from tenant_portal.post_login_redirect import resolve_post_login_redirect_url
+
+            return redirect(resolve_post_login_redirect_url(request))
         messages.error(request, "Invalid email or password.")
 
-    return render(request, "tenant_portal/login.html", {"tenant": tenant})
+    return render(
+        request,
+        "tenant_portal/login.html",
+        {"tenant": tenant, "next": next_get if request.method == "GET" else ""},
+    )
 
 
 def tenant_login_2fa_view(request: HttpRequest) -> HttpResponse:
     """Second step of login: verify TOTP code when user has 2FA enabled."""
+    from tenant_portal.auth import tenant_login_url
+
     tenant = getattr(request, "tenant", None)
     tenant_db = get_tenant_db_for_request(request)
     if not tenant or not tenant_db:
-        return redirect(reverse("tenant_portal:login"))
+        return redirect(tenant_login_url(request))
     user_id = request.session.get("pending_2fa_user_id")
     if not user_id:
-        return redirect(reverse("tenant_portal:login"))
+        return redirect(tenant_login_url(request))
     from tenant_users.models import TenantUser
     user = TenantUser.objects.using(tenant_db).filter(pk=user_id, is_active=True).first()
     if not user:
         request.session.pop("pending_2fa_user_id", None)
-        return redirect(reverse("tenant_portal:login"))
+        return redirect(tenant_login_url(request))
 
     if request.method == "POST":
         code = (request.POST.get("code") or "").strip()
@@ -102,15 +124,24 @@ def tenant_login_2fa_view(request: HttpRequest) -> HttpResponse:
             ua = (request.META.get("HTTP_USER_AGENT") or "")[:500]
             TenantLoginLog.objects.using(tenant_db).create(user=user, ip_address=ip, user_agent=ua)
             user.touch_login()
-            return redirect(reverse("tenant_portal:home"))
+            next_url = request.session.pop("tenant_login_next", None)
+            if next_url and _safe_tenant_next_path(next_url):
+                return redirect(next_url)
+            request.tenant_user = user
+            request.tenant_db = tenant_db
+            from tenant_portal.post_login_redirect import resolve_post_login_redirect_url
+
+            return redirect(resolve_post_login_redirect_url(request))
         messages.error(request, "Invalid or expired code. Please try again.")
 
     return render(request, "tenant_portal/login_2fa.html", {"tenant": tenant})
 
 
 def tenant_logout_view(request: HttpRequest) -> HttpResponse:
+    from tenant_portal.auth import tenant_login_url
+
     tenant_logout(request)
-    return redirect(reverse("tenant_portal:login"))
+    return redirect(tenant_login_url(request))
 
 
 def _get_role_display(tenant_user, tenant_db):
@@ -820,9 +851,13 @@ def tenant_home_view(request: HttpRequest) -> HttpResponse:
 
     user = get_tenant_user(request)
     if not user:
-        return redirect(reverse("tenant_portal:login"))
+        from tenant_portal.auth import redirect_to_tenant_login
 
-    enabled = set(tenant.modules.values_list("code", flat=True))
+        return redirect_to_tenant_login(request)
+
+    from tenants.services.tenant_modules import tenant_enabled_module_codes
+
+    enabled = tenant_enabled_module_codes(tenant)
 
     modules = [
         {"key": "dashboard", "name": "Dashboard", "perm": "platform:dashboard.view", "icon": "bar-chart-2", "requires": None},
@@ -832,6 +867,20 @@ def tenant_home_view(request: HttpRequest) -> HttpResponse:
             "perm_any": ["module:finance.view", "module:grants.view"],
             "icon": "layers",
             "requires": "finance_grants",
+        },
+        {
+            "key": "hospital",
+            "name": "Hospital Management",
+            "perm_any": ["module:hospital.view", "module:hospital.manage"],
+            "icon": "activity",
+            "requires": "hospital",
+        },
+        {
+            "key": "audit_risk",
+            "name": "Audit & Risk Management",
+            "perm_any": ["module:audit_risk.view", "finance:audit.view"],
+            "icon": "shield",
+            "requires": "audit_risk",
         },
         {"key": "integrations", "name": "Integrations", "perm_any": ["module:integrations.manage"], "icon": "link", "requires": "integrations"},
         {"key": "users", "name": "Users", "perm_any": ["users:manage"], "icon": "users", "requires": None},
@@ -952,6 +1001,11 @@ def finance_home_view(request: HttpRequest) -> HttpResponse:
         .filter(status=GrantApproval.Status.PENDING)
         .count()
     )
+
+    pv_payment_queue_count = JournalEntry.objects.using(tenant_db).filter(
+        reference__startswith="PV-",
+        status__in=(JournalEntry.Status.DRAFT, JournalEntry.Status.PENDING_APPROVAL),
+    ).count()
 
     # Recent journal entries for the transactions table.
     recent_entries_qs = (
@@ -1081,6 +1135,7 @@ def finance_home_view(request: HttpRequest) -> HttpResponse:
         "budget_util_pct": budget_util_pct,
         "active_grants_count": active_grants_count,
         "pending_financial_approvals": pending_financial_approvals,
+        "pv_payment_queue_count": pv_payment_queue_count,
         "recent_transactions": recent_transactions,
         "donor_contrib": donor_contrib,
         "grant_util_rows": grant_util_rows,
@@ -3022,6 +3077,176 @@ def finance_recent_transactions_view(request: HttpRequest) -> HttpResponse:
 
 
 @tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def finance_draft_entry_hub_view(request: HttpRequest) -> HttpResponse:
+    """
+    Draft entry workspace: incomplete payment vouchers (draft / pending approval) and Excel import entry point.
+    """
+    from django.urls import reverse
+
+    from tenant_finance.models import JournalEntry
+    from tenant_finance.services.payment_voucher_draft_completeness import payment_voucher_hub_row_display
+
+    tenant_db = request.tenant_db
+    user = request.tenant_user
+    can_import_excel = user_has_permission(user, "finance:journals.create", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
+    can_save_draft_payment = can_import_excel
+    draft_entries = list(
+        JournalEntry.objects.using(tenant_db)
+        .filter(
+            reference__startswith="PV-",
+            status__in=(
+                JournalEntry.Status.INCOMPLETE_DRAFT,
+                JournalEntry.Status.DRAFT,
+                JournalEntry.Status.PENDING_APPROVAL,
+                JournalEntry.Status.APPROVED,
+            ),
+        )
+        .select_related("grant", "project")
+        .prefetch_related("lines__account", "lines__project_budget_line")
+        .order_by("-entry_date", "-id")[:100]
+    )
+    draft_hub_rows = [payment_voucher_hub_row_display(using=tenant_db, entry=e) for e in draft_entries]
+    from django.http import QueryDict
+
+    q_submit = QueryDict(mutable=True)
+    q_submit["status"] = JournalEntry.Status.DRAFT
+    q_submit["source_type"] = JournalEntry.SourceType.PAYMENT_VOUCHER
+    q_submit["voucher_scope"] = "all"
+    submit_for_approval_list_url = f"{reverse('tenant_portal:finance_journals')}?{q_submit.urlencode()}"
+    return render(
+        request,
+        "tenant_portal/finance/draft_entry_hub.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": user,
+            "draft_entries": draft_entries,
+            "draft_hub_rows": draft_hub_rows,
+            "can_import_excel": can_import_excel,
+            "can_save_draft_payment": can_save_draft_payment,
+            "can_bulk_submit_for_approval": can_save_draft_payment,
+            "submit_for_approval_list_url": submit_for_approval_list_url,
+            "pay_payment_edit_base": reverse("tenant_portal:pay_payment_vouchers"),
+            "active_submenu": "dashboard",
+            "active_item": "dashboard_post_transaction",
+        },
+    )
+
+
+@require_http_methods(["POST"])
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def finance_draft_entry_hub_bulk_submit_view(request: HttpRequest) -> HttpResponse:
+    """
+    Submit multiple draft payment vouchers (PV-…) for approval in one request.
+    Same validation as single submit on finance_journal_action (payment voucher path).
+    """
+    from django.db import transaction
+    from django.urls import reverse
+
+    from tenant_finance.models import JournalEntry
+
+    tenant_db = request.tenant_db
+    user = request.tenant_user
+    if not user_has_permission(user, "finance:journals.create", using=tenant_db) and not user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    ):
+        messages.error(request, "You do not have permission to submit vouchers for approval.")
+        return redirect(reverse("tenant_portal:finance_draft_entry_hub"))
+
+    def _has_perm(code: str) -> bool:
+        cached = getattr(request, "rbac_permission_codes", None)
+        if isinstance(cached, set):
+            return ("*" in cached) or (code in cached)
+        return user_has_permission(request.tenant_user, code, using=tenant_db)
+
+    raw_ids = request.POST.getlist("entry_ids")
+    ids: list[int] = []
+    for x in raw_ids:
+        if str(x).isdigit():
+            ids.append(int(x))
+    ids = list(dict.fromkeys(ids))
+
+    if not ids:
+        messages.error(request, "Select at least one draft payment voucher to submit.")
+        return redirect(reverse("tenant_portal:finance_draft_entry_hub"))
+
+    ok = 0
+    errors: list[str] = []
+
+    for eid in ids:
+        entry = (
+            JournalEntry.objects.using(tenant_db)
+            .select_related("grant", "donor")
+            .prefetch_related("lines__account", "lines__grant")
+            .filter(pk=eid)
+            .first()
+        )
+        ref = (entry.reference or "").strip() if entry else ""
+        if not entry:
+            errors.append(f"#{eid}: not found.")
+            continue
+        if not ref.upper().startswith("PV-"):
+            errors.append(f"{ref or eid}: not a payment voucher.")
+            continue
+        st = (entry.source_type or "").strip()
+        jt = (entry.journal_type or "").strip().lower()
+        if st != JournalEntry.SourceType.PAYMENT_VOUCHER and jt != "payment_voucher":
+            errors.append(f"{ref}: not a payment voucher.")
+            continue
+        if entry.status != JournalEntry.Status.DRAFT:
+            errors.append(f"{ref}: not in Draft status (current: {entry.get_status_display()}).")
+            continue
+
+        if not _has_perm("finance:scope.all_grants"):
+            grant_ids = set()
+            if entry.grant_id:
+                grant_ids.add(entry.grant_id)
+            for line in entry.lines.all():
+                if getattr(line, "grant_id", None):
+                    grant_ids.add(line.grant_id)
+            skip_grant = False
+            for gid in grant_ids:
+                try:
+                    if not request.tenant_user.assigned_grants.using(tenant_db).filter(id=gid).exists():
+                        skip_grant = True
+                        break
+                except Exception:
+                    skip_grant = True
+                    break
+            if skip_grant:
+                errors.append(f"{ref}: you do not have access to this grant/project.")
+                continue
+
+        try:
+            with transaction.atomic(using=tenant_db):
+                entry = (
+                    JournalEntry.objects.using(tenant_db)
+                    .select_related("grant", "donor")
+                    .prefetch_related("lines__account", "lines__grant", "lines__project_budget_line")
+                    .get(pk=eid)
+                )
+                _submit_payment_voucher_draft_for_approval(request=request, tenant_db=tenant_db, entry=entry)
+            ok += 1
+        except ValueError as exc:
+            errors.append(f"{ref}: {exc}")
+        except Exception as exc:
+            errors.append(f"{ref}: {exc}")
+
+    if ok:
+        messages.success(
+            request,
+            f"{ok} payment voucher(s) submitted for approval.",
+        )
+    for err in errors[:15]:
+        messages.warning(request, err)
+    if len(errors) > 15:
+        messages.warning(request, f"{len(errors) - 15} more error(s) not shown.")
+
+    return redirect(reverse("tenant_portal:finance_draft_entry_hub"))
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
 def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
     """
     Post Transaction hub: NGO / humanitarian operational entry points (vouchers, cash & bank, inter-fund).
@@ -3043,8 +3268,23 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
 
     tenant_db = request.tenant_db
     user = request.tenant_user
+    can_bulk_draft_excel = user_has_permission(user, "finance:journals.create", using=tenant_db) or user_has_permission(
+        user, "module:finance.manage", using=tenant_db
+    )
 
-    post_txn_links = [
+    post_txn_links = []
+    if can_bulk_draft_excel:
+        post_txn_links.append(
+            {
+                "code": "draft_entry_hub",
+                "label": _("Draft Entry"),
+                "description": _("Import payment Excel drafts, save work in progress, submit for approval, then post after approval."),
+                "url": reverse("tenant_portal:finance_draft_entry_hub"),
+                "icon": "edit-3",
+                "section": "vouchers",
+            }
+        )
+    post_txn_links.append(
         {
             "code": "payment_voucher",
             "label": _("Payments"),
@@ -3052,7 +3292,10 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
             "url": reverse("tenant_portal:pay_payment_vouchers"),
             "icon": "file-minus",
             "section": "vouchers",
-        },
+        }
+    )
+    post_txn_links.extend(
+        [
         {
             "code": "grant_funding_receipt",
             "label": _("Grant funding receipt"),
@@ -3077,6 +3320,21 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
             "icon": "credit-card",
             "section": "vouchers",
         },
+        ]
+    )
+    if can_bulk_draft_excel:
+        post_txn_links.append(
+            {
+                "code": "receipt_voucher_draft_excel",
+                "label": _("Import receipt drafts (Excel)"),
+                "description": _("Bulk-create draft receipt vouchers from a spreadsheet; complete and post from Receipt entry."),
+                "url": reverse("tenant_portal:recv_receipt_draft_excel_import"),
+                "icon": "upload",
+                "section": "vouchers",
+            }
+        )
+    post_txn_links.extend(
+        [
         {
             "code": "cash_transfer",
             "label": _("Cash transfer"),
@@ -3109,7 +3367,8 @@ def finance_post_transaction_view(request: HttpRequest) -> HttpResponse:
             "icon": "list",
             "section": "fund_transfers",
         },
-    ]
+        ]
+    )
     if user_has_permission(user, "finance.add_journalentry", using=tenant_db):
         post_txn_links.append(
             {
@@ -3323,7 +3582,6 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
     from django.utils.dateparse import parse_date
 
     from tenant_finance.models import (
-        AuditTrailSetting,
         BankAccount,
         ChartAccount,
         JournalEntry,
@@ -3530,29 +3788,10 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
             for msg in errors:
                 messages.error(request, msg)
         else:
-            approval_setting = AuditTrailSetting.objects.using(tenant_db).first()
-            approval_mode = (
-                approval_setting.receipt_approval_mode
-                if approval_setting
-                else AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL
-            )
-            approval_threshold = (
-                approval_setting.receipt_approval_threshold
-                if approval_setting
-                else Decimal("0")
-            ) or Decimal("0")
-            requires_approval = False
-            if post_requested:
-                if approval_mode == AuditTrailSetting.ReceiptApprovalMode.ABOVE_AMOUNT:
-                    requires_approval = amount > approval_threshold
-                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.CASH_ONLY:
-                    requires_approval = receipt_method == "cash"
-                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.DONOR_ONLY:
-                    requires_approval = receipt_type == "grant_funding"
-
+            # Receipts post directly to the GL when the user posts (funds already received); no approval queue.
             status = JournalEntry.Status.DRAFT
             if post_requested:
-                status = JournalEntry.Status.PENDING_APPROVAL if requires_approval else JournalEntry.Status.POSTED
+                status = JournalEntry.Status.POSTED
             if status == JournalEntry.Status.POSTED and not can_post:
                 messages.error(request, "You do not have permission to post receipts.")
                 return redirect(reverse("tenant_portal:recv_receipt_entry") + f"?receipt_type={receipt_type}")
@@ -3588,6 +3827,7 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
                 entry_date=voucher_date,
                 memo=(description or f"Receipt from {received_from}") + memo_suffix,
                 grant=grant if receipt_type == "grant_funding" else None,
+                project=(grant.project if grant and getattr(grant, "project_id", None) else None),
                 deposit_chart_account=dep_gl,
                 income_chart_account=credit_account,
                 amount=amount,
@@ -3611,8 +3851,6 @@ def recv_receipt_entry_view(request: HttpRequest) -> HttpResponse:
 
             if status == JournalEntry.Status.POSTED:
                 messages.success(request, f"Receipt {entry.reference} posted.")
-            elif status == JournalEntry.Status.PENDING_APPROVAL:
-                messages.success(request, f"Receipt {entry.reference} submitted for approval.")
             else:
                 messages.success(request, f"Receipt {entry.reference} saved as draft.")
             if post_requested and post_then_close:
@@ -3735,7 +3973,6 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
         JournalEntryAttachment,
         JournalLine,
         AuditLog,
-        AuditTrailSetting,
     )
     from tenant_grants.models import Grant
 
@@ -3958,33 +4195,10 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
             for msg in errors:
                 messages.error(request, msg)
         else:
-            approval_setting = AuditTrailSetting.objects.using(tenant_db).first()
-            approval_mode = (
-                approval_setting.receipt_approval_mode
-                if approval_setting
-                else AuditTrailSetting.ReceiptApprovalMode.NO_APPROVAL
-            )
-            approval_threshold = (
-                approval_setting.receipt_approval_threshold
-                if approval_setting
-                else Decimal("0")
-            ) or Decimal("0")
-            requires_approval = False
-            if post_requested:
-                if approval_mode == AuditTrailSetting.ReceiptApprovalMode.ABOVE_AMOUNT:
-                    requires_approval = amount > approval_threshold
-                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.CASH_ONLY:
-                    requires_approval = receipt_method == "cash"
-                elif approval_mode == AuditTrailSetting.ReceiptApprovalMode.DONOR_ONLY:
-                    requires_approval = False
-
+            # Receipts post directly when the user chooses Post (funds already received); no approval queue here.
             status = JournalEntry.Status.DRAFT
             if post_requested:
-                status = (
-                    JournalEntry.Status.PENDING_APPROVAL
-                    if requires_approval
-                    else JournalEntry.Status.POSTED
-                )
+                status = JournalEntry.Status.POSTED
 
             if status == JournalEntry.Status.POSTED and not can_post:
                 messages.error(request, "You do not have permission to post receipt vouchers.")
@@ -4031,6 +4245,7 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
                 entry_date=voucher_date,
                 memo=description or f"Receipt voucher from {received_from or 'N/A'}",
                 grant=grant,
+                project=(grant.project if grant and getattr(grant, "project_id", None) else None),
                 deposit_chart_account=dep_gl,
                 income_chart_account=credit_income_account,
                 amount=amount,
@@ -4072,8 +4287,6 @@ def recv_receipt_vouchers_view(request: HttpRequest) -> HttpResponse:
 
             if status == JournalEntry.Status.DRAFT:
                 messages.success(request, f"Receipt voucher {entry.reference} saved as draft.")
-            elif status == JournalEntry.Status.PENDING_APPROVAL:
-                messages.success(request, f"Receipt voucher {entry.reference} submitted for approval.")
             else:
                 messages.success(request, f"Receipt voucher {entry.reference} created and posted.")
 
@@ -4518,6 +4731,7 @@ def recv_donor_receipts_view(request: HttpRequest) -> HttpResponse:
                     entry_date=voucher_date,
                     memo=description or f"Donor receipt from {received_from}",
                     grant=grant,
+                    project=(grant.project if grant and getattr(grant, "project_id", None) else None),
                     deposit_chart_account=deposit_bank_account.account,
                     income_chart_account=credit_income_account,
                     amount=amount,
@@ -6245,6 +6459,10 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
         entries_qs = entries_qs.filter(grant_id=f["grant_id"])
     if f["donor_id"]:
         entries_qs = entries_qs.filter(grant__donor_id=f["donor_id"])
+    project_id_param = (request.GET.get("project_id") or "").strip()
+    if project_id_param.isdigit():
+        pid = int(project_id_param)
+        entries_qs = entries_qs.filter(Q(project_id=pid) | Q(grant__project_id=pid))
     if status:
         entries_qs = entries_qs.filter(status=status)
     if (
@@ -6363,9 +6581,14 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             }
         )
 
-    from tenant_grants.models import Donor, Grant
+    from tenant_grants.models import Donor, Grant, Project
 
     grants = Grant.objects.using(tenant_db).filter(status="active").order_by("code")
+    projects = (
+        Project.objects.using(tenant_db)
+        .filter(status=Project.Status.ACTIVE, is_active=True)
+        .order_by("code")
+    )
     if not can_all_grants:
         try:
             grants = grants.filter(id__in=user.assigned_grants.using(tenant_db).values_list("id", flat=True))
@@ -6475,6 +6698,8 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             "entries": entries,
             "filters": f,
             "grants": grants,
+            "projects": projects,
+            "filter_project_id": project_id_param,
             "donors": donors,
             "accounting_periods": accounting_periods,
             "filter_source_type": source_type_f,
@@ -6503,6 +6728,8 @@ def finance_journals_view(request: HttpRequest) -> HttpResponse:
             "manual_journal_periods": manual_journal_periods,
             "active_submenu": "core",
             "active_item": "core_journals",
+            "can_import_draft_excel": user_has_permission(user, "finance:journals.create", using=tenant_db)
+            or user_has_permission(user, "module:finance.manage", using=tenant_db),
         },
     )
 
@@ -6515,7 +6742,10 @@ def finance_journal_detail_view(request: HttpRequest, entry_id: int) -> HttpResp
     from django.shortcuts import get_object_or_404
 
     from tenant_finance.db_compat import journalentry_has_0034_schema, journalentry_has_0040_adjusting_schema
-    from tenant_finance.models import FiscalPeriod, JournalEntry, JournalLine, OrganizationSettings
+    import json
+
+    from tenant_finance.models import AuditLog, FiscalPeriod, JournalEntry, JournalLine, OrganizationSettings
+    from tenants.services.tenant_modules import tenant_enabled_module_codes
 
     tenant_db = request.tenant_db
     je_schema_0034 = journalentry_has_0034_schema(tenant_db)
@@ -6611,6 +6841,47 @@ def finance_journal_detail_view(request: HttpRequest, entry_id: int) -> HttpResp
     )
     currency_code = getattr(getattr(entry, "currency", None), "code", None) or "—"
 
+    ref_upper = (entry.reference or "").strip().upper()
+    st_pv = (entry.source_type or "").strip()
+    jt_pv = (entry.journal_type or "").strip().lower()
+    is_payment_voucher = ref_upper.startswith("PV-") and (
+        st_pv == JournalEntry.SourceType.PAYMENT_VOUCHER or jt_pv == "payment_voucher"
+    )
+    from tenant_finance.services.payment_voucher_revision import user_can_revise_posted_payment_voucher
+
+    pay_module_ok = "finance_grants" in tenant_enabled_module_codes(request.tenant)
+    payment_voucher_edit_url = ""
+    can_revise_posted_pv = user_can_revise_posted_payment_voucher(request, tenant_db)
+    can_edit_unposted_pv = user_has_permission(
+        request.tenant_user, "finance:journals.create", using=tenant_db
+    ) or user_has_permission(request.tenant_user, "module:finance.manage", using=tenant_db)
+    if is_payment_voucher and pay_module_ok:
+        if entry.status == JournalEntry.Status.POSTED and can_revise_posted_pv:
+            payment_voucher_edit_url = reverse("tenant_portal:pay_payment_vouchers") + f"?edit={entry.id}"
+        elif entry.status != JournalEntry.Status.POSTED and can_edit_unposted_pv:
+            payment_voucher_edit_url = reverse("tenant_portal:pay_payment_vouchers") + f"?edit={entry.id}"
+
+    journal_revision_rows: list[dict] = []
+    for log in (
+        AuditLog.objects.using(tenant_db)
+        .filter(model_name="journalentry", object_id=entry.id)
+        .order_by("-changed_at")[:100]
+    ):
+        journal_revision_rows.append(
+            {
+                "edited_by": (log.username or "").strip() or "—",
+                "edited_date": log.changed_at,
+                "summary": (log.summary or "").strip(),
+                "action": log.get_action_display(),
+                "change_log_before": json.dumps(log.old_data, indent=2, default=str)
+                if log.old_data is not None
+                else "",
+                "change_log_after": json.dumps(log.new_data, indent=2, default=str)
+                if log.new_data is not None
+                else "",
+            }
+        )
+
     return render(
         request,
         "tenant_portal/finance/journal_detail.html",
@@ -6633,6 +6904,15 @@ def finance_journal_detail_view(request: HttpRequest, entry_id: int) -> HttpResp
             "audit_trail_url": _journal_audit_trail_url(entry.id),
             "active_submenu": "core",
             "active_item": "core_journals",
+            "is_payment_voucher": is_payment_voucher,
+            "payment_voucher_edit_url": payment_voucher_edit_url,
+            "posted_payment_voucher_no_direct_edit": is_payment_voucher
+            and entry.status == JournalEntry.Status.POSTED
+            and not can_revise_posted_pv,
+            "can_revise_posted_payment_voucher": is_payment_voucher
+            and entry.status == JournalEntry.Status.POSTED
+            and can_revise_posted_pv,
+            "journal_revision_rows": journal_revision_rows,
         },
     )
 
@@ -6709,6 +6989,7 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
         posting_date=posting_date,
         memo=memo,
         accounting_period_id=accounting_period_id,
+        require_open_posting_calendar=False,
     )
     try:
         _finance_validate_journal_payload(header, lines, tenant_db)
@@ -6744,6 +7025,7 @@ def finance_journal_create_view(request: HttpRequest) -> HttpResponse:
             posting_date=posting_date,
             memo=memo,
             grant=grant,
+            project=(grant.project if grant and getattr(grant, "project_id", None) else None),
             status=JournalEntry.Status.DRAFT,
             created_by=request.tenant_user,
             journal_type=journal_type,
@@ -6861,6 +7143,8 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
     try:
         with transaction.atomic(using=tenant_db):
             if action == "submit":
+                if entry.status == JournalEntry.Status.INCOMPLETE_DRAFT:
+                    raise ValueError("Complete all required fields before submitting for approval.")
                 if entry.status != JournalEntry.Status.DRAFT:
                     raise ValueError("Only draft journals can be submitted for approval.")
                 # Validate rules before moving forward
@@ -6874,36 +7158,46 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                     }
                     for l in entry.lines.all()
                 ]
-                header = {
-                    "entry_date": entry.entry_date,
-                    "memo": entry.memo,
-                    "grant_id": entry.grant_id or "",
-                    "journal_type": entry.journal_type or "",
-                    "source": entry.source or "",
-                }
                 gl_date = _finance_journal_gl_date(entry)
-                _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
-                from tenant_finance.services.manual_journal_validation import (
-                    validate_journal_entry_lines_from_model,
-                )
+                st_submit = (entry.source_type or "").strip()
+                jt_submit = (entry.journal_type or "").strip().lower()
+                is_payment_voucher_submit = st_submit == JournalEntry.SourceType.PAYMENT_VOUCHER or jt_submit == "payment_voucher"
+                if is_payment_voucher_submit:
+                    from tenant_finance.services.payment_voucher_draft_completeness import (
+                        assert_payment_voucher_ready_for_approval_submission,
+                    )
 
-                _errs = validate_journal_entry_lines_from_model(tenant_db=tenant_db, entry=entry)
-                if not (entry.memo or "").strip():
-                    _errs.append("Description (memo) is required.")
-                if _errs:
-                    raise ValueError("\n".join(_errs))
-                _finance_validate_journal_line_grants(lines, tenant_db, gl_date)
+                    try:
+                        assert_payment_voucher_ready_for_approval_submission(using=tenant_db, entry=entry)
+                    except ValueError as exc_pv:
+                        raise ValueError(str(exc_pv)) from exc_pv
+                else:
+                    _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
+                    from tenant_finance.services.manual_journal_validation import (
+                        validate_journal_entry_lines_from_model,
+                    )
+
+                    _errs = validate_journal_entry_lines_from_model(tenant_db=tenant_db, entry=entry)
+                    if not (entry.memo or "").strip():
+                        _errs.append("Description (memo) is required.")
+                    if _errs:
+                        raise ValueError("\n".join(_errs))
+                if not is_payment_voucher_submit:
+                    _finance_validate_journal_line_grants(lines, tenant_db, gl_date)
+                elif lines:
+                    _finance_validate_journal_line_grants(lines, tenant_db, gl_date)
                 if entry.grant_id:
                     entry.refresh_from_db()
                     entry.grant = Grant.objects.using(tenant_db).select_related("project").get(pk=entry.grant_id)
-                    try:
-                        entry.full_clean()
-                    except Exception as e:
-                        if hasattr(e, "message_dict"):
-                            err = " ".join(f"{k}: {v}" for k, v in e.message_dict.items())
-                        else:
-                            err = str(e)
-                        raise ValueError(err)
+                    if not is_payment_voucher_submit:
+                        try:
+                            entry.full_clean()
+                        except Exception as e:
+                            if hasattr(e, "message_dict"):
+                                err = " ".join(f"{k}: {v}" for k, v in e.message_dict.items())
+                            else:
+                                err = str(e)
+                            raise ValueError(err)
                 old_status = entry.status
                 from django.utils import timezone as _dj_tz
 
@@ -6973,13 +7267,55 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                 messages.success(request, "Journal returned to draft.")
 
             elif action == "post":
-                if entry.status != JournalEntry.Status.APPROVED:
-                    raise ValueError("Only approved journals can be posted.")
-                # Grant receipt vouchers: cap by ceiling and funding-modality eligible
-                if entry.grant_id:
-                    st = (entry.source_type or "").strip()
-                    jt = (entry.journal_type or "").strip().lower()
-                    if st == JournalEntry.SourceType.RECEIPT_VOUCHER or jt == "receipt_voucher":
+                st_post = (entry.source_type or "").strip()
+                jt_post = (entry.journal_type or "").strip().lower()
+                is_payment_voucher_post = st_post == JournalEntry.SourceType.PAYMENT_VOUCHER or jt_post == "payment_voucher"
+                is_receipt_voucher_post = st_post == JournalEntry.SourceType.RECEIPT_VOUCHER or jt_post == "receipt_voucher"
+
+                if is_payment_voucher_post:
+                    if entry.status != JournalEntry.Status.APPROVED:
+                        raise ValueError(
+                            "Only approved payment vouchers can be posted. Submit for approval from Payments or the "
+                            "journal list, approve, then post."
+                        )
+                    from tenant_finance.services.journal_posting import post_approved_payment_voucher_to_gl
+
+                    try:
+                        post_approved_payment_voucher_to_gl(using=tenant_db, entry=entry, user=request.tenant_user)
+                    except ValueError as exc_pv_post:
+                        raise ValueError(str(exc_pv_post)) from exc_pv_post
+                    try:
+                        AuditLog.objects.using(tenant_db).create(
+                            model_name="journalentry",
+                            object_id=entry.id,
+                            action=AuditLog.Action.UPDATE,
+                            user_id=request.tenant_user.id if request.tenant_user else None,
+                            username=_actor_name(),
+                            summary="Payment voucher posted to GL (from journal actions).",
+                        )
+                    except Exception:
+                        pass
+                    messages.success(request, "Payment voucher posted to the general ledger.")
+                    try:
+                        from tenant_grants.services.project_budget_actuals import (
+                            refresh_project_budget_and_activity_actuals,
+                        )
+
+                        entry.refresh_from_db()
+                        refresh_project_budget_and_activity_actuals(tenant_db, entry=entry)
+                    except Exception:
+                        pass
+                elif is_receipt_voucher_post:
+                    if entry.status not in (
+                        JournalEntry.Status.APPROVED,
+                        JournalEntry.Status.DRAFT,
+                        JournalEntry.Status.PENDING_APPROVAL,
+                    ):
+                        raise ValueError(
+                            "Only draft, pending approval, or approved receipt vouchers can be posted to the GL."
+                        )
+                    # Grant receipt vouchers: cap by ceiling and funding-modality eligible
+                    if entry.grant_id:
                         from tenant_grants.services.receipt_grant_validation import (
                             assert_grant_receipt_posting_allowed,
                             get_receipt_voucher_credit_amount,
@@ -6990,107 +7326,211 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
                         assert_grant_receipt_posting_allowed(
                             using=tenant_db, grant=_g, receipt_amount=_ramt
                         )
-                # Backdated posting control (date before today)
-                from django.utils import timezone as _tz
+                    from django.utils import timezone as _tz
 
-                today = _tz.localdate()
-                gl_date = _finance_journal_gl_date(entry)
-                if gl_date and gl_date < today and not _has_perm("finance:posting.backdated"):
-                    raise ValueError("Backdated posting is restricted by policy.")
-                if (
-                    entry.created_by_id
-                    and request.tenant_user
-                    and entry.created_by_id == request.tenant_user.id
-                    and not (_has_perm("finance:journals.override_maker_checker") or _has_perm("finance:maker_checker.override"))
-                ):
-                    raise ValueError(
-                        "Maker-checker is enforced: you cannot post a journal entry you created."
-                    )
-                from tenant_finance.services.manual_journal_validation import (
-                    validate_journal_entry_lines_from_model,
-                )
+                    today = _tz.localdate()
+                    gl_date = _finance_journal_gl_date(entry)
+                    if gl_date and gl_date < today and not _has_perm("finance:posting.backdated"):
+                        raise ValueError("Backdated posting is restricted by policy.")
+                    # Receipt vouchers: funds already received — allow creator to post (no maker-checker).
+                    from tenant_finance.services.journal_posting import assert_receipt_voucher_ready_to_post
 
-                _post_errs = validate_journal_entry_lines_from_model(tenant_db=tenant_db, entry=entry)
-                if not (entry.memo or "").strip():
-                    _post_errs.append("Description (memo) is required.")
-                if _post_errs:
-                    raise ValueError("\n".join(_post_errs))
-                _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
-                if entry.grant_id:
-                    from decimal import Decimal
-                    from django.db.models import Sum
-                    from tenant_finance.models import ChartAccount, get_grant_posted_expense_total
+                    assert_receipt_voucher_ready_to_post(using=tenant_db, entry=entry)
+                    if not (entry.memo or "").strip():
+                        raise ValueError("Description (memo) is required.")
+                    _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
+                    if entry.grant_id:
+                        from decimal import Decimal
+                        from django.db.models import Sum
+                        from tenant_finance.models import ChartAccount, get_grant_posted_expense_total
 
-                    existing_spent = get_grant_posted_expense_total(entry.grant_id, tenant_db)
-                    entry_expense = (
-                        entry.lines.using(tenant_db)
-                        .filter(account__type=ChartAccount.Type.EXPENSE)
-                        .aggregate(s=Sum("debit"))
-                        .get("s") or Decimal("0")
-                    )
-                    grant = Grant.objects.using(tenant_db).get(pk=entry.grant_id)
-                    grant_budget = getattr(grant, "award_amount", None)
-                    if grant_budget is None:
-                        grant_budget = getattr(grant, "amount_awarded", None)
-                    grant_budget = Decimal(str(grant_budget or 0))
-                    if grant_budget and existing_spent + entry_expense > grant_budget:
-                        raise ValueError(
-                            f"Grant budget would be exceeded. Budget: {grant_budget}, "
-                            f"already posted: {existing_spent}, this entry expense: {entry_expense}."
+                        existing_spent = get_grant_posted_expense_total(entry.grant_id, tenant_db)
+                        entry_expense = (
+                            entry.lines.using(tenant_db)
+                            .filter(account__type=ChartAccount.Type.EXPENSE)
+                            .aggregate(s=Sum("debit"))
+                            .get("s") or Decimal("0")
                         )
-                    from tenant_grants.services.project_budget_actuals import (
-                        validate_journal_entry_expense_budget_dimensions,
-                    )
+                        grant = Grant.objects.using(tenant_db).get(pk=entry.grant_id)
+                        grant_budget = getattr(grant, "award_amount", None)
+                        if grant_budget is None:
+                            grant_budget = getattr(grant, "amount_awarded", None)
+                        grant_budget = Decimal(str(grant_budget or 0))
+                        if grant_budget and existing_spent + entry_expense > grant_budget:
+                            raise ValueError(
+                                f"Grant budget would be exceeded. Budget: {grant_budget}, "
+                                f"already posted: {existing_spent}, this entry expense: {entry_expense}."
+                            )
+                        from tenant_grants.services.project_budget_actuals import (
+                            validate_journal_entry_expense_budget_dimensions,
+                        )
 
-                    dim_errs = validate_journal_entry_expense_budget_dimensions(entry, tenant_db)
-                    if dim_errs:
-                        raise ValueError(dim_errs[0])
-                    from tenant_grants.restrictions import evaluate_journal_post_restrictions
+                        dim_errs = validate_journal_entry_expense_budget_dimensions(entry, tenant_db)
+                        if dim_errs:
+                            raise ValueError(dim_errs[0])
+                        from tenant_grants.restrictions import evaluate_journal_post_restrictions
 
-                    override_dn = user_has_permission(
-                        request.tenant_user, "grants:donor_restrictions.manage", using=tenant_db
-                    )
-                    viol = evaluate_journal_post_restrictions(
-                        entry, tenant_db, has_override_permission=override_dn
-                    )
-                    for v in viol:
-                        if not v.blocks_posting and v.compliance_level == "recommended":
-                            messages.warning(request, v.message)
-                    hard = [v for v in viol if v.blocks_posting]
-                    if hard:
-                        raise ValueError(hard[0].message)
-                if not entry.reference:
-                    jt = (entry.journal_type or "").lower()
-                    if entry.source == "manual" and jt in ("adjustment", "adjusting", "adjusting_journal"):
-                        entry.reference = _finance_generate_adjusting_journal_number(tenant_db, gl_date)
-                    else:
+                        override_dn = user_has_permission(
+                            request.tenant_user, "grants:donor_restrictions.manage", using=tenant_db
+                        )
+                        viol = evaluate_journal_post_restrictions(
+                            entry, tenant_db, has_override_permission=override_dn
+                        )
+                        for v in viol:
+                            if not v.blocks_posting and v.compliance_level == "recommended":
+                                messages.warning(request, v.message)
+                        hard = [v for v in viol if v.blocks_posting]
+                        if hard:
+                            raise ValueError(hard[0].message)
+                    if not entry.reference:
                         entry.reference = _finance_generate_journal_number(tenant_db, gl_date)
-                old_status = entry.status
-                entry.status = JournalEntry.Status.POSTED
-                from django.utils import timezone
+                    old_status_rv = entry.status
+                    from django.utils import timezone as _dj_tz_post_rv
 
-                entry.posted_at = timezone.now()
-                entry.posted_by = request.tenant_user
-                entry.save(
-                    update_fields=["status", "reference", "posted_at", "posted_by"]
-                )
-                AuditLog.objects.using(tenant_db).create(
-                    model_name="journalentry",
-                    object_id=entry.id,
-                    action=AuditLog.Action.UPDATE,
-                    user_id=request.tenant_user.id if request.tenant_user else None,
-                    username=_actor_name(),
-                    summary=f"Journal status changed {old_status} → {entry.status}",
-                )
-                messages.success(request, "Journal posted to the general ledger.")
-                try:
-                    from tenant_grants.services.project_budget_actuals import (
-                        refresh_project_budget_and_activity_actuals,
+                    now_rv = _dj_tz_post_rv.now()
+                    if entry.status in (
+                        JournalEntry.Status.DRAFT,
+                        JournalEntry.Status.PENDING_APPROVAL,
+                    ):
+                        entry.approved_by = request.tenant_user
+                        entry.approved_at = now_rv
+                    entry.status = JournalEntry.Status.POSTED
+                    entry.posted_at = now_rv
+                    entry.posted_by = request.tenant_user
+                    entry.save(
+                        using=tenant_db,
+                        update_fields=[
+                            "status",
+                            "reference",
+                            "posted_at",
+                            "posted_by",
+                            "approved_by",
+                            "approved_at",
+                        ],
+                    )
+                    AuditLog.objects.using(tenant_db).create(
+                        model_name="journalentry",
+                        object_id=entry.id,
+                        action=AuditLog.Action.UPDATE,
+                        user_id=request.tenant_user.id if request.tenant_user else None,
+                        username=_actor_name(),
+                        summary=f"Receipt voucher posted to GL ({old_status_rv} → posted).",
+                    )
+                    messages.success(request, "Receipt voucher posted to the general ledger.")
+                    try:
+                        from tenant_grants.services.project_budget_actuals import (
+                            refresh_project_budget_and_activity_actuals,
+                        )
+
+                        refresh_project_budget_and_activity_actuals(tenant_db, entry=entry)
+                    except Exception:
+                        pass
+                else:
+                    if entry.status != JournalEntry.Status.APPROVED:
+                        raise ValueError("Only approved journals can be posted.")
+                    from django.utils import timezone as _tz
+
+                    today = _tz.localdate()
+                    gl_date = _finance_journal_gl_date(entry)
+                    if gl_date and gl_date < today and not _has_perm("finance:posting.backdated"):
+                        raise ValueError("Backdated posting is restricted by policy.")
+                    if (
+                        entry.created_by_id
+                        and request.tenant_user
+                        and entry.created_by_id == request.tenant_user.id
+                        and not (_has_perm("finance:journals.override_maker_checker") or _has_perm("finance:maker_checker.override"))
+                    ):
+                        raise ValueError(
+                            "Maker-checker is enforced: you cannot post a journal entry you created."
+                        )
+                    from tenant_finance.services.manual_journal_validation import (
+                        validate_journal_entry_lines_from_model,
                     )
 
-                    refresh_project_budget_and_activity_actuals(tenant_db, entry=entry)
-                except Exception:
-                    pass
+                    _post_errs = validate_journal_entry_lines_from_model(tenant_db=tenant_db, entry=entry)
+                    if not (entry.memo or "").strip():
+                        _post_errs.append("Description (memo) is required.")
+                    if _post_errs:
+                        raise ValueError("\n".join(_post_errs))
+                    from tenant_finance.services.journal_posting import assert_receipt_voucher_ready_to_post
+
+                    assert_receipt_voucher_ready_to_post(using=tenant_db, entry=entry)
+                    _finance_assert_open_period(gl_date, tenant_db, request.tenant_user_id)
+                    if entry.grant_id:
+                        from decimal import Decimal
+                        from django.db.models import Sum
+                        from tenant_finance.models import ChartAccount, get_grant_posted_expense_total
+
+                        existing_spent = get_grant_posted_expense_total(entry.grant_id, tenant_db)
+                        entry_expense = (
+                            entry.lines.using(tenant_db)
+                            .filter(account__type=ChartAccount.Type.EXPENSE)
+                            .aggregate(s=Sum("debit"))
+                            .get("s") or Decimal("0")
+                        )
+                        grant = Grant.objects.using(tenant_db).get(pk=entry.grant_id)
+                        grant_budget = getattr(grant, "award_amount", None)
+                        if grant_budget is None:
+                            grant_budget = getattr(grant, "amount_awarded", None)
+                        grant_budget = Decimal(str(grant_budget or 0))
+                        if grant_budget and existing_spent + entry_expense > grant_budget:
+                            raise ValueError(
+                                f"Grant budget would be exceeded. Budget: {grant_budget}, "
+                                f"already posted: {existing_spent}, this entry expense: {entry_expense}."
+                            )
+                        from tenant_grants.services.project_budget_actuals import (
+                            validate_journal_entry_expense_budget_dimensions,
+                        )
+
+                        dim_errs = validate_journal_entry_expense_budget_dimensions(entry, tenant_db)
+                        if dim_errs:
+                            raise ValueError(dim_errs[0])
+                        from tenant_grants.restrictions import evaluate_journal_post_restrictions
+
+                        override_dn = user_has_permission(
+                            request.tenant_user, "grants:donor_restrictions.manage", using=tenant_db
+                        )
+                        viol = evaluate_journal_post_restrictions(
+                            entry, tenant_db, has_override_permission=override_dn
+                        )
+                        for v in viol:
+                            if not v.blocks_posting and v.compliance_level == "recommended":
+                                messages.warning(request, v.message)
+                        hard = [v for v in viol if v.blocks_posting]
+                        if hard:
+                            raise ValueError(hard[0].message)
+                    if not entry.reference:
+                        jt = (entry.journal_type or "").lower()
+                        if entry.source == "manual" and jt in ("adjustment", "adjusting", "adjusting_journal"):
+                            entry.reference = _finance_generate_adjusting_journal_number(tenant_db, gl_date)
+                        else:
+                            entry.reference = _finance_generate_journal_number(tenant_db, gl_date)
+                    old_status = entry.status
+                    entry.status = JournalEntry.Status.POSTED
+                    from django.utils import timezone
+
+                    entry.posted_at = timezone.now()
+                    entry.posted_by = request.tenant_user
+                    entry.save(
+                        update_fields=["status", "reference", "posted_at", "posted_by"]
+                    )
+                    AuditLog.objects.using(tenant_db).create(
+                        model_name="journalentry",
+                        object_id=entry.id,
+                        action=AuditLog.Action.UPDATE,
+                        user_id=request.tenant_user.id if request.tenant_user else None,
+                        username=_actor_name(),
+                        summary=f"Journal status changed {old_status} → {entry.status}",
+                    )
+                    messages.success(request, "Journal posted to the general ledger.")
+                    try:
+                        from tenant_grants.services.project_budget_actuals import (
+                            refresh_project_budget_and_activity_actuals,
+                        )
+
+                        refresh_project_budget_and_activity_actuals(tenant_db, entry=entry)
+                    except Exception:
+                        pass
 
             elif action == "reverse":
                 if entry.status != JournalEntry.Status.POSTED:
@@ -7268,8 +7708,10 @@ def finance_journal_action_view(request: HttpRequest, entry_id: int) -> HttpResp
 
 def _finance_assert_open_period(entry_date, tenant_db, request_user_id=None):
     """
-    Ensure Financial Setup defines an accounting period for entry_date and posting is allowed
-    (open, or soft-closed with role exception). Uses the same rules as model-level posting checks.
+    Ensure ``entry_date`` falls in an accounting period that is **open** for posting
+    (status Open, not closed or locked; fiscal year not closed). Same rules as ``JournalEntry`` POSTED save.
+
+    Do not call this for draft-only creates — use calendar presence checks instead.
     """
     from tenant_finance.services.accounting_periods import assert_can_post
     from tenant_users.models import TenantUser
@@ -7481,6 +7923,58 @@ def _finance_validate_journal_line_grants(lines: list, tenant_db: str, gl_date) 
         except DjangoValidationError as e:
             err = " ".join(f"{k}: {v}" for k, v in (e.message_dict or {}).items()) or str(e)
             raise ValueError(f"Line {idx}: {err}") from e
+
+
+def _submit_payment_voucher_draft_for_approval(*, request: HttpRequest, tenant_db: str, entry) -> None:
+    """
+    Draft payment voucher → pending approval. Raises ValueError on failure.
+    Aligns with finance_journal_action_view submit for payment_voucher source type.
+    """
+    from django.utils import timezone as _dj_tz
+
+    from tenant_finance.models import AuditLog, JournalEntry
+    from tenant_finance.services.payment_voucher_draft_completeness import (
+        assert_payment_voucher_ready_for_approval_submission,
+    )
+    from tenant_grants.models import Grant
+
+    if entry.status == JournalEntry.Status.INCOMPLETE_DRAFT:
+        raise ValueError("Complete all required fields before submitting for approval.")
+    if entry.status != JournalEntry.Status.DRAFT:
+        raise ValueError("Only draft journals can be submitted for approval.")
+    lines = [
+        {
+            "account_id": l.account_id,
+            "description": l.description,
+            "debit": l.debit,
+            "credit": l.credit,
+            "grant_id": getattr(l, "grant_id", None) or "",
+        }
+        for l in entry.lines.all()
+    ]
+    gl_date = _finance_journal_gl_date(entry)
+    assert_payment_voucher_ready_for_approval_submission(using=tenant_db, entry=entry)
+    if lines:
+        _finance_validate_journal_line_grants(lines, tenant_db, gl_date)
+    if entry.grant_id:
+        entry.refresh_from_db()
+        entry.grant = Grant.objects.using(tenant_db).select_related("project").get(pk=entry.grant_id)
+
+    old_status = entry.status
+    entry.status = JournalEntry.Status.PENDING_APPROVAL
+    entry.submitted_by = request.tenant_user
+    entry.submitted_at = _dj_tz.now()
+    entry.save(update_fields=["status", "submitted_by", "submitted_at"])
+    u = getattr(request, "tenant_user", None)
+    actor = (getattr(u, "full_name", "") or "").strip() or getattr(u, "email", "") or ""
+    AuditLog.objects.using(tenant_db).create(
+        model_name="journalentry",
+        object_id=entry.id,
+        action=AuditLog.Action.UPDATE,
+        user_id=getattr(u, "id", None),
+        username=actor,
+        summary=f"Journal status changed {old_status} → {entry.status}",
+    )
 
 
 def _finance_journal_action_redirect(request: HttpRequest):
@@ -7880,6 +8374,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.services.financial_reporting import (
         assert_grant_filter_allowed,
         filter_grants_for_report_dropdown,
+        journal_entry_user_document_reference,
         posted_journal_lines,
         restrict_journal_lines_by_grant_scope,
         user_sees_all_grants,
@@ -7980,17 +8475,19 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             grant_ids.add(eg)
         account_ids.add(ln.account_id)
     budget_map: dict[tuple[int | None, int], str] = {}
+    budget_code_map: dict[tuple[int | None, int], str] = {}
     budget_desc_acc: dict[tuple[int, int], list[str]] = {}
     if grant_ids and account_ids:
         for bl in (
             BudgetLine.objects.using(tenant_db)
             .filter(grant_id__in=grant_ids, account_id__in=account_ids)
-            .only("grant_id", "account_id", "category", "description")
+            .only("grant_id", "account_id", "category", "description", "budget_code")
         ):
             label = (bl.category or "").strip()
             if not label:
                 label = (bl.description or "").strip()
             budget_map[(bl.grant_id, bl.account_id)] = label or "—"
+            budget_code_map[(bl.grant_id, bl.account_id)] = (bl.budget_code or "").strip()
             bd = (bl.description or "").strip()
             if bd:
                 key = (bl.grant_id, bl.account_id)
@@ -8051,6 +8548,18 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             out = budget_desc_map.get((ent.grant_id, acc_id))
         return out or "—"
 
+    def _budget_code_label(ln, ent, eg_id, acc_id):
+        pbl = getattr(ln, "project_budget_line", None)
+        if pbl:
+            c = (getattr(pbl, "category", "") or "").strip()
+            return c or "—"
+        bkey = (eg_id, acc_id)
+        bc = budget_code_map.get(bkey)
+        if bc is None and ent.grant_id:
+            bc = budget_code_map.get((ent.grant_id, acc_id))
+        bc = (bc or "").strip()
+        return bc or "—"
+
     def _fund_label(ln, ent):
         g = ln.grant or ent.grant
         project = getattr(g, "project", None) if g else None
@@ -8092,6 +8601,7 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
         activity = _activity_label(line)
         budget_line = _budget_line_label(line, ent, eg_id, acc_id)
         budget_line_description = _budget_line_description_label(line, ent, eg_id, acc_id)
+        budget_code = _budget_code_label(line, ent, eg_id, acc_id)
 
         gl_date = getattr(line, "gl_date", None) or ent.posting_date or ent.entry_date
         posted_by = "—"
@@ -8105,8 +8615,9 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             or "—"
         )
         reference = (ent.reference or "").strip() or _gl_journal_number(ent)
-        document_reference = (ent.source_document_no or "").strip() or reference
+        document_reference = (journal_entry_user_document_reference(ent) or "").strip() or "—"
 
+        payee_display = (getattr(ent, "payee_name", "") or "").strip() or "—"
         rows.append(
             {
                 "gl_date": gl_date,
@@ -8117,8 +8628,10 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
                 "grant": _grant_label(line, ent),
                 "donor": _donor_label(line, ent),
                 "activity": activity,
+                "budget_code": budget_code,
                 "budget_line": budget_line,
                 "budget_line_description": budget_line_description,
+                "payee": payee_display,
                 "memo": (line.description or ent.memo or "").strip() or "—",
                 "debit": line.debit,
                 "credit": line.credit,
@@ -8182,19 +8695,53 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
     closing_balance = grand_total_credit - grand_total_debit
 
     account_sections: list[dict] = []
-    section_key: int | None = None
+    current_aid: int | None = None
+    section_dr = Decimal("0")
+    section_cr = Decimal("0")
+    section_code = ""
+    section_name = ""
+    last_rb = Decimal("0")
     for r in rows:
         aid = r["account_id"]
-        if aid != section_key:
-            section_key = aid
+        if current_aid is not None and aid != current_aid:
+            account_sections.append(
+                {
+                    "type": "subtotal",
+                    "code": section_code,
+                    "name": section_name,
+                    "debit": section_dr,
+                    "credit": section_cr,
+                    "running_balance": last_rb,
+                }
+            )
+            section_dr = Decimal("0")
+            section_cr = Decimal("0")
+        if current_aid != aid:
+            current_aid = aid
+            section_code = r["account_code"]
+            section_name = r["account_name"]
             account_sections.append(
                 {
                     "type": "header",
-                    "code": r["account_code"],
-                    "name": r["account_name"],
+                    "code": section_code,
+                    "name": section_name,
                 }
             )
+        section_dr += r["debit"] or Decimal("0")
+        section_cr += r["credit"] or Decimal("0")
+        last_rb = r["running_balance"]
         account_sections.append({"type": "row", **r})
+    if rows:
+        account_sections.append(
+            {
+                "type": "subtotal",
+                "code": section_code,
+                "name": section_name,
+                "debit": section_dr,
+                "credit": section_cr,
+                "running_balance": last_rb,
+            }
+        )
 
     accounts = ChartAccount.objects.using(tenant_db).filter(is_active=True).order_by("code")
     grants_qs = filter_grants_for_report_dropdown(
@@ -8241,6 +8788,8 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
     if request.GET.get("format") in {"xlsx", "csv"}:
         import io
         import os
+        from datetime import date, datetime
+
         from openpyxl import Workbook
         from openpyxl.drawing.image import Image as XLImage
         from openpyxl.styles import Alignment, Font
@@ -8256,13 +8805,14 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             "Account name",
             "Grant",
             "Donor",
+            "Budgetcode",
             "Budget line",
-            "Budget line description",
             "Description",
             "Debit",
             "Credit",
             "Running balance",
             "Currency",
+            "Payee",
             "Document reference",
         ]
         last_col = get_column_letter(len(headers))
@@ -8332,36 +8882,77 @@ def finance_general_ledger_view(request: HttpRequest) -> HttpResponse:
             c.alignment = Alignment(horizontal="center", vertical="center")
 
         data_row = header_row + 1
-        for r in rows:
-            row_values = [
-                r["gl_date"],
-                r["journal_number"],
-                r["account_code"],
-                r["account_name"],
-                r["grant"],
-                r["donor"],
-                r["budget_line"],
-                r["budget_line_description"],
-                r["memo"],
-                r["debit"] or Decimal("0"),
-                r["credit"] or Decimal("0"),
-                r["running_balance"] or Decimal("0"),
-                r["currency"],
-                r["document_reference"],
-            ]
-            for col_idx, value in enumerate(row_values, start=1):
-                ws.cell(row=data_row, column=col_idx, value=value)
+        n_headers = len(headers)
+        last_col_letter = get_column_letter(n_headers)
+        if not account_sections:
+            ws.merge_cells(f"A{data_row}:{last_col_letter}{data_row}")
+            ws.cell(row=data_row, column=1, value="No posted lines match the selected filters.")
             data_row += 1
+        else:
+            for item in account_sections:
+                if item["type"] == "header":
+                    ws.merge_cells(f"A{data_row}:{last_col_letter}{data_row}")
+                    c = ws.cell(row=data_row, column=1)
+                    c.value = f"Account: {item['code']} — {item['name']}"
+                    c.font = Font(bold=True)
+                    c.alignment = Alignment(horizontal="left", vertical="center")
+                    data_row += 1
+                elif item["type"] == "row":
+                    r = item
+                    row_values = [
+                        r["gl_date"],
+                        r["journal_number"],
+                        r["account_code"],
+                        r["account_name"],
+                        r["grant"],
+                        r["donor"],
+                        r["budget_code"],
+                        r["budget_line"],
+                        r["memo"],
+                        r["debit"] or Decimal("0"),
+                        r["credit"] or Decimal("0"),
+                        r["running_balance"] or Decimal("0"),
+                        r["currency"],
+                        r["payee"],
+                        r["document_reference"],
+                    ]
+                    for col_idx, value in enumerate(row_values, start=1):
+                        ws.cell(row=data_row, column=col_idx, value=value)
+                    data_row += 1
+                elif item["type"] == "subtotal":
+                    ws.merge_cells(f"A{data_row}:I{data_row}")
+                    c = ws.cell(row=data_row, column=1)
+                    c.value = f"Subtotal — {item['code']} — {item['name']}"
+                    c.font = Font(bold=True)
+                    c.alignment = Alignment(horizontal="right", vertical="center")
+                    ws.cell(row=data_row, column=10, value=float(item["debit"]))
+                    ws.cell(row=data_row, column=11, value=float(item["credit"]))
+                    ws.cell(row=data_row, column=12, value=float(item["running_balance"]))
+                    for col in range(13, n_headers + 1):
+                        ws.cell(row=data_row, column=col, value="")
+                    data_row += 1
+            ws.merge_cells(f"A{data_row}:I{data_row}")
+            gt = ws.cell(row=data_row, column=1)
+            gt.value = "Grand total"
+            gt.font = Font(bold=True)
+            gt.alignment = Alignment(horizontal="right", vertical="center")
+            ws.cell(row=data_row, column=10, value=float(grand_total_debit))
+            ws.cell(row=data_row, column=11, value=float(grand_total_credit))
+            ws.cell(row=data_row, column=12, value=float(closing_balance))
+            for col in range(13, n_headers + 1):
+                ws.cell(row=data_row, column=col, value="")
 
-        num_start = header_row + 1
-        num_end = ws.max_row
-        for r_idx in range(num_start, num_end + 1):
-            ws.cell(row=r_idx, column=10).number_format = "#,##0.00"
-            ws.cell(row=r_idx, column=11).number_format = "#,##0.00"
-            ws.cell(row=r_idx, column=12).number_format = "#,##0.00"
+        for r_idx in range(header_row + 1, ws.max_row + 1):
+            v = ws.cell(row=r_idx, column=1).value
+            fmt_nums = isinstance(v, (date, datetime)) or (
+                isinstance(v, str) and (v.startswith("Subtotal") or v == "Grand total")
+            )
+            if fmt_nums:
+                for c in (10, 11, 12):
+                    ws.cell(row=r_idx, column=c).number_format = "#,##0.00"
 
         ws.freeze_panes = f"A{header_row + 1}"
-        widths = [12, 18, 14, 26, 24, 22, 24, 36, 38, 14, 14, 18, 11, 24]
+        widths = [12, 18, 14, 26, 24, 22, 14, 28, 36, 14, 14, 18, 11, 22, 24]
         for idx, width in enumerate(widths, start=1):
             ws.column_dimensions[get_column_letter(idx)].width = width
 
@@ -9751,22 +10342,14 @@ def finance_opening_balances_view(request: HttpRequest) -> HttpResponse:
     )
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+@tenant_view(
+    require_module="audit_risk",
+    require_perm_any=["module:audit_risk.view", "finance:audit.view"],
+)
 def finance_audit_trail_view(request: HttpRequest) -> HttpResponse:
     from tenant_finance.models import AuditLog
 
     tenant_db = request.tenant_db
-    from rbac.models import user_has_permission as _uhp
-    cached = getattr(request, "rbac_permission_codes", None)
-    if not (isinstance(cached, set) and ("*" in cached or "finance:audit.view" in cached)) and not _uhp(
-        request.tenant_user, "finance:audit.view", using=tenant_db
-    ):
-        return render(
-            request,
-            "tenant_portal/forbidden.html",
-            {"tenant": request.tenant, "tenant_user": request.tenant_user, "reason": "You do not have permission to view audit logs."},
-            status=403,
-        )
     f = _parse_finance_filters(request)
     logs = AuditLog.objects.using(tenant_db).order_by("-changed_at")
     mn = (request.GET.get("model_name") or "").strip().lower()
@@ -9791,8 +10374,8 @@ def finance_audit_trail_view(request: HttpRequest) -> HttpResponse:
         {
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
-            "active_submenu": "core",
-            "active_item": "core_audit",
+            "active_submenu": "audit_risk",
+            "active_item": "audit_risk_txn_log",
             "filters": f,
             "logs": logs,
             "export_csv_url": _finance_export_csv_url(request),
@@ -9814,7 +10397,7 @@ def finance_journal_approval_view(request: HttpRequest) -> HttpResponse:
 
     from rbac.models import user_has_permission as _user_has_permission
     from tenant_finance.models import FiscalPeriod, JournalEntry
-    from tenant_grants.models import Grant
+    from tenant_grants.models import Donor, Grant, Project
     from tenant_users.models import TenantUser
 
     tenant_db = request.tenant_db
@@ -9884,6 +10467,14 @@ def finance_journal_approval_view(request: HttpRequest) -> HttpResponse:
     if f["grant_id"]:
         qs = qs.filter(grant_id=f["grant_id"])
 
+    donor_id_appr = (request.GET.get("donor_id") or "").strip()
+    if donor_id_appr.isdigit():
+        qs = qs.filter(grant__donor_id=int(donor_id_appr))
+    project_id_appr = (request.GET.get("project_id") or "").strip()
+    if project_id_appr.isdigit():
+        pid = int(project_id_appr)
+        qs = qs.filter(Q(project_id=pid) | Q(grant__project_id=pid))
+
     created_by_id = (request.GET.get("created_by_id") or "").strip()
     if created_by_id.isdigit():
         qs = qs.filter(created_by_id=int(created_by_id))
@@ -9946,6 +10537,12 @@ def finance_journal_approval_view(request: HttpRequest) -> HttpResponse:
         )
 
     grants = Grant.objects.using(tenant_db).filter(status="active").order_by("code")
+    donors = Donor.objects.using(tenant_db).order_by("name")
+    projects = (
+        Project.objects.using(tenant_db)
+        .filter(status=Project.Status.ACTIVE, is_active=True)
+        .order_by("code")
+    )
     created_by_users = (
         TenantUser.objects.using(tenant_db).filter(is_active=True).order_by("full_name", "email")
     )
@@ -10011,7 +10608,11 @@ def finance_journal_approval_view(request: HttpRequest) -> HttpResponse:
             "amount_min": (request.GET.get("amount_min") or "").strip(),
             "amount_max": (request.GET.get("amount_max") or "").strip(),
             "created_by_id": (request.GET.get("created_by_id") or "").strip(),
+            "donor_id": (request.GET.get("donor_id") or "").strip(),
+            "project_id": (request.GET.get("project_id") or "").strip(),
             "grants": grants,
+            "donors": donors,
+            "projects": projects,
             "created_by_users": created_by_users,
             "journal_statuses": JournalEntry.Status,
             "can_approve": can_approve,
@@ -17874,7 +18475,10 @@ def controls_home_view(request: HttpRequest) -> HttpResponse:
     from django.utils.formats import date_format
     from django.utils.translation import gettext as _
 
+    from tenants.services.tenant_modules import tenant_enabled_module_codes
+
     tenant_db = request.tenant_db
+    audit_mod = "audit_risk" in tenant_enabled_module_codes(request.tenant)
     now = timezone.now()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     since_30d = now - timedelta(days=30)
@@ -17885,6 +18489,7 @@ def controls_home_view(request: HttpRequest) -> HttpResponse:
     workflows_active = 0
     compliance_open = 0
     recent_rows: list[dict] = []
+    pv_queue_count = 0
 
     try:
         from tenant_grants.models import GrantApproval
@@ -17901,6 +18506,11 @@ def controls_home_view(request: HttpRequest) -> HttpResponse:
             status=JournalEntry.Status.PENDING_APPROVAL
         ).count()
 
+        pv_queue_count = JournalEntry.objects.using(tenant_db).filter(
+            reference__startswith="PV-",
+            status__in=(JournalEntry.Status.DRAFT, JournalEntry.Status.PENDING_APPROVAL),
+        ).count()
+
         audit_30d = AuditLog.objects.using(tenant_db).filter(changed_at__gte=since_30d).count()
 
         workflows_active = ApprovalWorkflow.objects.using(tenant_db).filter(
@@ -17914,15 +18524,16 @@ def controls_home_view(request: HttpRequest) -> HttpResponse:
         pass
 
     try:
-        from tenant_audit_risk.models import InvestigationAttachment, RiskAlert
+        if audit_mod:
+            from tenant_audit_risk.models import InvestigationAttachment, RiskAlert
 
-        docs_month += InvestigationAttachment.objects.using(tenant_db).filter(
-            uploaded_at__gte=month_start
-        ).count()
+            docs_month += InvestigationAttachment.objects.using(tenant_db).filter(
+                uploaded_at__gte=month_start
+            ).count()
 
-        compliance_open = RiskAlert.objects.using(tenant_db).filter(
-            status=RiskAlert.Status.OPEN
-        ).count()
+            compliance_open = RiskAlert.objects.using(tenant_db).filter(
+                status=RiskAlert.Status.OPEN
+            ).count()
     except Exception:
         pass
 
@@ -17949,6 +18560,12 @@ def controls_home_view(request: HttpRequest) -> HttpResponse:
     except Exception:
         pass
 
+    docs_href = (
+        reverse("tenant_portal:audit_risk_evidence")
+        if audit_mod
+        else reverse("tenant_portal:documents_dashboard")
+    )
+
     gov_kpis = [
         {
             "label": _("Pending approvals"),
@@ -17956,26 +18573,39 @@ def controls_home_view(request: HttpRequest) -> HttpResponse:
             "href": reverse("tenant_portal:finance_journal_approval"),
         },
         {
-            "label": _("Documents (this month)"),
-            "value": f"{docs_month:,}",
-            "href": reverse("tenant_portal:audit_risk_evidence"),
+            "label": _("Payment vouchers (queue)"),
+            "value": f"{pv_queue_count:,}",
+            "href": reverse("tenant_portal:pay_pending_approval_queue"),
         },
         {
-            "label": _("Audit entries (30 days)"),
-            "value": f"{audit_30d:,}",
-            "href": reverse("tenant_portal:finance_audit_trail"),
+            "label": _("Documents (this month)"),
+            "value": f"{docs_month:,}",
+            "href": docs_href,
         },
+    ]
+    if audit_mod:
+        gov_kpis.append(
+            {
+                "label": _("Audit entries (30 days)"),
+                "value": f"{audit_30d:,}",
+                "href": reverse("tenant_portal:finance_audit_trail"),
+            }
+        )
+    gov_kpis.append(
         {
             "label": _("Active workflows"),
             "value": f"{workflows_active:,}",
             "href": reverse("tenant_portal:setup_approval_workflows_list"),
-        },
-        {
-            "label": _("Open compliance alerts"),
-            "value": f"{compliance_open:,}",
-            "href": reverse("tenant_portal:audit_risk_compliance"),
-        },
-    ]
+        }
+    )
+    if audit_mod:
+        gov_kpis.append(
+            {
+                "label": _("Open compliance alerts"),
+                "value": f"{compliance_open:,}",
+                "href": reverse("tenant_portal:audit_risk_compliance"),
+            }
+        )
 
     return render(
         request,
@@ -19963,7 +20593,7 @@ def outgoing_fund_center_view(request: HttpRequest) -> HttpResponse:
             "label": _("Pending approvals"),
             "value": f"{pending_payments_n:,}",
             "hint": _("Draft or submitted payments"),
-            "href": reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
+            "href": reverse("tenant_portal:pay_pending_approval_queue"),
             "tone": "neutral",
         },
         {
@@ -20059,8 +20689,8 @@ def pay_payment_batches_view(request: HttpRequest) -> HttpResponse:
         ),
         hub_links=[
             {
-                "label": _("Bulk payment approval"),
-                "url": reverse("tenant_portal:pay_payment_voucher_bulk_approval"),
+                "label": _("Pending approval queue"),
+                "url": reverse("tenant_portal:pay_pending_approval_queue"),
                 "hint": _("Review and approve multiple payments in one queue."),
             },
             {
@@ -20415,6 +21045,12 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
 
     # Handle new voucher POST (maker creates / saves draft / submits for approval)
     if request.method == "POST":
+        _entry_id = (request.POST.get("entry_id") or "").strip()
+        if _entry_id.isdigit():
+            from tenant_finance.services.payment_voucher_revision import apply_payment_voucher_update
+
+            return apply_payment_voucher_update(request, tenant_db, int(_entry_id))
+
         errors = []
 
         # Mandatory fields
@@ -20475,6 +21111,13 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             request.POST.get("budget_code_id") or request.POST.get("budget_line_id") or ""
         ).strip()
         description = (request.POST.get("description") or "").strip()
+        action = (request.POST.get("action") or "").strip()
+        relax_pv = payment_type == "expense_payment" and action in (
+            "save_draft",
+            "post_new",
+            "post_close",
+            "submit_for_approval",
+        )
 
         # Voucher date: required, not in the future
         entry_date = None
@@ -20492,15 +21135,16 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         if payment_type not in valid_payment_types:
             errors.append("Payment type is required.")
             payment_type = "expense_payment"
-        if payment_type == "expense_payment":
-            if not payee_type:
-                errors.append("Payee type is required.")
-            if not payee:
-                errors.append("Payee name is required.")
-        if not payment_method:
-            errors.append("Payment method is required.")
-        if not payment_account_id:
-            errors.append("Bank / cash account is required.")
+        if not relax_pv:
+            if payment_type == "expense_payment":
+                if not payee_type:
+                    errors.append("Payee type is required.")
+                if not payee:
+                    errors.append("Payee name is required.")
+            if not payment_method:
+                errors.append("Payment method is required.")
+            if not payment_account_id:
+                errors.append("Bank / cash account is required.")
         if payment_type != "expense_payment" and not destination_account_id:
             errors.append("Destination account is required for transfers.")
         if not description:
@@ -20523,37 +21167,52 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                 ):
                     errors.append("Select an active project.")
                     project_obj = None
-            if not grant_id:
-                errors.append("Grant is required.")
-            if not budget_line_id or not budget_line_id.isdigit():
-                errors.append("Budget code is required.")
-            else:
+            if not relax_pv:
+                if not grant_id:
+                    errors.append("Grant is required.")
+                if not budget_line_id or not budget_line_id.isdigit():
+                    errors.append("Budget code is required.")
+                else:
+                    budget_line_obj = (
+                        BudgetLine.objects.using(tenant_db)
+                        .select_related("grant", "account")
+                        .filter(pk=int(budget_line_id))
+                        .first()
+                    )
+                    if not budget_line_obj:
+                        errors.append("Invalid budget code.")
+                    elif str(budget_line_obj.grant_id) != str(grant_id):
+                        errors.append("Budget code must belong to the selected grant.")
+                    elif project_obj and budget_line_obj.grant.project_id != project_obj.id:
+                        errors.append("Budget code must belong to the selected project.")
+                    elif budget_line_obj.grant_id and project_obj:
+                        sel_ids = {
+                            x.id
+                            for x in _pv_selectable_budget_codes(tenant_db, budget_line_obj.grant, project_obj.id)
+                        }
+                        if budget_line_obj.id not in sel_ids:
+                            errors.append(
+                                "This budget code cannot be used (inactive or unmapped expense account)."
+                            )
+                    if budget_line_obj:
+                        if budget_line_obj.account_id:
+                            expense_account_id = str(budget_line_obj.account_id)
+                        else:
+                            errors.append("Budget code has no expense account mapped.")
+            elif budget_line_id and budget_line_id.isdigit():
                 budget_line_obj = (
                     BudgetLine.objects.using(tenant_db)
                     .select_related("grant", "account")
                     .filter(pk=int(budget_line_id))
                     .first()
                 )
-                if not budget_line_obj:
-                    errors.append("Invalid budget code.")
-                elif str(budget_line_obj.grant_id) != str(grant_id):
-                    errors.append("Budget code must belong to the selected grant.")
-                elif project_obj and budget_line_obj.grant.project_id != project_obj.id:
-                    errors.append("Budget code must belong to the selected project.")
-                elif budget_line_obj.grant_id and project_obj:
-                    sel_ids = {
-                        x.id
-                        for x in _pv_selectable_budget_codes(tenant_db, budget_line_obj.grant, project_obj.id)
-                    }
-                    if budget_line_obj.id not in sel_ids:
-                        errors.append(
-                            "This budget code cannot be used (inactive or unmapped expense account)."
-                        )
-            if budget_line_obj:
-                if budget_line_obj.account_id:
-                    expense_account_id = str(budget_line_obj.account_id)
-                else:
-                    errors.append("Budget code has no expense account mapped.")
+                if budget_line_obj:
+                    if grant_id and str(budget_line_obj.grant_id) != str(grant_id):
+                        errors.append("Budget code must belong to the selected grant.")
+                    elif project_obj and budget_line_obj.grant.project_id != project_obj.id:
+                        errors.append("Budget code must belong to the selected project.")
+                    elif budget_line_obj.account_id:
+                        expense_account_id = str(budget_line_obj.account_id)
 
         try:
             total_amount = Decimal(str(request.POST.get("amount") or "0").replace(",", ""))
@@ -20572,7 +21231,7 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
         exchange_rate = _parse_exchange_rate(request.POST.get("exchange_rate"))
         raw_due = (request.POST.get("payment_due_date") or "").strip()
         payment_due_date = parse_date(raw_due) if raw_due else None
-        if total_amount <= 0:
+        if not relax_pv and total_amount <= 0:
             errors.append("Total payment amount must be greater than zero.")
 
         # If there are validation errors, show them and do not create voucher
@@ -20585,8 +21244,8 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             grant_envelope_exceeded = False
             grant_available_snapshot = None
 
-            # Additional runtime validations before creating voucher
-            if entry_date:
+            # Open period is enforced at GL post (approved → posted), not for draft / pending approval saves.
+            if entry_date and not relax_pv:
                 try:
                     _finance_assert_open_period(entry_date, tenant_db, getattr(request, "tenant_user_id", None))
                 except ValueError as e:
@@ -20639,57 +21298,90 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             )
             grant = Grant.objects.using(tenant_db).filter(pk=grant_id).first() if grant_id else None
 
-            if not payment_account or payment_account.id not in valid_payment_account_ids:
-                messages.error(
-                    request,
-                    "Bank / cash account must be an active posting asset account under 1200 — Bank Accounts.",
-                )
-                return redirect(reverse("tenant_portal:pay_payment_vouchers"))
-            if payment_type != "expense_payment":
-                if not destination_account or destination_account.id not in valid_payment_account_ids:
+            strict_payment_accounts = not (relax_pv and payment_type == "expense_payment")
+            if strict_payment_accounts:
+                if not payment_account or payment_account.id not in valid_payment_account_ids:
                     messages.error(
                         request,
-                        "Destination account must be an active posting asset account under 1200 — Bank Accounts.",
+                        "Bank / cash account must be an active posting asset account under 1200 — Bank Accounts.",
                     )
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
-                if destination_account.id == payment_account.id:
-                    messages.error(request, "Source and destination accounts cannot be the same.")
+                if payment_type != "expense_payment":
+                    if not destination_account or destination_account.id not in valid_payment_account_ids:
+                        messages.error(
+                            request,
+                            "Destination account must be an active posting asset account under 1200 — Bank Accounts.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                    if destination_account.id == payment_account.id:
+                        messages.error(request, "Source and destination accounts cannot be the same.")
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+
+                from tenant_finance.services.bank_account_dropdowns import chart_gl_usable_for_new_bank_transaction
+
+                if payment_account:
+                    if not chart_gl_usable_for_new_bank_transaction(tenant_db, payment_account.id):
+                        messages.error(
+                            request,
+                            "Selected bank / cash account is inactive and cannot be used for new transactions.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                if payment_type != "expense_payment" and destination_account:
+                    if not chart_gl_usable_for_new_bank_transaction(tenant_db, destination_account.id):
+                        messages.error(
+                            request,
+                            "Destination bank / cash account is inactive and cannot be used for new transactions.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+
+                if payment_type == "expense_payment":
+                    if (
+                        not expense_account
+                        or expense_account.type != ChartAccount.Type.EXPENSE
+                        or not expense_account.is_active
+                    ):
+                        messages.error(
+                            request,
+                            "Expense account must be an active expense account.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                    if budget_line_obj and expense_account.id != budget_line_obj.account_id:
+                        messages.error(
+                            request,
+                            "Expense account must match the selected budget line.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+            elif payment_type == "expense_payment" and payment_account_id:
+                from tenant_finance.services.bank_account_dropdowns import chart_gl_usable_for_new_bank_transaction
+
+                if payment_account and payment_account.id not in valid_payment_account_ids:
+                    messages.error(
+                        request,
+                        "Bank / cash account must be an active posting asset account under 1200 — Bank Accounts.",
+                    )
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
-
-            from tenant_finance.services.bank_account_dropdowns import chart_gl_usable_for_new_bank_transaction
-
-            if payment_account:
-                if not chart_gl_usable_for_new_bank_transaction(tenant_db, payment_account.id):
+                if payment_account and not chart_gl_usable_for_new_bank_transaction(tenant_db, payment_account.id):
                     messages.error(
                         request,
                         "Selected bank / cash account is inactive and cannot be used for new transactions.",
                     )
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
-            if payment_type != "expense_payment" and destination_account:
-                if not chart_gl_usable_for_new_bank_transaction(tenant_db, destination_account.id):
-                    messages.error(
-                        request,
-                        "Destination bank / cash account is inactive and cannot be used for new transactions.",
-                    )
-                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
-
-            if payment_type == "expense_payment":
-                if (
-                    not expense_account
-                    or expense_account.type != ChartAccount.Type.EXPENSE
-                    or not expense_account.is_active
-                ):
-                    messages.error(
-                        request,
-                        "Expense account must be an active expense account.",
-                    )
-                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
-                if budget_line_obj and expense_account.id != budget_line_obj.account_id:
-                    messages.error(
-                        request,
-                        "Expense account must match the selected budget line.",
-                    )
-                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                if expense_account_id and expense_account:
+                    if (
+                        expense_account.type != ChartAccount.Type.EXPENSE
+                        or not expense_account.is_active
+                    ):
+                        messages.error(
+                            request,
+                            "Expense account must be an active expense account.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                    if budget_line_obj and expense_account.id != budget_line_obj.account_id:
+                        messages.error(
+                            request,
+                            "Expense account must match the selected budget line.",
+                        )
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
             if payment_type == "expense_payment" and grant and total_amount > 0:
                 from django.db.models import Sum as _Sum
@@ -20726,35 +21418,18 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                             f"Amount exceeds grant budget availability ({available:.2f} remaining)."
                         )
 
-            can_post_voucher = total_amount > 0 and (is_manager or grant)
-            if payment_type == "expense_payment":
-                can_post_voucher = can_post_voucher and bool(payment_account) and bool(expense_account)
+            if relax_pv and payment_type == "expense_payment":
+                can_create_voucher = True
             else:
-                can_post_voucher = can_post_voucher and bool(payment_account) and bool(destination_account)
+                can_create_voucher = total_amount > 0 and (is_manager or grant)
+                if payment_type == "expense_payment":
+                    can_create_voucher = can_create_voucher and bool(payment_account) and bool(expense_account)
+                else:
+                    can_create_voucher = can_create_voucher and bool(payment_account) and bool(destination_account)
 
-            if can_post_voucher:
-                # Validate sufficient bank balance for payments before creating voucher
-                from tenant_finance.models import BankAccount as _BankAccount
-
-                bank_account = (
-                    _BankAccount.objects.using(tenant_db)
-                    .filter(account_id=payment_account.id, is_active=True)
-                    .first()
-                )
-                if bank_account:
-                    try:
-                        _balance = _compute_bank_current_balance(bank_account, tenant_db)
-                    except Exception:
-                        _balance = None
-                    if _balance is not None and _balance < total_amount:
-                        messages.error(
-                            request,
-                            f"Insufficient bank balance. Current balance {_balance:.2f} is "
-                            f"less than payment amount {total_amount:.2f}.",
-                        )
-                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+            if can_create_voucher:
+                # Bank liquidity is checked only when posting approved vouchers to the GL (not on draft/create).
                 # Determine workflow status: draft or pending approval
-                action = (request.POST.get("action") or "").strip()
                 if action == "save_draft":
                     status = JournalEntry.Status.DRAFT
                 elif action in ("post_new", "post_close", "submit_for_approval"):
@@ -20762,11 +21437,23 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                 else:
                     status = JournalEntry.Status.PENDING_APPROVAL
 
+                from django.utils import timezone as _dj_tz
+
+                submit_kw: dict = {}
+                if status == JournalEntry.Status.PENDING_APPROVAL:
+                    submit_kw["submitted_by_id"] = getattr(request.tenant_user, "id", None)
+                    submit_kw["submitted_at"] = _dj_tz.now()
+
                 # Create journal entry (voucher header) — system source document for GL register
                 entry = JournalEntry.objects.using(tenant_db).create(
                     entry_date=entry_date,
                     memo=description or f"Payment voucher for {payee or 'N/A'}",
                     grant=grant,
+                    project=(
+                        project_obj
+                        if payment_type == "expense_payment" and project_obj
+                        else (grant.project if grant and getattr(grant, "project_id", None) else None)
+                    ),
                     status=status,
                     created_by=request.tenant_user,
                     payee_name=payee or "",
@@ -20787,6 +21474,7 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     is_system_generated=True,
                     exchange_rate=exchange_rate,
                     payment_due_date=payment_due_date,
+                    **submit_kw,
                 )
                 # Set reference with PV prefix
                 entry.reference = f"PV-{entry.id:05d}"
@@ -20815,24 +21503,25 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
                     # Audit logging should never block the main transaction
                     pass
 
-                # Expense payment: Dr expense (from budget code); Cr bank/cash (single amount).
+                # Expense payment: Dr expense; Cr bank/cash — lines omitted until amount and accounts are complete.
                 if payment_type == "expense_payment":
-                    JournalLine.objects.using(tenant_db).create(
-                        entry=entry,
-                        account=expense_account,
-                        description=description,
-                        debit=total_amount,
-                        credit=Decimal("0"),
-                        grant=grant,
-                    )
-                    JournalLine.objects.using(tenant_db).create(
-                        entry=entry,
-                        account=payment_account,
-                        description=description,
-                        debit=Decimal("0"),
-                        credit=total_amount,
-                        grant=grant,
-                    )
+                    if expense_account and payment_account and total_amount > 0:
+                        JournalLine.objects.using(tenant_db).create(
+                            entry=entry,
+                            account=expense_account,
+                            description=description,
+                            debit=total_amount,
+                            credit=Decimal("0"),
+                            grant=grant,
+                        )
+                        JournalLine.objects.using(tenant_db).create(
+                            entry=entry,
+                            account=payment_account,
+                            description=description,
+                            debit=Decimal("0"),
+                            credit=total_amount,
+                            grant=grant,
+                        )
                 else:
                     JournalLine.objects.using(tenant_db).create(
                         entry=entry,
@@ -21045,6 +21734,36 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
 
     grant_budget = {str(g.id): _grant_budget_snapshot(g) for g in grants}
 
+    edit_entry = None
+    edit_json = None
+    edit_is_posted = False
+    _eid = (request.GET.get("edit") or "").strip()
+    if _eid.isdigit():
+        import json
+
+        from django.core.serializers.json import DjangoJSONEncoder
+
+        from tenant_finance.models import JournalEntry as _JE
+        from tenant_finance.services.payment_voucher_revision import (
+            build_payment_voucher_edit_context,
+            user_can_revise_posted_payment_voucher,
+        )
+
+        _pv = _JE.objects.using(tenant_db).filter(pk=int(_eid)).first()
+        if _pv and (_pv.reference or "").strip().upper().startswith("PV-"):
+            st_pv = (_pv.source_type or "").strip()
+            jt_pv = (_pv.journal_type or "").strip().lower()
+            if st_pv == _JE.SourceType.PAYMENT_VOUCHER or jt_pv == "payment_voucher":
+                _allow = _pv.status not in (_JE.Status.POSTED,) or user_can_revise_posted_payment_voucher(
+                    request, tenant_db
+                )
+                if _allow:
+                    edit_entry = build_payment_voucher_edit_context(_pv)
+                    edit_is_posted = _pv.status == _JE.Status.POSTED
+                    _d = dict(edit_entry)
+                    _d["amount"] = str(_d.get("amount") or "0")
+                    edit_json = json.dumps(_d, cls=DjangoJSONEncoder)
+
     return render(
         request,
         "tenant_portal/pay/payment_vouchers.html",
@@ -21068,6 +21787,9 @@ def pay_payment_vouchers_view(request: HttpRequest) -> HttpResponse:
             "projects": projects,
             "pv_grants_json_url": reverse("tenant_portal:pay_pv_grants_json"),
             "pv_budget_lines_json_url": reverse("tenant_portal:pay_pv_budget_lines_json"),
+            "edit_entry": edit_entry,
+            "edit_json": edit_json,
+            "edit_is_posted": edit_is_posted,
         },
     )
 
@@ -21257,7 +21979,12 @@ def pay_payment_voucher_detail_view(request: HttpRequest, entry_id: int) -> Http
     """
     from decimal import Decimal
     from django.shortcuts import get_object_or_404
+    from django.urls import reverse
+
     from tenant_finance.models import JournalEntry, JournalLine, ChartAccount
+    from tenant_finance.services.payment_voucher_draft_completeness import (
+        list_missing_payment_voucher_expense_fields,
+    )
 
     tenant_db = request.tenant_db
     entry = get_object_or_404(JournalEntry.objects.using(tenant_db), pk=entry_id)
@@ -21267,10 +21994,44 @@ def pay_payment_voucher_detail_view(request: HttpRequest, entry_id: int) -> Http
     if not reference.startswith("PV-"):
         messages.warning(request, "This journal entry is not tagged as a payment voucher.")
 
-    lines = list(JournalLine.objects.using(tenant_db).select_related("account").filter(entry=entry))
-    payment_line = next((l for l in lines if l.credit > 0 and l.account.type == ChartAccount.Type.ASSET), None)
-    expense_line = next((l for l in lines if l.debit > 0 and l.account.type == ChartAccount.Type.EXPENSE), None)
+    lines = list(
+        JournalLine.objects.using(tenant_db)
+        .select_related("account", "project_budget_line")
+        .filter(entry=entry)
+    )
+    payment_line = next(
+        (
+            l
+            for l in lines
+            if l.credit > 0 and l.account_id and l.account.type == ChartAccount.Type.ASSET
+        ),
+        None,
+    )
+    expense_line = next(
+        (
+            l
+            for l in lines
+            if l.debit > 0 and l.account_id and l.account.type == ChartAccount.Type.EXPENSE
+        ),
+        None,
+    )
     total = sum((l.debit - l.credit) for l in lines) if lines else Decimal("0")
+    amount_display = expense_line.debit if expense_line and (expense_line.debit or 0) > 0 else abs(total)
+
+    draft_missing_fields: list[str] = []
+    payment_voucher_edit_url = ""
+    if reference.upper().startswith("PV-"):
+        draft_missing_fields = list_missing_payment_voucher_expense_fields(using=tenant_db, entry=entry)
+        can_edit_unposted_pv = user_has_permission(
+            request.tenant_user, "finance:journals.create", using=tenant_db
+        ) or user_has_permission(request.tenant_user, "module:finance.manage", using=tenant_db)
+        if can_edit_unposted_pv and entry.status != JournalEntry.Status.POSTED:
+            payment_voucher_edit_url = reverse("tenant_portal:pay_payment_vouchers") + f"?edit={entry.id}"
+
+    budget_code_display = "—"
+    if expense_line and getattr(expense_line, "project_budget_line_id", None):
+        pbl = expense_line.project_budget_line
+        budget_code_display = (getattr(pbl, "category", None) or "—") if pbl else "—"
 
     return render(
         request,
@@ -21283,7 +22044,10 @@ def pay_payment_voucher_detail_view(request: HttpRequest, entry_id: int) -> Http
             "lines": lines,
             "payment_line": payment_line,
             "expense_line": expense_line,
-            "amount": total,
+            "amount": amount_display,
+            "draft_missing_fields": draft_missing_fields,
+            "payment_voucher_edit_url": payment_voucher_edit_url,
+            "budget_code_display": budget_code_display,
             "active_submenu": "payables",
             "active_item": "pay_payment_vouchers",
         },
@@ -21314,6 +22078,10 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
         messages.error(request, "This entry is not a payment voucher.")
         return redirect(reverse("tenant_portal:finance_journal_approval"))
 
+    if request.method == "GET" and entry.status == JournalEntry.Status.DRAFT:
+        messages.info(request, "This voucher is still a draft. Submit it for approval from Payments when ready.")
+        return redirect(reverse("tenant_portal:pay_payment_voucher_detail", args=[entry.id]))
+
     if request.method == "POST":
         from rbac.models import user_has_permission as _uhp
         cached = getattr(request, "rbac_permission_codes", None)
@@ -21332,6 +22100,9 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
             old_status = entry.status
 
             if action == "approve":
+                if entry.status != JournalEntry.Status.PENDING_APPROVAL:
+                    messages.error(request, "Only vouchers pending approval can be approved.")
+                    return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
                 if not _has("finance:vouchers.approve"):
                     messages.error(request, "You do not have permission to approve vouchers.")
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
@@ -21355,9 +22126,8 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
                     messages.error(request, "Maker-checker is enforced: you cannot approve a voucher you created.")
                     return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
 
-                # Approve pending budget override (if any) so JournalEntry.save passes budget control
+                # Approve: pending → approved (GL posting is a separate step).
                 from tenant_finance.services.budget_control import BudgetControlEngine
-                from tenant_finance.services.journal_posting import post_payment_voucher
 
                 BudgetControlEngine(tenant_db).approve_pending_override_for_entry(
                     entry=entry,
@@ -21365,19 +22135,16 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
                     decision_note=comment,
                 )
 
-                entry.status = JournalEntry.Status.POSTED
-                entry.posted_at = _tz.now()
+                entry.status = JournalEntry.Status.APPROVED
                 entry.approved_by_id = getattr(request.tenant_user, "id", None)
-                entry.posted_by_id = getattr(request.tenant_user, "id", None)
+                entry.approved_at = _tz.now()
                 entry.save(
                     update_fields=[
                         "status",
-                        "posted_at",
                         "approved_by_id",
-                        "posted_by_id",
+                        "approved_at",
                     ]
                 )
-                post_payment_voucher(using=tenant_db, entry=entry, user=request.tenant_user)
 
                 try:
                     AuditLog.objects.using(tenant_db).create(
@@ -21389,15 +22156,60 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
                         or getattr(request.tenant_user, "email", ""),
                         old_data={"status": old_status},
                         new_data={"status": entry.status},
-                        summary="Payment voucher approved and posted.",
+                        summary="Payment voucher approved (awaiting post to GL).",
                     )
                 except Exception:
                     pass
 
-                messages.success(request, f"Payment voucher {reference} approved and posted.")
+                messages.success(
+                    request,
+                    f"Payment voucher {reference} approved. Use Post to GL when lines, period, and bank balance are ready.",
+                )
+                return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
+
+            elif action == "post_to_gl":
+                if not _has("finance:vouchers.post") and not _has("module:finance.manage"):
+                    messages.error(request, "You do not have permission to post vouchers to the general ledger.")
+                    return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                if entry.grant_id and not _has("finance:scope.all_grants"):
+                    try:
+                        if not request.tenant_user.assigned_grants.using(tenant_db).filter(id=entry.grant_id).exists():
+                            messages.error(request, "You do not have access to this grant/project.")
+                            return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                    except Exception:
+                        messages.error(request, "You do not have access to this grant/project.")
+                        return redirect(reverse("tenant_portal:pay_payment_vouchers"))
+                from tenant_finance.services.journal_posting import post_approved_payment_voucher_to_gl
+
+                if entry.status != JournalEntry.Status.APPROVED:
+                    messages.error(request, "Only approved vouchers can be posted to the general ledger.")
+                    return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
+                try:
+                    post_approved_payment_voucher_to_gl(using=tenant_db, entry=entry, user=request.tenant_user)
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                    return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
+                try:
+                    AuditLog.objects.using(tenant_db).create(
+                        model_name="journalentry",
+                        object_id=entry.id,
+                        action=AuditLog.Action.UPDATE,
+                        user_id=getattr(request.tenant_user, "id", None),
+                        username=getattr(request.tenant_user, "full_name", "")
+                        or getattr(request.tenant_user, "email", ""),
+                        old_data={"status": old_status},
+                        new_data={"status": entry.status},
+                        summary="Payment voucher posted to GL.",
+                    )
+                except Exception:
+                    pass
+                messages.success(request, f"Payment voucher {reference} posted to the general ledger.")
                 return redirect(reverse("tenant_portal:pay_payment_vouchers"))
 
             elif action in {"return", "reject"}:
+                if entry.status != JournalEntry.Status.PENDING_APPROVAL:
+                    messages.error(request, "Only vouchers pending approval can be returned for correction.")
+                    return redirect(reverse("tenant_portal:pay_payment_voucher_approve", args=[entry.id]))
                 if not _has("finance:vouchers.approve"):
                     messages.error(request, "You do not have permission to return/reject vouchers.")
                     return redirect(reverse("tenant_portal:pay_payment_vouchers"))
@@ -21437,16 +22249,28 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
         .filter(entry=entry)
     )
     payment_line = next(
-        (l for l in lines if l.credit > 0 and l.account.type == ChartAccount.Type.ASSET),
+        (
+            l
+            for l in lines
+            if l.credit > 0 and l.account_id and l.account.type == ChartAccount.Type.ASSET
+        ),
         None,
     )
     expense_line = next(
-        (l for l in lines if l.debit > 0 and l.account.type == ChartAccount.Type.EXPENSE),
+        (
+            l
+            for l in lines
+            if l.debit > 0 and l.account_id and l.account.type == ChartAccount.Type.EXPENSE
+        ),
         None,
     )
     net = sum((l.debit - l.credit) for l in lines) if lines else Decimal("0")
     expense_total = sum(
-        (l.debit for l in lines if getattr(l.account, "type", None) == ChartAccount.Type.EXPENSE),
+        (
+            l.debit
+            for l in lines
+            if l.account_id and getattr(l.account, "type", None) == ChartAccount.Type.EXPENSE
+        ),
         Decimal("0"),
     )
     total = expense_total if expense_total > 0 else (abs(net) if net else Decimal("0"))
@@ -21462,6 +22286,18 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
         budget_check_result, budget_comparison_rows = _bc.budget_comparison_rows_for_entry(entry)
 
     grant_currency = getattr(entry.grant, "currency", None) if entry.grant_id else None
+
+    from rbac.models import user_has_permission as _uhp_pv_gl
+
+    _rbac_cached = getattr(request, "rbac_permission_codes", None)
+    if isinstance(_rbac_cached, set):
+        can_post_to_gl = ("*" in _rbac_cached) or ("finance:vouchers.post" in _rbac_cached) or (
+            "module:finance.manage" in _rbac_cached
+        )
+    else:
+        can_post_to_gl = _uhp_pv_gl(request.tenant_user, "finance:vouchers.post", using=tenant_db) or _uhp_pv_gl(
+            request.tenant_user, "module:finance.manage", using=tenant_db
+        )
 
     return render(
         request,
@@ -21479,23 +22315,24 @@ def pay_payment_voucher_approve_view(request: HttpRequest, entry_id: int) -> Htt
             "budget_comparison_rows": budget_comparison_rows,
             "budget_check_result": budget_check_result,
             "grant_currency": grant_currency,
+            "can_post_to_gl": can_post_to_gl,
             "active_submenu": "payables",
             "active_item": "pay_payment_vouchers",
         },
     )
 
 
-@tenant_view(require_module="finance_grants", require_perm="module:finance.manage")
-def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse:
+@tenant_view(require_module="finance_grants", require_perm="module:finance.view")
+def pay_pending_approval_queue_view(request: HttpRequest) -> HttpResponse:
     """
-    Bulk approval view for payment vouchers.
+    Pending approval queue: payment vouchers (PV-…) in Draft or Pending approval.
 
-    Shows pending payment vouchers (status=PENDING_APPROVAL, PV-...) and allows
-    authorised approvers to approve, return for correction, or reject in bulk.
+    Approvers with finance:vouchers.approve may approve, return, or reject in bulk
+    (bulk actions apply to Pending approval rows only).
     """
     from django.utils import timezone as _tz
 
-    from django.db.models import Exists, OuterRef, Sum
+    from django.db.models import Exists, OuterRef, Q, Sum
 
     from tenant_finance.models import BudgetOverrideRequest, JournalEntry, AuditLog
 
@@ -21508,25 +22345,20 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
             return ("*" in cached) or (code in cached)
         return _uhp(request.tenant_user, code, using=tenant_db)
 
-    if not _has("finance:vouchers.approve"):
-        return render(
-            request,
-            "tenant_portal/forbidden.html",
-            {"tenant": request.tenant, "tenant_user": request.tenant_user, "reason": "You do not have permission to approve vouchers."},
-            status=403,
-        )
+    can_approve_vouchers = _has("finance:vouchers.approve")
 
     _pending_ov_sq = BudgetOverrideRequest.objects.filter(
         entry_id=OuterRef("pk"),
         status=BudgetOverrideRequest.Status.PENDING,
     )
-    # Pending vouchers (maker has submitted, not yet posted)
-    pending_qs = (
+    queue_qs = (
         JournalEntry.objects.using(tenant_db)
-        .filter(status=JournalEntry.Status.PENDING_APPROVAL)
-        .filter(reference__startswith="PV-")
-        .select_related("grant", "grant__currency", "created_by", "currency")
-        .prefetch_related("lines__account")
+        .filter(
+            status__in=(JournalEntry.Status.DRAFT, JournalEntry.Status.PENDING_APPROVAL),
+            reference__startswith="PV-",
+        )
+        .select_related("grant", "grant__currency", "grant__project", "project", "created_by", "currency")
+        .prefetch_related("lines__account", "lines__project_budget_line", "lines__grant")
         .annotate(
             pv_total=Sum("lines__debit"),
             has_pending_budget_override=Exists(_pending_ov_sq),
@@ -21534,7 +22366,68 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
         .order_by("entry_date", "id")
     )
 
+    from django.utils.dateparse import parse_date
+
+    from tenant_finance.models import FiscalPeriod
+    from tenant_grants.models import Donor, Grant, Project
+
+    ps = parse_date(request.GET.get("period_start") or "")
+    pe = parse_date(request.GET.get("period_end") or "")
+    if ps and pe and pe < ps:
+        pe = ps
+    if ps:
+        queue_qs = queue_qs.filter(entry_date__gte=ps)
+    if pe:
+        queue_qs = queue_qs.filter(entry_date__lte=pe)
+
+    acc_pid = (request.GET.get("accounting_period_id") or "").strip()
+    if acc_pid.isdigit():
+        fp = FiscalPeriod.objects.using(tenant_db).filter(pk=int(acc_pid)).first()
+        if fp:
+            queue_qs = queue_qs.filter(entry_date__gte=fp.start_date, entry_date__lte=fp.end_date)
+
+    gid = (request.GET.get("grant_id") or "").strip()
+    if gid.isdigit():
+        queue_qs = queue_qs.filter(grant_id=int(gid))
+
+    did = (request.GET.get("donor_id") or "").strip()
+    if did.isdigit():
+        queue_qs = queue_qs.filter(grant__donor_id=int(did))
+
+    proj_id = (request.GET.get("project_id") or "").strip()
+    if proj_id.isdigit():
+        pid = int(proj_id)
+        queue_qs = queue_qs.filter(Q(project_id=pid) | Q(grant__project_id=pid))
+
+    pv_q = (request.GET.get("q") or "").strip()
+    if pv_q:
+        queue_qs = queue_qs.filter(
+            Q(reference__icontains=pv_q) | Q(memo__icontains=pv_q) | Q(payee_name__icontains=pv_q)
+        )
+
+    accounting_periods_pv = list(
+        FiscalPeriod.objects.using(tenant_db).select_related("fiscal_year").order_by("-start_date")
+    )
+    grants_pv = Grant.objects.using(tenant_db).filter(status=Grant.Status.ACTIVE).order_by("code")
+    donors_pv = Donor.objects.using(tenant_db).order_by("name")
+    projects_pv = (
+        Project.objects.using(tenant_db)
+        .filter(status=Project.Status.ACTIVE, is_active=True)
+        .order_by("code")
+    )
+
     if request.method == "POST":
+        if not can_approve_vouchers:
+            return render(
+                request,
+                "tenant_portal/forbidden.html",
+                {
+                    "tenant": request.tenant,
+                    "tenant_user": request.tenant_user,
+                    "reason": "You do not have permission to approve or reject payment vouchers.",
+                },
+                status=403,
+            )
         action = (request.POST.get("bulk_action") or "").strip()
         selected_ids = request.POST.getlist("entry_ids")
         comment = (request.POST.get("bulk_comment") or "").strip()
@@ -21547,12 +22440,16 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
             messages.error(request, "Rejection / correction comment is required for bulk actions.")
         else:
             entries = list(
-                pending_qs.filter(pk__in=selected_ids)
-            )  # already filtered to pending PV
+                queue_qs.filter(pk__in=selected_ids, status=JournalEntry.Status.PENDING_APPROVAL)
+            )
 
             if not entries:
-                messages.error(request, "No matching pending vouchers were found for your selection.")
+                messages.error(
+                    request,
+                    "No vouchers pending approval in your selection. Bulk actions apply to Pending approval only (not Draft).",
+                )
             else:
+                processed = 0
                 for entry in entries:
                     old_status = entry.status
                     if action == "approve":
@@ -21573,7 +22470,6 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
                         ):
                             continue
                         from tenant_finance.services.budget_control import BudgetControlEngine
-                        from tenant_finance.services.journal_posting import post_payment_voucher
 
                         BudgetControlEngine(tenant_db).approve_pending_override_for_entry(
                             entry=entry,
@@ -21581,20 +22477,17 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
                             decision_note=comment,
                         )
 
-                        entry.status = JournalEntry.Status.POSTED
-                        entry.posted_at = _tz.now()
+                        entry.status = JournalEntry.Status.APPROVED
                         entry.approved_by_id = getattr(request.tenant_user, "id", None)
-                        entry.posted_by_id = getattr(request.tenant_user, "id", None)
+                        entry.approved_at = _tz.now()
                         entry.save(
                             update_fields=[
                                 "status",
-                                "posted_at",
                                 "approved_by_id",
-                                "posted_by_id",
+                                "approved_at",
                             ]
                         )
-                        post_payment_voucher(using=tenant_db, entry=entry, user=request.tenant_user)
-                        summary = "Payment voucher approved and posted (bulk)."
+                        summary = "Payment voucher approved (awaiting GL post) (bulk)."
                     else:
                         from tenant_finance.services.budget_control import BudgetControlEngine
 
@@ -21606,7 +22499,10 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
                         # Return to draft for correction by maker
                         entry.status = JournalEntry.Status.DRAFT
                         entry.save(update_fields=["status"])
-                        summary = f"Payment voucher returned for correction (bulk). Comment: {comment}"
+                        if action == "reject":
+                            summary = f"Payment voucher rejected / returned to draft (bulk). Comment: {comment}"
+                        else:
+                            summary = f"Payment voucher returned for correction (bulk). Comment: {comment}"
 
                     try:
                         AuditLog.objects.using(tenant_db).create(
@@ -21622,29 +22518,231 @@ def pay_payment_voucher_bulk_approval_view(request: HttpRequest) -> HttpResponse
                         )
                     except Exception:
                         pass
+                    processed += 1
 
-                if action == "approve":
+                if processed and action == "approve":
                     messages.success(
                         request,
-                        f"{len(entries)} payment voucher(s) approved and posted.",
+                        f"{processed} payment voucher(s) approved. Post to GL from each voucher or bulk post when ready.",
                     )
-                else:
+                elif processed:
                     messages.success(
                         request,
-                        f"{len(entries)} payment voucher(s) returned for correction.",
+                        f"{processed} payment voucher(s) returned for correction.",
                     )
 
-                return redirect(reverse("tenant_portal:pay_payment_voucher_bulk_approval"))
+                return redirect(reverse("tenant_portal:pay_pending_approval_queue"))
+
+    queue_list = list(queue_qs)
+    queue_rows: list[dict] = []
+    for entry in queue_list:
+        budget_code = "—"
+        for ln in entry.lines.all():
+            if (ln.debit or 0) > 0:
+                pbl = getattr(ln, "project_budget_line", None)
+                if pbl:
+                    budget_code = ((getattr(pbl, "category", None) or "").strip() or "—")[:120]
+                break
+        proj_disp = "—"
+        if entry.project_id and entry.project:
+            proj_disp = entry.project.code
+        elif entry.grant_id and getattr(entry.grant, "project_id", None) and getattr(entry.grant, "project", None):
+            proj_disp = entry.grant.project.code
+        queue_rows.append(
+            {
+                "entry": entry,
+                "budget_code": budget_code,
+                "project_display": proj_disp,
+            }
+        )
 
     return render(
         request,
-        "tenant_portal/pay/payment_voucher_bulk_approval.html",
+        "tenant_portal/pay/payment_voucher_pending_approval_queue.html",
         {
             "tenant": request.tenant,
             "tenant_user": request.tenant_user,
-            "pending_vouchers": pending_qs,
+            "queue_rows": queue_rows,
+            "can_approve_vouchers": can_approve_vouchers,
+            "active_submenu": "payables",
+            "active_item": "pay_pending_approval_queue",
+            "pv_filter_period_start": request.GET.get("period_start") or "",
+            "pv_filter_period_end": request.GET.get("period_end") or "",
+            "pv_filter_accounting_period_id": acc_pid,
+            "pv_filter_grant_id": gid,
+            "pv_filter_donor_id": did,
+            "pv_filter_project_id": proj_id,
+            "pv_filter_q": pv_q,
+            "pv_accounting_periods": accounting_periods_pv,
+            "pv_grants": grants_pv,
+            "pv_donors": donors_pv,
+            "pv_projects": projects_pv,
+        },
+    )
+
+
+pay_payment_voucher_bulk_approval_view = pay_pending_approval_queue_view
+
+
+@tenant_view(require_module="finance_grants", require_perm="module:finance.manage")
+def pay_payment_voucher_bulk_post_view(request: HttpRequest) -> HttpResponse:
+    """
+    Bulk post to GL for payment vouchers already in Approved status (PV-...).
+    """
+    from django.db.models import Exists, OuterRef, Q, Sum
+
+    from tenant_finance.models import BudgetOverrideRequest, JournalEntry, AuditLog
+
+    tenant_db = request.tenant_db
+    from rbac.models import user_has_permission as _uhp
+
+    cached = getattr(request, "rbac_permission_codes", None)
+
+    def _has(code: str) -> bool:
+        if isinstance(cached, set):
+            return ("*" in cached) or (code in cached)
+        return _uhp(request.tenant_user, code, using=tenant_db)
+
+    if not _has("finance:vouchers.post") and not _has("module:finance.manage"):
+        return render(
+            request,
+            "tenant_portal/forbidden.html",
+            {
+                "tenant": request.tenant,
+                "tenant_user": request.tenant_user,
+                "reason": "You do not have permission to post vouchers to the general ledger.",
+            },
+            status=403,
+        )
+
+    _pending_ov_sq = BudgetOverrideRequest.objects.filter(
+        entry_id=OuterRef("pk"),
+        status=BudgetOverrideRequest.Status.PENDING,
+    )
+    approved_qs = (
+        JournalEntry.objects.using(tenant_db)
+        .filter(status=JournalEntry.Status.APPROVED)
+        .filter(reference__startswith="PV-")
+        .select_related("grant", "grant__currency", "created_by", "currency")
+        .prefetch_related("lines__account")
+        .annotate(
+            pv_total=Sum("lines__debit"),
+            has_pending_budget_override=Exists(_pending_ov_sq),
+        )
+        .order_by("entry_date", "id")
+    )
+
+    from django.utils.dateparse import parse_date
+
+    from tenant_finance.models import FiscalPeriod
+    from tenant_grants.models import Donor, Grant, Project
+
+    ps = parse_date(request.GET.get("period_start") or "")
+    pe = parse_date(request.GET.get("period_end") or "")
+    if ps and pe and pe < ps:
+        pe = ps
+    if ps:
+        approved_qs = approved_qs.filter(entry_date__gte=ps)
+    if pe:
+        approved_qs = approved_qs.filter(entry_date__lte=pe)
+
+    acc_pid = (request.GET.get("accounting_period_id") or "").strip()
+    if acc_pid.isdigit():
+        fp = FiscalPeriod.objects.using(tenant_db).filter(pk=int(acc_pid)).first()
+        if fp:
+            approved_qs = approved_qs.filter(entry_date__gte=fp.start_date, entry_date__lte=fp.end_date)
+
+    gid = (request.GET.get("grant_id") or "").strip()
+    if gid.isdigit():
+        approved_qs = approved_qs.filter(grant_id=int(gid))
+
+    proj_id = (request.GET.get("project_id") or "").strip()
+    if proj_id.isdigit():
+        pid = int(proj_id)
+        approved_qs = approved_qs.filter(Q(project_id=pid) | Q(grant__project_id=pid))
+
+    pv_q = (request.GET.get("q") or "").strip()
+    if pv_q:
+        approved_qs = approved_qs.filter(
+            Q(reference__icontains=pv_q) | Q(memo__icontains=pv_q) | Q(payee_name__icontains=pv_q)
+        )
+
+    accounting_periods_pv = list(
+        FiscalPeriod.objects.using(tenant_db).select_related("fiscal_year").order_by("-start_date")
+    )
+    grants_pv = Grant.objects.using(tenant_db).filter(status=Grant.Status.ACTIVE).order_by("code")
+    donors_pv = Donor.objects.using(tenant_db).order_by("name")
+    projects_pv = (
+        Project.objects.using(tenant_db)
+        .filter(status=Project.Status.ACTIVE, is_active=True)
+        .order_by("code")
+    )
+
+    if request.method == "POST":
+        selected_ids = request.POST.getlist("entry_ids")
+        if not selected_ids:
+            messages.error(request, "Please select at least one approved payment voucher.")
+        else:
+            from tenant_finance.services.journal_posting import post_approved_payment_voucher_to_gl
+
+            entries = list(approved_qs.filter(pk__in=selected_ids))
+            posted_n = 0
+            for entry in entries:
+                if entry.grant_id and not _has("finance:scope.all_grants"):
+                    try:
+                        if not request.tenant_user.assigned_grants.using(tenant_db).filter(id=entry.grant_id).exists():
+                            continue
+                    except Exception:
+                        continue
+                try:
+                    post_approved_payment_voucher_to_gl(using=tenant_db, entry=entry, user=request.tenant_user)
+                except ValueError:
+                    continue
+                posted_n += 1
+                try:
+                    AuditLog.objects.using(tenant_db).create(
+                        model_name="journalentry",
+                        object_id=entry.id,
+                        action=AuditLog.Action.UPDATE,
+                        user_id=getattr(request.tenant_user, "id", None),
+                        username=getattr(request.tenant_user, "full_name", "")
+                        or getattr(request.tenant_user, "email", ""),
+                        old_data={"status": JournalEntry.Status.APPROVED},
+                        new_data={"status": JournalEntry.Status.POSTED},
+                        summary="Payment voucher posted to GL (bulk).",
+                    )
+                except Exception:
+                    pass
+            if posted_n:
+                messages.success(request, f"{posted_n} payment voucher(s) posted to the general ledger.")
+            else:
+                messages.warning(
+                    request,
+                    "No vouchers were posted. Complete lines, open the accounting period, resolve duplicates, "
+                    "and ensure sufficient bank balance, then try again.",
+                )
+            return redirect(reverse("tenant_portal:pay_payment_voucher_bulk_post"))
+
+    return render(
+        request,
+        "tenant_portal/pay/payment_voucher_bulk_post.html",
+        {
+            "tenant": request.tenant,
+            "tenant_user": request.tenant_user,
+            "approved_vouchers": approved_qs,
             "active_submenu": "payables",
             "active_item": "pay_payment_vouchers",
+            "pv_filter_period_start": request.GET.get("period_start") or "",
+            "pv_filter_period_end": request.GET.get("period_end") or "",
+            "pv_filter_accounting_period_id": acc_pid,
+            "pv_filter_grant_id": gid,
+            "pv_filter_donor_id": "",
+            "pv_filter_project_id": proj_id,
+            "pv_filter_q": pv_q,
+            "pv_accounting_periods": accounting_periods_pv,
+            "pv_grants": grants_pv,
+            "pv_donors": donors_pv,
+            "pv_projects": projects_pv,
         },
     )
 

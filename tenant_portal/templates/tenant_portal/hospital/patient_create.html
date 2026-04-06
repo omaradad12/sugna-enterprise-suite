@@ -1,0 +1,101 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | New patient{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">New patient</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Register a patient and auto-generate MRN.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url_tenant 'tenant_portal:hospital_patients' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="arrow-left" class="w-4 h-4"></i>
+        <span>Back to patients</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="bg-white border rounded-lg p-5 max-w-3xl" style="border-color:#edebe9;">
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Full name</label>
+        <input name="full_name" required
+               class="w-full px-3 py-2 rounded-md border"
+               style="border-color:#edebe9;" />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Phone</label>
+          <input name="phone"
+                 class="w-full px-3 py-2 rounded-md border"
+                 style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Email</label>
+          <input name="email" type="email"
+                 class="w-full px-3 py-2 rounded-md border"
+                 style="border-color:#edebe9;" />
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Gender</label>
+        <select name="gender"
+                class="w-full px-3 py-2 rounded-md border bg-white"
+                style="border-color:#edebe9;">
+          {% for v, label in gender_choices %}
+            <option value="{{ v }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Date of birth</label>
+        <input type="date" name="date_of_birth" class="w-full px-3 py-2 rounded-md border" style="border-color:#edebe9;" />
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Address</label>
+        <textarea name="address" rows="2" class="w-full px-3 py-2 rounded-md border" style="border-color:#edebe9;"></textarea>
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Allergies</label>
+        <textarea name="allergies" rows="2" class="w-full px-3 py-2 rounded-md border" style="border-color:#edebe9;" placeholder="NKDA or list allergies"></textarea>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Next of kin name</label>
+          <input name="emergency_contact_name" class="w-full px-3 py-2 rounded-md border" style="border-color:#edebe9;" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold tracking-wide text-[#323130] uppercase mb-1">Next of kin phone</label>
+          <input name="emergency_contact_phone" class="w-full px-3 py-2 rounded-md border" style="border-color:#edebe9;" />
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white"
+                style="background:#0078D4;">
+          <i data-feather="save" class="w-4 h-4"></i>
+          <span>Create patient</span>
+        </button>
+        <a href="{% url_tenant 'tenant_portal:hospital_patients' %}"
+           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+           style="border-color:#edebe9;">
+          <i data-feather="x" class="w-4 h-4"></i>
+          <span>Cancel</span>
+        </a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+

@@ -205,3 +205,67 @@ class TenantDomain(models.Model):
     def __str__(self) -> str:
         return self.domain
 
+
+class TenantBrandingProfile(models.Model):
+    """
+    Visual identity and default workplace behavior (control plane).
+
+    Synced into tenant DB OrganizationSettings during provisioning for print/report paths.
+    """
+
+    class PostLoginMode(models.TextChoices):
+        AUTO = "auto", "Auto (single module → workspace; else launcher)"
+        LAUNCHER = "launcher", "Always show module launcher"
+        DEFAULT_MODULE = "default_module", "Open default module workspace"
+
+    tenant = models.OneToOneField(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="branding_profile",
+    )
+
+    display_full_name = models.CharField(max_length=255, blank=True)
+    display_short_name = models.CharField(max_length=120, blank=True)
+
+    logo = models.ImageField(upload_to="tenant_branding/logos/%Y/%m/", blank=True, max_length=255)
+    favicon = models.FileField(upload_to="tenant_branding/favicons/%Y/%m/", blank=True, max_length=255)
+    login_background = models.ImageField(
+        upload_to="tenant_branding/login_bg/%Y/%m/", blank=True, max_length=255
+    )
+
+    primary_color = models.CharField(max_length=20, blank=True)
+    secondary_color = models.CharField(max_length=20, blank=True)
+    accent_color = models.CharField(max_length=20, blank=True)
+    text_on_primary_color = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Foreground on primary (top header). Auto if blank.",
+    )
+    text_on_secondary_color = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Foreground on secondary (module nav bar). Auto if blank.",
+    )
+
+    print_header_logo = models.ImageField(upload_to="tenant_branding/print/%Y/%m/", blank=True, max_length=255)
+    print_header_organization_name = models.CharField(max_length=255, blank=True)
+    report_footer_text = models.CharField(max_length=500, blank=True)
+
+    welcome_text = models.TextField(blank=True)
+
+    post_login_mode = models.CharField(
+        max_length=32,
+        choices=PostLoginMode.choices,
+        default=PostLoginMode.AUTO,
+    )
+    default_module_code = models.CharField(max_length=80, blank=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Tenant branding profile"
+        verbose_name_plural = "Tenant branding profiles"
+
+    def __str__(self) -> str:
+        return f"Branding: {self.tenant.slug}"
+

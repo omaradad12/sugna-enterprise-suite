@@ -4,6 +4,7 @@ from django.db import migrations, models
 
 
 def forwards_normalize_account_class(apps, schema_editor):
+    db = schema_editor.connection.alias
     ChartAccount = apps.get_model("tenant_finance", "ChartAccount")
     AccountCategory = apps.get_model("tenant_finance", "AccountCategory")
     pairs = [
@@ -14,13 +15,14 @@ def forwards_normalize_account_class(apps, schema_editor):
         ("expense", "EXPENSE"),
     ]
     for old, new in pairs:
-        ChartAccount.objects.filter(type__iexact=old).exclude(type=new).update(type=new)
-        AccountCategory.objects.filter(category_type__iexact=old).exclude(category_type=new).update(
+        ChartAccount.objects.using(db).filter(type__iexact=old).exclude(type=new).update(type=new)
+        AccountCategory.objects.using(db).filter(category_type__iexact=old).exclude(category_type=new).update(
             category_type=new
         )
 
 
 def backwards_restore_lowercase(apps, schema_editor):
+    db = schema_editor.connection.alias
     ChartAccount = apps.get_model("tenant_finance", "ChartAccount")
     AccountCategory = apps.get_model("tenant_finance", "AccountCategory")
     pairs = [
@@ -31,8 +33,8 @@ def backwards_restore_lowercase(apps, schema_editor):
         ("EXPENSE", "expense"),
     ]
     for new, old in pairs:
-        ChartAccount.objects.filter(type=new).update(type=old)
-        AccountCategory.objects.filter(category_type=new).update(category_type=old)
+        ChartAccount.objects.using(db).filter(type=new).update(type=old)
+        AccountCategory.objects.using(db).filter(category_type=new).update(category_type=old)
 
 
 class Migration(migrations.Migration):

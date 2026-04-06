@@ -9,9 +9,10 @@ import django.db.models.deletion
 def forwards_backfill_project_and_headings(apps, schema_editor):
     BudgetLine = apps.get_model("tenant_grants", "BudgetLine")
     Grant = apps.get_model("tenant_grants", "Grant")
+    db = schema_editor.connection.alias
 
     by_grant = defaultdict(list)
-    for bl in BudgetLine.objects.all().iterator():
+    for bl in BudgetLine.objects.using(db).all().iterator():
         by_grant[bl.grant_id].append(bl)
 
     for gid, lines in by_grant.items():
@@ -25,7 +26,7 @@ def forwards_backfill_project_and_headings(apps, schema_editor):
                 if o != c and o.startswith(c + "."):
                     parents.add(c)
                     break
-        pid = Grant.objects.filter(pk=gid).values_list("project_id", flat=True).first()
+        pid = Grant.objects.using(db).filter(pk=gid).values_list("project_id", flat=True).first()
         for bl in lines:
             code = (getattr(bl, "budget_line_code", None) or "").strip()
             updates = {}
@@ -34,7 +35,7 @@ def forwards_backfill_project_and_headings(apps, schema_editor):
             if code in parents:
                 updates["is_heading"] = True
             if updates:
-                BudgetLine.objects.filter(pk=bl.pk).update(**updates)
+                BudgetLine.objects.using(db).filter(pk=bl.pk).update(**updates)
 
 
 def backwards_noop(apps, schema_editor):

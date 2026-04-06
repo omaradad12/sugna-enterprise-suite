@@ -1,0 +1,83 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Hospital{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Hospital</h1>
+      <p class="text-sm text-[#605e5c] mt-1">Patients, appointments, and encounters.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url_tenant 'tenant_portal:hospital_departments' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="hash" class="w-4 h-4"></i>
+        <span>Departments</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_providers' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="user-check" class="w-4 h-4"></i>
+        <span>Providers</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_patients' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="users" class="w-4 h-4"></i>
+        <span>Patients</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="calendar" class="w-4 h-4"></i>
+        <span>Appointments</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_patient_create' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-white"
+         style="background:#0078D4;">
+        <i data-feather="user-plus" class="w-4 h-4"></i>
+        <span>New patient</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">Patients</h2>
+        <i data-feather="users" class="w-4 h-4" style="color:#0078D4;"></i>
+      </div>
+      <p class="text-3xl font-semibold mt-2">{{ patient_count|default:0 }}</p>
+      <p class="text-xs text-[#605e5c] mt-1">Active patients</p>
+    </div>
+
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase">Appointments</h2>
+        <i data-feather="calendar" class="w-4 h-4" style="color:#0078D4;"></i>
+      </div>
+      <p class="text-3xl font-semibold mt-2">{{ appointments_today|default:0 }}</p>
+      <p class="text-xs text-[#605e5c] mt-1">Scheduled for today</p>
+      <div class="mt-3">
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_appointments' %}">View appointments</a>
+      </div>
+    </div>
+
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-2">Quick links</h2>
+      <div class="space-y-2">
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_patients' %}">Search patients</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_patient_create' %}">Register new patient</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_departments' %}">Manage departments</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_providers' %}">Manage providers</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_lab_orders' %}">Lab orders</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_pharmacy_orders' %}">Pharmacy orders</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_wards' %}">Wards &amp; beds</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_admissions' %}">Admissions</a>
+        <a class="text-sm text-[#0078D4] hover:underline" href="{% url_tenant 'tenant_portal:hospital_billing' %}">Billing &amp; insurance</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+

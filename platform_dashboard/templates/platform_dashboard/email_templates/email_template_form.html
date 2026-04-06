@@ -1,0 +1,60 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}{% if mode == 'create' %}New email template{% else %}Edit email template{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto animate-fade-in">
+  <div class="mb-8">
+    <a href="{% url 'platform_dashboard:email_template_list' %}" class="text-sm font-medium text-primary-600 hover:underline">← Back to list</a>
+    <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading mt-2">
+      {% if mode == 'create' %}New email template{% else %}Edit email template{% endif %}
+    </h1>
+    <p class="text-slate-500 mt-1 text-sm">Use double-brace placeholders (for example tenant_name). Supported keys: tenant_name, tenant_domain, announcement_title, announcement_message, invoice_number, amount, due_date, plan_name.</p>
+  </div>
+
+  <div class="dynamics-card p-6 sm:p-8">
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div>
+        <label for="{{ form.code.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Code</label>
+        {{ form.code }}
+        <p class="text-xs text-slate-500 mt-1">Unique key (slug). Used by integrations and defaults.</p>
+        {% if form.code.errors %}<p class="text-red-600 text-xs mt-1">{{ form.code.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label for="{{ form.name.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Template name</label>
+        {{ form.name }}
+      </div>
+      <div>
+        <label for="{{ form.category.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Category</label>
+        {{ form.category }}
+      </div>
+      <div>
+        <label for="{{ form.subject.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Subject</label>
+        {{ form.subject }}
+      </div>
+      <div>
+        <label for="{{ form.body.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Email body</label>
+        {{ form.body }}
+      </div>
+      <div>
+        <label for="{{ form.variables_text.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Variables list</label>
+        {{ form.variables_text }}
+        <p class="text-xs text-slate-500 mt-1">{{ form.variables_text.help_text }}</p>
+      </div>
+      <div>
+        <label for="{{ form.status.id_for_label }}" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Status</label>
+        {{ form.status }}
+      </div>
+
+      <div class="flex flex-wrap gap-3 pt-2">
+        <button type="submit" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium">Save</button>
+        <a href="{% url 'platform_dashboard:email_template_list' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded border text-sm font-medium text-slate-700 hover:bg-slate-50" style="border-color:#edebe9;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -5,6 +5,7 @@ import django.db.models.deletion
 def seed_prog_dimension_values(apps, schema_editor):
     from django.db import DatabaseError
 
+    db = schema_editor.connection.alias
     FinancialDimension = apps.get_model("tenant_finance", "FinancialDimension")
     FinancialDimensionValue = apps.get_model("tenant_finance", "FinancialDimensionValue")
     try:
@@ -15,7 +16,7 @@ def seed_prog_dimension_values(apps, schema_editor):
         ):
             return
 
-        prog_dim, _ = FinancialDimension.objects.get_or_create(
+        prog_dim, _ = FinancialDimension.objects.using(db).get_or_create(
             dimension_code="PROG",
             defaults={
                 "dimension_name": "Program",
@@ -32,9 +33,12 @@ def seed_prog_dimension_values(apps, schema_editor):
             ("PRG-04", "Institutional"),
             ("PRG-05", "Other"),
         ]
+        # Use dimension_id only: assigning dimension=prog_dim triggers router/FK checks when
+        # tenant context is unset during migrate --database=<tenant_alias>.
+        pid = prog_dim.pk
         for code, name in defaults:
-            FinancialDimensionValue.objects.get_or_create(
-                dimension=prog_dim,
+            FinancialDimensionValue.objects.using(db).get_or_create(
+                dimension_id=pid,
                 code=code,
                 defaults={
                     "name": name,

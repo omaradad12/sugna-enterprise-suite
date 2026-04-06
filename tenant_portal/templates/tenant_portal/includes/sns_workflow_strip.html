@@ -1,0 +1,46 @@
+{% load i18n %}
+{# Optional: active = draft | pending | approved | posted | approval | (empty = overview) #}
+{# variant=payment_four: Draft → Pending approval → Approved → Posted (payments / Excel drafts). #}
+<div class="sns-workflow-strip hidden-print {% if not active %}sns-workflow-strip--neutral{% endif %}" role="navigation" aria-label="{% trans 'Transaction workflow' %}">
+  <span class="sns-workflow-strip__title">{% trans "Workflow" %}</span>
+  {% if variant == "payment_four" %}
+  <ol class="sns-workflow-strip__steps sns-workflow-strip__steps--four flex-wrap">
+    <li class="sns-workflow-strip__step {% if active == 'draft' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">1</span>
+      <span class="sns-workflow-strip__text">{% trans "Draft" %}</span>
+    </li>
+    <li class="sns-workflow-strip__chev" aria-hidden="true"><i data-feather="chevron-right" class="w-3.5 h-3.5"></i></li>
+    <li class="sns-workflow-strip__step {% if active == 'pending' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">2</span>
+      <span class="sns-workflow-strip__text">{% trans "Pending approval" %}</span>
+    </li>
+    <li class="sns-workflow-strip__chev" aria-hidden="true"><i data-feather="chevron-right" class="w-3.5 h-3.5"></i></li>
+    <li class="sns-workflow-strip__step {% if active == 'approved' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">3</span>
+      <span class="sns-workflow-strip__text">{% trans "Approved" %}</span>
+    </li>
+    <li class="sns-workflow-strip__chev" aria-hidden="true"><i data-feather="chevron-right" class="w-3.5 h-3.5"></i></li>
+    <li class="sns-workflow-strip__step {% if active == 'posted' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">4</span>
+      <span class="sns-workflow-strip__text">{% trans "Posted" %}</span>
+    </li>
+  </ol>
+  {% else %}
+  <ol class="sns-workflow-strip__steps">
+    <li class="sns-workflow-strip__step {% if active == 'draft' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">1</span>
+      <span class="sns-workflow-strip__text">{% trans "Draft entry" %}</span>
+    </li>
+    <li class="sns-workflow-strip__chev" aria-hidden="true"><i data-feather="chevron-right" class="w-3.5 h-3.5"></i></li>
+    <li class="sns-workflow-strip__step {% if active == 'approval' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">2</span>
+      <span class="sns-workflow-strip__text">{% trans "Approval" %}</span>
+    </li>
+    <li class="sns-workflow-strip__chev" aria-hidden="true"><i data-feather="chevron-right" class="w-3.5 h-3.5"></i></li>
+    <li class="sns-workflow-strip__step {% if active == 'posted' %}sns-workflow-strip__step--active{% endif %}">
+      <span class="sns-workflow-strip__dot" aria-hidden="true">3</span>
+      <span class="sns-workflow-strip__text">{% trans "Posted to GL" %}</span>
+    </li>
+  </ol>
+  {% endif %}
+</div>

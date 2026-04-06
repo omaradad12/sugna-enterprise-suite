@@ -26,7 +26,7 @@
           <span class="w-2 h-2 rounded-full {% if tenant.display_status == 'active' %}bg-success-500{% elif tenant.display_status == 'trial' %}bg-blue-500{% elif tenant.display_status == 'pending' %}bg-warning-500{% else %}bg-danger-500{% endif %}"></span>
           {{ tenant.get_status_display }}{% if not tenant.is_active and tenant.status == 'active' %} (inactive){% endif %}
         </span>
-        <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="inline-flex items-center gap-2 px-4 py-2 rounded border bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">
+        <a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="inline-flex items-center gap-2 px-4 py-2 rounded border bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">
           <i data-feather="edit-2" class="w-4 h-4"></i> Edit
         </a>
         <a href="https://{{ tenant.domain }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-primary-500 text-white text-sm font-medium hover:bg-primary-700">
@@ -69,7 +69,7 @@
             {% endfor %}
           </ul>
           {% else %}
-          <p class="text-slate-500 text-sm">No modules assigned. <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="text-primary-600 hover:underline">Edit tenant</a> to enable modules.</p>
+          <p class="text-slate-500 text-sm">No modules assigned. <a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="text-primary-600 hover:underline">Edit tenant</a> to enable modules.</p>
           {% endif %}
         </div>
       </div>
@@ -243,9 +243,9 @@
       <div class="dynamics-card overflow-hidden">
         <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Quick actions</h2>
         <ul class="px-5 py-2 space-y-1">
-          <li><a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="edit-2" class="w-4 h-4"></i> Edit tenant</a></li>
-          <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="play" class="w-4 h-4"></i> Activate / Suspend</a></li>
-          <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a></li>
+          <li><a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="edit-2" class="w-4 h-4"></i> Edit tenant</a></li>
+          <li><a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="play" class="w-4 h-4"></i> Activate / Suspend</a></li>
+          <li><a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a></li>
           <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="credit-card" class="w-4 h-4"></i> Manage subscription</a></li>
           <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="bar-chart-2" class="w-4 h-4"></i> View usage</a></li>
           <li><a href="https://{{ tenant.domain }}" target="_blank" rel="noopener" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="external-link" class="w-4 h-4"></i> Open workspace</a></li>

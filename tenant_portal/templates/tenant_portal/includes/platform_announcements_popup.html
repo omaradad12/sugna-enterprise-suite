@@ -1,0 +1,66 @@
+{% if platform_announcements_popups_json and platform_announcements_popups_json != '[]' %}
+<script type="application/json" id="sns-pa-popups-json">{{ platform_announcements_popups_json|safe }}</script>
+<div
+  x-data="{
+    current: null,
+    open: false,
+    init() {
+      const el = document.getElementById('sns-pa-popups-json');
+      if (!el) return;
+      let list = [];
+      try { list = JSON.parse(el.textContent || '[]'); } catch (e) { return; }
+      for (const p of list) {
+        if (!sessionStorage.getItem('pa_dismiss_' + p.id)) {
+          this.current = p;
+          this.open = true;
+          break;
+        }
+      }
+    },
+    dismiss() {
+      if (!this.current) return;
+      sessionStorage.setItem('pa_dismiss_' + this.current.id, '1');
+      this.open = false;
+      const el = document.getElementById('sns-pa-popups-json');
+      if (!el) return;
+      let list = [];
+      try { list = JSON.parse(el.textContent || '[]'); } catch (e) { return; }
+      const next = list.find((p) => !sessionStorage.getItem('pa_dismiss_' + p.id));
+      if (next) {
+        this.current = next;
+        this.open = true;
+      } else {
+        this.current = null;
+      }
+    }
+  }"
+  x-show="open"
+  x-cloak
+  class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+  style="background: rgba(0,0,0,0.45);"
+  @keydown.escape.window="dismiss()"
+>
+  <div
+    class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[min(80vh,520px)] overflow-hidden flex flex-col text-left border"
+    style="border-color:#e5e7eb;"
+    @click.outside="dismiss()"
+  >
+    <div class="px-5 py-4 border-b flex items-start justify-between gap-3 shrink-0" style="border-color:#e5e7eb;background:#faf9f8;">
+      <div class="min-w-0 flex items-start gap-2">
+        <i data-feather="volume-2" class="w-5 h-5 shrink-0 mt-0.5" style="color:var(--tenant-accent, #0078D4);"></i>
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Platform announcement</p>
+          <h2 class="text-base font-semibold text-[#111827] mt-0.5" x-text="current ? current.title : ''"></h2>
+        </div>
+      </div>
+      <button type="button" class="p-1 rounded hover:bg-slate-200 text-slate-600" @click="dismiss()" aria-label="Close">
+        <i data-feather="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div class="px-5 py-4 overflow-y-auto text-sm text-[#323130] whitespace-pre-wrap" x-text="current ? current.message : ''"></div>
+    <div class="px-5 py-3 border-t flex justify-end gap-2 shrink-0" style="border-color:#e5e7eb;">
+      <button type="button" class="px-4 py-2 rounded text-sm font-semibold text-white shadow-sm" style="background:var(--tenant-accent, #0078D4);" @click="dismiss()">OK</button>
+    </div>
+  </div>
+</div>
+{% endif %}

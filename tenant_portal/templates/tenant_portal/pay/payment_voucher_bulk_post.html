@@ -1,0 +1,99 @@
+{% extends "tenant_portal/_layout_fullwidth.html" %}
+{% load i18n %}
+{% block title %}{% trans "Bulk post approved payments" %} | {{ tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="sns-transaction-workspace">
+  <div class="sns-page-hero mb-4 hidden-print">
+    <p class="sns-page-hero__eyebrow">{% trans "Payables" %}</p>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="sns-page-hero__title">{% trans "Bulk post to GL" %}</h1>
+        <p class="sns-page-hero__desc">
+          {% trans "Only vouchers with status Approved appear here. Posting runs open-period, line completeness, duplicate, budget, and bank balance checks." %}
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2 shrink-0">
+        <a href="{% url 'tenant_portal:finance_draft_entry_hub' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          {% trans "Draft entry" %}
+        </a>
+        <a href="{% url 'tenant_portal:pay_pending_approval_queue' %}" class="sns-btn sns-btn--secondary inline-flex items-center gap-2">
+          {% trans "Pending approval" %}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% include "tenant_portal/includes/sns_workflow_strip.html" with active="posted" %}
+
+  <form method="get" action="" class="sns-erp-filter-panel hidden-print mb-4">
+    <div class="sns-erp-filter-panel__head">{% trans "Filters" %}</div>
+    <div class="sns-erp-filter-panel__body sns-erp-filter-grid">
+      <div>
+        <label class="sns-filter-label">{% trans "From" %}</label>
+        <input type="date" name="period_start" value="{{ pv_filter_period_start }}" />
+      </div>
+      <div>
+        <label class="sns-filter-label">{% trans "To" %}</label>
+        <input type="date" name="period_end" value="{{ pv_filter_period_end }}" />
+      </div>
+      <div>
+        <label class="sns-filter-label">{% trans "Search" %}</label>
+        <input type="text" name="q" value="{{ pv_filter_q }}" placeholder="{% trans 'Reference, memo, payee' %}" />
+      </div>
+      <div class="flex items-end">
+        <button type="submit" class="sns-btn sns-btn--secondary">{% trans "Apply" %}</button>
+      </div>
+    </div>
+  </form>
+
+  <form method="post" action="">
+    {% csrf_token %}
+    <div class="rounded-xl border border-[#edebe9] bg-white shadow-sm overflow-hidden mb-4">
+      <div class="overflow-x-auto">
+        <table class="sns-ledger-table min-w-[48rem] w-full">
+          <thead>
+            <tr>
+              <th class="w-10">
+                <input type="checkbox" class="rounded" style="border-color:#cbd5e1;"
+                  onclick="document.querySelectorAll('.pv-post-select').forEach(cb => { cb.checked = this.checked; });"
+                  aria-label="{% trans 'Select all' %}" />
+              </th>
+              <th>{% trans "Voucher" %}</th>
+              <th>{% trans "Date" %}</th>
+              <th>{% trans "Payee" %}</th>
+              <th class="text-right">{% trans "Amount" %}</th>
+              <th class="text-right">{% trans "Open" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in approved_vouchers %}
+            <tr>
+              <td>
+                <input type="checkbox" class="pv-post-select rounded" style="border-color:#cbd5e1;" name="entry_ids" value="{{ entry.id }}" />
+              </td>
+              <td class="font-mono font-semibold">{{ entry.reference|default:entry.id }}</td>
+              <td>{{ entry.entry_date }}</td>
+              <td>{{ entry.payee_name|default:"—" }}</td>
+              <td class="text-right tabular-nums">{% if entry.pv_total is not None %}{{ entry.pv_total|floatformat:2 }}{% else %}—{% endif %}</td>
+              <td class="text-right">
+                <a href="{% url 'tenant_portal:pay_payment_voucher_approve' entry.id %}" class="font-semibold text-[#0078d4] hover:underline">{% trans "Post one" %}</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="px-5 py-10 text-center text-[#605e5c]">{% trans "No approved payment vouchers in this filter." %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <button type="submit" class="sns-btn sns-btn--primary inline-flex items-center gap-2">
+      <i data-feather="arrow-up-circle" class="w-4 h-4"></i>
+      {% trans "Post selected to general ledger" %}
+    </button>
+  </form>
+</div>
+<script>if (window.feather) { feather.replace(); }</script>
+{% endblock %}

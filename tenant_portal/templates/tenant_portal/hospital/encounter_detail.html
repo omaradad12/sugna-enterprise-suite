@@ -1,0 +1,201 @@
+{% extends "tenant_portal/_layout_hospital.html" %}
+{% load tenant_urls %}
+{% block title %}{{ tenant_display_name|default:tenant.name }} | Encounter{% endblock %}
+
+{% block content %}
+  <div class="flex items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="page-title">Clinical chart</h1>
+      <p class="text-sm text-[#605e5c] mt-1">
+        {{ encounter.patient.full_name }} · {{ encounter.patient.mrn }} · {{ encounter.started_at }}
+      </p>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="calendar" class="w-4 h-4"></i>
+        <span>Appointments</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_lab_orders' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="droplet" class="w-4 h-4"></i>
+        <span>Lab orders</span>
+      </a>
+      <a href="{% url_tenant 'tenant_portal:hospital_pharmacy_orders' %}"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm border text-[#605e5c] hover:bg-[#f3f2f1]"
+         style="border-color:#edebe9;">
+        <i data-feather="package" class="w-4 h-4"></i>
+        <span>Pharmacy</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Encounter summary</h2>
+      <dl class="text-sm space-y-2">
+        <div class="flex justify-between gap-4"><dt class="text-[#605e5c]">Chief complaint</dt><dd>{{ encounter.chief_complaint|default:"—" }}</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-[#605e5c]">Summary</dt><dd class="text-right max-w-md">{{ encounter.summary|default:"—"|linebreaksbr }}</dd></div>
+      </dl>
+    </div>
+
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Vitals</h2>
+      {% if can_manage_emr %}
+        <form method="post" action="{% url_tenant 'tenant_portal:hospital_encounter_vital_add' encounter.id %}" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+          {% csrf_token %}
+          <input name="bp_systolic" placeholder="BP sys" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="bp_diastolic" placeholder="BP dia" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="heart_rate" placeholder="HR" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="temperature_c" placeholder="Temp °C" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="spo2" placeholder="SpO₂" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="respiratory_rate" placeholder="RR" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="weight_kg" placeholder="Weight kg" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="height_cm" placeholder="Height cm" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <input name="notes" placeholder="Notes" class="col-span-2 md:col-span-4 px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <div class="col-span-2 md:col-span-4">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white" style="background:#0078D4;">
+              <i data-feather="plus" class="w-4 h-4"></i>
+              Save vitals
+            </button>
+          </div>
+        </form>
+      {% endif %}
+      {% if vitals %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs">
+            <thead class="text-[#605e5c]"><tr>
+              <th class="text-left py-1 pr-2">Time</th>
+              <th class="text-left py-1 pr-2">BP</th>
+              <th class="text-left py-1 pr-2">HR</th>
+              <th class="text-left py-1 pr-2">T°C</th>
+              <th class="text-left py-1 pr-2">SpO₂</th>
+            </tr></thead>
+            <tbody class="divide-y" style="border-color:#edebe9;">
+              {% for v in vitals %}
+                <tr>
+                  <td class="py-1 pr-2">{{ v.recorded_at }}</td>
+                  <td class="py-1 pr-2">{% if v.bp_systolic %}{{ v.bp_systolic }}/{{ v.bp_diastolic|default:"—" }}{% else %}—{% endif %}</td>
+                  <td class="py-1 pr-2">{{ v.heart_rate|default:"—" }}</td>
+                  <td class="py-1 pr-2">{{ v.temperature_c|default:"—" }}</td>
+                  <td class="py-1 pr-2">{{ v.spo2|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-sm text-[#605e5c]">No vitals recorded yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="bg-white border rounded-lg p-5 xl:col-span-2" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Clinical notes</h2>
+      {% if can_manage_emr %}
+        <form method="post" action="{% url_tenant 'tenant_portal:hospital_encounter_note_add' encounter.id %}" class="space-y-2 mb-4">
+          {% csrf_token %}
+          <div class="flex flex-wrap gap-2">
+            <select name="note_type" class="px-2 py-1.5 rounded border text-sm bg-white" style="border-color:#edebe9;">
+              {% for v, label in note_type_choices %}
+                <option value="{{ v }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <select name="author_provider_id" class="px-2 py-1.5 rounded border text-sm bg-white" style="border-color:#edebe9;">
+              <option value="">Author (optional)</option>
+              {% for p in providers %}
+                <option value="{{ p.id }}">{{ p.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <textarea name="body" rows="3" required class="w-full px-3 py-2 rounded-md border text-sm" style="border-color:#edebe9;" placeholder="Write note…"></textarea>
+          <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white" style="background:#0078D4;">
+            <i data-feather="file-text" class="w-4 h-4"></i>
+            Add note
+          </button>
+        </form>
+      {% endif %}
+      {% if clinical_notes %}
+        <div class="space-y-3">
+          {% for n in clinical_notes %}
+            <div class="border-l-4 pl-3" style="border-color:#0078D4;">
+              <div class="text-xs text-[#605e5c]">{{ n.created_at }} · {{ n.get_note_type_display }}</div>
+              <div class="text-sm whitespace-pre-wrap">{{ n.body }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-[#605e5c]">No notes yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Lab orders</h2>
+      {% if can_lab_manage %}
+        <form method="post" action="{% url_tenant 'tenant_portal:hospital_encounter_lab_order_add' encounter.id %}" class="space-y-2 mb-4">
+          {% csrf_token %}
+          <div class="flex flex-wrap gap-2">
+            <input name="test_code" placeholder="CPT / code" class="px-2 py-1.5 rounded border text-sm flex-1 min-w-[120px]" style="border-color:#edebe9;" />
+            <input name="test_name" placeholder="Test name *" required class="px-2 py-1.5 rounded border text-sm flex-1 min-w-[160px]" style="border-color:#edebe9;" />
+            <select name="ordered_by_id" class="px-2 py-1.5 rounded border text-sm bg-white" style="border-color:#edebe9;">
+              <option value="">Ordered by</option>
+              {% for p in providers %}
+                <option value="{{ p.id }}">{{ p.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white" style="background:#0078D4;">Order lab</button>
+        </form>
+      {% endif %}
+      {% for lo in lab_orders %}
+        <div class="mb-3 text-sm">
+          <div class="font-medium">{{ lo.order_number }} · {{ lo.get_status_display }}</div>
+          <ul class="list-disc ml-5 text-[#605e5c]">
+            {% for line in lo.lines.all %}
+              <li>{{ line.test_name }}{% if line.result_text %} — {{ line.result_text }}{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% empty %}
+        <p class="text-sm text-[#605e5c]">No lab orders for this encounter.</p>
+      {% endfor %}
+    </div>
+
+    <div class="bg-white border rounded-lg p-5" style="border-color:#edebe9;">
+      <h2 class="text-sm font-semibold tracking-wide text-[#323130] uppercase mb-3">Pharmacy orders</h2>
+      {% if can_pharmacy_manage %}
+        <form method="post" action="{% url_tenant 'tenant_portal:hospital_encounter_rx_order_add' encounter.id %}" class="space-y-2 mb-4">
+          {% csrf_token %}
+          <input name="medication_name" placeholder="Medication *" required class="w-full px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          <div class="grid grid-cols-2 gap-2">
+            <input name="dose" placeholder="Dose" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+            <input name="route" placeholder="Route" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+            <input name="frequency" placeholder="Frequency" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+            <input name="quantity" placeholder="Qty" class="px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" />
+          </div>
+          <textarea name="instructions" rows="2" class="w-full px-2 py-1.5 rounded border text-sm" style="border-color:#edebe9;" placeholder="Instructions"></textarea>
+          <select name="ordered_by_id" class="px-2 py-1.5 rounded border text-sm bg-white" style="border-color:#edebe9;">
+            <option value="">Ordered by</option>
+            {% for p in providers %}
+              <option value="{{ p.id }}">{{ p.full_name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white" style="background:#0078D4;">Order medication</button>
+        </form>
+      {% endif %}
+      {% for po in pharmacy_orders %}
+        <div class="mb-3 text-sm">
+          <div class="font-medium">{{ po.order_number }} · {{ po.get_status_display }}</div>
+          <ul class="list-disc ml-5 text-[#605e5c]">
+            {% for line in po.lines.all %}
+              <li>{{ line.medication_name }} {{ line.dose }} {{ line.route }} {{ line.frequency }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% empty %}
+        <p class="text-sm text-[#605e5c]">No pharmacy orders for this encounter.</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

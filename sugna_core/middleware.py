@@ -51,7 +51,52 @@ class TenantResolutionMiddleware:
         host = (request.get_host() or "").split(":")[0].lower().strip()
 
         tenant = None
-        if host:
+        # Legacy first-segment names under /t/ that are not tenant slugs (flat URLs).
+        _legacy_t_root = {
+            "login",
+            "logout",
+            "profile",
+            "settings",
+            "portal",
+            "hospital",
+            "finance",
+            "integrations",
+            "audit-risk",
+            "recv",
+            "pay",
+            "governance",
+            "documents",
+            "grants",
+            "cashbook",
+            "cashbank",
+            "media",
+            "customer-portal",
+            "draft-excel",
+        }
+        path_parts = [p for p in path.split("/") if p]
+        # /t/<tenant_slug>/… → set tenant and rewrite PATH_INFO to /t/… so existing routes work.
+        if len(path_parts) >= 2 and path_parts[0] == "t":
+            slug_candidate = path_parts[1]
+            if slug_candidate not in _legacy_t_root:
+                t_by_slug = Tenant.objects.filter(slug=slug_candidate).first()
+                if t_by_slug:
+                    tenant = t_by_slug
+                    rest_parts = path_parts[2:]
+                    new_tail = "/".join(rest_parts) if rest_parts else ""
+                    new_path = ("/t/" + new_tail) if new_tail else "/t/"
+                    if new_tail and not new_path.endswith("/"):
+                        new_path += "/"
+                    # WSGIRequest keeps path, path_info, and META["PATH_INFO"] in sync; mirror that
+                    # so resolvers and CommonMiddleware see the inner /t/… route.
+                    request.path_info = new_path
+                    request.META["PATH_INFO"] = new_path
+                    script_name = request.META.get("SCRIPT_NAME", "") or ""
+                    request.path = "%s/%s" % (
+                        script_name.rstrip("/"),
+                        new_path.replace("/", "", 1),
+                    )
+
+        if host and tenant is None:
             tenant_id = (
                 TenantDomain.objects.select_related("tenant")
                 .filter(domain=host)

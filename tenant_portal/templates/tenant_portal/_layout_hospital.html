@@ -1,0 +1,157 @@
+{% extends "tenant_portal/_layout_enterprise.html" %}
+{% load i18n %}
+{% load static %}
+{% load tenant_urls %}
+{# Hospital overrides the enterprise shell blocks only; chrome and tokens match Finance. #}
+
+{% block title %}Hospital Management | {{ tenant_theme.display_full_name|default:tenant_display_name|default:tenant.name }}{% endblock %}
+
+{% block enterprise_extra_head %}
+  <style>
+    @media print {
+      body { background: #ffffff !important; }
+      .tenant-portal-screen-chrome, aside { display: none !important; }
+    }
+  </style>
+{% endblock %}
+
+{% block enterprise_shell_attributes %}x-data="{ userOpen: false, notifOpen: false, sidebarCollapsed: false }"{% endblock %}
+
+{% block enterprise_identity_tagline %}
+  <span class="erp-topbar-tagline opacity-90 flex flex-wrap items-center gap-2">
+    <span>{% trans "Hospital Management" %}</span>
+    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-white/20 border border-white/30" style="color:inherit;">{% trans "Hospital" %}</span>
+  </span>
+{% endblock %}
+
+{% block enterprise_topbar_center %}
+      <div class="flex-1 flex items-center justify-end pl-4 pr-2 md:pr-3 min-w-0">
+        <div class="hidden md:block min-w-0 max-w-[min(280px,28vw)]">
+          <label class="sr-only" for="hospital-global-search">{% trans "Search hospital records" %}</label>
+          <input id="hospital-global-search" type="search" autocomplete="off" placeholder="{{ hospital_search_placeholder|default:'Search patients, MRN, appointments…' }}" class="w-full h-9 px-3 rounded-lg text-[13px] bg-white/15 border border-white/35 placeholder:opacity-70 focus:outline-none focus:ring-2 focus:ring-white/50" style="color:var(--tenant-on-primary,#ffffff);" />
+        </div>
+      </div>
+{% endblock %}
+
+{% block enterprise_topbar_right %}
+      <div class="flex items-center gap-2 shrink-0 pl-1 md:pl-2">
+        <div class="relative">
+          <button type="button" @click="notifOpen = !notifOpen; userOpen = false" class="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/15 border border-white/25 relative" style="color:inherit;">
+            <i data-feather="bell" class="w-4 h-4"></i>
+            {% if smart_alerts_count > 0 %}
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold bg-[#ea580c] text-white shadow-sm">{{ smart_alerts_count }}</span>
+            {% endif %}
+          </button>
+          <div x-show="notifOpen" x-cloak @click.outside="notifOpen = false" class="absolute right-0 mt-2 w-[min(440px,calc(100vw-2rem))] max-h-[min(90vh,640px)] overflow-hidden bg-white rounded-xl shadow-xl border border-slate-200 z-30 flex flex-col text-left">
+            <div class="px-4 py-3 border-b flex items-center justify-between shrink-0" style="border-color:#e5e7eb;">
+              <span class="text-[13px] font-semibold text-[#111827]">{% trans "Alerts & Warnings" %}</span>
+              {% if can_access_finance_workspace|default:False %}
+              <a href="{% url 'tenant_portal:finance_financial_alerts' %}" class="text-[11px] font-medium" style="color:var(--tenant-accent, #0078D4);">{% trans "View all" %}</a>
+              {% endif %}
+            </div>
+            {% with panel_alerts=notification_center_items|default:smart_alerts %}
+            {% include "tenant_portal/includes/smart_alerts_items.html" with alerts=panel_alerts compact=1 bell_close=1 %}
+            {% endwith %}
+          </div>
+        </div>
+        <div class="relative">
+          <button type="button" @click="userOpen = !userOpen" class="flex items-center gap-2 px-2.5 py-2 rounded text-xs font-medium text-white hover:bg-white/15 transition-colors min-h-[36px]">
+            <span class="hidden sm:inline truncate max-w-[160px]">{{ tenant_user.position|default:tenant_user.full_name|default:tenant_user.email }}</span>
+            {% if tenant_user.profile_photo %}
+            <img src="{{ tenant_user.profile_photo.url }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0" />
+            {% else %}
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/20 text-[12px] font-semibold shrink-0">{{ tenant_user.email|default:'?'|slice:':1'|upper }}</span>
+            {% endif %}
+            <i data-feather="chevron-down" class="w-4 h-4 shrink-0 opacity-90"></i>
+          </button>
+          <div x-show="userOpen" x-cloak @click.outside="userOpen = false" class="absolute right-0 mt-2 w-[260px] bg-white rounded-lg z-30 overflow-hidden" style="border: 1px solid #e5e7eb; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+            <div class="px-4 py-3 border-b" style="background: #f9fafb; border-color: #e5e7eb;"><p class="text-[11px] font-semibold uppercase tracking-widest" style="color: #6b7280;">ACCOUNT</p></div>
+            <div class="py-2">
+              <a href="{% url 'tenant_portal:profile' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;"><i data-feather="user" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>My Profile</span></a>
+              {% if can_access_finance_workspace|default:False %}
+              <a href="{% url 'tenant_portal:finance_home' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;"><i data-feather="briefcase" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Financial &amp; Grant Management</span></a>
+              {% endif %}
+            </div>
+            <div class="border-t py-2" style="border-color: #e5e7eb;">
+              <a href="{% url 'tenant_portal:logout' %}" class="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-[#f3f2f1]" style="color: #323130; font-size: 13px;"><i data-feather="log-out" class="w-4 h-4 shrink-0" style="color: #605e5c;"></i><span>Log Out</span></a>
+            </div>
+          </div>
+        </div>
+      </div>
+{% endblock %}
+
+{% block enterprise_module_bar %}
+    {% with nav=hospital_nav_active|default:"" %}
+    <div class="tenant-chrome-modulebar flex flex-col gap-2 py-2 px-4 md:px-6 shadow-sm">
+      <div class="flex items-center justify-between gap-2 shrink-0 text-[12px] sm:text-[13px] font-medium" style="color:var(--tenant-on-secondary,#ffffff);">
+        <span class="opacity-95">{% trans "Hospital workspace" %}</span>
+        {% if can_access_finance_workspace|default:False %}
+        <a href="{% url 'tenant_portal:finance_home' %}" class="opacity-95 hover:opacity-100 no-underline" style="color:inherit;">{% trans "Switch to Financial and Grant Management" %}</a>
+        {% endif %}
+      </div>
+      <nav class="topbar-modules min-w-0" aria-label="{% trans 'Hospital modules' %}">
+        <a href="{% url_tenant 'tenant_portal:hospital_home' %}" class="topbar-module rounded-full transition-colors {% if nav == 'dashboard' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Dashboard" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_patients' %}" class="topbar-module rounded-full transition-colors {% if nav == 'patients' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Patients" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_opd_list' %}" class="topbar-module rounded-full transition-colors {% if nav == 'opd' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "OPD" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_admissions' %}" class="topbar-module rounded-full transition-colors {% if nav == 'admissions' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Admissions" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_emergency_list' %}" class="topbar-module rounded-full transition-colors {% if nav == 'emergency' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Emergency" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}" class="topbar-module rounded-full transition-colors {% if nav == 'appointments' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Appointments" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_providers' %}" class="topbar-module rounded-full transition-colors {% if nav == 'providers' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Providers" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_departments' %}" class="topbar-module rounded-full transition-colors {% if nav == 'departments' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Departments" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_wards' %}" class="topbar-module rounded-full transition-colors {% if nav == 'wards' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Wards & Beds" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_lab_orders' %}" class="topbar-module rounded-full transition-colors {% if nav == 'laboratory' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Laboratory" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_pharmacy_orders' %}" class="topbar-module rounded-full transition-colors {% if nav == 'pharmacy' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Pharmacy" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_billing' %}" class="topbar-module rounded-full transition-colors {% if nav == 'billing' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Billing & Insurance" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_invoices' %}" class="topbar-module rounded-full transition-colors {% if nav == 'reports' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Reports" %}</a>
+        <a href="{% url_tenant 'tenant_portal:hospital_setup' %}" class="topbar-module rounded-full transition-colors {% if nav == 'setup' %}topbar-module--active{% else %}topbar-module--idle{% endif %}">{% trans "Hospital Setup" %}</a>
+      </nav>
+    </div>
+    {% endwith %}
+{% endblock %}
+
+{% block enterprise_sidebar %}
+      {% with nav=hospital_nav_active|default:"" %}
+      <aside class="tenant-sidebar flex-shrink-0 flex flex-col h-full border-r overflow-hidden transition-all duration-200 bg-[#F8FAFC]" style="border-color:#E6EAF0;" :class="sidebarCollapsed ? 'w-14' : 'w-64'">
+        <div class="flex items-center justify-between px-3 py-3 border-b" style="border-color:#e5e7eb;">
+          <p class="sidebar-header-title truncate" x-show="!sidebarCollapsed">{% trans "Hospital" %}</p>
+          <button type="button" class="inline-flex items-center justify-center w-7 h-7 rounded-md border text-[#6b7280] hover:bg-white hover:text-[#111827]" style="border-color:#e5e7eb;" @click="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+            <i data-feather="chevron-left" class="w-3 h-3" x-show="!sidebarCollapsed"></i>
+            <i data-feather="chevron-right" class="w-3 h-3" x-show="sidebarCollapsed"></i>
+          </button>
+        </div>
+        <nav class="py-2 flex-1 overflow-y-auto px-2 pt-3 space-y-3 border-t" style="border-color:#E6EAF0;" aria-label="{% trans 'Hospital navigation' %}">
+          <div class="space-y-1">
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">{% trans "Overview" %}</p>
+            <a href="{% url_tenant 'tenant_portal:hospital_home' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'dashboard' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="layout" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Dashboard" %}</span></a>
+          </div>
+          <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">{% trans "Clinical & access" %}</p>
+            <a href="{% url_tenant 'tenant_portal:hospital_patients' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'patients' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="users" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Patients" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_opd_list' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'opd' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="activity" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "OPD visits" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_emergency_list' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'emergency' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="alert-circle" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Emergency" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_appointments' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'appointments' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="calendar" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Appointments" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_providers' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'providers' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="user-check" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Providers" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_departments' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'departments' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="layers" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Departments" %}</span></a>
+          </div>
+          <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">{% trans "Inpatient" %}</p>
+            <a href="{% url_tenant 'tenant_portal:hospital_wards' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'wards' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="home" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Wards & Beds" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_admissions' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'admissions' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="log-in" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Admissions" %}</span></a>
+          </div>
+          <div class="space-y-1 border-t pt-3" style="border-color:#e5e7eb;">
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">{% trans "Diagnostics & meds" %}</p>
+            <a href="{% url_tenant 'tenant_portal:hospital_lab_orders' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'laboratory' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="droplet" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Laboratory" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_pharmacy_orders' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'pharmacy' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="package" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Pharmacy" %}</span></a>
+          </div>
+          <div class="space-y-1 border-t pt-3 pb-2" style="border-color:#e5e7eb;">
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]" x-show="!sidebarCollapsed">{% trans "Revenue & reporting" %}</p>
+            <a href="{% url_tenant 'tenant_portal:hospital_billing' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'billing' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="credit-card" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Billing & Insurance" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_invoices' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'reports' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="file-text" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Reports" %}</span></a>
+            <a href="{% url_tenant 'tenant_portal:hospital_setup' %}" class="group flex w-full items-center gap-2 px-3 py-2 text-[13px] rounded-md {% if nav == 'setup' %}tenant-sidebar-link-active{% else %}text-[#1F2937] hover:bg-[#eef2f7]{% endif %}"><i data-feather="settings" class="w-4 h-4 flex-shrink-0"></i><span x-show="!sidebarCollapsed" class="truncate">{% trans "Hospital Setup" %}</span></a>
+          </div>
+        </nav>
+      </aside>
+      {% endwith %}
+{% endblock %}
+
+{% block enterprise_main_class %}min-w-0 flex-1 px-4 md:px-6 py-6 overflow-y-auto{% endblock %}

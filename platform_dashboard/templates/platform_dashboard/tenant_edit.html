@@ -1,0 +1,225 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Edit {{ tenant.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto animate-fade-in pb-16">
+  <div class="mb-6">
+    <a href="{% url 'platform_dashboard:tenant_detail' tenant.pk %}" class="inline-flex items-center gap-2 text-slate-600 hover:text-primary-600 text-sm font-medium mb-4">
+      <i data-feather="arrow-left" class="w-4 h-4"></i> Back to tenant
+    </a>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Edit tenant</h1>
+    <p class="text-slate-500 mt-1 text-sm">{{ tenant.name }} — control plane settings (subscription, modules, branding).</p>
+  </div>
+
+  <form method="post" action="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" enctype="multipart/form-data" class="space-y-8">
+    {% csrf_token %}
+
+    <div class="dynamics-card overflow-hidden">
+      <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Organization</h2>
+      <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Organization name</label>
+          <input type="text" name="name" required maxlength="255" value="{{ request.POST.name|default:tenant.name }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Tenant code (slug)</label>
+          <input type="text" name="slug" required maxlength="100" value="{{ request.POST.slug|default:tenant.slug }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Domain / subdomain</label>
+          <input type="text" name="domain" required maxlength="255" value="{{ request.POST.domain|default:tenant.domain }}"
+            placeholder="org.example.com"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Country</label>
+          <input type="text" name="country" maxlength="100" value="{{ request.POST.country|default:tenant.country }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+      </div>
+    </div>
+
+    <div class="dynamics-card overflow-hidden">
+      <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Subscription &amp; lifecycle</h2>
+      <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Status</label>
+          <select name="status" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500">
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if request.POST.status|default:tenant.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex items-end pb-2">
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="is_active" class="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              {% if request.POST %}{% if request.POST.is_active %}checked{% endif %}{% elif tenant.is_active %}checked{% endif %} />
+            <span class="text-sm text-slate-700">Organization is active</span>
+          </label>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Plan</label>
+          <select name="plan_code" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500">
+            <option value="">—</option>
+            {% for sp in plans %}
+            <option value="{{ sp.code }}" {% if plan_code_current == sp.code %}selected{% endif %}>{{ sp.name }} ({{ sp.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Subscription expiry</label>
+          <input type="date" name="subscription_expiry" value="{{ request.POST.subscription_expiry|default:tenant.subscription_expiry|date:'Y-m-d' }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">User count (reference)</label>
+          <input type="number" name="user_count" min="0" value="{{ request.POST.user_count|default:tenant.user_count }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Storage (MB, reference)</label>
+          <input type="number" name="storage_mb" min="0" value="{{ request.POST.storage_mb|default:tenant.storage_mb }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+      </div>
+    </div>
+
+    <div class="dynamics-card overflow-hidden">
+      <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Enabled modules</h2>
+      <div class="px-5 py-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {% for m in modules_all %}
+          <label class="flex items-start gap-2 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+            <input type="checkbox" name="module_ids" value="{{ m.id }}" class="mt-0.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              {% if m.id in selected_module_ids %}checked{% endif %} />
+            <span>
+              <span class="font-medium text-slate-900 text-sm">{{ m.name }}</span>
+              <span class="block text-xs text-slate-500 font-mono">{{ m.code }}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="dynamics-card overflow-hidden">
+      <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Login &amp; tenant branding</h2>
+      <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Login title</label>
+          <input type="text" name="brand_login_title" maxlength="120" value="{{ request.POST.brand_login_title|default:tenant.brand_login_title }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Login subtitle</label>
+          <input type="text" name="brand_login_subtitle" maxlength="255" value="{{ request.POST.brand_login_subtitle|default:tenant.brand_login_subtitle }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Primary color (login)</label>
+          <input type="text" name="tenant_brand_primary" maxlength="20" placeholder="#0078D4" value="{{ request.POST.tenant_brand_primary|default:tenant.brand_primary_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Background color (login)</label>
+          <input type="text" name="tenant_brand_background" maxlength="20" placeholder="#faf9f8" value="{{ request.POST.tenant_brand_background|default:tenant.brand_background_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Logo upload (optional)</label>
+          <input type="file" name="logo" accept="image/*" class="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary-50 file:text-primary-700" />
+          {% if tenant.brand_logo_url %}
+          <p class="text-xs text-slate-500 mt-1">Current: <a href="{{ tenant.brand_logo_url }}" class="text-primary-600 hover:underline" target="_blank" rel="noopener">view</a></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="dynamics-card overflow-hidden">
+      <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Workplace branding profile</h2>
+      <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Display name (full)</label>
+          <input type="text" name="display_full_name" maxlength="255" value="{{ request.POST.display_full_name|default:profile.display_full_name }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Display name (short)</label>
+          <input type="text" name="display_short_name" maxlength="120" value="{{ request.POST.display_short_name|default:profile.display_short_name }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Primary</label>
+          <input type="text" name="profile_primary_color" maxlength="20" value="{{ request.POST.profile_primary_color|default:profile.primary_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Secondary</label>
+          <input type="text" name="profile_secondary_color" maxlength="20" value="{{ request.POST.profile_secondary_color|default:profile.secondary_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Accent</label>
+          <input type="text" name="profile_accent_color" maxlength="20" value="{{ request.POST.profile_accent_color|default:profile.accent_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Text on primary</label>
+          <input type="text" name="text_on_primary_color" maxlength="20" value="{{ request.POST.text_on_primary_color|default:profile.text_on_primary_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Text on secondary</label>
+          <input type="text" name="text_on_secondary_color" maxlength="20" value="{{ request.POST.text_on_secondary_color|default:profile.text_on_secondary_color }}"
+            class="w-full px-3 py-2 rounded-lg border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Report footer text</label>
+          <textarea name="report_footer_text" rows="2" maxlength="500" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500">{{ request.POST.report_footer_text|default:profile.report_footer_text }}</textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">After login</label>
+          <select name="post_login_mode" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500">
+            {% for val, label in post_login_choices %}
+            <option value="{{ val }}" {% if request.POST.post_login_mode|default:profile.post_login_mode == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Default module code</label>
+          <select name="default_module_code" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500">
+            <option value="">—</option>
+            {% for m in modules_all %}
+            <option value="{{ m.code }}" {% if request.POST.default_module_code|default:profile.default_module_code == m.code %}selected{% endif %}>{{ m.code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Favicon</label>
+            <input type="file" name="brand_favicon" class="block w-full text-xs text-slate-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Login background</label>
+            <input type="file" name="brand_login_background" accept="image/*" class="block w-full text-xs text-slate-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Print header logo</label>
+            <input type="file" name="brand_print_logo" accept="image/*" class="block w-full text-xs text-slate-600" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <a href="{% url 'platform_dashboard:tenant_detail' tenant.pk %}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50">Cancel</a>
+      <div class="flex items-center gap-3">
+        <a href="/admin/tenants/tenant/{{ tenant.pk }}/change/" class="text-sm text-slate-500 hover:text-primary-600">Open in Django admin (DB &amp; provisioning)</a>
+        <button type="submit" class="px-6 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 shadow-sm">Save changes</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
