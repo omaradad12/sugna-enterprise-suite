@@ -169,7 +169,9 @@ def dashboard_view(request):
         status_labels = ["No tenants yet"]
 
     # Recent tenants
-    recent_tenants = Tenant.objects.order_by("-created_at")[:5]
+    recent_tenants = (
+        Tenant.objects.defer("trial_started_at", "trial_converted_at").order_by("-created_at")[:5]
+    )
 
     # Recent activity (placeholder - use audit log when available)
     recent_activity = [
@@ -445,10 +447,14 @@ def tenant_list_view(request):
         is_enabled=True,
         module__is_active=True,
     ).select_related("module")
-    qs = Tenant.objects.prefetch_related(
-        "modules",
-        Prefetch("tenant_modules", queryset=tenant_modules_prefetch),
-    ).all()
+    qs = (
+        Tenant.objects.defer("trial_started_at", "trial_converted_at")
+        .prefetch_related(
+            "modules",
+            Prefetch("tenant_modules", queryset=tenant_modules_prefetch),
+        )
+        .all()
+    )
 
     if search:
         qs = qs.filter(
@@ -1423,7 +1429,9 @@ def tenant_detail_view(request, pk):
         module__is_active=True,
     ).select_related("module")
     tenant = get_object_or_404(
-        Tenant.objects.prefetch_related("modules", Prefetch("tenant_modules", queryset=tenant_modules_prefetch)),
+        Tenant.objects.defer("trial_started_at", "trial_converted_at").prefetch_related(
+            "modules", Prefetch("tenant_modules", queryset=tenant_modules_prefetch)
+        ),
         pk=pk,
     )
     tenant_workspace = resolve_tenant_workspace_open_url(
@@ -1491,7 +1499,10 @@ def tenant_edit_view(request, pk):
     Edit tenant organization, subscription, modules, and branding in the platform UI
     (control-plane database). For DB credentials and provisioning diagnostics, use Django admin.
     """
-    tenant = get_object_or_404(Tenant.objects.prefetch_related("modules"), pk=pk)
+    tenant = get_object_or_404(
+        Tenant.objects.defer("trial_started_at", "trial_converted_at").prefetch_related("modules"),
+        pk=pk,
+    )
     modules_all = Module.objects.filter(is_active=True).order_by("sort_order", "code")
     plans = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
     profile, _ = TenantBrandingProfile.objects.get_or_create(tenant=tenant)
@@ -1630,7 +1641,12 @@ def platform_users_view(request):
         selected_module = modules.first()
         module_id = str(selected_module.id)
 
-    tenant_qs = Tenant.objects.prefetch_related("modules").all().order_by("name")
+    tenant_qs = (
+        Tenant.objects.defer("trial_started_at", "trial_converted_at")
+        .prefetch_related("modules")
+        .all()
+        .order_by("name")
+    )
     if selected_module:
         tenant_qs = tenant_qs.filter(modules__id=selected_module.id)
     tenant_qs = tenant_qs.filter(db_name__isnull=False).exclude(db_name="")

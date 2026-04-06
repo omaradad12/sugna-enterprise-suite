@@ -78,7 +78,11 @@ class TenantResolutionMiddleware:
         if len(path_parts) >= 2 and path_parts[0] == "t":
             slug_candidate = path_parts[1]
             if slug_candidate not in _legacy_t_root:
-                t_by_slug = Tenant.objects.filter(slug=slug_candidate).first()
+                t_by_slug = (
+                    Tenant.objects.filter(slug=slug_candidate)
+                    .defer("trial_started_at", "trial_converted_at")
+                    .first()
+                )
                 if t_by_slug:
                     tenant = t_by_slug
                     rest_parts = path_parts[2:]
@@ -104,15 +108,28 @@ class TenantResolutionMiddleware:
                 .first()
             )
             if tenant_id:
-                tenant = Tenant.objects.filter(pk=tenant_id).first()
+                tenant = (
+                    Tenant.objects.filter(pk=tenant_id)
+                    .defer("trial_started_at", "trial_converted_at")
+                    .first()
+                )
             if not tenant:
-                tenant = Tenant.objects.filter(domain=host).first()
+                tenant = (
+                    Tenant.objects.filter(domain=host)
+                    .defer("trial_started_at", "trial_converted_at")
+                    .first()
+                )
 
         # Developer-friendly fallback: when running locally with DEBUG on and no
         # explicit domain match, route localhost to the first active tenant so
         # paths like /t/finance/ work without DNS / host headers.
         if not tenant and settings.DEBUG and host in {"127.0.0.1", "localhost"}:
-            tenant = Tenant.objects.filter(is_active=True).order_by("id").first()
+            tenant = (
+                Tenant.objects.filter(is_active=True)
+                .defer("trial_started_at", "trial_converted_at")
+                .order_by("id")
+                .first()
+            )
 
         request.tenant = tenant
         set_current_tenant(tenant)
