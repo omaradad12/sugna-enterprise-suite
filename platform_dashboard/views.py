@@ -34,6 +34,18 @@ from tenants.workplace import (
     tenant_module_home_relpath,
 )
 
+from .subscription_data import (
+    apply_subscription_filters,
+    build_subscription_row,
+    subscription_kpis,
+)
+from .trial_data import (
+    apply_trial_filters,
+    build_trial_row,
+    trial_kpis,
+    trials_base_queryset,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +53,10 @@ logger = logging.getLogger(__name__)
 @staff_member_required(login_url="/platform/login/")
 def platform_coming_soon_view(request, slug: str):
     """Placeholder for platform admin areas that are not built yet (scalable menu targets)."""
+    if slug == "tenant-subscriptions":
+        return redirect("platform_dashboard:tenant_subscriptions")
+    if slug == "trials":
+        return redirect("platform_dashboard:trials")
     page_title = slug.replace("-", " ").replace("_", " ").strip().title() or "Coming soon"
     return render(
         request,
@@ -501,6 +517,366 @@ def tenant_list_view(request):
         },
     }
     return render(request, "platform_dashboard/tenant_list.html", context)
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def tenant_subscriptions_view(request):
+    """
+    Platform admin: tenant subscription overview (data lives on Tenant today).
+    Supports filters, pagination, KPIs, and POST actions that update tenant subscription fields.
+    """
+    if request.method == "POST":
+        return _tenant_subscription_action_post(request)
+
+    search = (request.GET.get("q") or "").strip()
+    status_key = (request.GET.get("status") or "all").strip()
+    plan_filter = (request.GET.get("plan") or "").strip()
+    module_filter = (request.GET.get("module") or "").strip()
+    billing_cycle = (request.GET.get("billing_cycle") or "any").strip()
+    sort = (request.GET.get("sort") or "name").strip()
+    per_page = max(10, min(100, int(request.GET.get("per_page", 25))))
+    page_num = max(1, int(request.GET.get("page", 1)))
+
+    start_from = parse_date((request.GET.get("start_from") or "").strip() or "")
+    start_to = parse_date((request.GET.get("start_to") or "").strip() or "")
+    expiry_from = parse_date((request.GET.get("expiry_from") or "").strip() or "")
+    expiry_to = parse_date((request.GET.get("expiry_to") or "").strip() or "")
+
+    base = Tenant.objects.prefetch_related("modules").all()
+    kpis = subscription_kpis(base)
+
+    qs, billing_note = apply_subscription_filters(
+        base,
+        q=search,
+        status_key=status_key,
+        plan=plan_filter,
+        module_id=module_filter,
+        start_from=start_from,
+        start_to=start_to,
+        expiry_from=expiry_from,
+        expiry_to=expiry_to,
+        billing_cycle=billing_cycle,
+    )
+    if billing_note:
+        messages.info(
+            request,
+            "Billing cycle is not stored on tenants yet; this filter is reserved for a future billing integration.",
+        )
+
+    allowed_sort = {
+        "name",
+        "-name",
+        "slug",
+        "-slug",
+        "domain",
+        "-domain",
+        "plan",
+        "-plan",
+        "created_at",
+        "-created_at",
+        "subscription_expiry",
+        "-subscription_expiry",
+        "status",
+        "-status",
+    }
+    if sort in allowed_sort:
+        qs = qs.order_by(sort)
+    else:
+        qs = qs.order_by("name")
+
+    paginator = Paginator(qs, per_page)
+    page = paginator.get_page(page_num)
+    rows = [build_subscription_row(t) for t in page.object_list]
+
+    plans = list(
+        Tenant.objects.exclude(plan="").values_list("plan", flat=True).distinct().order_by("plan")[:80]
+    )
+    sp_qs = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
+    plan_choices = sorted(
+        {p for p in plans if (p or "").strip()}
+        | {sp.name for sp in sp_qs}
+        | {sp.code for sp in sp_qs},
+        key=lambda x: (x or "").lower(),
+    )
+    modules = Module.objects.filter(is_active=True).order_by("sort_order", "code")
+    module_filter_id = int(module_filter) if module_filter.isdigit() else None
+
+    context = {
+        "rows": rows,
+        "page": page,
+        "kpis": kpis,
+        "filters": {
+            "q": search,
+            "status": status_key,
+            "plan": plan_filter,
+            "module": module_filter,
+            "billing_cycle": billing_cycle,
+            "start_from": request.GET.get("start_from") or "",
+            "start_to": request.GET.get("start_to") or "",
+            "expiry_from": request.GET.get("expiry_from") or "",
+            "expiry_to": request.GET.get("expiry_to") or "",
+            "sort": sort,
+            "per_page": per_page,
+        },
+        "plan_choices": plan_choices,
+        "modules": modules,
+        "module_filter_id": module_filter_id,
+        "billing_cycle_filter_active": billing_note,
+    }
+    return render(request, "platform_dashboard/tenant_subscriptions.html", context)
+
+
+def _tenant_subscription_action_post(request):
+    """Single-row subscription actions (mutate Tenant)."""
+    action = (request.POST.get("action") or "").strip()
+    tid = request.POST.get("tenant_id")
+    if not tid or not tid.isdigit():
+        messages.error(request, "Invalid request.")
+        return redirect("platform_dashboard:tenant_subscriptions")
+
+    next_url = (request.POST.get("next") or "").strip()
+    default_redirect = redirect("platform_dashboard:tenant_subscriptions")
+    dest = default_redirect
+    if next_url.startswith("/platform/"):
+        dest = HttpResponseRedirect(next_url)
+
+    today = timezone.now().date()
+
+    with transaction.atomic():
+        tenant = get_object_or_404(Tenant.objects.select_for_update(), pk=int(tid))
+        if action == "activate":
+            tenant.is_active = True
+            if tenant.status in (Tenant.Status.EXPIRED, Tenant.Status.SUSPENDED):
+                tenant.status = Tenant.Status.ACTIVE
+            tenant.save()
+            messages.success(request, f"Activated subscription for {tenant.name}.")
+        elif action == "suspend":
+            tenant.is_active = False
+            tenant.save()
+            messages.warning(request, f"Suspended {tenant.name}.")
+        elif action == "renew":
+            base = tenant.subscription_expiry or today
+            start = base if base >= today else today
+            tenant.subscription_expiry = start + timedelta(days=365)
+            tenant.status = Tenant.Status.ACTIVE
+            tenant.is_active = True
+            tenant.save()
+            messages.success(request, f"Renewed subscription for {tenant.name} until {tenant.subscription_expiry}.")
+        elif action == "extend_trial":
+            if tenant.status != Tenant.Status.TRIAL:
+                messages.warning(request, "Extend trial only applies to tenants in trial status.")
+            else:
+                base = tenant.subscription_expiry or today
+                start = base if base >= today else today
+                tenant.subscription_expiry = start + timedelta(days=30)
+                tenant.save()
+                messages.success(request, f"Extended trial for {tenant.name} until {tenant.subscription_expiry}.")
+        elif action == "cancel":
+            tenant.status = Tenant.Status.EXPIRED
+            tenant.is_active = False
+            tenant.save()
+            messages.warning(request, f"Cancelled subscription for {tenant.name}.")
+        else:
+            messages.error(request, "Unknown action.")
+            return default_redirect
+
+    return dest
+
+
+@login_required(login_url="/platform/login/")
+@staff_member_required(login_url="/platform/login/")
+def trials_view(request):
+    """
+    Platform admin: trial tenants (status=TRIAL) and converted trials (trial_converted_at set).
+    """
+    if request.method == "POST":
+        return _trials_action_post(request)
+
+    search = (request.GET.get("q") or "").strip()
+    status_key = (request.GET.get("status") or "all").strip()
+    plan_filter = (request.GET.get("plan") or "").strip()
+    module_filter = (request.GET.get("module") or "").strip()
+    country_filter = (request.GET.get("country") or "").strip()
+    sort = (request.GET.get("sort") or "name").strip()
+    per_page = max(10, min(100, int(request.GET.get("per_page", 25))))
+    page_num = max(1, int(request.GET.get("page", 1)))
+
+    start_from = parse_date((request.GET.get("start_from") or "").strip() or "")
+    start_to = parse_date((request.GET.get("start_to") or "").strip() or "")
+    expiry_from = parse_date((request.GET.get("expiry_from") or "").strip() or "")
+    expiry_to = parse_date((request.GET.get("expiry_to") or "").strip() or "")
+
+    base_all = Tenant.objects.all()
+    kpis = trial_kpis(base_all)
+
+    qs = trials_base_queryset().prefetch_related("modules")
+    qs = apply_trial_filters(
+        qs,
+        q=search,
+        status_key=status_key,
+        plan=plan_filter,
+        module_id=module_filter,
+        country=country_filter,
+        start_from=start_from,
+        start_to=start_to,
+        expiry_from=expiry_from,
+        expiry_to=expiry_to,
+    )
+
+    allowed_sort = {
+        "name",
+        "-name",
+        "slug",
+        "-slug",
+        "domain",
+        "-domain",
+        "plan",
+        "-plan",
+        "created_at",
+        "-created_at",
+        "subscription_expiry",
+        "-subscription_expiry",
+        "trial_converted_at",
+        "-trial_converted_at",
+        "trial_started_at",
+        "-trial_started_at",
+    }
+    if sort in allowed_sort:
+        qs = qs.order_by(sort)
+    else:
+        qs = qs.order_by("-trial_converted_at", "subscription_expiry", "name")
+
+    paginator = Paginator(qs, per_page)
+    page = paginator.get_page(page_num)
+    rows = [build_trial_row(t) for t in page.object_list]
+
+    plans = list(
+        Tenant.objects.exclude(plan="").values_list("plan", flat=True).distinct().order_by("plan")[:80]
+    )
+    sp_qs = SubscriptionPlan.objects.filter(is_active=True).order_by("sort_order", "code")
+    plan_choices = sorted(
+        {p for p in plans if (p or "").strip()}
+        | {sp.name for sp in sp_qs}
+        | {sp.code for sp in sp_qs},
+        key=lambda x: (x or "").lower(),
+    )
+    modules = Module.objects.filter(is_active=True).order_by("sort_order", "code")
+    module_filter_id = int(module_filter) if module_filter.isdigit() else None
+    countries = list(
+        Tenant.objects.exclude(country="").values_list("country", flat=True).distinct().order_by("country")[:60]
+    )
+
+    trial_list_empty = not Tenant.objects.filter(
+        Q(status=Tenant.Status.TRIAL) | Q(trial_converted_at__isnull=False)
+    ).exists()
+
+    context = {
+        "rows": rows,
+        "page": page,
+        "kpis": kpis,
+        "trial_list_empty": trial_list_empty,
+        "filters": {
+            "q": search,
+            "status": status_key,
+            "plan": plan_filter,
+            "module": module_filter,
+            "country": country_filter,
+            "start_from": request.GET.get("start_from") or "",
+            "start_to": request.GET.get("start_to") or "",
+            "expiry_from": request.GET.get("expiry_from") or "",
+            "expiry_to": request.GET.get("expiry_to") or "",
+            "sort": sort,
+            "per_page": per_page,
+        },
+        "plan_choices": plan_choices,
+        "modules": modules,
+        "module_filter_id": module_filter_id,
+        "countries": countries,
+    }
+    return render(request, "platform_dashboard/trials.html", context)
+
+
+def _trials_action_post(request):
+    """Trial-specific POST actions (mutate Tenant)."""
+    action = (request.POST.get("action") or "").strip()
+    tid = request.POST.get("tenant_id")
+    if not tid or not tid.isdigit():
+        messages.error(request, "Invalid request.")
+        return redirect("platform_dashboard:trials")
+
+    next_url = (request.POST.get("next") or "").strip()
+    default_redirect = redirect("platform_dashboard:trials")
+    dest = default_redirect
+    if next_url.startswith("/platform/"):
+        dest = HttpResponseRedirect(next_url)
+
+    today = timezone.now().date()
+    now = timezone.now()
+
+    with transaction.atomic():
+        tenant = get_object_or_404(Tenant.objects.select_for_update(), pk=int(tid))
+
+        if action == "extend_trial":
+            if tenant.status != Tenant.Status.TRIAL:
+                messages.warning(request, "Only tenants in trial status can be extended.")
+            else:
+                if not tenant.trial_started_at:
+                    tenant.trial_started_at = today
+                base = tenant.subscription_expiry or today
+                start = base if base >= today else today
+                tenant.subscription_expiry = start + timedelta(days=30)
+                tenant.save()
+                messages.success(request, f"Extended trial for {tenant.name} until {tenant.subscription_expiry}.")
+        elif action == "convert_to_paid":
+            if tenant.trial_converted_at:
+                messages.warning(request, "This tenant is already marked as converted from trial.")
+            elif tenant.status != Tenant.Status.TRIAL:
+                messages.warning(request, "Convert to paid only applies to tenants currently in trial.")
+            else:
+                plan_name = (request.POST.get("plan_name") or "").strip()
+                if plan_name:
+                    resolved = _resolve_subscription_plan_label(plan_name)
+                    tenant.plan = (resolved or plan_name)[:100]
+                tenant.trial_converted_at = now
+                tenant.status = Tenant.Status.ACTIVE
+                tenant.is_active = True
+                if not tenant.subscription_expiry or tenant.subscription_expiry < today:
+                    tenant.subscription_expiry = today + timedelta(days=365)
+                if not tenant.trial_started_at:
+                    tenant.trial_started_at = today
+                tenant.save()
+                messages.success(
+                    request,
+                    f"{tenant.name} converted to paid subscription ({tenant.plan or 'plan unchanged'}).",
+                )
+        elif action == "suspend_trial":
+            if tenant.status != Tenant.Status.TRIAL:
+                messages.warning(request, "Suspend trial only applies to trial tenants.")
+            else:
+                tenant.is_active = False
+                tenant.save()
+                messages.warning(request, f"Suspended trial for {tenant.name}.")
+        elif action == "cancel_trial":
+            if getattr(tenant, "trial_converted_at", None):
+                messages.warning(request, "Cannot cancel a trial that is already converted; use tenant subscription instead.")
+            elif tenant.status != Tenant.Status.TRIAL:
+                messages.warning(request, "Cancel trial only applies to tenants in trial status.")
+            else:
+                tenant.status = Tenant.Status.EXPIRED
+                tenant.is_active = False
+                tenant.save()
+                messages.warning(request, f"Cancelled trial for {tenant.name}.")
+        elif action == "send_reminder":
+            messages.info(
+                request,
+                f"Trial reminder email is not wired to an outbound provider yet. Copy link: {tenant.domain}",
+            )
+        else:
+            messages.error(request, "Unknown action.")
+            return default_redirect
+
+    return dest
 
 
 def _export_tenants_csv(queryset):

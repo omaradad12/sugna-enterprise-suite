@@ -1,0 +1,89 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}{{ plan.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto animate-fade-in">
+  <a href="{% url 'platform_dashboard:plans_list' %}" class="inline-flex items-center gap-2 text-slate-600 hover:text-primary-600 text-sm font-medium mb-4">
+    <i data-feather="arrow-left" class="w-4 h-4"></i> All plans
+  </a>
+
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 page-heading">{{ plan.name }}</h1>
+      <p class="text-slate-500 mt-1 font-mono text-sm">{{ plan.code }}</p>
+      <div class="mt-1">{% include "platform_dashboard/includes/plan_status_badge.html" with label=status_display %}</div>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'platform_dashboard:plan_edit' plan.pk %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm font-medium hover:bg-slate-50 shadow-sm">
+        <i data-feather="edit-2" class="w-4 h-4"></i> Edit plan
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="dynamics-card p-5">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2 mb-3">Pricing</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Price</dt><dd class="font-semibold text-slate-900 tabular-nums">{{ plan.currency }} {{ plan.price }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Billing cycle</dt><dd>{{ plan.get_billing_cycle_display }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Trial</dt><dd>{% if plan.trial_enabled %}Yes{% if plan.trial_duration_days %} ({{ plan.trial_duration_days }} days){% endif %}{% else %}No{% endif %}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Visibility</dt><dd>{{ plan.get_visibility_display }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Assignable</dt><dd>{% if plan.is_catalog_assignable %}<span class="text-success-700">Yes</span>{% else %}<span class="text-slate-500">No</span>{% endif %}</dd></div>
+      </dl>
+    </div>
+    <div class="dynamics-card p-5">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2 mb-3">Limits</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-slate-500">Max organizations</dt><dd>{% if plan.max_organizations is not None %}{{ plan.max_organizations }}{% else %}Unlimited{% endif %}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Max users</dt><dd>{% if plan.max_users is not None %}{{ plan.max_users }}{% else %}Unlimited{% endif %}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Max storage</dt><dd>{% if plan.max_storage_mb is not None %}{{ plan.max_storage_mb }} MB{% else %}Unlimited{% endif %}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-500">Sort order</dt><dd>{{ plan.sort_order }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="dynamics-card p-5 mb-6">
+    <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2 mb-3">Description</h2>
+    <p class="text-slate-700 text-sm whitespace-pre-wrap">{% if plan.description %}{{ plan.description }}{% else %}—{% endif %}</p>
+  </div>
+
+  <div class="dynamics-card overflow-hidden mb-6">
+    <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Included modules</h2>
+    <div class="px-5 py-4 flex flex-wrap gap-2">
+      {% for m in plan.included_modules.all %}
+      <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-primary-50 text-primary-800 text-sm font-medium">{{ m.name }} ({{ m.code }})</span>
+      {% empty %}
+      <p class="text-slate-500 text-sm">No modules linked. <a href="{% url 'platform_dashboard:plan_edit' plan.pk %}" class="text-primary-600 hover:underline">Edit plan</a> to add entitlements.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="dynamics-card overflow-hidden" id="assigned">
+    <h2 class="px-5 py-4 border-b border-slate-200 text-sm font-semibold text-slate-800">Assigned tenants <span class="text-slate-500 font-normal">({{ plan.assigned_tenant_count }})</span></h2>
+    {% if assigned_tenants %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm data-table">
+        <thead class="border-b border-slate-200 text-slate-600 font-semibold bg-slate-50/95">
+          <tr>
+            <th class="px-5 py-3 text-left">Tenant</th>
+            <th class="px-5 py-3 text-left">Plan text</th>
+            <th class="px-5 py-3 text-left">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in assigned_tenants %}
+          <tr>
+            <td class="px-5 py-3"><a href="{% url 'platform_dashboard:tenant_detail' t.pk %}" class="font-medium text-primary-600 hover:underline">{{ t.name }}</a></td>
+            <td class="px-5 py-3 font-mono text-xs text-slate-600">{{ t.plan }}</td>
+            <td class="px-5 py-3 text-xs">{{ t.get_status_display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-5 py-10 text-center text-slate-500 text-sm">No tenants reference this plan by code or name yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

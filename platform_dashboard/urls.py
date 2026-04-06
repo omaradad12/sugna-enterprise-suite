@@ -3,6 +3,7 @@ from django.urls import path
 from platform_announcements import views as announcement_views
 from platform_email_templates import views as email_template_views
 
+from . import plan_views
 from . import views
 
 app_name = "platform_dashboard"
@@ -12,6 +13,13 @@ urlpatterns = [
     path("", views.dashboard_view, name="dashboard"),
     path("logo.png", views.logo_view, name="logo"),
     path("dashboard/", views.dashboard_view, name="dashboard_home"),
+    path("plans/", plan_views.plans_list_view, name="plans_list"),
+    path("plans/create/", plan_views.plan_create_view, name="plan_create"),
+    path("plans/<int:pk>/", plan_views.plan_detail_view, name="plan_detail"),
+    path("plans/<int:pk>/edit/", plan_views.plan_edit_view, name="plan_edit"),
+    path("plans/<int:pk>/duplicate/", plan_views.plan_duplicate_view, name="plan_duplicate"),
+    path("trials/", views.trials_view, name="trials"),
+    path("subscriptions/tenants/", views.tenant_subscriptions_view, name="tenant_subscriptions"),
     path("tenants/", views.tenant_list_view, name="tenant_list"),
     path("tenants/register/", views.tenant_register_view, name="tenant_register"),
     path("tenants/check-domain/", views.tenant_domain_availability_view, name="tenant_check_domain"),

@@ -1,0 +1,246 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}Plans{% endblock %}
+
+{% block content %}
+<div class="max-w-[1800px] mx-auto animate-fade-in">
+  <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight page-heading">Plans</h1>
+      <p class="text-slate-500 mt-1 text-sm max-w-2xl">Manage subscription plans, pricing, billing cycles, and module entitlements. Tenant assignment counts match <span class="font-mono text-xs">Tenant.plan</span> to plan code or name.</p>
+    </div>
+    <a href="{% url 'platform_dashboard:plan_create' %}" class="btn-primary-premium inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary-500 text-white text-sm font-semibold shadow-sm">
+      <i data-feather="plus" class="w-4 h-4"></i> Create plan
+    </a>
+  </div>
+
+  {% if plans_empty and not filters.q and filters.status == 'all' and filters.billing_cycle == 'all' and filters.visibility == 'all' and filters.trial == 'all' and not filters.module %}
+  <div class="empty-state-card rounded-xl overflow-hidden dynamics-card">
+    <div class="px-8 py-20 text-center relative">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="w-80 h-80 rounded-full bg-primary-50/50 blur-3xl"></div>
+      </div>
+      <div class="relative">
+        <div class="inline-flex items-center justify-center w-24 h-24 rounded-2xl empty-state-icon-wrap mb-6">
+          <i data-feather="package" class="w-12 h-12" stroke-width="1.5"></i>
+        </div>
+        <h2 class="text-2xl font-semibold text-slate-800 mb-2">No subscription plans yet</h2>
+        <p class="text-slate-500 max-w-md mx-auto mb-6">Create your first plan to define pricing, trials, included modules, and limits. Tenants reference plans by matching plan code or name on their organization record.</p>
+        <a href="{% url 'platform_dashboard:plan_create' %}" class="btn-primary-premium inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary-500 text-white text-sm font-semibold">
+          <i data-feather="plus" class="w-4 h-4"></i> Create first plan
+        </a>
+      </div>
+    </div>
+  </div>
+  {% else %}
+
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+    <div class="dynamics-card p-4">
+      <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Total plans</span>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ kpis.total }}</p>
+    </div>
+    <a href="{% url 'platform_dashboard:plans_list' %}?status=active" class="dynamics-card p-4 hover:border-success-200 transition-all">
+      <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Active</span>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ kpis.active }}</p>
+    </a>
+    <div class="dynamics-card p-4">
+      <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Draft / inactive</span>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ kpis.draft_inactive }}</p>
+      <p class="text-[11px] text-slate-400 mt-1">{{ kpis.draft }} draft · {{ kpis.inactive }} inactive</p>
+    </div>
+    <a href="{% url 'platform_dashboard:plans_list' %}?visibility=public" class="dynamics-card p-4 hover:border-primary-200 transition-all">
+      <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Public</span>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ kpis.public }}</p>
+    </a>
+    <div class="dynamics-card p-4">
+      <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Assigned</span>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ kpis.assigned }}</p>
+      <p class="text-[11px] text-slate-400 mt-1">Plans with ≥1 tenant</p>
+    </div>
+    <a href="{% url 'platform_dashboard:plans_list' %}?trial=yes" class="dynamics-card p-4 hover:border-blue-200 transition-all">
+      <span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Trial enabled</span>
+      <p class="text-2xl font-bold text-slate-900 mt-2">{{ kpis.trial_enabled }}</p>
+    </a>
+  </div>
+
+  <div class="dynamics-card p-4 mb-4">
+    <form method="get" action="{% url 'platform_dashboard:plans_list' %}" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="sort" value="{{ filters.sort }}">
+      <input type="hidden" name="per_page" value="{{ filters.per_page }}">
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-feather="search" class="w-4 h-4"></i></span>
+          <input name="q" type="text" value="{{ filters.q }}" placeholder="Name, code, description…" class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm">
+        </div>
+      </div>
+      <div class="w-40">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+        <select name="status" class="w-full py-2 px-2 border border-slate-200 rounded-lg text-sm">
+          <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All (excl. archived)</option>
+          <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+          <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Draft</option>
+          <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+          <option value="archived" {% if filters.status == 'archived' %}selected{% endif %}>Archived</option>
+        </select>
+      </div>
+      <div class="w-40">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Billing</label>
+        <select name="billing_cycle" class="w-full py-2 px-2 border border-slate-200 rounded-lg text-sm">
+          <option value="all">Any</option>
+          <option value="monthly" {% if filters.billing_cycle == 'monthly' %}selected{% endif %}>Monthly</option>
+          <option value="quarterly" {% if filters.billing_cycle == 'quarterly' %}selected{% endif %}>Quarterly</option>
+          <option value="yearly" {% if filters.billing_cycle == 'yearly' %}selected{% endif %}>Yearly</option>
+          <option value="one_time" {% if filters.billing_cycle == 'one_time' %}selected{% endif %}>One-time</option>
+        </select>
+      </div>
+      <div class="w-36">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Visibility</label>
+        <select name="visibility" class="w-full py-2 px-2 border border-slate-200 rounded-lg text-sm">
+          <option value="all">Any</option>
+          <option value="public" {% if filters.visibility == 'public' %}selected{% endif %}>Public</option>
+          <option value="internal" {% if filters.visibility == 'internal' %}selected{% endif %}>Internal</option>
+        </select>
+      </div>
+      <div class="w-32">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Trial</label>
+        <select name="trial" class="w-full py-2 px-2 border border-slate-200 rounded-lg text-sm">
+          <option value="all">Any</option>
+          <option value="yes" {% if filters.trial == 'yes' %}selected{% endif %}>Enabled</option>
+          <option value="no" {% if filters.trial == 'no' %}selected{% endif %}>Disabled</option>
+        </select>
+      </div>
+      <div class="w-44">
+        <label class="block text-xs font-medium text-slate-500 mb-1">Module</label>
+        <select name="module" class="w-full py-2 px-2 border border-slate-200 rounded-lg text-sm">
+          <option value="">Any</option>
+          {% for m in modules %}
+          <option value="{{ m.id }}" {% if module_filter_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700">Apply</button>
+      <a href="{% url 'platform_dashboard:plans_list' %}" class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">Reset</a>
+    </form>
+  </div>
+
+  {% if page.paginator.count %}
+  <div class="dynamics-card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left data-table min-w-[1400px]">
+        <thead class="border-b border-slate-200 text-slate-600 font-semibold bg-slate-50/95">
+          <tr>
+            <th class="px-4 py-3"><a href="?sort={% if filters.sort == 'name' %}-name{% else %}name{% endif %}&q={{ filters.q|urlencode }}&status={{ filters.status }}&billing_cycle={{ filters.billing_cycle }}&visibility={{ filters.visibility }}&trial={{ filters.trial }}&module={{ filters.module }}&per_page={{ filters.per_page }}" class="hover:text-primary-600">Plan name</a></th>
+            <th class="px-4 py-3 font-mono text-xs">Code</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3">Price</th>
+            <th class="px-4 py-3">Billing</th>
+            <th class="px-4 py-3">Trial</th>
+            <th class="px-4 py-3">Modules</th>
+            <th class="px-4 py-3 text-right">Tenant limit</th>
+            <th class="px-4 py-3 text-right">User limit</th>
+            <th class="px-4 py-3 text-right">Storage</th>
+            <th class="px-4 py-3 text-right">Tenants</th>
+            <th class="px-4 py-3">Visibility</th>
+            <th class="px-4 py-3"><a href="?sort={% if filters.sort == '-updated_at' %}updated_at{% else %}-updated_at{% endif %}&q={{ filters.q|urlencode }}&status={{ filters.status }}&billing_cycle={{ filters.billing_cycle }}&visibility={{ filters.visibility }}&trial={{ filters.trial }}&module={{ filters.module }}&per_page={{ filters.per_page }}" class="hover:text-primary-600">Updated</a></th>
+            <th class="px-4 py-3 text-right w-32">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for plan in plans %}
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-4 py-3 font-semibold text-slate-900"><a href="{% url 'platform_dashboard:plan_detail' plan.pk %}" class="hover:text-primary-600">{{ plan.name }}</a></td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-600">{{ plan.code }}</td>
+            <td class="px-4 py-3">{% include "platform_dashboard/includes/plan_status_badge.html" with label=plan.status_display %}</td>
+            <td class="px-4 py-3 tabular-nums">{{ plan.currency }} {{ plan.price }}</td>
+            <td class="px-4 py-3 text-xs text-slate-600">{{ plan.get_billing_cycle_display }}</td>
+            <td class="px-4 py-3 text-xs">{% if plan.trial_enabled %}<span class="text-blue-700 font-medium">Yes{% if plan.trial_duration_days %} ({{ plan.trial_duration_days }}d){% endif %}</span>{% else %}<span class="text-slate-400">No</span>{% endif %}</td>
+            <td class="px-4 py-3 text-xs text-slate-600 max-w-[180px] truncate" title="{% for m in plan.included_modules.all %}{{ m.code }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}">{% for m in plan.included_modules.all %}{{ m.code }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+            <td class="px-4 py-3 text-right text-xs tabular-nums">{% if plan.max_organizations is not None %}{{ plan.max_organizations }}{% else %}∞{% endif %}</td>
+            <td class="px-4 py-3 text-right text-xs tabular-nums">{% if plan.max_users is not None %}{{ plan.max_users }}{% else %}∞{% endif %}</td>
+            <td class="px-4 py-3 text-right text-xs tabular-nums">{% if plan.max_storage_mb is not None %}{{ plan.max_storage_mb }} MB{% else %}∞{% endif %}</td>
+            <td class="px-4 py-3 text-right font-medium tabular-nums">{{ plan.assigned_tenant_count }}</td>
+            <td class="px-4 py-3 text-xs">{% if plan.visibility == 'public' %}<span class="text-slate-700">Public</span>{% else %}<span class="text-slate-500">Internal</span>{% endif %}</td>
+            <td class="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{{ plan.updated_at|date:"M d, Y H:i" }}</td>
+            <td class="px-4 py-3 text-right">
+              <div class="relative inline-block text-left" x-data="{ open: false }">
+                <button type="button" @click="open = !open" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 text-xs font-medium">Actions <i data-feather="chevron-down" class="w-3.5 h-3.5"></i></button>
+                <div x-show="open" x-cloak @click.outside="open = false" x-transition class="absolute right-0 mt-1 w-56 py-1 bg-white rounded-lg shadow-dropdown border border-slate-200 z-30">
+                  <a href="{% url 'platform_dashboard:plan_detail' plan.pk %}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="eye" class="w-4 h-4"></i> View plan</a>
+                  <a href="{% url 'platform_dashboard:plan_edit' plan.pk %}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="edit-2" class="w-4 h-4"></i> Edit plan</a>
+                  <form method="post" action="{% url 'platform_dashboard:plan_duplicate' plan.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="copy" class="w-4 h-4"></i> Duplicate</button>
+                  </form>
+                  {% if not plan.is_archived %}
+                    {% if plan.is_draft or not plan.is_active %}
+                  <form method="post" action="{% url 'platform_dashboard:plans_list' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan_id" value="{{ plan.pk }}">
+                    <input type="hidden" name="action" value="activate">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-emerald-800 hover:bg-emerald-50"><i data-feather="check-circle" class="w-4 h-4"></i> Activate</button>
+                  </form>
+                    {% endif %}
+                    {% if plan.is_active and not plan.is_draft %}
+                  <form method="post" action="{% url 'platform_dashboard:plans_list' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan_id" value="{{ plan.pk }}">
+                    <input type="hidden" name="action" value="deactivate">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-orange-800 hover:bg-orange-50"><i data-feather="pause-circle" class="w-4 h-4"></i> Deactivate</button>
+                  </form>
+                    {% endif %}
+                  <form method="post" action="{% url 'platform_dashboard:plans_list' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan_id" value="{{ plan.pk }}">
+                    <input type="hidden" name="action" value="archive">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="archive" class="w-4 h-4"></i> Archive</button>
+                  </form>
+                  {% else %}
+                  <form method="post" action="{% url 'platform_dashboard:plans_list' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan_id" value="{{ plan.pk }}">
+                    <input type="hidden" name="action" value="unarchive">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="rotate-ccw" class="w-4 h-4"></i> Unarchive</button>
+                  </form>
+                  {% endif %}
+                  <a href="{% url 'platform_dashboard:plan_edit' plan.pk %}#included_modules" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 border-t border-slate-100"><i data-feather="grid" class="w-4 h-4"></i> Manage modules</a>
+                  <a href="{% url 'platform_dashboard:plan_detail' plan.pk %}#assigned" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="users" class="w-4 h-4"></i> Assigned tenants</a>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+      <p class="text-sm text-slate-600">Showing {{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}</p>
+      <div class="flex items-center gap-2">
+        <select name="per_page" onchange="window.location.href='{% url 'platform_dashboard:plans_list' %}?page=1&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&billing_cycle={{ filters.billing_cycle }}&visibility={{ filters.visibility }}&trial={{ filters.trial }}&module={{ filters.module }}&per_page='+this.value" class="px-2 py-1 border border-slate-200 rounded text-sm">
+          <option value="10" {% if filters.per_page == 10 %}selected{% endif %}>10</option>
+          <option value="25" {% if filters.per_page == 25 %}selected{% endif %}>25</option>
+          <option value="50" {% if filters.per_page == 50 %}selected{% endif %}>50</option>
+        </select>
+        <nav class="flex gap-1">
+          {% if page.has_previous %}
+          <a href="?page={{ page.previous_page_number }}&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&billing_cycle={{ filters.billing_cycle }}&visibility={{ filters.visibility }}&trial={{ filters.trial }}&module={{ filters.module }}&per_page={{ filters.per_page }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm">Prev</a>
+          {% endif %}
+          {% if page.has_next %}
+          <a href="?page={{ page.next_page_number }}&sort={{ filters.sort }}&q={{ filters.q|urlencode }}&status={{ filters.status }}&billing_cycle={{ filters.billing_cycle }}&visibility={{ filters.visibility }}&trial={{ filters.trial }}&module={{ filters.module }}&per_page={{ filters.per_page }}" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm">Next</a>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="dynamics-card px-8 py-16 text-center">
+    <p class="text-slate-600 font-medium">No plans match your filters.</p>
+    <p class="text-slate-500 text-sm mt-1"><a href="{% url 'platform_dashboard:plans_list' %}" class="text-primary-600 hover:underline">Clear filters</a></p>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

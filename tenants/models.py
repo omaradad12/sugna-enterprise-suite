@@ -87,6 +87,17 @@ class Tenant(models.Model):
     )
     plan = models.CharField(max_length=100, blank=True, help_text="Subscription plan name")
     subscription_expiry = models.DateField(null=True, blank=True)
+    trial_started_at = models.DateField(
+        null=True,
+        blank=True,
+        help_text="When the trial period started (optional; UI falls back to tenant created date).",
+    )
+    trial_converted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Set when the tenant converts from trial to a paid subscription.",
+    )
     country = models.CharField(max_length=100, blank=True)
     user_count = models.PositiveIntegerField(default=0, help_text="Number of users in this tenant")
     storage_mb = models.PositiveIntegerField(default=0, help_text="Storage used in MB")
@@ -172,11 +183,67 @@ class SubscriptionPlan(models.Model):
     Tenant.plan is a free-text field today; you can align it with SubscriptionPlan.code in UI or future FK.
     """
 
+    class BillingCycle(models.TextChoices):
+        MONTHLY = "monthly", "Monthly"
+        QUARTERLY = "quarterly", "Quarterly"
+        YEARLY = "yearly", "Yearly"
+        ONE_TIME = "one_time", "One-time"
+
+    class Visibility(models.TextChoices):
+        PUBLIC = "public", "Public"
+        INTERNAL = "internal", "Internal"
+
     code = models.SlugField(max_length=50, unique=True, db_index=True)
     name = models.CharField(max_length=120)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
+    is_draft = models.BooleanField(default=False, db_index=True)
+    is_archived = models.BooleanField(default=False, db_index=True)
     sort_order = models.PositiveSmallIntegerField(default=0)
+
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, default="USD")
+    billing_cycle = models.CharField(
+        max_length=20,
+        choices=BillingCycle.choices,
+        default=BillingCycle.MONTHLY,
+    )
+    trial_enabled = models.BooleanField(default=False)
+    trial_duration_days = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Trial length in days when trial is enabled.",
+    )
+
+    visibility = models.CharField(
+        max_length=20,
+        choices=Visibility.choices,
+        default=Visibility.PUBLIC,
+        db_index=True,
+    )
+
+    max_users = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Leave empty for unlimited.",
+    )
+    max_storage_mb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Leave empty for unlimited.",
+    )
+    max_organizations = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Included tenant organizations (optional cap).",
+    )
+
+    included_modules = models.ManyToManyField(
+        "Module",
+        blank=True,
+        related_name="subscription_plans",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -185,6 +252,10 @@ class SubscriptionPlan(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def is_catalog_assignable(self) -> bool:
+        """Shown in pickers when the plan can be sold or assigned."""
+        return bool(self.is_active and not self.is_draft and not self.is_archived)
 
 
 class TenantDomain(models.Model):

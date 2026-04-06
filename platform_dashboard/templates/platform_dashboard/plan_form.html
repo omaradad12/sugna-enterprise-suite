@@ -1,0 +1,110 @@
+{% extends "platform_dashboard/base.html" %}
+{% block title %}{% if mode == 'create' %}Create plan{% else %}Edit {{ plan.name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto animate-fade-in">
+  <a href="{% if plan %}{% url 'platform_dashboard:plan_detail' plan.pk %}{% else %}{% url 'platform_dashboard:plans_list' %}{% endif %}" class="inline-flex items-center gap-2 text-slate-600 hover:text-primary-600 text-sm font-medium mb-4">
+    <i data-feather="arrow-left" class="w-4 h-4"></i> {% if plan %}Back to plan{% else %}All plans{% endif %}
+  </a>
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900 page-heading">{% if mode == 'create' %}Create plan{% else %}Edit plan{% endif %}</h1>
+    <p class="text-slate-500 mt-1 text-sm">Subscription plans, pricing, tiers, and module entitlements.</p>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="dynamics-card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2">Identity</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Code (slug)</label>
+          {{ form.code }}
+          {% if form.code.errors %}<p class="text-red-600 text-xs mt-1">{{ form.code.errors }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Display name</label>
+          {{ form.name }}
+          {% if form.name.errors %}<p class="text-red-600 text-xs mt-1">{{ form.name.errors }}</p>{% endif %}
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Description</label>
+        {{ form.description }}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Sort order</label>
+          {{ form.sort_order }}
+        </div>
+        <div class="flex flex-wrap gap-6 items-center pt-6">
+          <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ form.is_active }} Active</label>
+          <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ form.is_draft }} Draft</label>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500">Archive is available from the plans list actions. Draft plans are hidden from assignable catalogs.</p>
+    </div>
+
+    <div class="dynamics-card p-6 space-y-4">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2">Pricing &amp; trial</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Price</label>
+          {{ form.price }}
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Currency</label>
+          {{ form.currency }}
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Billing cycle</label>
+          {{ form.billing_cycle }}
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-6 items-center">
+        <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ form.trial_enabled }} Trial enabled</label>
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-xs font-medium text-slate-500 mb-1">Trial duration (days)</label>
+          {{ form.trial_duration_days }}
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Visibility</label>
+        {{ form.visibility }}
+      </div>
+    </div>
+
+    <div class="dynamics-card p-6 space-y-4" id="included_modules">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2">Limits &amp; modules</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Max organizations (tenants)</label>
+          {{ form.max_organizations }}
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Max users</label>
+          {{ form.max_users }}
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">Max storage (MB)</label>
+          {{ form.max_storage_mb }}
+        </div>
+      </div>
+      <p class="text-xs text-slate-500">Leave limit fields empty for unlimited.</p>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Included modules (Ctrl/Cmd+click)</label>
+        {{ form.included_modules }}
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="submit" class="px-5 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700">Save plan</button>
+      <a href="{% if plan %}{% url 'platform_dashboard:plan_detail' plan.pk %}{% else %}{% url 'platform_dashboard:plans_list' %}{% endif %}" class="px-5 py-2.5 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -129,9 +129,27 @@ PLATFORM_MENU_SECTIONS: list[dict[str, Any]] = [
         "icon": "credit-card",
         "default_open": True,
         "items": [
-            {"label": "Plans", "icon": "package", "href": "/admin/tenants/subscriptionplan/", "active_prefix": "/admin/tenants/subscriptionplan"},
-            {"label": "Tenant subscriptions", "icon": "repeat", "url_name": "coming_soon", "namespace": "platform_dashboard", "kwargs": {"slug": "tenant-subscriptions"}},
-            {"label": "Trials", "icon": "clock", "url_name": "coming_soon", "namespace": "platform_dashboard", "kwargs": {"slug": "trials"}},
+            {
+                "label": "Plans",
+                "icon": "package",
+                "url_name": "plans_list",
+                "namespace": "platform_dashboard",
+                "active_prefix": "/platform/plans",
+            },
+            {
+                "label": "Tenant subscriptions",
+                "icon": "repeat",
+                "url_name": "tenant_subscriptions",
+                "namespace": "platform_dashboard",
+                "active_prefix": "/platform/subscriptions",
+            },
+            {
+                "label": "Trials",
+                "icon": "clock",
+                "url_name": "trials",
+                "namespace": "platform_dashboard",
+                "active_prefix": "/platform/trials",
+            },
         ],
     },
     {

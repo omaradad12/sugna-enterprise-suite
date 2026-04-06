@@ -24,10 +24,23 @@ class TenantModuleInline(admin.TabularInline):
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "sort_order", "is_active")
-    list_filter = ("is_active",)
-    search_fields = ("code", "name")
+    list_display = (
+        "code",
+        "name",
+        "price",
+        "currency",
+        "billing_cycle",
+        "visibility",
+        "trial_enabled",
+        "sort_order",
+        "is_active",
+        "is_draft",
+        "is_archived",
+    )
+    list_filter = ("is_active", "is_draft", "is_archived", "billing_cycle", "visibility", "trial_enabled")
+    search_fields = ("code", "name", "description")
     ordering = ("sort_order", "code")
+    filter_horizontal = ("included_modules",)
 
 
 @admin.register(Module)
@@ -51,6 +64,8 @@ class TenantAdmin(admin.ModelAdmin):
         "is_active",
         "user_count",
         "subscription_expiry",
+        "trial_started_at",
+        "trial_converted_at",
         "created_at",
     )
     list_filter = ("is_active", "status", "provisioning_status")
