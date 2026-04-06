@@ -12,7 +12,8 @@ set -euo pipefail
 #   git pull -> docker compose up --build ->
 #   wait until DB accepts connections ->
 #   wait until web container is running (not "restarting") and briefly stable ->
-#   migrate -> migrate_all_tenants (optional) -> collectstatic -> restart web + nginx
+#   deploy_migrate (default + optional migrate_all_tenants in ONE process) ->
+#   collectstatic -> restart web + nginx
 #
 # Why wait: `docker compose exec` fails with "container is restarting" if you run
 # migrations immediately after `up` while the web container is still crash-looping
@@ -139,13 +140,15 @@ sleep 2
 wait_for_database
 wait_for_web_running_and_stable
 
-echo "==> Running Django migrations (control-plane)"
-compose exec -T web python manage.py migrate --noinput
-
-if [ "$MIGRATE_TENANTS" = "true" ]; then
-  echo "==> Running tenant migrations (all tenants with db_name)"
-  compose exec -T web python manage.py migrate_all_tenants --noinput
+# One Python process: migrate (default) then migrate_all_tenants.
+# Avoids webhook/shell ordering issues; tenant tables (e.g. tenant_grants_donor)
+# are created on each tenant DB here — not by `migrate` on default alone.
+DEPLOY_MIGRATE_ARGS=(python manage.py deploy_migrate --noinput)
+if [ "$MIGRATE_TENANTS" != "true" ]; then
+  DEPLOY_MIGRATE_ARGS+=(--skip-tenant-databases)
 fi
+echo "==> Running database migrations (deploy_migrate: control-plane + tenant DBs unless skipped)"
+compose exec -T web "${DEPLOY_MIGRATE_ARGS[@]}"
 
 echo "==> Collecting static assets"
 compose exec -T web python manage.py collectstatic --noinput

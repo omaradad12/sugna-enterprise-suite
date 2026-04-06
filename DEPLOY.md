@@ -218,6 +218,8 @@ If you use a service such as `sugna-webhook`, point it at the same workflow as `
 
 The script waits until PostgreSQL accepts connections (`pg_isready` in the `db` container) and until the `web` container stays in Docker state `running` (not `restarting`) before running `migrate` / `exec`, so you do not hit *"Container ... is restarting"*. Tune waits with `WAIT_DB_MAX_ATTEMPTS`, `WAIT_WEB_MAX_ATTEMPTS`, and `WAIT_POLL_INTERVAL` (each attempt sleeps `WAIT_POLL_INTERVAL` seconds; defaults are documented in `scripts/deploy.sh`).
 
+Migrations use **one** command inside the web container: `python manage.py deploy_migrate --noinput` (or add `--skip-tenant-databases` when `MIGRATE_TENANTS` is not `true`). That runs `migrate` on the **default** database, then `migrate_all_tenants`. If you only run `migrate` on default, tables such as `tenant_grants_donor` are **never** created there (they are tenant-scoped); they live on each **tenant PostgreSQL database**. A `ProgrammingError: relation "tenant_grants_donor" does not exist` during deploy usually means tenant DB migrations were skipped, or something queried tenant models on the default connection without `using(tenant_db)`. Use `deploy_migrate` or run `migrate_all_tenants` after every deploy that changes tenant apps.
+
 ---
 
 ## 5. Environment variables reference
