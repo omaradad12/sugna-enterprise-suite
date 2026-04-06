@@ -1,0 +1,17 @@
+{# Tenant registration — page title & back link (no context required) #}
+<div class="tenant-wizard-page-head">
+  <a href="{% url 'platform_dashboard:tenant_list' %}" class="tenant-wizard-backlink">
+    <i data-feather="arrow-left" class="h-4 w-4"></i>
+    <span>Tenant Directory</span>
+  </a>
+  <div class="tenant-wizard-title-row">
+    <div class="min-w-0">
+      <h1 class="tenant-wizard-title">Tenant Registration</h1>
+      <p class="tenant-wizard-subtitle">
+        Guided onboarding for a new organization workspace. Complete each step in order; save a draft anytime.
+        Review all details before you provision the tenant database.
+      </p>
+    </div>
+    <span class="tenant-wizard-badge">7-step wizard</span>
+  </div>
+</div>

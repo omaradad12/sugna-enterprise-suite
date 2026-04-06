@@ -1,0 +1,40 @@
+{# Sticky submission summary — IDs used by tenant_register.html JS #}
+<aside class="tenant-wizard-summary-aside block lg:sticky lg:top-24 h-fit">
+  <div class="tenant-wizard-summary">
+    <div class="tenant-wizard-summary__head">
+      <div class="min-w-0">
+        <h2 class="tenant-wizard-summary__title">Submission summary</h2>
+        <p class="tenant-wizard-summary__subtitle">Live preview of key choices. Complete steps to fill each row.</p>
+      </div>
+      <div class="tenant-wizard-summary__icon" aria-hidden="true">
+        <i data-feather="sliders" class="h-5 w-5"></i>
+      </div>
+    </div>
+    <div class="tenant-wizard-summary__body">
+      <div class="tenant-wizard-summary__row">
+        <div class="tenant-wizard-summary__k">Organization</div>
+        <div class="tenant-wizard-summary__v is-empty" id="summary_org_name">-</div>
+      </div>
+      <div class="tenant-wizard-summary__row">
+        <div class="tenant-wizard-summary__k">Plan</div>
+        <div class="tenant-wizard-summary__v is-empty" id="summary_plan">-</div>
+      </div>
+      <div class="tenant-wizard-summary__row">
+        <div class="tenant-wizard-summary__k">Modules</div>
+        <div class="tenant-wizard-summary__v is-empty" id="summary_modules_count">0 selected</div>
+      </div>
+      <div class="tenant-wizard-summary__row">
+        <div class="tenant-wizard-summary__k">Workspace URL</div>
+        <div class="tenant-wizard-summary__v is-empty" id="summary_subdomain">-</div>
+      </div>
+      <div class="tenant-wizard-summary__row">
+        <div class="tenant-wizard-summary__k">Admin email</div>
+        <div class="tenant-wizard-summary__v is-empty" id="summary_admin_email">-</div>
+      </div>
+    </div>
+    <div class="tenant-wizard-summary__tip">
+      <div class="tenant-wizard-summary__tip-title">Tip</div>
+      <p class="tenant-wizard-summary__tip-text">Use step 7 to confirm all details before choosing <strong>Create Tenant</strong>. Provisioning can take a few minutes.</p>
+    </div>
+  </div>
+</aside>

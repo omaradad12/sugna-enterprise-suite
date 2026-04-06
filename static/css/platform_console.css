@@ -8,6 +8,8 @@
   --platform-surface: #ffffff;
   --platform-border: #e8ecf0;
   --platform-border-subtle: rgba(15, 23, 42, 0.06);
+  /* Single source for elevated surfaces (cards, panels, chart shells) */
+  --platform-card-border: rgba(15, 23, 42, 0.075);
   --platform-text: #0f172a;
   --platform-text-secondary: #475569;
   --platform-text-muted: #64748b;
@@ -18,8 +20,8 @@
   --platform-radius-md: 10px;
   --platform-radius-sm: 8px;
   --platform-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --platform-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.05);
-  --platform-shadow-card-hover: 0 6px 16px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --platform-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.045);
+  --platform-shadow-card-hover: 0 8px 20px rgba(15, 23, 42, 0.075), 0 2px 6px rgba(15, 23, 42, 0.04);
   --platform-space-section: 2rem; /* 32px — between major sections */
   --platform-space-section-lg: 2.25rem; /* 36px on large viewports */
   --platform-space-card-gap: 1.25rem; /* 20px — between cards */
@@ -145,7 +147,7 @@
 /* ——— Cards ——— */
 .platform-card {
   background: var(--platform-surface);
-  border: 1px solid var(--platform-border-subtle);
+  border: 1px solid var(--platform-card-border);
   border-radius: var(--platform-radius-lg);
   box-shadow: var(--platform-shadow-card);
 }
@@ -156,7 +158,7 @@
 
 .platform-card--interactive:hover {
   box-shadow: var(--platform-shadow-card-hover);
-  border-color: #e2e8f0;
+  border-color: rgba(15, 23, 42, 0.1);
   transform: translateY(-1px);
 }
 
@@ -164,10 +166,10 @@
   padding: var(--platform-card-padding);
 }
 
-/* KPI / metric */
+/* KPI / metric — matches .platform-card surface treatment */
 .platform-metric-card {
   background: var(--platform-surface);
-  border: 1px solid var(--platform-border);
+  border: 1px solid var(--platform-card-border);
   border-radius: var(--platform-radius-lg);
   box-shadow: var(--platform-shadow-card);
   padding: var(--platform-card-padding);
@@ -179,8 +181,13 @@
 
 .platform-metric-card:hover {
   box-shadow: var(--platform-shadow-card-hover);
-  border-color: rgba(0, 120, 212, 0.14);
+  border-color: rgba(0, 120, 212, 0.16);
   transform: translateY(-2px);
+}
+
+/* Optional class on stat cards — hover unified with .platform-metric-card (no duplicate rules in base.html) */
+.kpi-card.platform-metric-card {
+  transition: box-shadow 0.18s var(--platform-ease), border-color 0.18s var(--platform-ease), transform 0.18s var(--platform-ease);
 }
 
 .platform-metric-card__body {
@@ -386,11 +393,16 @@
 
 /* ——— Sidebar ——— */
 .platform-nav-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .platform-nav-section:last-of-type {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+nav.platform-sidebar-nav {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
 }
 
 .platform-nav-section__label {
@@ -443,7 +455,7 @@
 /* ——— Alerts ——— */
 .platform-alert-panel {
   border-radius: var(--platform-radius-lg);
-  border: 1px solid var(--platform-border-subtle);
+  border: 1px solid var(--platform-card-border);
   background: #fff;
   box-shadow: var(--platform-shadow-card);
   overflow: hidden;
@@ -493,10 +505,11 @@
   align-items: flex-start;
   gap: 0.75rem;
   border-radius: var(--platform-radius-md);
-  border: 1px solid transparent;
+  border: 1px solid var(--platform-card-border);
   padding: 1rem;
   text-decoration: none;
   color: inherit;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   transition: box-shadow 0.18s var(--platform-ease), border-color 0.18s var(--platform-ease), transform 0.18s var(--platform-ease);
 }
 
@@ -508,21 +521,25 @@
 .platform-alert-card--critical {
   border-color: #fecaca;
   background: #fff5f5;
+  box-shadow: none;
 }
 
 .platform-alert-card--warning {
   border-color: #fde68a;
   background: #fffbeb;
+  box-shadow: none;
 }
 
 .platform-alert-card--success {
   border-color: #bbf7d0;
   background: #f0fdf4;
+  box-shadow: none;
 }
 
 .platform-alert-card--info {
   border-color: #e2e8f0;
   background: #f8fafc;
+  box-shadow: none;
 }
 
 .platform-alert-card__badge {
@@ -548,12 +565,12 @@
   flex: 1;
   min-height: 18rem;
   border-radius: var(--platform-radius-md);
-  border: 1px solid #eef2f6;
-  background-color: #fafbfc;
-  background-image: linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+  border: 1px solid var(--platform-card-border);
+  background-color: #f9fafb;
+  background-image: linear-gradient(rgba(148, 163, 184, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.032) 1px, transparent 1px);
   background-size: 20px 20px;
-  padding: 0.875rem;
+  padding: 1rem 1rem 0.875rem;
 }
 
 .platform-chart-shell__watermark {
@@ -564,8 +581,8 @@
   justify-content: center;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.35;
-  color: #cbd5e1;
+  opacity: 0.28;
+  color: #94a3b8;
 }
 
 .platform-chart-shell canvas {
@@ -576,15 +593,86 @@
 .platform-chart-footnote {
   font-size: 0.6875rem;
   color: #94a3b8;
-  margin-top: 0.625rem;
+  margin-top: 0.75rem;
   letter-spacing: 0.01em;
 }
 
-/* Future analytics placeholders */
+/* Future analytics / “below the fold” placeholders — same card language as charts, softer fill */
 .platform-placeholder-card {
-  border: 1px dashed #cbd5e1;
-  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--platform-card-border);
+  border-radius: var(--platform-radius-lg);
+  background: linear-gradient(165deg, #f8fafc 0%, #ffffff 55%);
   box-shadow: var(--platform-shadow-card);
+}
+
+.platform-placeholder-card__inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: var(--platform-card-padding);
+}
+
+.platform-placeholder-card__icon-well {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--platform-radius-md);
+  background: rgba(0, 120, 212, 0.08);
+  color: var(--platform-primary);
+}
+
+.platform-placeholder-card--neutral .platform-placeholder-card__icon-well {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+/* Empty state (zero tenants) — illustration + copy alignment */
+.platform-empty-state .platform-empty-state__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .platform-empty-state .platform-empty-state__inner {
+    flex-direction: row;
+    align-items: center;
+    gap: 2.5rem;
+    padding: 2.5rem 2rem;
+  }
+}
+
+.platform-empty-state__visual {
+  flex-shrink: 0;
+  width: 12rem;
+  height: 10rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.platform-empty-state__visual svg {
+  width: 100%;
+  height: 100%;
+  max-width: 12rem;
+  max-height: 10rem;
+}
+
+.platform-empty-state__content {
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .platform-empty-state__content {
+    text-align: left;
+  }
 }
 
 /* Activity / list cards — icon chip */
