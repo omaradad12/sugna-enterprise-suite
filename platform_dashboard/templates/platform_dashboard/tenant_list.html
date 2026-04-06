@@ -246,7 +246,11 @@
                   <a href="{% url 'platform_dashboard:tenant_edit' t.pk %}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a>
                   <a href="/admin/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="credit-card" class="w-4 h-4"></i> Manage subscription</a>
                   <a href="/admin/" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="bar-chart-2" class="w-4 h-4"></i> View usage</a>
-                  <a href="https://{{ t.domain }}" target="_blank" rel="noopener" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="external-link" class="w-4 h-4"></i> Open workspace</a>
+                  {% if t.workspace.can_open %}
+                  <a href="{{ t.workspace.url }}" target="_blank" rel="noopener" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><i data-feather="external-link" class="w-4 h-4"></i> Open tenant workspace</a>
+                  {% else %}
+                  <span class="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 cursor-not-allowed" title="{{ t.workspace.disabled_reason }}"><i data-feather="external-link" class="w-4 h-4"></i> Open tenant workspace</span>
+                  {% endif %}
                 </div>
               </div>
             </td>

@@ -29,11 +29,28 @@
         <a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="inline-flex items-center gap-2 px-4 py-2 rounded border bg-white text-slate-700 text-sm font-medium hover:bg-slate-50">
           <i data-feather="edit-2" class="w-4 h-4"></i> Edit
         </a>
-        <a href="https://{{ tenant.domain }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-primary-500 text-white text-sm font-medium hover:bg-primary-700">
-          <i data-feather="external-link" class="w-4 h-4"></i> Open workspace
+        {% if tenant_workspace.can_open %}
+        <a href="{{ tenant_workspace.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 rounded bg-primary-500 text-white text-sm font-medium hover:bg-primary-700">
+          <i data-feather="external-link" class="w-4 h-4"></i> Open tenant workspace
         </a>
+        {% else %}
+        <span class="inline-flex items-center gap-2 px-4 py-2 rounded bg-slate-200 text-slate-500 text-sm font-medium cursor-not-allowed" title="{{ tenant_workspace.disabled_reason }}">
+          <i data-feather="external-link" class="w-4 h-4"></i> Open tenant workspace
+        </span>
+        {% endif %}
       </div>
     </div>
+    {% if tenant_workspace.warning %}
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <span class="font-semibold">Workspace routing</span>
+      <p class="mt-1 text-amber-900">{{ tenant_workspace.warning }}</p>
+    </div>
+    {% elif not tenant_workspace.can_open and tenant_workspace.disabled_reason %}
+    <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+      <span class="font-semibold">Tenant workspace</span>
+      <p class="mt-1">{{ tenant_workspace.disabled_reason }}</p>
+    </div>
+    {% endif %}
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -248,7 +265,13 @@
           <li><a href="{% url 'platform_dashboard:tenant_edit' tenant.pk %}" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="clock" class="w-4 h-4"></i> Extend trial</a></li>
           <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="credit-card" class="w-4 h-4"></i> Manage subscription</a></li>
           <li><a href="/admin/" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="bar-chart-2" class="w-4 h-4"></i> View usage</a></li>
-          <li><a href="https://{{ tenant.domain }}" target="_blank" rel="noopener" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="external-link" class="w-4 h-4"></i> Open workspace</a></li>
+          <li>
+            {% if tenant_workspace.can_open %}
+            <a href="{{ tenant_workspace.url }}" target="_blank" rel="noopener" class="flex items-center gap-2 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg px-2 -mx-2"><i data-feather="external-link" class="w-4 h-4"></i> Open tenant workspace</a>
+            {% else %}
+            <span class="flex items-center gap-2 py-2.5 text-sm text-slate-400 cursor-not-allowed rounded-lg px-2 -mx-2" title="{{ tenant_workspace.disabled_reason }}"><i data-feather="external-link" class="w-4 h-4"></i> Open tenant workspace</span>
+            {% endif %}
+          </li>
         </ul>
       </div>
     </div>

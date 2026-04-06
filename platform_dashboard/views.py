@@ -12,7 +12,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.db import IntegrityError, transaction, utils as db_utils
 from django.utils.dateparse import parse_date
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
@@ -23,11 +23,16 @@ from django.utils.text import slugify
 
 from tenants.branding import extract_brand_colors
 from tenants.db import ensure_tenant_db_configured
-from tenants.models import Module, SubscriptionPlan, Tenant, TenantBrandingProfile, TenantDomain
+from tenants.models import Module, SubscriptionPlan, Tenant, TenantBrandingProfile, TenantDomain, TenantModule
 from tenants.services.onboarding import run_full_tenant_provisioning
 from tenants.services.registration_cleanup import cleanup_failed_registration_tenant
 from tenants.services.tenant_modules import replace_tenant_modules
-from tenants.workplace import PLATFORM_MODULE_ROUTE, is_platform_module, tenant_module_home_relpath
+from tenants.workplace import (
+    PLATFORM_MODULE_ROUTE,
+    is_platform_module,
+    resolve_tenant_workspace_open_url,
+    tenant_module_home_relpath,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +424,14 @@ def tenant_list_view(request):
     per_page = max(10, min(100, int(request.GET.get("per_page", 25))))
     page_num = max(1, int(request.GET.get("page", 1)))
 
-    qs = Tenant.objects.prefetch_related("modules").all()
+    tenant_modules_prefetch = TenantModule.objects.filter(
+        is_enabled=True,
+        module__is_active=True,
+    ).select_related("module")
+    qs = Tenant.objects.prefetch_related(
+        "modules",
+        Prefetch("tenant_modules", queryset=tenant_modules_prefetch),
+    ).all()
 
     if search:
         qs = qs.filter(
@@ -454,6 +466,11 @@ def tenant_list_view(request):
     paginator = Paginator(qs, per_page)
     page = paginator.get_page(page_num)
     tenants = page.object_list
+    for t in tenants:
+        t.workspace = resolve_tenant_workspace_open_url(
+            t,
+            enabled_tenant_modules=list(t.tenant_modules.all()),
+        )
 
     # Distinct plans and countries for filter dropdowns (optional)
     plans = list(
@@ -970,7 +987,18 @@ def tenant_domain_availability_view(request):
 @staff_member_required(login_url="/platform/login/")
 def tenant_detail_view(request, pk):
     """Tenant profile: organization, domain, modules, subscription, billing placeholder, usage, audit placeholder."""
-    tenant = get_object_or_404(Tenant.objects.prefetch_related("modules"), pk=pk)
+    tenant_modules_prefetch = TenantModule.objects.filter(
+        is_enabled=True,
+        module__is_active=True,
+    ).select_related("module")
+    tenant = get_object_or_404(
+        Tenant.objects.prefetch_related("modules", Prefetch("tenant_modules", queryset=tenant_modules_prefetch)),
+        pk=pk,
+    )
+    tenant_workspace = resolve_tenant_workspace_open_url(
+        tenant,
+        enabled_tenant_modules=list(tenant.tenant_modules.all()),
+    )
     # Placeholder data for billing and audit until those apps exist
     billing_history = []
     audit_logs = []
@@ -1013,6 +1041,7 @@ def tenant_detail_view(request, pk):
         tenant_users_error = str(exc)[:200]
     context = {
         "tenant": tenant,
+        "tenant_workspace": tenant_workspace,
         "billing_history": billing_history,
         "audit_logs": audit_logs,
         "tenant_users": tenant_users,
