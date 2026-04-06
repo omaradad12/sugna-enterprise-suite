@@ -1,0 +1,18 @@
+{# ChartCard — same contract as former platform_chart_shell: title, subtitle, canvas_id, footnote #}
+<div class="platform-card platform-card--interactive platform-chart-card h-full">
+  <div class="mb-5">
+    <h2 class="platform-section-title">{{ title }}</h2>
+    {% if subtitle %}
+    <p class="platform-section-subtitle">{{ subtitle }}</p>
+    {% endif %}
+  </div>
+  <div class="platform-chart-shell">
+    <div class="platform-chart-shell__watermark" aria-hidden="true">
+      <i data-feather="bar-chart-2" class="h-14 w-14"></i>
+    </div>
+    <canvas id="{{ canvas_id }}" class="h-full w-full"></canvas>
+  </div>
+  {% if footnote %}
+  <p class="platform-chart-footnote">{{ footnote }}</p>
+  {% endif %}
+</div>

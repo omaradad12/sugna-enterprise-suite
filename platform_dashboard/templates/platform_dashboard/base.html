@@ -38,50 +38,38 @@
   </script>
   <link rel="stylesheet" href="{% static 'css/erp-typography.css' %}" />
   <link rel="stylesheet" href="{% static 'css/sugna_design_system.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/platform_console.css' %}" />
   <style>
     [x-cloak] { display: none !important; }
-    /* Sidebar: professional nav with clear hierarchy */
-    .platform-sidebar-nav::-webkit-scrollbar { width: 6px; }
-    .platform-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-    .platform-sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-    .platform-sidebar-nav::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    .animate-fade-in { animation: fadeIn 0.2s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
-    .skeleton { background: linear-gradient(90deg, #f3f2f1 25%, #edebe9 50%, #f3f2f1 75%); background-size: 200% 100%; animation: skeleton 1.2s ease-in-out infinite; border-radius: 4px; }
-    @keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-    .kpi-card { transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease; }
-    .kpi-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.08); border-color: #b5d4f1; transform: translateY(-3px); }
-    .trend-up { color: #107c10; }
-    .trend-down { color: #d13438; }
-    .empty-state-card { background: #faf9f8; border: 1px solid #edebe9; }
-    .empty-state-icon-wrap { background: #deecf9; box-shadow: 0 2px 8px rgba(0,120,212,.2); }
-    .empty-state-icon-wrap i { color: #0078D4; }
-    .btn-primary-premium { background: #0078D4; transition: background 0.15s ease, box-shadow 0.15s ease; }
-    .btn-primary-premium:hover { background: #106EBE; box-shadow: 0 2px 4px rgba(0,120,212,.3); }
-    .data-table thead th { background: #f3f2f1; color: #323130; }
+    .kpi-card { transition: box-shadow 0.22s ease, border-color 0.22s ease, transform 0.22s ease; }
+    .kpi-card:hover { box-shadow: 0 8px 24px rgba(15,23,42,.08); border-color: rgba(0,120,212,.2); transform: translateY(-2px); }
+    .data-table thead th { background: #f3f4f6; color: #111827; }
     .data-table tbody tr { transition: background-color 0.1s ease; }
-    .data-table tbody tr:hover { background: #faf9f8; }
-    .avatar-cell { width: 2.5rem; height: 2.5rem; border-radius: 4px; font-weight: 600; font-size: 0.875rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .page-heading { letter-spacing: -0.01em; }
+    .data-table tbody tr:hover { background: #f9fafb; }
+    .avatar-cell { width: 2.5rem; height: 2.5rem; border-radius: 6px; font-weight: 600; font-size: 0.875rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .page-heading { letter-spacing: -0.02em; }
+    /* Legacy alias — prefer .platform-card in new markup */
     .dynamics-card {
-      border: 1px solid #E6EAF0;
-      border-radius: 10px;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 12px;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.06);
     }
     .transition-shadow {
-      transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+      transition: box-shadow 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
     }
     .transition-shadow:hover,
     .shadow-card-hover:hover {
-      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
-      border-color: #E6EAF0;
-      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.04);
+      border-color: #e5e7eb;
+      transform: translateY(-1px);
     }
+    .skeleton { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton 1.2s ease-in-out infinite; border-radius: 8px; }
+    @keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-[#F5F7FA] font-sans text-[#111827] antialiased min-h-full">
+<body class="platform-console-body font-sans antialiased min-h-full text-slate-900">
   <div
     class="flex min-h-screen"
     x-data="{
@@ -99,10 +87,10 @@
     "
   >
     <aside
-      class="fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col border-r border-slate-200/90 bg-[#F7F9FC] shadow-[1px_0_0_rgba(255,255,255,0.9)_inset] transition-all duration-300 ease-out lg:translate-x-0"
+      class="fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col border-r border-slate-200/90 bg-white shadow-sm transition-all duration-300 ease-out lg:translate-x-0"
       :class="[
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-        sidebarCollapsed ? 'lg:w-16' : 'lg:w-[240px]'
+        sidebarCollapsed ? 'lg:w-16' : 'lg:w-[260px]'
       ]"
     >
       {% load platform_navigation %}
@@ -111,65 +99,72 @@
 
     <div
       class="flex min-h-screen w-full min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-out"
-      :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-[240px]'"
+      :class="sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-[260px]'"
     >
-      <!-- Dynamics-style top bar: dark blue header -->
-      <header class="sticky top-0 z-30 h-14 flex items-center justify-between px-4 sm:px-6" style="background: #0078D4;">
-        <div class="flex items-center gap-3 min-w-0">
-          <button type="button" @click="sidebarOpen = !sidebarOpen" class="p-2 rounded text-white/90 hover:bg-white/10 transition-colors lg:hidden flex-shrink-0">
-            <i data-feather="menu" class="w-5 h-5"></i>
+      <!-- Enterprise shell header: light surface, clear hierarchy -->
+      <header class="platform-topbar sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200/90 px-3 shadow-sm sm:h-[60px] sm:px-5">
+        <div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+          <button type="button" @click="sidebarOpen = !sidebarOpen" class="flex-shrink-0 rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 lg:hidden" aria-label="Toggle navigation">
+            <i data-feather="menu" class="h-5 w-5"></i>
           </button>
-          <form class="hidden sm:block flex-1 max-w-md" action="/admin/" method="get">
-            <label for="global-search" class="sr-only">Search</label>
+          <form class="hidden min-w-0 flex-1 sm:block sm:max-w-lg lg:max-w-xl" action="/admin/" method="get" role="search">
+            <label for="global-search" class="sr-only">Search platform</label>
             <div class="relative">
-              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-white/70 pointer-events-none"><i data-feather="search" class="w-4 h-4"></i></span>
-              <input id="global-search" name="q" type="search" placeholder="Search tenants, invoices, users..." class="w-full pl-10 pr-4 py-2 border-0 rounded bg-white/15 text-white placeholder-white/60 text-sm focus:ring-2 focus:ring-white/30 focus:bg-white/20">
+              <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i data-feather="search" class="h-4 w-4"></i></span>
+              <input id="global-search" name="q" type="search" placeholder="Search tenants, invoices, users…" autocomplete="off" class="platform-topbar__search w-full" />
             </div>
           </form>
         </div>
-        <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <div class="flex flex-shrink-0 items-center gap-2 sm:gap-3">
+          <span class="platform-health-badge hidden sm:inline-flex" title="All platform services operational">
+            <span class="platform-health-badge__dot" aria-hidden="true"></span>
+            Healthy
+          </span>
+          <span class="platform-topbar__divider hidden sm:block" aria-hidden="true"></span>
           <div class="relative" x-data="{ open: false }">
-            <button type="button" @click="open = !open" class="p-2.5 rounded text-white/90 hover:bg-white/10 relative transition-colors">
-              <i data-feather="bell" class="w-5 h-5"></i>
-              <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-warning-500 rounded-full ring-2 ring-[#0078D4]"></span>
+            <button type="button" @click="open = !open" class="relative rounded-lg p-2.5 text-slate-600 transition-colors hover:bg-slate-100" aria-label="Notifications">
+              <i data-feather="bell" class="h-5 w-5"></i>
+              <span class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white"></span>
             </button>
-            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-80 bg-white rounded py-2 animate-fade-in z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
-              <p class="px-4 py-2 text-xs font-semibold uppercase tracking-wider" style="color: #605e5c;">Notifications</p>
-              <p class="px-4 py-4 text-sm" style="color: #605e5c;">No new notifications</p>
+            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-slate-200/90 bg-white py-2 shadow-dropdown animate-fade-in">
+              <p class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Notifications</p>
+              <p class="px-4 py-6 text-sm text-slate-500">No new notifications. Operational alerts will appear here.</p>
             </div>
           </div>
+          <span class="platform-topbar__divider hidden sm:block" aria-hidden="true"></span>
           <div class="relative" x-data="{ open: false }">
-            <button type="button" @click="open = !open" class="flex items-center gap-2 px-3 py-2 rounded text-white/90 hover:bg-white/10 text-sm font-medium transition-colors">
-              <i data-feather="plus-circle" class="w-4 h-4 hidden sm:block"></i>
+            <button type="button" @click="open = !open" class="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100/90 sm:px-2.5">
+              <i data-feather="plus-circle" class="hidden h-4 w-4 sm:block text-primary-600"></i>
               <span class="hidden sm:inline">Quick actions</span>
-              <i data-feather="chevron-down" class="w-4 h-4"></i>
+              <i data-feather="chevron-down" class="h-4 w-4 text-slate-500"></i>
             </button>
-            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-56 bg-white rounded py-2 z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
-              <a href="{% url 'platform_dashboard:tenant_register' %}" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="building" class="w-4 h-4"></i> Create Tenant</a>
-              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="package" class="w-4 h-4"></i> Create Plan</a>
-              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="file-text" class="w-4 h-4"></i> Generate Invoice</a>
-              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="send" class="w-4 h-4"></i> Send Announcement</a>
+            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 z-50 mt-2 w-60 rounded-xl border border-slate-200/90 bg-white py-1.5 shadow-dropdown">
+              <a href="{% url 'platform_dashboard:tenant_register' %}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"><i data-feather="building" class="h-4 w-4 text-slate-500"></i> Create tenant</a>
+              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"><i data-feather="package" class="h-4 w-4 text-slate-500"></i> Create plan</a>
+              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"><i data-feather="file-text" class="h-4 w-4 text-slate-500"></i> Generate invoice</a>
+              <a href="/admin/" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"><i data-feather="send" class="h-4 w-4 text-slate-500"></i> Send announcement</a>
             </div>
           </div>
-          <div class="relative pl-3 border-l border-white/20" x-data="{ open: false }">
-            <button type="button" @click="open = !open" class="flex items-center gap-2 py-1.5">
-              <div class="w-9 h-9 rounded-full bg-white/25 text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">{{ user.get_short_name|default:user.username|slice:":1"|upper }}</div>
-              <span class="text-sm font-medium text-white hidden md:inline max-w-[120px] truncate">{{ user.get_full_name|default:user.username }}</span>
-              <i data-feather="chevron-down" class="w-4 h-4 text-white/80 flex-shrink-0"></i>
+          <span class="platform-topbar__divider hidden md:block" aria-hidden="true"></span>
+          <div class="relative pl-0.5 md:pl-1" x-data="{ open: false }">
+            <button type="button" @click="open = !open" class="flex items-center gap-2 rounded-lg py-1.5 pl-1 pr-0.5 transition-colors hover:bg-slate-100/90 md:gap-2.5 md:pr-1">
+              <div class="platform-avatar">{{ user.get_short_name|default:user.username|slice:":1"|upper }}</div>
+              <span class="hidden max-w-[160px] truncate text-sm font-semibold text-slate-800 md:inline">{{ user.get_full_name|default:user.username }}</span>
+              <i data-feather="chevron-down" class="hidden h-4 w-4 flex-shrink-0 text-slate-400 md:block"></i>
             </button>
-            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded py-2 z-50" style="border: 1px solid #edebe9; box-shadow: 0 4px 16px rgba(0,0,0,.12);">
-              <a href="/admin/password_change/" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="key" class="w-4 h-4"></i> Change password</a>
-              <a href="{% url 'platform_logout' %}" class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-surface-100 transition-colors" style="color: #323130;"><i data-feather="log-out" class="w-4 h-4"></i> Log out</a>
+            <div x-show="open" x-cloak x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" @click.outside="open = false" class="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-slate-200/90 bg-white py-1.5 shadow-dropdown">
+              <a href="/admin/password_change/" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"><i data-feather="key" class="h-4 w-4 text-slate-500"></i> Change password</a>
+              <a href="{% url 'platform_logout' %}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"><i data-feather="log-out" class="h-4 w-4 text-slate-500"></i> Log out</a>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="flex-1 overflow-auto bg-[#F5F7FA] p-4 sm:p-6">
+      <main class="flex-1 overflow-auto p-4 sm:p-6 lg:p-8" style="background: var(--platform-page-bg);">
         {% if messages %}
-        <div class="max-w-6xl mx-auto mb-4 space-y-2" role="status" aria-live="polite">
+        <div class="mx-auto mb-4 max-w-6xl space-y-2" role="status" aria-live="polite">
           {% for message in messages %}
-          <div class="rounded-xl border px-4 py-3 text-sm shadow-sm {% if 'error' in message.tags %}border-danger-500 bg-danger-50 text-danger-600{% elif 'warning' in message.tags %}border-warning-500 bg-warning-50 text-surface-800{% elif 'success' in message.tags %}border-success-500 bg-success-50 text-success-600{% else %}border-surface-200 bg-white text-surface-800{% endif %}">
+          <div class="rounded-xl border px-4 py-3 text-sm shadow-sm {% if 'error' in message.tags %}border-red-200 bg-red-50 text-red-800{% elif 'warning' in message.tags %}border-amber-200 bg-amber-50 text-amber-900{% elif 'success' in message.tags %}border-emerald-200 bg-emerald-50 text-emerald-900{% else %}border-slate-200 bg-white text-slate-800{% endif %}">
             {{ message }}
           </div>
           {% endfor %}

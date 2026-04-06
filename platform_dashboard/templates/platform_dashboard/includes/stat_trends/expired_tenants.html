@@ -1,0 +1,6 @@
+{% with t=kpi_trends.expired_tenants %}
+<div class="platform-metric-card__trend">
+  {% if t.dir == 'down' and t.pct %}<span class="trend-up">{{ t.pct }}%</span>{% elif t.dir == 'up' %}<span class="trend-down">+{{ t.pct }}%</span>{% else %}<span class="platform-muted">—</span>{% endif %}
+  <span class="platform-muted">{{ t.label }}</span>
+</div>
+{% endwith %}

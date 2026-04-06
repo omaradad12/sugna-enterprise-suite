@@ -1,0 +1,12 @@
+{% if latest_payments %}
+<ul class="space-y-3">
+  {% for p in latest_payments %}
+  <li class="flex items-center justify-between border-b border-slate-100 py-2.5 text-sm last:border-0">
+    <span class="truncate font-medium text-slate-900">{{ p.tenant }}</span>
+    <span class="ml-2 flex-shrink-0 font-semibold text-emerald-700">${{ p.amount }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="py-4 text-sm text-slate-500">No recent payments.</p>
+{% endif %}

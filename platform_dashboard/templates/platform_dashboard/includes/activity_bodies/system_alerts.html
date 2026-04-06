@@ -1,0 +1,12 @@
+{% if system_alerts %}
+<ul class="space-y-2.5">
+  {% for a in system_alerts %}
+  <li class="flex items-center gap-2.5 py-1.5 text-sm text-slate-800">
+    <span class="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full {% if a.level == 'warning' %}bg-amber-500{% elif a.level == 'error' %}bg-red-500{% else %}bg-primary-500{% endif %}"></span>
+    <span>{{ a.message }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="py-4 text-sm text-slate-500">No alerts.</p>
+{% endif %}

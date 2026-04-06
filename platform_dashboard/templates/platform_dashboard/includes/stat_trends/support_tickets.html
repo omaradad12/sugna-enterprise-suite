@@ -1,0 +1,3 @@
+{% with t=kpi_trends.support_tickets %}
+<div class="platform-metric-card__trend">{% if t.value > 0 %}<span class="font-medium text-amber-800">{{ t.value }} {{ t.label }}</span>{% else %}<span class="platform-muted">—</span>{% endif %}</div>
+{% endwith %}

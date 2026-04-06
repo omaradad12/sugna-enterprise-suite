@@ -1,0 +1,6 @@
+{% with t=kpi_trends.trial_tenants %}
+<div class="platform-metric-card__trend">
+  {% if t.dir == 'up' %}<span class="trend-up">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down">{{ t.pct }}%</span>{% else %}<span class="platform-muted">— 0%</span>{% endif %}
+  <span class="platform-muted">{{ t.label }}</span>
+</div>
+{% endwith %}

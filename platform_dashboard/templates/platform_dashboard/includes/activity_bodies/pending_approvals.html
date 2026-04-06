@@ -1,0 +1,12 @@
+{% if pending_approvals %}
+<ul class="space-y-2.5">
+  {% for a in pending_approvals %}
+  <li class="flex items-center gap-2.5 py-1.5 text-sm text-slate-800">
+    <span class="h-2 w-2 flex-shrink-0 rounded-full bg-amber-500"></span>
+    <span>{{ a }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="py-4 text-sm text-slate-500">No pending approvals.</p>
+{% endif %}

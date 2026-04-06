@@ -3,201 +3,78 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 220)">
-  <!-- Page header - Dynamics style -->
-  <div class="mb-6 animate-fade-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <div>
-      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight" style="color: #323130;">Platform Dashboard</h1>
-      <p class="mt-1 text-sm sm:text-base" style="color: #605e5c;">Overview and control center for Sugna Enterprise Suite</p>
+{% url 'platform_dashboard:tenant_list' as url_tenant_list %}
+{% url 'admin:index' as url_admin %}
+<div class="platform-dashboard mx-auto max-w-[1400px]" x-data="{ loaded: false }" x-init="setTimeout(() => loaded = true, 220)">
+  <!-- Page header -->
+  <div class="platform-section flex animate-fade-in flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+    <div class="min-w-0">
+      <p class="platform-page-eyebrow">Control center</p>
+      <h1 class="platform-page-title mt-1">Platform dashboard</h1>
+      <p class="platform-helper mt-2 max-w-2xl">Multi-tenant ERP operations, subscriptions, and governance — unified view for platform administrators.</p>
     </div>
-    <div class="flex flex-wrap gap-3">
-      <a href="{% url 'platform_dashboard:tenant_register' %}" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-all duration-200 shadow-sm hover:shadow">
-        <i data-feather="building" class="w-4 h-4 flex-shrink-0"></i> Create Tenant
+    <div class="flex flex-shrink-0 flex-wrap items-center gap-2">
+      <a href="{% url 'platform_dashboard:tenant_register' %}" class="platform-btn platform-btn--primary">
+        <i data-feather="building" class="h-4 w-4 flex-shrink-0"></i> Create tenant
       </a>
-      <a href="/admin/" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded bg-white border border-surface-200 text-surface-800 text-sm font-medium hover:bg-surface-50 hover:border-primary-200 transition-colors shadow-sm">
-        <i data-feather="package" class="w-4 h-4 flex-shrink-0"></i> Create Plan
+      <a href="/admin/" class="platform-btn platform-btn--secondary">
+        <i data-feather="package" class="h-4 w-4 flex-shrink-0"></i> Plan
       </a>
-      <a href="/admin/" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded bg-white border border-surface-200 text-surface-800 text-sm font-medium hover:bg-surface-50 hover:border-primary-200 transition-colors shadow-sm">
-        <i data-feather="file-text" class="w-4 h-4 flex-shrink-0"></i> Generate Invoice
+      <a href="/admin/" class="platform-btn platform-btn--secondary hidden sm:inline-flex">
+        <i data-feather="file-text" class="h-4 w-4 flex-shrink-0"></i> Invoice
       </a>
-      <a href="/admin/" class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded bg-white border border-surface-200 text-surface-800 text-sm font-medium hover:bg-surface-50 hover:border-primary-200 transition-colors shadow-sm">
-        <i data-feather="send" class="w-4 h-4 flex-shrink-0"></i> Send Announcement
+      <a href="/admin/" class="platform-btn platform-btn--ghost hidden md:inline-flex">
+        <i data-feather="send" class="h-4 w-4 flex-shrink-0"></i> Announcement
       </a>
     </div>
   </div>
 
   {% if platform_alerts %}
-  <div class="mb-6 dynamics-card overflow-hidden">
-    <div class="px-4 py-3 border-b flex items-center gap-2" style="border-color: #edebe9;">
-      <i data-feather="alert-circle" class="w-5 h-5" style="color: #0078D4;"></i>
-      <span class="font-semibold text-sm" style="color: #323130;">Platform Alerts</span>
+  <div class="platform-alert-panel platform-section">
+    <div class="platform-alert-panel__head">
+      <span class="platform-alert-panel__icon" aria-hidden="true">
+        <i data-feather="alert-triangle" class="h-4 w-4"></i>
+      </span>
+      <div>
+        <p class="platform-section-title">Platform alerts</p>
+        <p class="platform-section-subtitle mt-0.5">Items that may need attention across tenants.</p>
+      </div>
     </div>
-    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="platform-alert-grid">
       {% for a in platform_alerts %}
-      <a href="{% if a.link %}{{ a.link }}{% else %}{% url 'platform_dashboard:tenant_list' %}{% endif %}" class="flex items-start gap-3 p-4 rounded border transition-all duration-200 hover:shadow-md {% if a.level == 'error' %}border-danger-200 bg-danger-50 hover:border-danger-300{% elif a.level == 'warning' %}border-warning-200 bg-warning-50 hover:border-warning-300{% elif a.level == 'success' %}border-success-200 bg-success-50 hover:border-success-300{% else %}border-surface-200 bg-surface-100 hover:border-primary-200{% endif %}" style="text-decoration: none; color: inherit;">
-        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold uppercase {% if a.level == 'error' %}bg-danger-500 text-white{% elif a.level == 'warning' %}bg-warning-500 text-white{% elif a.level == 'success' %}bg-success-500 text-white{% else %}bg-primary-500 text-white{% endif %}">{% if a.level == 'error' %}Critical{% elif a.level == 'warning' %}Warning{% elif a.level == 'success' %}Success{% else %}Info{% endif %}</span>
-        <div class="min-w-0 flex-1">
-          <p class="font-semibold text-sm" style="color: #323130;">{{ a.title }}</p>
-          <p class="text-xs mt-0.5" style="color: #605e5c;">{{ a.message }}</p>
-        </div>
-        <i data-feather="chevron-right" class="w-4 h-4 flex-shrink-0 opacity-50"></i>
-      </a>
+      {% include "platform_dashboard/includes/alert_card.html" with a=a only %}
       {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- KPI Cards with icon, value, % trend, color status, hover -->
-  <div class="relative mb-8">
-    <div x-show="!loaded" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5" x-transition:enter="transition ease-out duration-200" x-transition:leave="transition ease-in duration-150">
+  <!-- KPI metrics -->
+  <div class="relative platform-section">
+    <div x-show="!loaded" class="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4" x-transition:enter="transition ease-out duration-200" x-transition:leave="transition ease-in duration-150">
       {% for i in "12345678" %}
-      <div class="dynamics-card p-5 sm:p-6">
-        <div class="skeleton h-4 w-28 mb-3"></div>
-        <div class="skeleton h-9 w-20 mb-2"></div>
-        <div class="skeleton h-3 w-24"></div>
+      <div class="platform-metric-card">
+        <div class="platform-skeleton mb-3 h-4 w-28"></div>
+        <div class="platform-skeleton mb-2 h-10 w-24"></div>
+        <div class="platform-skeleton h-3 w-20"></div>
       </div>
       {% endfor %}
     </div>
-    <div x-show="loaded" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-primary-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600 group-hover:bg-primary-100 transition-colors">
-          <i data-feather="building" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Total Tenants</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ total_tenants|erp_int }}</p>
-          {% with t=kpi_trends.total_tenants %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">
-            {% if t.dir == 'up' %}<span class="trend-up font-semibold flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">— 0%</span>{% endif %}
-            <span style="color: #a19f9d;">{{ t.label }}</span>
-          </p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-success-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-success-50 flex items-center justify-center flex-shrink-0 text-success-600 group-hover:bg-success-100 transition-colors">
-          <i data-feather="check-circle" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Active Tenants</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold text-success-600 mt-1 tabular-nums">{{ active_tenants|erp_int }}</p>
-          {% with t=kpi_trends.active_tenants %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">
-            {% if t.dir == 'up' %}<span class="trend-up font-semibold">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold">{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">— 0%</span>{% endif %}
-            <span style="color: #a19f9d;">{{ t.label }}</span>
-          </p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-warning-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-warning-50 flex items-center justify-center flex-shrink-0 text-warning-600 group-hover:bg-warning-100 transition-colors">
-          <i data-feather="clock" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Trial Tenants</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold text-warning-600 mt-1 tabular-nums">{{ trial_tenants|erp_int }}</p>
-          {% with t=kpi_trends.trial_tenants %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">
-            {% if t.dir == 'up' %}<span class="trend-up font-semibold">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold">{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">— 0%</span>{% endif %}
-            <span style="color: #a19f9d;">{{ t.label }}</span>
-          </p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-danger-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-danger-50 flex items-center justify-center flex-shrink-0 text-danger-600 group-hover:bg-danger-100 transition-colors">
-          <i data-feather="alert-triangle" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Expired Tenants</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold text-danger-600 mt-1 tabular-nums">{{ expired_tenants|erp_int }}</p>
-          {% with t=kpi_trends.expired_tenants %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">
-            {% if t.dir == 'down' and t.pct %}<span class="trend-up font-semibold">{{ t.pct }}%</span>{% elif t.dir == 'up' %}<span class="trend-down font-semibold">+{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}
-            <span style="color: #a19f9d;">{{ t.label }}</span>
-          </p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-primary-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600 group-hover:bg-primary-100 transition-colors">
-          <i data-feather="dollar-sign" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Monthly Revenue</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">${{ monthly_revenue|erp_amount }}</p>
-          {% with t=kpi_trends.monthly_revenue %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">
-            {% if t.dir == 'up' %}<span class="trend-up font-semibold">+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down font-semibold">{{ t.pct }}%</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}
-            <span style="color: #a19f9d;">{{ t.label }}</span>
-          </p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-primary-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600 group-hover:bg-primary-100 transition-colors">
-          <i data-feather="grid" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Active Modules</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ active_modules|erp_int }}</p>
-          <p class="mt-2 text-xs" style="color: #a19f9d;">available to tenants</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-warning-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-warning-50 flex items-center justify-center flex-shrink-0 text-warning-600 group-hover:bg-warning-100 transition-colors">
-          <i data-feather="file-plus" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Pending Registrations</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ pending_registrations|erp_int }}</p>
-          {% with t=kpi_trends.pending_registrations %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">{% if t.value > 0 %}<span class="text-warning-600 font-semibold">{{ t.value }} {{ t.label }}</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}</p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-card group dynamics-card p-5 sm:p-6 transition-all duration-200 hover:border-primary-200">
-      <div class="flex items-start gap-4">
-        <div class="w-12 h-12 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600 group-hover:bg-primary-100 transition-colors">
-          <i data-feather="message-circle" class="w-6 h-6"></i>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium" style="color: #605e5c;">Support Tickets</p>
-          <p class="kpi-value text-2xl sm:text-3xl font-bold mt-1 tabular-nums" style="color: #323130;">{{ support_tickets|erp_int }}</p>
-          {% with t=kpi_trends.support_tickets %}
-          <p class="mt-2 flex items-center gap-1.5 text-xs">{% if t.value > 0 %}<span class="text-warning-600 font-medium">{{ t.value }} {{ t.label }}</span>{% else %}<span style="color: #a19f9d;">—</span>{% endif %}</p>
-          {% endwith %}
-        </div>
-      </div>
-    </div>
+    <div x-show="loaded" class="grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+    {% include "platform_dashboard/includes/stat_card.html" with label="Total tenants" icon="building" variant="primary" value_mode="int" value=total_tenants value_class="text-slate-900" trend_partial="platform_dashboard/includes/stat_trends/total_tenants.html" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Active tenants" icon="check-circle" variant="success" value_mode="int" value=active_tenants value_class="text-emerald-700" trend_partial="platform_dashboard/includes/stat_trends/active_tenants.html" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Trial tenants" icon="clock" variant="warning" value_mode="int" value=trial_tenants value_class="text-amber-800" trend_partial="platform_dashboard/includes/stat_trends/trial_tenants.html" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Expired tenants" icon="alert-triangle" variant="danger" value_mode="int" value=expired_tenants value_class="text-red-800" trend_partial="platform_dashboard/includes/stat_trends/expired_tenants.html" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Monthly revenue" icon="dollar-sign" variant="primary" value_mode="currency" value=monthly_revenue value_class="text-slate-900" trend_partial="platform_dashboard/includes/stat_trends/monthly_revenue.html" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Active modules" icon="grid" variant="primary" value_mode="int" value=active_modules value_class="text-slate-900" caption="Available to tenants" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Pending registrations" icon="file-plus" variant="warning" value_mode="int" value=pending_registrations value_class="text-slate-900" trend_partial="platform_dashboard/includes/stat_trends/pending_registrations.html" %}
+    {% include "platform_dashboard/includes/stat_card.html" with label="Support tickets" icon="message-circle" variant="primary" value_mode="int" value=support_tickets value_class="text-slate-900" trend_partial="platform_dashboard/includes/stat_trends/support_tickets.html" %}
     </div>
   </div>
 
   <!-- Empty state: illustration, onboarding, CTA -->
   {% if total_tenants == 0 %}
-  <div class="mb-8 dynamics-card overflow-hidden">
-    <div class="p-8 sm:p-10 flex flex-col sm:flex-row items-center gap-8">
+  <div class="platform-card platform-section overflow-hidden">
+    <div class="flex flex-col items-center gap-8 p-8 sm:flex-row sm:p-10">
       <div class="flex-shrink-0 w-48 h-40 flex items-center justify-center" aria-hidden="true">
         <svg class="w-full h-full text-primary-200" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="20" y="60" width="80" height="70" rx="6" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.6"/>
@@ -208,162 +85,81 @@
           <path d="M30 40 L50 25 L70 40 L90 25 L110 40 L130 25 L150 40 L170 25" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="4 3" opacity="0.4"/>
         </svg>
       </div>
-      <div class="flex-1 min-w-0 text-center sm:text-left">
-        <h2 class="text-xl font-semibold" style="color: #323130;">Get started with your first tenant</h2>
-        <p class="mt-2 text-sm" style="color: #605e5c;">Charts and analytics will appear here once you add tenants. Follow these steps to launch your platform.</p>
-        <ol class="mt-5 space-y-3 text-sm" style="color: #323130;">
-          <li class="flex items-center gap-3">
-            <span class="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-semibold text-xs">1</span>
-            <span>Register your first organization (tenant) with name, domain, and plan.</span>
+      <div class="min-w-0 flex-1 text-center sm:text-left">
+        <h2 class="text-xl font-semibold tracking-tight text-slate-900">Get started with your first tenant</h2>
+        <p class="mt-2 text-sm leading-relaxed text-slate-600">KPIs and charts populate automatically once organizations are onboarded. Use this checklist to go live.</p>
+        <ol class="mt-6 space-y-3 text-sm text-slate-800">
+          <li class="flex items-start gap-3">
+            <span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">1</span>
+            <span class="pt-0.5">Register your first organization (tenant) with name, domain, and plan.</span>
           </li>
-          <li class="flex items-center gap-3">
-            <span class="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-semibold text-xs">2</span>
-            <span>Assign modules (e.g. AI Auditor, Billing) and configure branding.</span>
+          <li class="flex items-start gap-3">
+            <span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">2</span>
+            <span class="pt-0.5">Assign modules (e.g. AI Auditor, Billing) and configure branding.</span>
           </li>
-          <li class="flex items-center gap-3">
-            <span class="flex-shrink-0 w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-semibold text-xs">3</span>
-            <span>Invite users and start seeing growth, revenue, and status in this dashboard.</span>
+          <li class="flex items-start gap-3">
+            <span class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">3</span>
+            <span class="pt-0.5">Invite users and monitor growth, revenue, and health from this console.</span>
           </li>
         </ol>
-        <a href="{% url 'platform_dashboard:tenant_register' %}" class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded font-medium text-white text-sm transition-all shadow-sm hover:shadow" style="background: #0078D4;">
-          <i data-feather="plus" class="w-4 h-4"></i>
+        <a href="{% url 'platform_dashboard:tenant_register' %}" class="platform-btn platform-btn--primary mt-8">
+          <i data-feather="plus" class="h-4 w-4"></i>
           Create your first tenant
         </a>
       </div>
     </div>
   </div>
   {% endif %}
-  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-lg font-semibold mb-4" style="color: #323130;">Tenant Growth</h2>
-      <div class="h-72 relative bg-surface-50 rounded-lg border border-surface-200 p-3">
-        <canvas id="chartGrowth" class="w-full h-full"></canvas>
-      </div>
-    </div>
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-lg font-semibold mb-4" style="color: #323130;">Tenant Status</h2>
-      <div class="h-72 flex items-center justify-center relative bg-surface-50 rounded-lg border border-surface-200 p-3">
-        <canvas id="chartStatus" class="w-full h-full"></canvas>
-      </div>
-    </div>
+  <div class="platform-section grid grid-cols-1 gap-5 xl:grid-cols-2">
+    {% include "platform_dashboard/includes/chart_card.html" with title="Tenant growth" subtitle="Cumulative tenants over the last six months." canvas_id="chartGrowth" footnote="Source: platform database · Updated on load" %}
+    {% include "platform_dashboard/includes/chart_card.html" with title="Tenant status" subtitle="Distribution across lifecycle states." canvas_id="chartStatus" footnote="Active, trial, and expired counts" %}
   </div>
-  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-lg font-semibold mb-4" style="color: #323130;">Revenue by Month</h2>
-      <div class="h-72 relative bg-surface-50 rounded-lg border border-surface-200 p-3">
-        <canvas id="chartRevenue" class="w-full h-full"></canvas>
+
+  <!-- Executive insights — placeholders for ARR, NRR, adoption (future analytics) -->
+  <div class="platform-section grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div class="platform-placeholder-card rounded-xl p-6">
+      <div class="flex items-start gap-3">
+        <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+          <i data-feather="trending-up" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h3 class="platform-section-title">Revenue &amp; billing intelligence</h3>
+          <p class="platform-section-subtitle mt-1">Reserved for ARR, cash collection, and invoice aging once finance telemetry is wired to this workspace.</p>
+        </div>
       </div>
     </div>
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-lg font-semibold mb-4" style="color: #323130;">Module Subscriptions</h2>
-      <div class="h-72 relative bg-surface-50 rounded-lg border border-surface-200 p-3">
-        <canvas id="chartModules" class="w-full h-full"></canvas>
-      </div>
-    </div>
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-lg font-semibold mb-4" style="color: #323130;">Tenants by Country</h2>
-      <div class="h-72 flex items-center justify-center relative bg-surface-50 rounded-lg border border-surface-200 p-3">
-        <canvas id="chartCountry" class="w-full h-full"></canvas>
+    <div class="platform-placeholder-card rounded-xl p-6">
+      <div class="flex items-start gap-3">
+        <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+          <i data-feather="pie-chart" class="h-5 w-5"></i>
+        </span>
+        <div>
+          <h3 class="platform-section-title">Adoption &amp; module mix</h3>
+          <p class="platform-section-subtitle mt-1">Future home for module attach rates, seat utilization, and cohort retention across tenants.</p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Activity panels: Recent Registrations, Pending Approvals, Recent Payments, System Alerts -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-    <div class="dynamics-card p-6 transition-shadow hover:shadow-card-hover">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold flex items-center gap-2" style="color: #323130;">
-          <span class="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center"><i data-feather="user-plus" class="w-4 h-4" style="color: #0078D4;"></i></span>
-          Recent Tenant Registrations
-        </h2>
-        <a href="{% url 'platform_dashboard:tenant_list' %}" class="text-xs font-medium text-primary-600 hover:text-primary-700">View all</a>
-      </div>
-      {% if recent_tenants %}
-      <ul class="space-y-3">
-        {% for t in recent_tenants %}
-        <li class="flex items-center justify-between text-sm py-2.5 border-b last:border-0 group" style="border-color: #edebe9;">
-          <div class="min-w-0">
-            <p class="font-medium truncate" style="color: #323130;">{{ t.name }}</p>
-            <p class="text-xs truncate" style="color: #605e5c;">{{ t.domain }}</p>
-          </div>
-          <a href="{% url 'platform_dashboard:tenant_detail' t.id %}" class="text-primary-600 hover:text-primary-700 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">View →</a>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="text-sm py-4" style="color: #605e5c;">No tenants yet. <a href="{% url 'platform_dashboard:tenant_register' %}" class="text-primary-600 hover:underline">Register one</a>.</p>
-      {% endif %}
-    </div>
-    <div class="dynamics-card p-6 transition-shadow hover:shadow-card-hover">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold flex items-center gap-2" style="color: #323130;">
-          <span class="w-9 h-9 rounded-lg bg-warning-50 flex items-center justify-center"><i data-feather="check-circle" class="w-4 h-4" style="color: #d83b01;"></i></span>
-          Pending Approvals
-        </h2>
-        <a href="/admin/" class="text-xs font-medium text-primary-600 hover:text-primary-700">View all</a>
-      </div>
-      {% if pending_approvals %}
-      <ul class="space-y-2.5">
-        {% for a in pending_approvals %}
-        <li class="text-sm flex items-center gap-2.5 py-1.5" style="color: #323130;">
-          <span class="w-2 h-2 rounded-full bg-warning-500 flex-shrink-0"></span>
-          <span>{{ a }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="text-sm py-4" style="color: #605e5c;">No pending approvals.</p>
-      {% endif %}
-    </div>
-    <div class="dynamics-card p-6 transition-shadow hover:shadow-card-hover">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold flex items-center gap-2" style="color: #323130;">
-          <span class="w-9 h-9 rounded-lg bg-success-50 flex items-center justify-center"><i data-feather="dollar-sign" class="w-4 h-4" style="color: #107c10;"></i></span>
-          Recent Payments
-        </h2>
-        <a href="/admin/" class="text-xs font-medium text-primary-600 hover:text-primary-700">View all</a>
-      </div>
-      {% if latest_payments %}
-      <ul class="space-y-3">
-        {% for p in latest_payments %}
-        <li class="flex items-center justify-between text-sm py-2.5 border-b last:border-0" style="border-color: #edebe9;">
-          <span class="font-medium truncate" style="color: #323130;">{{ p.tenant }}</span>
-          <span class="font-semibold text-success-600 flex-shrink-0 ml-2">${{ p.amount }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="text-sm py-4" style="color: #605e5c;">No recent payments.</p>
-      {% endif %}
-    </div>
-    <div class="dynamics-card p-6 transition-shadow hover:shadow-card-hover">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold flex items-center gap-2" style="color: #323130;">
-          <span class="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center"><i data-feather="bell" class="w-4 h-4" style="color: #0078D4;"></i></span>
-          System Alerts
-        </h2>
-        <a href="/admin/" class="text-xs font-medium text-primary-600 hover:text-primary-700">View all</a>
-      </div>
-      {% if system_alerts %}
-      <ul class="space-y-2.5">
-        {% for a in system_alerts %}
-        <li class="text-sm flex items-center gap-2.5 py-1.5" style="color: #323130;">
-          <span class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 {% if a.level == 'warning' %}bg-warning-500{% elif a.level == 'error' %}bg-danger-500{% else %}bg-primary-500{% endif %}"></span>
-          <span>{{ a.message }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="text-sm py-4" style="color: #605e5c;">No alerts.</p>
-      {% endif %}
-    </div>
+  <div class="platform-section grid grid-cols-1 gap-5 xl:grid-cols-3">
+    {% include "platform_dashboard/includes/chart_card.html" with title="Revenue by month" subtitle="Placeholder series until billing is connected." canvas_id="chartRevenue" footnote="USD · From dashboard context" %}
+    {% include "platform_dashboard/includes/chart_card.html" with title="Module subscriptions" subtitle="Tenants per active module." canvas_id="chartModules" footnote="Top modules by tenant count" %}
+    {% include "platform_dashboard/includes/chart_card.html" with title="Tenants by country" subtitle="Regional spread (placeholder labels)." canvas_id="chartCountry" footnote="Distribution snapshot" %}
   </div>
-  <!-- Recent platform activity (optional fifth panel) -->
-  <div class="dynamics-card p-6 transition-shadow mb-8">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-base font-semibold flex items-center gap-2" style="color: #323130;">
-        <i data-feather="activity" class="w-5 h-5" style="color: #0078D4;"></i>
-        Recent Platform Activity
+
+  <!-- Activity panels: Recent Registrations, Pending Approvals, Recent Payments, System Alerts -->
+  <div class="platform-section grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-4">
+    {% include "platform_dashboard/includes/activity_card.html" with title="Recent registrations" icon="user-plus" tone="primary" view_all_url=url_tenant_list view_all_label="View all" body_partial="platform_dashboard/includes/activity_bodies/recent_registrations.html" %}
+    {% include "platform_dashboard/includes/activity_card.html" with title="Pending approvals" icon="check-circle" tone="amber" view_all_url=url_admin view_all_label="View all" body_partial="platform_dashboard/includes/activity_bodies/pending_approvals.html" %}
+    {% include "platform_dashboard/includes/activity_card.html" with title="Recent payments" icon="dollar-sign" tone="emerald" view_all_url=url_admin view_all_label="View all" body_partial="platform_dashboard/includes/activity_bodies/recent_payments.html" %}
+    {% include "platform_dashboard/includes/activity_card.html" with title="System alerts" icon="bell" tone="primary" view_all_url=url_admin view_all_label="View all" body_partial="platform_dashboard/includes/activity_bodies/system_alerts.html" %}
+  </div>
+  <!-- Recent platform activity -->
+  <div class="platform-section platform-card platform-card--interactive platform-card--pad">
+    <div class="mb-5 flex items-center justify-between">
+      <h2 class="platform-section-title flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-50 text-primary-600"><i data-feather="activity" class="h-4 w-4"></i></span>
+        Recent activity
       </h2>
       <a href="{% url 'platform_dashboard:tenant_list' %}" class="text-xs font-medium text-primary-600 hover:text-primary-700">View all</a>
     </div>
@@ -382,11 +178,11 @@
   </div>
 
   <!-- Expiring subscriptions & Upcoming renewals -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
-        <i data-feather="alert-triangle" class="w-5 h-5 text-warning-600"></i>
-        Expiring Subscriptions
+  <div class="platform-section grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <div class="platform-card platform-card--interactive platform-card--pad">
+      <h2 class="platform-section-title mb-5 flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><i data-feather="alert-triangle" class="h-4 w-4"></i></span>
+        Expiring subscriptions
       </h2>
       {% if expiring_subscriptions %}
       <ul class="space-y-2">
@@ -398,10 +194,10 @@
       <p class="text-sm" style="color: #605e5c;">No subscriptions expiring in the next 30 days.</p>
       {% endif %}
     </div>
-    <div class="dynamics-card p-6 transition-shadow">
-      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" style="color: #323130;">
-        <i data-feather="calendar" class="w-5 h-5" style="color: #605e5c;"></i>
-        Upcoming Subscription Renewals
+    <div class="platform-card platform-card--interactive platform-card--pad">
+      <h2 class="platform-section-title mb-5 flex items-center gap-2.5">
+        <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><i data-feather="calendar" class="h-4 w-4"></i></span>
+        Upcoming renewals
       </h2>
       {% if upcoming_renewals %}
       <ul class="space-y-2">
@@ -442,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
         display: true,
         position: 'bottom',
         labels: {
-          font: { family: "'Segoe UI', sans-serif", size: 11 },
+          font: { family: "'Inter', 'Segoe UI', sans-serif", size: 11 },
           color: '#323130',
           padding: 16,
           usePointStyle: true,
@@ -473,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
   const grid = { drawBorder: false, color: 'rgba(0,0,0,0.06)', lineWidth: 1 };
-  const font = { family: "'Segoe UI', sans-serif", size: 11 };
+  const font = { family: "'Inter', 'Segoe UI', sans-serif", size: 11 };
   const legendColors = { growth: '#0078D4', revenue: '#106EBE', success: '#107c10', warning: '#ffb900', danger: '#d13438', neutral: '#605e5c' };
 
   if (document.getElementById('chartGrowth')) {

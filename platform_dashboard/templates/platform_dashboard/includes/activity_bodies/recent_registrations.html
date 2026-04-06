@@ -1,0 +1,15 @@
+{% if recent_tenants %}
+<ul class="space-y-3">
+  {% for t in recent_tenants %}
+  <li class="group flex items-center justify-between border-b border-slate-100 py-2.5 text-sm last:border-0">
+    <div class="min-w-0">
+      <p class="truncate font-medium text-slate-900">{{ t.name }}</p>
+      <p class="truncate text-xs text-slate-500">{{ t.domain }}</p>
+    </div>
+    <a href="{% url 'platform_dashboard:tenant_detail' t.id %}" class="text-xs font-medium text-primary-600 opacity-0 transition-opacity hover:text-primary-700 group-hover:opacity-100">View →</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="py-4 text-sm text-slate-500">No tenants yet. <a href="{% url 'platform_dashboard:tenant_register' %}" class="text-primary-600 hover:underline">Register one</a>.</p>
+{% endif %}

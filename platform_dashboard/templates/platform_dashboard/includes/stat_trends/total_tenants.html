@@ -1,0 +1,6 @@
+{% with t=kpi_trends.total_tenants %}
+<div class="platform-metric-card__trend">
+  {% if t.dir == 'up' %}<span class="trend-up flex items-center gap-0.5"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>+{{ t.pct }}%</span>{% elif t.dir == 'down' %}<span class="trend-down flex items-center gap-0.5"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>{{ t.pct }}%</span>{% else %}<span class="platform-muted">— 0%</span>{% endif %}
+  <span class="platform-muted">{{ t.label }}</span>
+</div>
+{% endwith %}

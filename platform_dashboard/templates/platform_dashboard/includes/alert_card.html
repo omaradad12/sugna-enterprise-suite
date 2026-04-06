@@ -1,0 +1,9 @@
+{# AlertCard — expects variable `a` (alert dict with level, title, message, optional link) #}
+<a href="{% if a.link %}{{ a.link }}{% else %}{% url 'platform_dashboard:tenant_list' %}{% endif %}" class="platform-alert-card group {% if a.level == 'error' %}platform-alert-card--critical{% elif a.level == 'warning' %}platform-alert-card--warning{% elif a.level == 'success' %}platform-alert-card--success{% else %}platform-alert-card--info{% endif %}" style="text-decoration: none; color: inherit;">
+  <span class="platform-alert-card__badge {% if a.level == 'error' %}bg-red-700 text-white{% elif a.level == 'warning' %}bg-amber-600 text-white{% elif a.level == 'success' %}bg-emerald-700 text-white{% else %}bg-slate-600 text-white{% endif %}">{% if a.level == 'error' %}Critical{% elif a.level == 'warning' %}Warning{% elif a.level == 'success' %}Success{% else %}Info{% endif %}</span>
+  <div class="min-w-0 flex-1">
+    <p class="text-sm font-semibold text-slate-900">{{ a.title }}</p>
+    <p class="mt-1 text-xs leading-relaxed text-slate-600">{{ a.message }}</p>
+  </div>
+  <i data-feather="chevron-right" class="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400 opacity-50 transition-opacity group-hover:opacity-100"></i>
+</a>

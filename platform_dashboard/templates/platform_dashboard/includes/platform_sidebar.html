@@ -1,43 +1,38 @@
 {% load static %}
 {# Parent <aside> supplies Alpine: sidebarOpen, sidebarCollapsed, toggleCollapse #}
-<div class="flex flex-col h-full min-h-0">
-  <div class="flex items-center min-h-[3.5rem] px-3 py-3 border-b border-slate-200/90 bg-white/70 shrink-0">
-    <a href="{% url 'platform_dashboard:dashboard' %}" class="flex items-center gap-2.5 min-w-0 group w-full" :class="sidebarCollapsed ? 'lg:justify-center' : ''">
+<div class="flex h-full min-h-0 flex-col">
+  <div class="flex min-h-[3.75rem] shrink-0 items-center border-b border-slate-200/90 bg-white px-3 py-3.5">
+    <a href="{% url 'platform_dashboard:dashboard' %}" class="group flex min-w-0 flex-1 items-center gap-3" :class="sidebarCollapsed ? 'lg:justify-center' : ''">
       <img src="{% url 'platform_dashboard:logo' %}" alt="" class="h-9 w-auto flex-shrink-0 object-contain" width="36" height="36" />
-      <span class="flex flex-col min-w-0 leading-tight transition-opacity duration-200 lg:block" x-show="!sidebarCollapsed" x-cloak>
-        <span class="font-semibold text-[14px] text-slate-900 truncate">Sugna</span>
-        <span class="text-[10px] font-semibold tracking-wider text-slate-500 truncate uppercase">Platform</span>
+      <span class="flex min-w-0 flex-col leading-tight transition-opacity duration-200 lg:block" x-show="!sidebarCollapsed" x-cloak>
+        <span class="truncate text-[15px] font-semibold tracking-tight text-slate-900">Sugna</span>
+        <span class="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Platform console</span>
       </span>
     </a>
   </div>
 
-  <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 platform-sidebar-nav min-h-0" aria-label="Platform navigation">
+  <nav class="platform-sidebar-nav min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-4" aria-label="Platform navigation">
     {% for section in platform_menu %}
-    <div class="mb-0.5" x-data="{ secOpen: {% if section.default_open %}true{% else %}false{% endif %} }">
+    <div class="platform-nav-section" x-data="{ secOpen: {% if section.default_open %}true{% else %}false{% endif %} }">
       <button
         type="button"
         @click="secOpen = !secOpen"
-        class="w-full flex items-center gap-2 px-2 py-2 rounded-md text-left text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 hover:bg-slate-200/50 hover:text-slate-700 transition-colors"
+        class="platform-nav-section__label"
         :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
       >
-        <i data-feather="{{ section.icon }}" class="w-3.5 h-3.5 flex-shrink-0 text-slate-400"></i>
-        <span class="flex-1 truncate lg:block" x-show="!sidebarCollapsed" x-cloak>{{ section.label }}</span>
-        <i x-show="!sidebarCollapsed" x-cloak data-feather="chevron-down" class="w-3.5 h-3.5 flex-shrink-0 text-slate-400 transition-transform" :class="secOpen ? '' : '-rotate-90'"></i>
+        <i data-feather="{{ section.icon }}" class="h-3.5 w-3.5 flex-shrink-0 text-slate-400"></i>
+        <span class="flex-1 truncate lg:block" x-show="!sidebarCollapsed" x-cloak>{{ section.label|upper }}</span>
+        <i x-show="!sidebarCollapsed" x-cloak data-feather="chevron-down" class="h-3.5 w-3.5 flex-shrink-0 text-slate-400 transition-transform" :class="secOpen ? '' : '-rotate-90'"></i>
       </button>
-      <div x-show="secOpen" class="mt-0.5 space-y-0.5 pb-2">
+      <div x-show="secOpen" class="mt-1 space-y-0.5 pb-1 pl-0.5">
         {% for item in section.items %}
         <a
           href="{{ item.href }}"
-          class="relative flex items-center gap-2.5 pl-2 pr-2 py-2 rounded-md text-[13px] transition-colors border-l-[3px] ml-0
-            {% if item.active %}
-            is-active bg-[#E8F4FC] text-[#0078D4] font-medium border-[#0078D4] shadow-sm
-            {% else %}
-            text-slate-700 border-transparent hover:bg-slate-200/35
-            {% endif %}"
+          class="platform-nav-link {% if item.active %}platform-nav-link--active{% endif %}"
           :class="sidebarCollapsed ? 'lg:justify-center lg:px-1' : ''"
           {% if item.active %}aria-current="page"{% endif %}
         >
-          <i data-feather="{{ item.icon }}" class="w-[18px] h-[18px] flex-shrink-0 {% if item.active %}text-[#0078D4]{% else %}text-slate-500{% endif %}"></i>
+          <i data-feather="{{ item.icon }}" class="h-[18px] w-[18px] flex-shrink-0 {% if item.active %}text-primary-600{% else %}text-slate-500{% endif %}"></i>
           <span class="truncate lg:block" x-show="!sidebarCollapsed" x-cloak>{{ item.label }}</span>
         </a>
         {% endfor %}
@@ -46,13 +41,13 @@
     {% endfor %}
   </nav>
 
-  <div class="px-2 py-2 border-t border-slate-200/90 bg-slate-100/50 shrink-0">
+  <div class="shrink-0 border-t border-slate-200/90 bg-slate-50/90 px-2 py-2.5">
     <button
       type="button"
       @click="toggleCollapse()"
-      class="w-full flex items-center justify-center gap-2 py-2 rounded-md text-xs font-medium text-slate-600 hover:bg-slate-200/70 transition-colors"
+      class="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200/60"
     >
-      <i data-feather="sidebar" class="w-4 h-4 flex-shrink-0"></i>
+      <i data-feather="sidebar" class="h-4 w-4 flex-shrink-0"></i>
       <span class="hidden lg:inline" x-show="!sidebarCollapsed" x-cloak>Collapse</span>
     </button>
   </div>

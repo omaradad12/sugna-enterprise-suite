@@ -1,0 +1,22 @@
+{% load erp_format %}
+{# StatCard: label, icon (feather name), variant (primary|success|warning|danger), value_mode (int|currency), value, value_class (optional), trend_partial OR caption #}
+<div class="kpi-card group platform-metric-card h-full">
+  <div class="platform-metric-card__body">
+    <div class="platform-icon-well platform-icon-well--{{ variant }}" aria-hidden="true">
+      <i data-feather="{{ icon }}" class="h-5 w-5"></i>
+    </div>
+    <div class="platform-metric-card__content">
+      <p class="platform-label">{{ label }}</p>
+      {% if value_mode == "int" %}
+      <p class="platform-metric-value{% if value_class %} {{ value_class }}{% endif %}">{{ value|erp_int }}</p>
+      {% elif value_mode == "currency" %}
+      <p class="platform-metric-value{% if value_class %} {{ value_class }}{% endif %}">${{ value|erp_amount }}</p>
+      {% endif %}
+      {% if caption %}
+      <p class="platform-metric-card__trend platform-muted">{{ caption }}</p>
+      {% elif trend_partial %}
+      {% include trend_partial %}
+      {% endif %}
+    </div>
+  </div>
+</div>
