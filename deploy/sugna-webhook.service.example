@@ -4,8 +4,12 @@
 #   sudo cp deploy/sugna-webhook.service.example /etc/systemd/system/sugna-webhook.service
 #   sudo systemctl daemon-reload
 #
-# If your webhook runner is a separate binary, configure it to execute:
+# If your webhook runner is a separate binary (e.g. Go "webhook" tool), do NOT run
+# `docker compose exec web migrate` immediately after `docker compose up` — the web
+# container is often still "restarting". Either:
 #   APP_DIR=/path/to/sugna-enterprise-suite /path/to/sugna-enterprise-suite/scripts/deploy.sh
+# (full flow: git pull, up, wait, migrate), OR if the binary already does git pull + up:
+#   APP_DIR=/path/to/sugna-enterprise-suite /path/to/sugna-enterprise-suite/scripts/webhook_after_compose.sh
 #
 # Required: APP_DIR must be the git clone containing docker-compose.yml and .env.prod.
 # Default in deploy.sh is /opt/sugna-enterprise-suite; many servers use e.g. /root/sugna-enterprise-suite.
