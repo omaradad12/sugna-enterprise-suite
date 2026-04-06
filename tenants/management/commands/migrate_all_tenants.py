@@ -6,7 +6,7 @@ Use after adding new tenants or after creating new migrations for tenant apps.
 from __future__ import annotations
 
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from tenants.db import ensure_tenant_db_configured, tenant_db_alias
 from tenants.models import Tenant
@@ -20,6 +20,11 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--noinput",
+            action="store_true",
+            help="Non-interactive (default); kept for compatibility with deploy scripts.",
+        )
         parser.add_argument(
             "--tenant",
             default=None,
@@ -58,7 +63,9 @@ class Command(BaseCommand):
         if options.get("plan"):
             kw["plan"] = True
 
+        failures: list[tuple[str, BaseException]] = []
         for tenant in tenants:
+            alias = ""
             try:
                 ensure_tenant_db_configured(tenant)
                 alias = tenant_db_alias(tenant)
@@ -68,4 +75,9 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.SUCCESS(f"Migrated tenant '{tenant.slug}' (DB: {alias})."))
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Tenant '{tenant.slug}': {e}"))
+                self.stderr.write(self.style.ERROR(f"Tenant '{tenant.slug}' (DB: {alias or '?'}): {e}"))
+                failures.append((tenant.slug, e))
+
+        if failures:
+            detail = "; ".join(f"{slug}: {exc}" for slug, exc in failures)
+            raise CommandError(f"migrate failed for {len(failures)} tenant(s): {detail}")

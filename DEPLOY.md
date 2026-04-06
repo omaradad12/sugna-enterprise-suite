@@ -100,13 +100,16 @@ Production must use **DEBUG=false** and environment variables for **SECRET_KEY**
 
    If `db` is not `Up`, start it: `docker compose ... up -d db`, then restart `web`.
 
-3. **Migrations**
+3. **Migrations (control plane + every tenant)**
+
+   Tables for apps in `TENANT_APP_LABELS` (including `tenant_grants`, e.g. `tenant_grants_donor`) are **not** created on the platform `default` database (`migrate` only). They exist only on **each tenant’s PostgreSQL database**. You must run **both**:
 
    ```bash
-   docker compose exec web python manage.py migrate
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate_all_tenants --noinput
    ```
 
-   Run any tenant-specific migrations if your setup uses them.
+   Skipping `migrate_all_tenants` causes `ProgrammingError: relation "tenant_grants_…" does not exist` when tenant code runs.
 
 4. **Static files**
 
@@ -161,11 +164,21 @@ To deploy a new version without breaking the running app:
    docker compose build web
    ```
 
-3. **Run migrations**
+3. **Run migrations (control plane + all tenant DBs)**
 
    ```bash
-   docker compose exec web python manage.py migrate
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate_all_tenants --noinput
    ```
+
+   Or run the full scripted workflow from the repo root (see `scripts/deploy.sh`):
+
+   ```bash
+   export APP_DIR=/path/to/sugna-enterprise-suite
+   ./scripts/deploy.sh
+   ```
+
+   Set `APP_DIR` to the directory that contains `docker-compose.yml` and `.env.prod` (defaults to `/opt/sugna-enterprise-suite` in the script). **Git hooks must run `migrate_all_tenants`**, not only `migrate`, or tenant tables (`tenant_grants_*`, etc.) will be missing.
 
 4. **Collect static files**
 
@@ -185,7 +198,11 @@ To deploy a new version without breaking the running app:
    docker compose logs -f web
    ```
 
-If you use the dev/prod override files, add the same `-f docker-compose.yml -f docker-compose.prod.yml` (or `.dev.yml`) to your `docker compose` commands. For non-Docker deployments, run `migrate` and `collectstatic` in your venv and restart your app server (e.g. gunicorn/systemd).
+If you use the dev/prod override files, add the same `-f docker-compose.yml -f docker-compose.prod.yml` (or `.dev.yml`) and `--env-file` to your `docker compose` commands. For non-Docker deployments, run `migrate`, `migrate_all_tenants`, and `collectstatic` in your venv and restart your app server (e.g. gunicorn/systemd).
+
+### systemd / webhook deploy
+
+If you use a service such as `sugna-webhook`, point it at the same workflow as `scripts/deploy.sh` (or invoke that script). Example unit file: `deploy/sugna-webhook.service.example`.
 
 ---
 

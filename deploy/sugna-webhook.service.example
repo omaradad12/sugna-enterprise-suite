@@ -1,0 +1,30 @@
+# Example systemd unit: wire your deploy webhook to the same steps as scripts/deploy.sh.
+#
+# Install (adjust paths and user):
+#   sudo cp deploy/sugna-webhook.service.example /etc/systemd/system/sugna-webhook.service
+#   sudo systemctl daemon-reload
+#
+# If your webhook runner is a separate binary, configure it to execute:
+#   APP_DIR=/path/to/sugna-enterprise-suite /path/to/sugna-enterprise-suite/scripts/deploy.sh
+#
+# Required: APP_DIR must be the git clone containing docker-compose.yml and .env.prod.
+# Default in deploy.sh is /opt/sugna-enterprise-suite; many servers use e.g. /root/sugna-enterprise-suite.
+
+[Unit]
+Description=Sugna Enterprise Suite production deploy (docker compose + migrations)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/sugna-enterprise-suite
+Environment=APP_DIR=/root/sugna-enterprise-suite
+Environment=ENV_FILE=.env.prod
+Environment=MIGRATE_TENANTS=true
+ExecStart=/root/sugna-enterprise-suite/scripts/deploy.sh
+
+# If you invoke deploy via a small webhook HTTP server, use that binary as ExecStart
+# and call scripts/deploy.sh from its hook script instead.
+
+[Install]
+WantedBy=multi-user.target
